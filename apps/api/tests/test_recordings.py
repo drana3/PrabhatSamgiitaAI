@@ -27,12 +27,14 @@ from sqlalchemy import Select, Table, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.api.v1 import recording_sets as sets_api
 from app.api.v1 import recordings as api
 from app.config import Settings, get_settings
 from app.core.db import get_session
 from app.core.middleware import RequestContextMiddleware
 from app.core.security import require_admin
 from app.models import Base, UserAccount
+from app.models.recording_collections import RecordingCollection
 from app.models.recordings import (
     AuthorBlock,
     MemberNotice,
@@ -397,6 +399,7 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
         cast(Table, m.__table__)
         for m in (
             UserAccount,
+            RecordingCollection,
             Recording,
             RecordingReport,
             RecordingSimilarConfirm,
@@ -437,6 +440,8 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
     app = FastAPI()
     app.include_router(api.router, prefix="/api/v1")
     app.include_router(api.admin_router, prefix="/api/v1")
+    app.include_router(sets_api.router, prefix="/api/v1")
+    app.include_router(sets_api.admin_router, prefix="/api/v1")
 
     async def override_session() -> AsyncIterator[AsyncSession]:
         async with sessions() as session:

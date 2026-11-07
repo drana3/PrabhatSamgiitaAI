@@ -12,17 +12,30 @@ are already in the library) and prints what it WOULD do; it writes nothing, uplo
     python scripts/import_kiirtan_library.py --folder ... --csv ... --execute
 
 The table is a CSV with a header row: `title` (required), `performer`, `category`, `language`,
-`credits`, `year`, `song` and `file` (the file name inside the folder; when it is missing, the file
-whose name without extension equals the title is used). Only `title` is required; the rest may be
-empty. Commas or semicolons both work; UTF-8.
+`language_name`, `dance`, `credits`, `year`, `song`, `date` and `file` (the file name inside the
+folder; when it is missing, the file whose name without extension equals the title is used). Only
+`title` is required; the rest may be empty. Commas or semicolons both work; UTF-8.
 
   * `category`: kiirtan (default; a Kiirtan is a version of Baba Nam Kevalam, there is no mantra
-    column), bhajan or prabhat_samgiita (an old devotional_song reads as bhajan). Empty means
-    `--category`. A Kiirtan has no language: the cell is ignored for it.
-  * `performer`: who sings; `language`: bengali, sanskrit, hindi, english or other;
-    `credits`: "words and music by"; `year`: the year it was recorded (1900 up to this year).
+    column), bhajan, prabhat_samgiita, spiritual_song or dance_song (an old devotional_song reads
+    as bhajan). Empty means `--category`. A Kiirtan has no language: the cell is ignored for it.
+  * `language`: an ISO code (bn, sa, hi, en, ru, ...) or the English name (Bengali, Hindi, ...);
+    `other` needs `language_name`. REQUIRED for spiritual_song (the cell, or `--language`).
+    Empty cells take `--language` / `--language-name`.
+  * `dance`: tandava or kaoshiki. REQUIRED for dance_song (the cell, or `--dance`), not allowed
+    for any other category.
+  * `performer`: who sings; `credits`: "words and music by"; `year`: the year it was recorded
+    (1900 up to this year); `date`: the day it was recorded (YYYY-MM-DD, for a set's track).
   * `song`: the Prabhat Samgiita song number (1 to 5018), REQUIRED when the category is
     prabhat_samgiita, not allowed otherwise. `type` (the old Kiirtan/Bhajan sub-type) is optional.
+
+A FOLDER AS A PLAYLIST FROM AN EVENT: add `--set-title "Retreat in Krakow" --set-date 2025-05-01`
+(and `--set-end-date`, `--set-place`, `--set-description`). The recordings go into one playlist
+(docs/kiirtan-sets.md) in the order of the table. Then `--csv` is optional: without a table every
+audio file of the folder becomes a track, in file-name order, titled from its name
+("03_Baba_Nam.mp3" becomes "Baba Nam"). `--category`, `--language` and `--dance` are the playlist's
+defaults. Running it again finds the same playlist (same title and start day, no owner) and adds
+what is missing.
 
 Per file, in this order:
   1. the SHA-256 of the file is in the library already (or earlier in this run): skipped;
@@ -53,12 +66,13 @@ import asyncio
 import csv
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -70,14 +84,17 @@ from sqlalchemy import select  # noqa: E402
 from sqlalchemy.exc import IntegrityError  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E402
 
+from app.models.recording_collections import RecordingCollection  # noqa: E402
 from app.models.recordings import (  # noqa: E402
+    DANCES,
+    KINDS_WITH_DANCE,
     KINDS_WITH_LANGUAGE,
     PS_SONG_COUNT,
     RECORDING_KINDS,
-    RECORDING_LANGUAGES,
     Recording,
     public_kind,
 )
+from app.schemas.recordings import kind_field_problem  # noqa: E402
 from app.services.recording_fingerprint import (  # noqa: E402
     SIMILAR_THRESHOLD,
     Fingerprint,
@@ -86,6 +103,12 @@ from app.services.recording_fingerprint import (  # noqa: E402
     fpcalc_available,
     sha256_of_file,
     similar_matches,
+)
+from app.services.recording_languages import (  # noqa: E402
+    LANGUAGE_CODES,
+    OTHER,
+    clean_language_other,
+    normalize_language,
 )
 from app.services.recording_storage import (  # noqa: E402
     RecordingStorage,
@@ -117,9 +140,12 @@ REPORT_FIELDS = [
     "category",
     "performer",
     "language",
+    "language_name",
+    "dance",
     "credits",
     "year",
     "song",
+    "recorded_on",
     "status",
     "detail",
     "match_id",
@@ -139,7 +165,10 @@ class Row:
     year: int | None
     file: str
     category: str = ""  # empty: the run's default category (`--category`)
-    language: str | None = None
+    language: str | None = None  # an ISO code, or "other"
+    language_name: str | None = None  # the name, when the language is "other"
+    dance: str | None = None
+    recorded_on: date | None = None
     credits: str = ""
     song: int | None = None  # the Prabhat Samgiita song number
     type: str = "other"
@@ -158,14 +187,44 @@ def _read_table(path: Path) -> list[dict[str, str]]:
     return rows
 
 
+AUDIO_SUFFIXES = {".mp3", ".m4a", ".aac", ".wav", ".ogg", ".flac", ".webm"}
+
+
+def title_from_file_name(name: str) -> str:
+    """ "03_Baba_Nam-Kevalam.mp3" -> "Baba Nam Kevalam": the track number and the extension go."""
+    stem = Path(name).stem
+    stem = re.sub(r"^\s*\d{1,3}\s*[-_.)]+\s*", "", stem)
+    return clean_text(re.sub(r"[_]+", " ", stem).replace("-", " "), 200) or Path(name).stem
+
+
+def rows_from_folder(folder: Path) -> list[dict[str, str]]:
+    """No table: every audio file of the folder, in file-name order (a set of an event)."""
+    files = sorted(
+        (p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in AUDIO_SUFFIXES),
+        key=lambda p: p.name.lower(),
+    )
+    return [{"title": title_from_file_name(p.name), "file": p.name} for p in files]
+
+
 def load_rows(
-    table: Path, folder: Path, default_category: str = "kiirtan"
+    table: Path | None,
+    folder: Path,
+    default_category: str = "kiirtan",
+    *,
+    default_language: str | None = None,
+    default_language_name: str | None = None,
+    default_dance: str | None = None,
 ) -> tuple[list[Row], list[dict[str, str]]]:
-    """The rows of the table, and the report lines of rows that cannot be used."""
+    """The rows of the table, and the report lines of rows that cannot be used.
+
+    `table` None: every audio file of the folder is a row (the folder-as-a-playlist mode).
+    The defaults fill the language and dance cells that are empty.
+    """
     by_stem = {p.stem.lower(): p.name for p in folder.iterdir() if p.is_file()}
     rows: list[Row] = []
     problems: list[dict[str, str]] = []
-    for number, raw in enumerate(_read_table(table), start=2):
+    table_rows = _read_table(table) if table is not None else rows_from_folder(folder)
+    for number, raw in enumerate(table_rows, start=2):
         title = clean_text(raw.get("title"), 200)
         name = raw.get("file") or raw.get("filename") or by_stem.get(title.lower(), "")
         year_text = raw.get("year", "")
@@ -177,21 +236,60 @@ def load_rows(
                 year = None
         category = (raw.get("category") or "").strip().lower().replace(" ", "_").replace("-", "_")
         category = public_kind(category)  # the old "devotional song" is a bhajan
-        language = (raw.get("language") or "").strip().lower()
+        language_text = (raw.get("language") or "").strip()
+        language_name = clean_language_other(raw.get("language_name") or raw.get("language_other"))
+        dance = (raw.get("dance") or "").strip().lower() or None
+        recorded_text = (raw.get("date") or raw.get("recorded_on") or "").strip()
         song_text = (raw.get("song") or raw.get("song_number") or "").strip()
         song = int(song_text) if song_text.isdigit() else None
         effective = category or default_category
         complaint = ""
+        language: str | None = None
+        recorded_on: date | None = None
+        if recorded_text:
+            try:
+                recorded_on = date.fromisoformat(recorded_text)
+            except ValueError:
+                complaint = "date must look like 2025-05-01"
+        if language_text:
+            try:
+                language = normalize_language(language_text)
+            except ValueError:
+                complaint = complaint or (
+                    f"language must be an ISO code or English name ({', '.join(LANGUAGE_CODES)}) "
+                    "or other"
+                )
+        else:
+            language = default_language
+            language_name = language_name or default_language_name
+        if effective not in KINDS_WITH_LANGUAGE:
+            language, language_name = None, None  # a Kiirtan has no language: the cell is ignored
+        elif language != OTHER:
+            language_name = None
+        if not dance and effective in KINDS_WITH_DANCE:
+            dance = default_dance
         if not title or not name:
             complaint = "a title and a file are required"
         elif category and category not in RECORDING_KINDS:
             complaint = f"category must be one of {', '.join(RECORDING_KINDS)}"
-        elif language and language not in RECORDING_LANGUAGES:
-            complaint = f"language must be one of {', '.join(RECORDING_LANGUAGES)}"
+        elif dance and dance not in DANCES and effective in KINDS_WITH_DANCE:
+            complaint = f"dance must be one of {', '.join(DANCES)}"
         elif effective == "prabhat_samgiita" and (song is None or not 1 <= song <= PS_SONG_COUNT):
             complaint = f"a Prabhat Samgiita recording needs a song number (1 to {PS_SONG_COUNT})"
         elif effective != "prabhat_samgiita" and song_text:
             complaint = "a song number belongs to the prabhat_samgiita category only"
+        elif not complaint:
+            complaint = (
+                kind_field_problem(
+                    effective,
+                    language=language,
+                    language_other=language_name,
+                    dance=dance,
+                    ps_song_number=song if effective == "prabhat_samgiita" else None,
+                )
+                or ""
+            )
+            complaint = complaint.replace("Choose the", "a row needs the").rstrip(".")
         if complaint:
             problems.append(
                 {
@@ -210,7 +308,10 @@ def load_rows(
                 year=year if year and FIRST_YEAR <= year <= datetime.now(UTC).year else None,
                 file=name,
                 category=category,
-                language=language or None,
+                language=language,
+                language_name=language_name,
+                dance=dance if effective in KINDS_WITH_DANCE else None,
+                recorded_on=recorded_on,
                 credits=clean_text(raw.get("credits"), 300),
                 song=song if effective == "prabhat_samgiita" else None,
                 type=raw.get("type") or "other",
@@ -291,7 +392,7 @@ async def load_library(session: AsyncSession) -> Library:
 @dataclass
 class Config:
     folder: Path
-    table: Path
+    table: Path | None  # None: every audio file of the folder, in name order (needs a set title)
     execute: bool = False
     limit: int | None = None
     kind: str = "kiirtan"  # the category of rows whose `category` cell is empty
@@ -306,6 +407,16 @@ class Config:
     allow_no_fingerprint: bool = False
     max_failures: int = 5
     threshold: float = SIMILAR_THRESHOLD
+    # defaults for table cells that are empty
+    language: str | None = None
+    language_name: str | None = None
+    dance: str | None = None
+    # a folder imported as a playlist from an event (docs/kiirtan-sets.md)
+    set_title: str | None = None
+    set_date: date | None = None
+    set_end_date: date | None = None
+    set_place: str | None = None
+    set_description: str | None = None
 
 
 @dataclass
@@ -382,6 +493,8 @@ class Importer:
         self.fingerprinter: Fingerprinter = fingerprinter or compute_fingerprint
         self.state = State(config.state_path)
         self.outcomes: list[Outcome] = []
+        self.collection_id: Any = None  # the playlist the run fills (set mode, --execute)
+        self.positions: dict[str, int] = {}
 
     def say(self, text: str) -> None:
         print(text, file=self.out)
@@ -391,14 +504,26 @@ class Importer:
         mode = "EXECUTE" if config.execute else "DRY RUN (nothing is written)"
         self.say(f"Kiirtan library import: {mode}")
         self.say(f"  folder {config.folder}")
-        self.say(f"  table  {config.table}")
+        self.say(f"  table  {config.table or '(none: the audio files of the folder)'}")
+        if config.set_title:
+            self.say(f"  playlist: {config.set_title!r}, from {config.set_date}")
         if config.limit:
             self.say(f"  pilot: at most {config.limit} files")
-        rows, problems = load_rows(config.table, config.folder, config.kind)
+        rows, problems = load_rows(
+            config.table,
+            config.folder,
+            config.kind,
+            default_language=normalize_language(config.language) if config.language else None,
+            default_language_name=config.language_name,
+            default_dance=config.dance,
+        )
+        self.positions = {row.file: number for number, row in enumerate(rows, start=1)}
         for problem in problems:
             self.outcomes.append(Outcome(None, problem["status"], problem["detail"]))
             self._remember_problem(problem)
         library = await self._library()
+        if config.set_title and config.execute and rows:
+            await self._open_set(len(rows))
         batch_hashes: dict[str, str] = {}
         batch_prints: list[tuple[str, str]] = []
         batch_titles: dict[str, str] = {}
@@ -432,9 +557,59 @@ class Importer:
             else:
                 failures = 0
             self._finish(outcome)
+        await self._close_set()
         self._write_report()
         self._summary()
         return self.outcomes
+
+    # ---- the playlist (set mode)
+
+    async def _open_set(self, expected: int) -> None:
+        """Find the playlist of an earlier run (same title and first day, no owner) or make it."""
+        assert self.sessions is not None and self.config.set_title and self.config.set_date
+        config = self.config
+        async with self.sessions() as session:
+            found = await session.scalar(
+                select(RecordingCollection).where(
+                    RecordingCollection.title == clean_text(config.set_title, 200),
+                    RecordingCollection.starts_on == config.set_date,
+                    RecordingCollection.owner_id.is_(None),
+                    RecordingCollection.status == "active",
+                )
+            )
+            if found is None:
+                found = RecordingCollection(
+                    owner_id=None,
+                    owner_name=config.added_by,
+                    title=clean_text(config.set_title, 200),
+                    description=clean_text(config.set_description, 1000) or None,
+                    place=clean_text(config.set_place, 200) or None,
+                    starts_on=config.set_date,
+                    ends_on=config.set_end_date,
+                    default_kind=config.kind,
+                    default_language=normalize_language(config.language)
+                    if config.language
+                    else None,
+                    default_language_other=config.language_name,
+                    default_dance=config.dance,
+                    tracks_expected=expected,
+                    status="active",
+                )
+                session.add(found)
+                await session.commit()
+                self.say(f"  playlist made: {found.title!r}")
+            else:
+                self.say(f"  playlist found: {found.title!r} (adding what is missing)")
+            self.collection_id = found.id
+
+    async def _close_set(self) -> None:
+        if self.collection_id is None or self.sessions is None:
+            return
+        async with self.sessions() as session:
+            collection = await session.get(RecordingCollection, self.collection_id)
+            if collection is not None:
+                collection.finished_at = datetime.now(UTC)
+                await session.commit()
 
     # ---- pieces
 
@@ -581,6 +756,11 @@ class Importer:
                     year=row.year,
                     # a Kiirtan has no language (it is always Baba Nam Kevalam)
                     language=row.language if category in KINDS_WITH_LANGUAGE else None,
+                    language_other=row.language_name if row.language == OTHER else None,
+                    dance=row.dance if category in KINDS_WITH_DANCE else None,
+                    recorded_on=row.recorded_on,
+                    collection_id=self.collection_id,
+                    position=self.positions.get(row.file) if self.collection_id else None,
                     credits=row.credits or None,
                     ps_song_number=row.song,
                 )
@@ -644,6 +824,9 @@ class Importer:
                         "performer": row.performer if row else "",
                         "category": (row.category or self.config.kind) if row else "",
                         "language": row.language or "" if row else "",
+                        "language_name": row.language_name or "" if row else "",
+                        "dance": row.dance or "" if row else "",
+                        "recorded_on": row.recorded_on or "" if row else "",
                         "credits": row.credits if row else "",
                         "year": row.year if row and row.year else "",
                         "song": row.song or "" if row else "",
@@ -664,6 +847,8 @@ class Importer:
         self.say("Summary:")
         for status in sorted(counts):
             self.say(f"  {status.replace('_', ' '):<16} {counts[status]}")
+        if self.config.set_title and not self.config.execute:
+            self.say(f"  (the playlist {self.config.set_title!r} would be made or found)")
         if not self.config.execute:
             self.say("This was a dry run. Add --execute to do it (try --limit 50 first).")
 
@@ -679,8 +864,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--csv",
         type=Path,
-        required=True,
-        help="metadata table (title, performer, category, language, credits, year, song, file)",
+        help="metadata table (title, performer, category, language, language_name, dance, "
+        "credits, year, song, date, file); optional with --set-title",
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
@@ -704,6 +889,18 @@ def build_parser() -> argparse.ArgumentParser:
         default="kiirtan",
         help="category of rows whose category cell is empty (default: kiirtan)",
     )
+    parser.add_argument(
+        "--language", help="language for rows whose language cell is empty (ISO code or name)"
+    )
+    parser.add_argument("--language-name", help="the language's name when --language is other")
+    parser.add_argument(
+        "--dance", choices=list(DANCES), help="dance for dance_song rows whose cell is empty"
+    )
+    parser.add_argument("--set-title", help="import the folder as ONE playlist with this title")
+    parser.add_argument("--set-date", type=date.fromisoformat, help="first day, YYYY-MM-DD")
+    parser.add_argument("--set-end-date", type=date.fromisoformat, help="last day, YYYY-MM-DD")
+    parser.add_argument("--set-place")
+    parser.add_argument("--set-description")
     parser.add_argument("--added-by", default=DEFAULT_ADDED_BY)
     parser.add_argument("--normalise", choices=["mp3", "off"], default="mp3")
     parser.add_argument("--ffmpeg", default="ffmpeg")
@@ -723,7 +920,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def config_from(args: argparse.Namespace, *, fpcalc: str, max_bytes: int) -> Config:
-    table: Path = args.csv
+    table: Path | None = args.csv
+    stem = table if table is not None else args.folder / "playlist"
     return Config(
         folder=args.folder,
         table=table,
@@ -735,10 +933,18 @@ def config_from(args: argparse.Namespace, *, fpcalc: str, max_bytes: int) -> Con
         ffmpeg=args.ffmpeg,
         fpcalc=fpcalc,
         max_bytes=args.max_mb * 1024 * 1024 if args.max_mb else max_bytes,
-        state_path=args.state or table.with_suffix(".import-state.json"),
-        report_path=args.report or table.with_suffix(".import-report.csv"),
+        state_path=args.state or stem.with_suffix(".import-state.json"),
+        report_path=args.report or stem.with_suffix(".import-report.csv"),
         offline=bool(args.offline),
         allow_no_fingerprint=bool(args.allow_no_fingerprint),
+        language=args.language,
+        language_name=args.language_name,
+        dance=args.dance,
+        set_title=args.set_title,
+        set_date=args.set_date,
+        set_end_date=args.set_end_date,
+        set_place=args.set_place,
+        set_description=args.set_description,
     )
 
 
@@ -753,9 +959,25 @@ async def main_async(argv: Sequence[str] | None = None) -> int:
     if not args.folder.is_dir():
         print(f"Folder not found: {args.folder}", file=sys.stderr)
         return 2
-    if not args.csv.is_file():
+    if args.csv is None and not args.set_title:
+        print(
+            "Give --csv, or --set-title to import every audio file of the folder.", file=sys.stderr
+        )
+        return 2
+    if args.csv is not None and not args.csv.is_file():
         print(f"Table not found: {args.csv}", file=sys.stderr)
         return 2
+    if args.set_title and not args.set_date:
+        print("A playlist needs its first day: add --set-date YYYY-MM-DD.", file=sys.stderr)
+        return 2
+    if args.language:
+        try:
+            normalize_language(args.language)
+        except ValueError:
+            print(
+                f"Unknown --language {args.language!r}. Use an ISO code or other.", file=sys.stderr
+            )
+            return 2
     from app.config import get_settings
 
     settings = get_settings()

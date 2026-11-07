@@ -7,7 +7,7 @@ See docs/kiirtan-publishing.md. One table holds all four categories (`kind`). A 
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -16,6 +16,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -32,14 +33,37 @@ from app.models.base import Base, TimestampMixin
 
 # The category of a recording, as the uploader picks it (the field is called `kind`). A Kiirtan is
 # always a version of "Baba Nam Kevalam": there is only that one mantra in the library.
-RECORDING_KINDS = ("kiirtan", "bhajan", "prabhat_samgiita")
+RECORDING_KINDS = (
+    "kiirtan",
+    "bhajan",
+    "prabhat_samgiita",
+    "spiritual_song",
+    "dance_song",
+)
 # "Devotional song" was a fourth category once. A Bhajan already is one, so it is gone from every
 # form and list. Rows stored with it stay valid (the database check still allows the word) and are
 # shown, filtered and counted as Bhajans: see `public_kind` and `stored_kinds`.
 LEGACY_KIND_DEVOTIONAL_SONG = "devotional_song"
 STORED_KINDS = (*RECORDING_KINDS, LEGACY_KIND_DEVOTIONAL_SONG)
-# Categories that carry a sung language. A Kiirtan is always Baba Nam Kevalam, so it has none.
-KINDS_WITH_LANGUAGE = ("bhajan", "prabhat_samgiita")
+# The language rule of each category, in ONE place (the phone keeps the same table in
+# lib/kirtan/types.ts LANGUAGE_RULE): "none" = never asked (a Kiirtan is always Baba Nam Kevalam, a
+# language sent with one is dropped), "optional" = asked, may stay empty, "required" = the API
+# answers 422 without it. `spiritual_song` is NOT the old `devotional_song`: that id stays a legacy
+# alias of Bhajan.
+KIND_LANGUAGE_RULE: dict[str, str] = {
+    "kiirtan": "none",
+    "bhajan": "optional",
+    "prabhat_samgiita": "optional",
+    "spiritual_song": "required",
+    "dance_song": "optional",
+}
+# Categories that carry a sung language at all.
+KINDS_WITH_LANGUAGE = tuple(k for k, rule in KIND_LANGUAGE_RULE.items() if rule != "none")
+# The dances a dance song names (required for that category). ONE list: add an id here and on the
+# phone (lib/kirtan/types.ts DANCES) and it exists; the database does not list the values, so no
+# migration is needed to grow it.
+DANCES = ("tandava", "kaoshiki")
+KINDS_WITH_DANCE = ("dance_song",)
 
 
 def public_kind(stored: str) -> str:
@@ -71,7 +95,8 @@ class Recording(Base, TimestampMixin):
         # Also what makes two simultaneous uploads of the same bytes safe.
         Index("ix_recordings_audio_sha256", "audio_sha256", unique=True),
         CheckConstraint(
-            "kind IN ('kiirtan', 'bhajan', 'devotional_song', 'prabhat_samgiita')",
+            "kind IN ('kiirtan', 'bhajan', 'devotional_song', 'prabhat_samgiita', "
+            "'spiritual_song', 'dance_song')",
             name="ck_recordings_kind",
         ),
         CheckConstraint(
@@ -80,7 +105,8 @@ class Recording(Base, TimestampMixin):
         CheckConstraint(
             "(kind = 'kiirtan' AND type IN ('bnk', 'lila', 'festival', 'other')) OR "
             "(kind = 'bhajan' AND type IN ('morning', 'evening', 'devotional', 'other')) OR "
-            "(kind IN ('devotional_song', 'prabhat_samgiita') AND type = 'other')",
+            "(kind IN ('devotional_song', 'prabhat_samgiita', 'spiritual_song', 'dance_song') "
+            "AND type = 'other')",
             name="ck_recordings_type_for_kind",
         ),
         # A Prabhat Samgiita recording names its song (1..5018); no other category has one.
@@ -90,9 +116,22 @@ class Recording(Base, TimestampMixin):
             "(kind <> 'prabhat_samgiita' AND ps_song_number IS NULL)",
             name="ck_recordings_ps_song",
         ),
+        # The language is an ISO 639 code (2 or 3 letters) or "other"; which codes exist is the
+        # list in app/services/recording_languages.py, so it can grow without a migration.
         CheckConstraint(
-            "language IS NULL OR language IN ('bengali', 'sanskrit', 'hindi', 'english', 'other')",
+            "language IS NULL OR (length(language) >= 2 AND length(language) <= 8)",
             name="ck_recordings_language",
+        ),
+        # A dance song names its dance; no other category has one.
+        CheckConstraint(
+            "(kind = 'dance_song' AND dance IS NOT NULL) OR "
+            "(kind <> 'dance_song' AND dance IS NULL)",
+            name="ck_recordings_dance",
+        ),
+        # A spiritual song always names its language.
+        CheckConstraint(
+            "kind <> 'spiritual_song' OR language IS NOT NULL",
+            name="ck_recordings_spiritual_language",
         ),
     )
 
@@ -160,8 +199,23 @@ class Recording(Base, TimestampMixin):
 
     # Year it was recorded, when the uploader knows it.
     year: Mapped[int | None] = mapped_column(Integer)
-    # Sung language: one of RECORDING_LANGUAGES, or none.
+    # Sung language: an ISO 639 code from the catalog (app/services/recording_languages.py),
+    # "other", or none. Old rows with the words "bengali"... were turned into codes by 0032.
     language: Mapped[str | None] = mapped_column(String(16))
+    # What the uploader called the language when they chose "other" (only then).
+    language_other: Mapped[str | None] = mapped_column(String(80))
+    # The dance of a dance song (one of DANCES); null for every other category.
+    dance: Mapped[str | None] = mapped_column(String(16))
+    # When it was recorded, when it differs from the year (a track of an event playlist).
+    recorded_on: Mapped[date | None] = mapped_column(Date)
+    # The playlist from an event this recording belongs to, and its place in it (1, 2, ...).
+    collection_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recording_collections.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    position: Mapped[int | None] = mapped_column(Integer)
     # "Words and music by": credits for a Bhajan or a Prabhat Samgiita recording.
     credits: Mapped[str | None] = mapped_column(String(300))
     notes: Mapped[str | None] = mapped_column(String(500))

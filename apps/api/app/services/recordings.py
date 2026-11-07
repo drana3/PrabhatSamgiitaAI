@@ -31,6 +31,7 @@ from app.config import Settings
 from app.models import UserAccount
 from app.models.recordings import (
     BHAJAN_TYPES,
+    KINDS_WITH_DANCE,
     KIRTAN_TYPES,
     AuthorBlock,
     MemberNotice,
@@ -71,6 +72,8 @@ KIND_WORD = {
     "bhajan": "Bhajan",
     "devotional_song": "Bhajan",  # legacy rows: a Bhajan now
     "prabhat_samgiita": "Prabhat Samgiita recording",
+    "spiritual_song": "Spiritual song",
+    "dance_song": "Dance song",
 }
 # Bulk uploading by a team member (admin) is not held to the daily limit; the hourly brake is
 # only raised for them, so a script gone wrong still stops.
@@ -178,6 +181,11 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         credits=recording.credits,
         notes=recording.notes,
         ps_song_number=recording.ps_song_number,
+        dance=recording.dance,
+        language_other=recording.language_other,
+        collection_id=str(recording.collection_id) if recording.collection_id else None,
+        position=recording.position,
+        recorded_on=recording.recorded_on,
         removed_reason=recording.removed_reason if owner else None,
         removed_at=recording.removed_at if owner else None,
         duplicate_of=str(recording.duplicate_of) if owner and recording.duplicate_of else None,
@@ -343,11 +351,17 @@ async def own_duplicate(
 
 
 async def uploads_in_last_day(session: AsyncSession, member_id: UUID) -> int:
+    """Single uploads of the last 24 hours. Tracks of a playlist have their own allowance
+    (services/recording_collections.py), so they are not counted here."""
     since = now_utc() - timedelta(hours=24)
     total = await session.scalar(
         select(func.count())
         .select_from(Recording)
-        .where(Recording.author_id == member_id, Recording.published_at >= since)
+        .where(
+            Recording.author_id == member_id,
+            Recording.collection_id.is_(None),
+            Recording.published_at >= since,
+        )
     )
     return int(total or 0)
 
@@ -448,7 +462,22 @@ async def create_recording(
     performer = clean_text(payload.author, 200)
     if not performer:
         raise HTTPException(status_code=422, detail="Add who performs it.")
-    await ensure_daily_allowance(session, member_id, settings, team=team)
+    # Imported here: the playlist service imports this module.
+    from app.services import recording_collections as sets
+
+    collection = None
+    if payload.collection_id is not None:
+        # A track of a playlist from an event: the playlist's own allowance and cap, and what the
+        # track did not say comes from the playlist (services/recording_collections.py).
+        member = await session.get(UserAccount, member_id)
+        if member is None:
+            raise HTTPException(status_code=401, detail="Sign in is required")
+        collection = await sets.check_upload_into_set(
+            session, set_id=payload.collection_id, member=member, settings=settings, team=team
+        )
+        payload = sets.with_set_defaults(payload, collection)
+    else:
+        await ensure_daily_allowance(session, member_id, settings, team=team)
 
     info = await inspect_stored_file(storage, payload.key, settings)
     existing = await exact_duplicate(session, info.sha256)
@@ -485,6 +514,16 @@ async def create_recording(
         )
 
     moment = now_utc()
+    position = None
+    if collection is not None:
+        position = payload.position or await sets.next_position(session, collection.id)
+        visible = await sets.count_visible(session, collection.id)
+        if (
+            collection.finished_at is None
+            and collection.tracks_expected
+            and visible + 1 >= collection.tracks_expected
+        ):
+            collection.finished_at = moment
     recording = Recording(
         kind=payload.kind,
         type=validate_type(payload.kind, payload.type),
@@ -507,6 +546,11 @@ async def create_recording(
         duplicate_of=similar[0][0].id if similar else None,
         year=payload.year,
         language=payload.language,  # None for a Kiirtan (the schema drops it)
+        language_other=payload.language_other,
+        dance=payload.dance if payload.kind in KINDS_WITH_DANCE else None,
+        recorded_on=payload.recorded_on,
+        collection_id=collection.id if collection is not None else None,
+        position=position,
         credits=clean_text(payload.credits, 300) or None,
         notes=clean_text(payload.notes, 500) or None,
         ps_song_number=payload.ps_song_number if payload.kind == "prabhat_samgiita" else None,

@@ -49,6 +49,7 @@ from app.schemas.recordings import (
     UploadRequest,
     UploadTargetResponse,
 )
+from app.services import recording_collections as sets
 from app.services import recordings as service
 from app.services.members import require_member_identity, sync_member, try_member_identity
 from app.services.recording_storage import (
@@ -254,13 +255,24 @@ async def create_upload(
     An exact duplicate is refused here, before the bytes travel.
     """
     team = service.is_team_member(member, settings)
+    in_set = payload.collection_id is not None
     service.limiter.hit(
-        "upload",
+        "upload-set" if in_set else "upload",
         str(member.id),
-        limit=service.HOURLY_UPLOADS_TEAM if team else service.HOURLY_UPLOADS,
+        limit=(
+            (sets.HOURLY_SET_UPLOADS_TEAM if team else sets.HOURLY_SET_UPLOADS)
+            if in_set
+            else (service.HOURLY_UPLOADS_TEAM if team else service.HOURLY_UPLOADS)
+        ),
         window_seconds=3600,
     )
-    await service.ensure_daily_allowance(session, member.id, settings, team=team)
+    if payload.collection_id is not None:
+        # A track of a playlist from an event: the playlist's cap and its own daily allowance.
+        await sets.check_upload_into_set(
+            session, set_id=payload.collection_id, member=member, settings=settings, team=team
+        )
+    else:
+        await service.ensure_daily_allowance(session, member.id, settings, team=team)
     extension = extension_for(payload.content_type)
     if extension is None:
         raise HTTPException(status_code=415, detail="Send an MP3, M4A, WAV, OGG or FLAC file.")
@@ -358,10 +370,15 @@ async def publish_recording(
 ) -> RecordingOut:
     """Step 2: the file is stored; publish it. It is live the moment this returns."""
     team = service.is_team_member(member, settings)
+    in_set = payload.collection_id is not None
     service.limiter.hit(
-        "publish",
+        "publish-set" if in_set else "publish",
         str(member.id),
-        limit=service.HOURLY_UPLOADS_TEAM if team else service.HOURLY_UPLOADS,
+        limit=(
+            (sets.HOURLY_SET_UPLOADS_TEAM if team else sets.HOURLY_SET_UPLOADS)
+            if in_set
+            else (service.HOURLY_UPLOADS_TEAM if team else service.HOURLY_UPLOADS)
+        ),
         window_seconds=3600,
     )
     if payload.terms_version != settings.recording_terms_version:

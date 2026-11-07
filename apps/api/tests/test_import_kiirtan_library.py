@@ -13,6 +13,7 @@ import importlib.util
 import io
 import os
 import sys
+from datetime import date
 from pathlib import Path
 from types import ModuleType
 
@@ -22,6 +23,7 @@ import pytest
 from sqlalchemy import func, select
 from test_recordings import World, mp3, world  # noqa: F401  (the fixture is used by name)
 
+from app.models.recording_collections import RecordingCollection
 from app.models.recordings import Recording
 from app.services.recording_fingerprint import compute_fingerprint, sha256_of_file
 
@@ -72,6 +74,9 @@ class Library:
         credits: str = "",
         year: str = "",
         song: str = "",
+        dance: str = "",
+        language_name: str = "",
+        date: str = "",
     ) -> None:
         (self.folder / name).write_bytes(data)
         self.rows.append(
@@ -84,11 +89,14 @@ class Library:
                 "credits": credits,
                 "year": year,
                 "song": song,
+                "dance": dance,
+                "language_name": language_name,
+                "date": date,
             }
         )
 
     def write_table(self) -> None:
-        header = "file,title,performer,category,language,credits,year,song"
+        header = "file,title,performer,category,language,credits,year,song,dance,language_name,date"
         lines = [header]
         for row in self.rows:
             cells = [row.get(name, "") for name in header.split(",")]
@@ -108,17 +116,18 @@ def make_importer(
 ) -> tuple[object, io.StringIO]:
     library.write_table()
     out = io.StringIO()
-    settings = script.Config(
-        folder=library.folder,
-        table=library.table,
-        execute=execute,
-        limit=limit,
-        normalise=normalise,
-        fpcalc=world.settings.recording_fpcalc_path,
-        state_path=library.table.with_suffix(".state.json"),
-        report_path=library.table.with_suffix(".report.csv"),
-        **config,
-    )
+    values: dict[str, object] = {
+        "folder": library.folder,
+        "table": library.table,
+        "execute": execute,
+        "limit": limit,
+        "normalise": normalise,
+        "fpcalc": world.settings.recording_fpcalc_path,
+        "state_path": library.table.with_suffix(".state.json"),
+        "report_path": library.table.with_suffix(".report.csv"),
+    }
+    values.update(config)  # a test may replace the table (None) or the state file
+    settings = script.Config(**values)  # type: ignore[arg-type]
 
     async def fingerprint(path: Path, fpcalc: str):  # type: ignore[no-untyped-def]
         return await compute_fingerprint(path, fpcalc)
@@ -319,7 +328,9 @@ async def test_near_duplicates_go_to_the_report_and_are_not_imported(
     assert await total(world, Recording) == 2
     report = library.table.with_suffix(".report.csv").read_text(encoding="utf-8")
     lines = report.strip().splitlines()
-    assert lines[0].startswith("file,title,category,performer,language,credits,year,song,status")
+    assert lines[0].startswith(
+        "file,title,category,performer,language,language_name,dance,credits,year,song"
+    )
     near = next(line for line in lines if "near_duplicate" in line)
     assert "alt.mp3" in near and "Already here" in near and "1.000" in near
 
@@ -405,7 +416,7 @@ async def test_bad_category_language_or_song_rows_are_reported_not_imported(
 
     assert statuses(outcomes) == {"imported": 1, "bad_row": 5}
     text = out.getvalue()
-    assert "category must be one of" in text and "language must be one of" in text
+    assert "category must be one of" in text and "language must be an ISO code" in text
     assert "needs a song number (1 to 5018)" in text
     assert "belongs to the prabhat_samgiita category only" in text
     assert await total(world, Recording) == 1
@@ -521,7 +532,8 @@ def test_the_table_accepts_semicolons_and_finds_the_file_by_title(tmp_path: Path
 
     assert problems == []
     assert [(r.title, r.file, r.year, r.category, r.language, r.credits) for r in rows] == [
-        ("Song One", "Song One.mp3", 1999, "bhajan", "bengali", "Words by A")
+        # the word "Bengali" is stored as its ISO code
+        ("Song One", "Song One.mp3", 1999, "bhajan", "bn", "Words by A")
     ]
 
 
@@ -576,3 +588,141 @@ async def test_sha_helper_matches_the_script_hash(tmp_path: Path) -> None:
     path = tmp_path / "x.mp3"
     path.write_bytes(mp3(1))
     assert script.sha256_of_file(path) == sha256_of_file(path)
+
+
+# ============================================================ spiritual, dance, playlists
+
+
+async def test_a_spiritual_song_row_needs_a_language_and_a_dance_row_needs_its_dance(
+    world: World, library: Library
+) -> None:
+    library.add("a.mp3", mp3(90), title="Prayer, no language", category="spiritual_song")
+    library.add(
+        "b.mp3", mp3(91), title="Prayer in Russian", category="spiritual_song", language="Russian"
+    )
+    library.add("c.mp3", mp3(92), title="Dance, none", category="dance_song")
+    library.add("d.mp3", mp3(93), title="Dance, tandava", category="dance_song", dance="Tandava")
+    library.add("e.mp3", mp3(94), title="Dance, waltz", category="dance_song", dance="waltz")
+    library.add("f.mp3", mp3(95), title="Kiirtan with a dance", dance="tandava")
+    library.add(
+        "g.mp3", mp3(96), title="Other, unnamed", category="spiritual_song", language="other"
+    )
+    library.add(
+        "h.mp3",
+        mp3(97),
+        title="Other, named",
+        category="spiritual_song",
+        language="other",
+        language_name="Old Church Slavonic",
+    )
+    importer, out = make_importer(world, library, execute=True)
+
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+
+    assert statuses(outcomes) == {"imported": 3, "bad_row": 5}
+    text = out.getvalue()
+    assert "language of this song" in text and "the dance" in text.lower()
+    assert "dance must be one of tandava, kaoshiki" in text
+    assert "A dance belongs to the Dance song category only" in text
+    assert "name of the language" in text
+    async with world.sessions() as session:
+        rows = {r.title: r for r in (await session.scalars(select(Recording))).all()}
+    assert rows["Prayer in Russian"].language == "ru" and rows["Prayer in Russian"].type == "other"
+    assert rows["Dance, tandava"].dance == "tandava" and rows["Dance, tandava"].kind == "dance_song"
+    assert rows["Other, named"].language == "other"
+    assert rows["Other, named"].language_other == "Old Church Slavonic"
+
+
+async def test_command_line_defaults_fill_empty_language_and_dance_cells(
+    world: World, library: Library
+) -> None:
+    library.add("a.mp3", mp3(100), title="Prayer", category="spiritual_song")
+    library.add("b.mp3", mp3(101), title="Tandava piece", category="dance_song")
+    library.add("c.mp3", mp3(102), title="Own language", category="spiritual_song", language="bn")
+    importer, _ = make_importer(world, library, execute=True, language="sa", dance="kaoshiki")
+
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+
+    assert statuses(outcomes) == {"imported": 3}
+    async with world.sessions() as session:
+        rows = {r.title: r for r in (await session.scalars(select(Recording))).all()}
+    assert rows["Prayer"].language == "sa"
+    assert rows["Tandava piece"].dance == "kaoshiki" and rows["Tandava piece"].language == "sa"
+    assert rows["Own language"].language == "bn"
+
+
+async def test_a_folder_becomes_a_playlist_without_a_table(world: World, library: Library) -> None:
+    library.add("02_Second_Track.mp3", mp3(110), title="x")
+    library.add("01-First-Track.mp3", mp3(111), title="x")
+    library.add("10_Tenth.mp3", mp3(112), title="x")
+    importer, out = make_importer(
+        world,
+        library,
+        execute=True,
+        table=None,
+        set_title="Retreat in Krakow",
+        set_date=date(2025, 5, 1),
+        set_end_date=date(2025, 5, 3),
+        set_place="Krakow",
+    )
+
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+
+    assert statuses(outcomes) == {"imported": 3}
+    async with world.sessions() as session:
+        sets = (await session.scalars(select(RecordingCollection))).all()
+        assert len(sets) == 1
+        made = sets[0]
+        assert made.title == "Retreat in Krakow" and made.place == "Krakow"
+        assert made.owner_id is None and made.finished_at is not None and made.tracks_expected == 3
+        tracks = (await session.scalars(select(Recording).order_by(Recording.position))).all()
+    assert [(t.position, t.title) for t in tracks] == [
+        (1, "First Track"),
+        (2, "Second Track"),
+        (3, "Tenth"),
+    ]
+    assert {t.collection_id for t in tracks} == {made.id}
+    assert "playlist made" in out.getvalue()
+
+
+async def test_running_the_playlist_import_again_finds_the_same_playlist(
+    world: World, library: Library
+) -> None:
+    library.add("01_One.mp3", mp3(120), title="x")
+    first, _ = make_importer(
+        world, library, execute=True, table=None, set_title="Camp", set_date=date(2025, 7, 1)
+    )
+    await first.run()  # type: ignore[attr-defined]
+    library.add("02_Two.mp3", mp3(121), title="x")
+    second, out = make_importer(
+        world,
+        library,
+        execute=True,
+        table=None,
+        set_title="Camp",
+        set_date=date(2025, 7, 1),
+        state_path=None,
+    )
+    outcomes = await second.run()  # type: ignore[attr-defined]
+    assert statuses(outcomes) == {"skipped_exact": 1, "imported": 1}
+    assert "playlist found" in out.getvalue()
+    assert await total(world, RecordingCollection) == 1
+    assert await total(world, Recording) == 2
+
+
+async def test_a_dry_run_of_a_playlist_makes_nothing(world: World, library: Library) -> None:
+    library.add("01_One.mp3", mp3(130), title="x")
+    importer, out = make_importer(
+        world, library, execute=False, table=None, set_title="Camp", set_date=date(2025, 7, 1)
+    )
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+    assert statuses(outcomes) == {"would_import": 1}
+    assert await total(world, RecordingCollection) == 0 and await total(world, Recording) == 0
+    assert "would be made or found" in out.getvalue()
+
+
+def test_titles_from_file_names() -> None:
+    assert script.title_from_file_name("03_Baba_Nam-Kevalam.mp3") == "Baba Nam Kevalam"
+    assert script.title_from_file_name("12. Dance.wav") == "Dance"
+    assert script.title_from_file_name("Plain.m4a") == "Plain"
+    assert script.title_from_file_name("2025.mp3") == "2025"

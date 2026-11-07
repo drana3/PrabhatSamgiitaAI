@@ -107,6 +107,17 @@ class Settings(BaseSettings):
     recording_fpcalc_path: str = Field(default="fpcalc", alias="RECORDING_FPCALC_PATH")
     # How many recordings one member may add in 24 hours (docs/kiirtan-publishing.md, "Duplicates").
     recording_uploads_per_day: int = Field(default=20, alias="RECORDING_UPLOADS_PER_DAY", ge=1)
+    # Playlists from an event (docs/kiirtan-sets.md, "Limits"). A team member is not held to the
+    # per-day numbers; the per-set cap for the team is only a sanity bound.
+    recording_set_max_tracks: int = Field(default=60, alias="RECORDING_SET_MAX_TRACKS", ge=1)
+    recording_set_max_tracks_team: int = Field(
+        default=200, alias="RECORDING_SET_MAX_TRACKS_TEAM", ge=1
+    )
+    recording_set_tracks_per_day: int = Field(
+        default=60, alias="RECORDING_SET_TRACKS_PER_DAY", ge=1
+    )
+    recording_sets_per_day: int = Field(default=3, alias="RECORDING_SETS_PER_DAY", ge=1)
+    recording_set_empty_drafts: int = Field(default=5, alias="RECORDING_SET_EMPTY_DRAFTS", ge=1)
     # S3-compatible storage (Cloudflare R2). All empty until Dada creates the bucket.
     recording_s3_endpoint: str | None = Field(default=None, alias="RECORDING_S3_ENDPOINT")
     recording_s3_bucket: str | None = Field(default=None, alias="RECORDING_S3_BUCKET")

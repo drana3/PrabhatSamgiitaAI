@@ -46,6 +46,7 @@ from app.models.member import (
     UserPlaylistSong,
 )
 from app.models.notation import Notation
+from app.models.recording_collections import RecordingCollection
 from app.models.recordings import (
     AuthorBlock,
     MemberNotice,
@@ -87,6 +88,7 @@ __all__ = [
     "QuizEventSubmission",
     "RecommendationAudit",
     "Recording",
+    "RecordingCollection",
     "RecordingReport",
     "RecordingSimilarConfirm",
     "ReflectionQuote",

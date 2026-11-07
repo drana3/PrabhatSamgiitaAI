@@ -38,9 +38,16 @@ from app.schemas.recordings import RecordingCreate
 AS_A = {"X-Test-Member": "a"}
 
 
-def test_there_are_three_categories() -> None:
+def test_there_are_five_categories() -> None:
     # "Devotional song" is gone: a Bhajan already is one. The word stays storable for old rows only.
-    assert RECORDING_KINDS == ("kiirtan", "bhajan", "prabhat_samgiita")
+    # The two newest are NOT it: "spiritual_song" (any language, required) and "dance_song".
+    assert RECORDING_KINDS == (
+        "kiirtan",
+        "bhajan",
+        "prabhat_samgiita",
+        "spiritual_song",
+        "dance_song",
+    )
     assert STORED_KINDS == (*RECORDING_KINDS, "devotional_song")
     assert public_kind("devotional_song") == "bhajan"
     assert public_kind("kiirtan") == "kiirtan"
@@ -101,13 +108,13 @@ async def test_the_new_fields_are_stored_and_returned(world: World) -> None:
     )
     assert response.status_code == 201, response.text
     item = response.json()
-    assert item["language"] == "bengali"
+    assert item["language"] == "bn"  # the old word is read as the ISO code
     assert item["credits"] == "Words and music by A. Sen"
     assert item["year"] == 1998
     assert item["notes"] == "Recorded at the retreat"
     assert item["author"] == "Sample group"
     row = await world.scalar(select(Recording))
-    assert row is not None and row.language == "bengali" and row.year == 1998
+    assert row is not None and row.language == "bn" and row.year == 1998
     # they are optional
     plain = await world.publish("a", mp3(351), title="Plain")
     assert plain.status_code == 201
@@ -178,16 +185,16 @@ async def test_the_language_is_kept_for_a_bhajan_and_a_prabhat_samgiita_not_for_
     assert kiirtan.status_code == 201, kiirtan.text
     assert kiirtan.json()["language"] is None  # dropped, consistently (never rejected)
     bhajan = await world.publish("a", mp3(398), kind="bhajan", language="hindi")
-    assert bhajan.json()["language"] == "hindi"
+    assert bhajan.json()["language"] == "hi"
     ps = await world.publish(
         "a", mp3(399), kind="prabhat_samgiita", ps_song_number=3, language="bengali"
     )
-    assert ps.json()["language"] == "bengali"
+    assert ps.json()["language"] == "bn"
     # a bad value is still refused for a Kiirtan: the list is validated before it is dropped
     bad = await world.publish("a", mp3(401), kind="kiirtan", language="klingon")
     assert bad.status_code == 422
     rows = {r.kind: r.language for r in await _all(world)}
-    assert rows == {"kiirtan": None, "bhajan": "hindi", "prabhat_samgiita": "bengali"}
+    assert rows == {"kiirtan": None, "bhajan": "hi", "prabhat_samgiita": "bn"}
 
 
 async def _all(world: World) -> list[Recording]:
