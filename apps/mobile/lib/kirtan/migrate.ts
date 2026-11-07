@@ -10,9 +10,11 @@ import type { Kirtan, KirtanStatus } from "@/lib/kirtan/types"
  *   rejected -> removed (the phone has no reason for it; the server's list fills it in).
  *   `blockedAuthorIds` and `blockedNames` start empty.
  * v3 -> v4: there is one mantra in the library, so the draft fields `mantra` and `mantraId` of a stored item are dropped.
+ * v4 -> v5: the uploads made while the upload chain was being built and tested in the preview are cleared (see
+ *   `migrateKirtanStore`); saved, reported and blocked lists stay.
  * Pure: the store passes in whatever AsyncStorage held.
  */
-export const KIRTAN_STORE_VERSION = 4
+export const KIRTAN_STORE_VERSION = 5
 
 type Persisted = { submissions?: unknown; savedIds?: unknown; reportedIds?: unknown; blockedAuthorIds?: unknown; blockedNames?: unknown }
 
@@ -65,4 +67,20 @@ export function migrateKirtanState(persisted: unknown, _fromVersion: number): Ki
     blockedAuthorIds: strings(state.blockedAuthorIds),
     blockedNames: names(state.blockedNames),
   }
+}
+
+/**
+ * What the store runs on a version change: the steps above, and from an older version than 5 the stored uploads
+ * (`submissions`) are dropped. They were test uploads of the preview; the library and "My uploads" start clean.
+ * Nothing on the server is touched: this only forgets the phone's own list.
+ */
+export function migrateKirtanStore(persisted: unknown, fromVersion: number): KirtanPersisted {
+  const next = migrateKirtanState(persisted, fromVersion)
+  return fromVersion < 5 ? { ...next, submissions: [] } : next
+}
+
+/** The same clean start for the per-account copies the owner store keeps of the accounts that are not in use. */
+export function clearStoredUploads<T>(slots: T): T {
+  if (!slots || typeof slots !== "object") return slots
+  return Object.fromEntries(Object.entries(slots as Record<string, unknown>).map(([account, data]) => [account, data && typeof data === "object" ? { ...(data as object), submissions: [] } : data])) as T
 }

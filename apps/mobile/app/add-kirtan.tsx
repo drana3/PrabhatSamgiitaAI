@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path } from "react-native-svg"
 
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
+import { StyleField } from "@/components/kirtan/add/StyleField"
 import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
@@ -614,6 +615,8 @@ function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMe
   const has = moreDetailsFor(kind)
   return (
     <View style={styles.moreBody}>
+      {/* Kiirtan only: the optional style of the Kiirtan (renders nothing for the other types) */}
+      <StyleField theme={theme} kind={kind} value={{ style: draft.style, styleOther: draft.styleOther }} onChange={(next) => setDraft({ style: next.style, styleOther: next.styleOther })} />
       {/* a Bhajan and a Spiritual song ask for their language above, as a required field; the optional ones keep it here */}
       {has.language ? (
         <View {...fieldProps("language")}>

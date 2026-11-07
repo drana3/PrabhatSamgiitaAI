@@ -67,6 +67,8 @@ export async function runUpload(
       place: item.place,
       discourse: item.discourse,
       psSong: item.psSong ?? null,
+      style: item.style ?? null,
+      styleOther: item.styleOther ?? null,
       termsVersion: useContentRulesStore.getState().version ?? undefined,
       confirmDifferent: options.confirmDifferent,
       key: options.key,

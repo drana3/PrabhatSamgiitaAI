@@ -8,6 +8,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { formatDate, useT } from "@/lib/i18n"
+import { kindHasDiscourse } from "@/lib/kirtan/kind"
 import { CONTACT_ROUTE, uploadErrorText } from "@/lib/kirtan/rules"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { runUpload } from "@/lib/kirtan/uploadRunner"
@@ -46,6 +47,7 @@ export function UploadRow({ theme, kirtan: k, onOpen, onMore, onOpenArtist }: Ro
           </View>
         }
       />
+      {kindHasDiscourse(k.kind) && (k.place || k.discourse) ? <Text style={[styles.note, { color: theme.textBody }]}>{[k.place, k.discourse].filter(Boolean).join(" · ")}</Text> : null}
       <AddLanguagePrompt theme={theme} kirtan={k} variant="inline" />
       {k.status === "uploading" ? <Text style={[styles.note, { color: theme.textBody }]}>{t("ugc.mine.uploading")}</Text> : null}
       {failed ? (

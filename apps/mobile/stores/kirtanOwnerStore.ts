@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
+import { clearStoredUploads } from "@/lib/kirtan/migrate"
 import { bindOwner } from "@/lib/account/bindOwner"
 import { keepSavedState } from "@/lib/persistMigrate"
 import type { OwnedData } from "@/lib/account/owner"
@@ -19,8 +20,12 @@ export const useKirtanOwnerStore = create<OwnedData<KirtanAccountData>>()(
   persist(() => ({ owner: null, slots: {} }) as OwnedData<KirtanAccountData>, {
     name: "prabhat-kirtan-owner",
     storage: createJSONStorage(() => AsyncStorage),
-    version: 1,
-    migrate: (saved) => keepSavedState<OwnedData<KirtanAccountData>>(saved),
+    // 2: the stored uploads of the accounts not in use are cleared too, like the Kiirtan store's own (lib/kirtan/migrate.ts)
+    version: 2,
+    migrate: (saved, version) => {
+      const kept = keepSavedState<OwnedData<KirtanAccountData>>(saved)
+      return version < 2 ? { ...kept, slots: clearStoredUploads(kept.slots ?? {}) } : kept
+    },
     partialize: (state) => ({ owner: state.owner, slots: state.slots }),
   }),
 )

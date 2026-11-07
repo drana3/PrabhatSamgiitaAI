@@ -3,7 +3,7 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import { KIRTAN_DEMO_UPLOADS } from "@/lib/fixtures/kirtan"
-import { KIRTAN_STORE_VERSION, migrateKirtanState } from "@/lib/kirtan/migrate"
+import { KIRTAN_STORE_VERSION, migrateKirtanStore } from "@/lib/kirtan/migrate"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import {
   addSubmission,
@@ -137,8 +137,8 @@ export const useKirtanStore = create<KirtanState>()(
       name: "prabhat-kirtan",
       storage: createJSONStorage(() => AsyncStorage),
       version: KIRTAN_STORE_VERSION,
-      // v1 had no `kind`; v2 had the review statuses (approved/pending/rejected); v4 dropped the draft mantra fields: see lib/kirtan/migrate.ts.
-      migrate: (persisted, version) => migrateKirtanState(persisted, version) as unknown as KirtanState,
+      // v1 had no `kind`; v2 had the review statuses (approved/pending/rejected); v4 dropped the draft mantra fields; v5 clears the stored test uploads: see lib/kirtan/migrate.ts.
+      migrate: (persisted, version) => migrateKirtanStore(persisted, version) as unknown as KirtanState,
       // An upload that was still running when the app closed is not running any more: it is saved as "not uploaded".
       partialize: (state) => ({
         submissions: state.submissions.map((k): Kirtan => (k.status === "uploading" ? { ...k, status: "failed", failure: { code: "network" } } : k)),

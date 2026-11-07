@@ -68,6 +68,9 @@ export type SetDraft = {
   defaultLanguage: string | null
   defaultLanguageOther: string
   defaultDance: DanceId | null
+  /** Kiirtan only, optional: the style every track gets (lib/kirtan/styles.ts), and its name when it is "other" */
+  defaultStyle: string | null
+  defaultStyleOther: string
   /** the person confirmed the content rules once for the whole set */
   confirmed: boolean
   /** the playlist exists on the server (the create was answered) */
@@ -120,6 +123,8 @@ export function newSetDraft(id: string, now: Date = new Date()): SetDraft {
     defaultLanguage: null,
     defaultLanguageOther: "",
     defaultDance: null,
+    defaultStyle: null,
+    defaultStyleOther: "",
     confirmed: false,
     created: false,
     finished: false,
@@ -379,5 +384,5 @@ export function restoreDraft(draft: SetDraft): SetDraft {
   })
   // a cover picked in the browser is a blob address that does not survive a reload: choosing it again is one tap
   const lostCover = draft.coverUri.startsWith("blob:")
-  return { ...draft, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
+  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
 }

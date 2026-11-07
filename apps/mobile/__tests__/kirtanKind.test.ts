@@ -214,7 +214,7 @@ describe("filtering by kind", () => {
 
 describe("old stored data (migration v1 to v4)", () => {
   it("gives stored submissions the kind Kiirtan and keeps the rest", () => {
-    expect(KIRTAN_STORE_VERSION).toBe(4)
+    expect(KIRTAN_STORE_VERSION).toBe(5)
     const old = {
       submissions: [{ id: "sub-a-1", title: "A", author: "X", durationSec: null, type: "bnk", audioUrl: null, thumbnailUrl: null, addedBy: "You", status: "pending", addedAt: 1 }],
       savedIds: ["k-bnk-morning", 7],

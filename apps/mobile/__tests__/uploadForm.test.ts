@@ -7,7 +7,7 @@ import { LANGUAGE_KINDS, RECORDING_KINDS } from "@/lib/kirtan/types"
 import { draftWithPatch, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import type { QueueDraft } from "@/stores/uploadQueueStore"
 
-const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, byAuthor: false }
+const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", byAuthor: false }
 const FULL: QueueDraft = { ...EMPTY_DRAFT, kind: "bhajan", language: "bn", credits: "Words and music by A. Sen", year: "1998", notes: "n" }
 
 describe("the types of the add form", () => {

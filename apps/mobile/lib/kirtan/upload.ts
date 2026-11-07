@@ -48,6 +48,9 @@ export type UploadSource = {
   discourse?: string
   /** Prabhat Samgiita only: the number of the song */
   psSong?: number | null
+  /** Kiirtan only: the optional style and the name of an "other" style */
+  style?: string | null
+  styleOther?: string | null
   /** the version of the content rules the person accepted */
   termsVersion?: string
   /** the author saw the "sounds like a recording already in the library" question and said theirs is different */
@@ -118,6 +121,8 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       place: source.place,
       discourse: source.discourse,
       psSong: source.psSong,
+      style: source.style,
+      styleOther: source.styleOther,
       confirmDifferent: Boolean(source.confirmDifferent),
     })
     return { status: "published", recording }

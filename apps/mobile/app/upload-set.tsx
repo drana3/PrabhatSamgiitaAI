@@ -4,6 +4,7 @@ import * as DocumentPicker from "expo-document-picker"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { StyleField } from "@/components/kirtan/add/StyleField"
 import { DanceField, FieldError, LanguageField, LanguagePicker, RequiredMark, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar } from "@/components/kirtan/add/QueueRows"
 import { CoverField } from "@/components/kirtan/sets/CoverField"
@@ -213,7 +214,22 @@ export default function UploadSetScreen() {
     }
     if (!rulesOk) useContentRulesStore.getState().accept()
     const result = await store().upload(draft.id)
-    if (result) setBlock(t(`set.block.${result}`))
+    if (!result) return
+    setBlock(t(`set.block.${result}`))
+    // a track that still misses something: go to the tracks and bring the first such row on screen
+    if (result === "fields") {
+      const open = draft.tracks.filter((track) => track.status === "waiting")
+      const bad = open.filter((track) => !track.title.trim() || trackMissing(track, draft).length > 0)
+      setTried(true)
+      setStep(2)
+      const messages: Record<string, string> = {}
+      for (const track of bad) messages[`track-${track.id}`] = t("set.block.fields")
+      setTimeout(() => void form.focusFirst(bad.map((track) => `track-${track.id}`), messages), 80)
+    }
+    if (result === "details") {
+      setStep(1)
+      setTried(true)
+    }
   }
 
   const confirmDiscard = (id: string) => {
@@ -417,7 +433,7 @@ export default function UploadSetScreen() {
                   onActivate={() => {
                     if (locked) return
                     const clear = kindHasLanguage(kind) ? {} : { defaultLanguage: null, defaultLanguageOther: "" }
-                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }) })
+                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "" }) })
                   }}
                   pressedScale={0.96}
                   style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
@@ -435,6 +451,7 @@ export default function UploadSetScreen() {
             <DanceField theme={theme} value={d.defaultDance} onChange={(dance) => { form.clear(); store().details(d.id, { defaultDance: dance }) }} invalid={!!form.error("dance")} errorText={form.error("dance")} disabled={locked} />
           </View>
         ) : null}
+        <StyleField theme={theme} kind={d.defaultKind} value={{ style: d.defaultStyle, styleOther: d.defaultStyleOther }} onChange={(next) => store().details(d.id, { defaultStyle: next.style, defaultStyleOther: next.styleOther })} />
         {kindHasLanguage(d.defaultKind) ? (
           <View {...form.field("language")}>
             <LanguageField theme={theme} kind={d.defaultKind} value={languageValue} onOpen={() => setLangFor("set")} invalid={!!form.error("language")} errorText={form.error("language")} disabled={locked} />
@@ -506,7 +523,7 @@ export default function UploadSetScreen() {
             {d.tracks.map((track, index) => {
               const kind = trackKind(track, d)
               const fields = effectiveFields(track, { ...defaults, kind })
-              return <SetTrackRow key={track.id} theme={theme} track={track} position={index + 1} total={d.tracks.length} fields={{ ...fields, missing: trackMissing(track, d), tried: tried || sending }} firstDay={setDay(d)} locked={locked || doneAll} handlers={handlers} />
+              return <View key={track.id} {...form.field(`track-${track.id}`)}><SetTrackRow theme={theme} track={track} position={index + 1} total={d.tracks.length} fields={{ ...fields, missing: trackMissing(track, d), tried: tried || sending }} firstDay={setDay(d)} locked={locked || doneAll} handlers={handlers} />{form.error(`track-${track.id}`) ? <FieldError theme={theme} text={form.error(`track-${track.id}`)} /> : null}</View>
             })}
           </View>
         ) : (

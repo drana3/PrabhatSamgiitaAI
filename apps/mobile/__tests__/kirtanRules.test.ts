@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { authorBlockKey, mergeCatalog, withoutBlocked } from "@/lib/kirtan/list"
-import { KIRTAN_STORE_VERSION, migrateKirtanState, normalizeStatus } from "@/lib/kirtan/migrate"
+import { clearStoredUploads, KIRTAN_STORE_VERSION, migrateKirtanState, migrateKirtanStore, normalizeStatus } from "@/lib/kirtan/migrate"
 import { audioContentType, isRulesAccepted, MAX_UPLOAD_BYTES, REPORT_REASONS, RULES_VERSION, ruleSections, validateAudioFile } from "@/lib/kirtan/rules"
 import type { Kirtan } from "@/lib/kirtan/types"
 
@@ -60,7 +60,7 @@ describe("blocking authors", () => {
 
 describe("migration to publish-first", () => {
   it("is version 4 and maps the old statuses", () => {
-    expect(KIRTAN_STORE_VERSION).toBe(4)
+    expect(KIRTAN_STORE_VERSION).toBe(5)
     expect(normalizeStatus("approved")).toBe("published")
     expect(normalizeStatus("pending")).toBe("failed")
     expect(normalizeStatus("rejected")).toBe("removed")
@@ -80,5 +80,24 @@ describe("migration to publish-first", () => {
     const out = migrateKirtanState({ blockedAuthorIds: ["m1", 5], blockedNames: { m1: "Group", m2: 7 } }, 3)
     expect(out.blockedAuthorIds).toEqual(["m1"])
     expect(out.blockedNames).toEqual({ m1: "Group" })
+  })
+})
+
+describe("the clean start of version 5", () => {
+  const old = { submissions: [{ id: "x", title: "T", author: "A", type: "other", status: "published" }], savedIds: ["s"], reportedIds: ["r"], blockedAuthorIds: ["b"], blockedNames: { b: "B" } }
+
+  it("drops the stored uploads of an older version and keeps saved, reported and blocked", () => {
+    const out = migrateKirtanStore(old, 4)
+    expect(out.submissions).toEqual([])
+    expect(out).toMatchObject({ savedIds: ["s"], reportedIds: ["r"], blockedAuthorIds: ["b"], blockedNames: { b: "B" } })
+  })
+
+  it("keeps the uploads of the current version", () => {
+    expect(migrateKirtanStore(old, 5).submissions).toHaveLength(1)
+  })
+
+  it("clears the uploads kept for the accounts that are not in use", () => {
+    const slots = { a: { submissions: [{ id: "x" }], savedIds: ["s"] }, b: null }
+    expect(clearStoredUploads(slots)).toEqual({ a: { submissions: [], savedIds: ["s"] }, b: null })
   })
 })

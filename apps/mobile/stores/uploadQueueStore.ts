@@ -35,10 +35,13 @@ export type QueueDraft = {
   notes: string
   /** Prabhat Samgiita: the song this is a performance of */
   psSong: { number: number; title: string } | null
+  /** Kiirtan only, optional: the style, and its name when it is "other" (applies to every row) */
+  style: string | null
+  styleOther: string
   byAuthor: boolean
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", byAuthor: false }
 
 type QueueState = {
   items: QueueItem[]
@@ -118,6 +121,8 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       discourse: draft.discourse,
       notes: draft.notes,
       psSong: draft.psSong?.number ?? null,
+      style: draft.style,
+      styleOther: draft.styleOther,
     }
     if (validateSubmission(input)) return { status: "failed", failure: { code: "gone" } }
     const added = useKirtanStore.getState().submit(input).added

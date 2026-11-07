@@ -1,7 +1,7 @@
 import { kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
-import { isKiirtanStyle, OTHER_STYLE } from "@/lib/kirtan/styles"
+import { cleanStyle, isKiirtanStyle, OTHER_STYLE } from "@/lib/kirtan/styles"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
 import { BABA_AUTHOR, DANCES, PS_SONG_COUNT, type DanceId, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
@@ -59,6 +59,9 @@ export type SubmissionInput = {
   notes?: string
   /** Prabhat Samgiita only: the song this is a performance of (1 to 5018) */
   psSong?: number | null
+  /** Kiirtan only: the optional style (a KIIRTAN_STYLES id or "other") and its name */
+  style?: string | null
+  styleOther?: string | null
   /** the person is the author, or performs it themselves */
   byAuthor: boolean
   addedBy: string
@@ -109,6 +112,13 @@ function slug(text: string, fallback: string): string {
   return tidy(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || fallback
 }
 
+/** The style a form named (a Kiirtan only; "other" needs its name, otherwise nothing is kept). */
+function styleOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "style" | "styleOther"> {
+  const clean = cleanStyle(kind, input.style, input.styleOther)
+  if (!clean.style || clean.missingName) return {}
+  return { style: clean.style, ...(clean.styleOther ? { styleOther: clean.styleOther } : {}) }
+}
+
 /** A new Kiirtan or Bhajan, on its way up. The id is stable per title and time. */
 export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
   const kind = normalizeKind(input.kind)
@@ -131,6 +141,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(kindHasDiscourse(kind) && tidy(input.discourse ?? "") ? { discourse: tidy(input.discourse ?? "") } : {}),
     ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),
     ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),
+    ...styleOfInput(kind, input),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",

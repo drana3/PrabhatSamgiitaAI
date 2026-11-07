@@ -84,6 +84,9 @@ const realPorts: SetPorts = {
       language: fields.language,
       languageOther: fields.languageOther,
       dance: fields.dance,
+      // the style belongs to a Kiirtan only; a track of another type sends none
+      style: fields.kind === "kiirtan" ? draft.defaultStyle : null,
+      styleOther: fields.kind === "kiirtan" ? draft.defaultStyleOther : null,
       collectionId: draft.id,
       position,
       recordedOn: trackDay(track, draft),
