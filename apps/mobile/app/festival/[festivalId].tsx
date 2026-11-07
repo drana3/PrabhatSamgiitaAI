@@ -73,6 +73,12 @@ export default function FestivalDetailScreen() {
               {festivalText(festival, language).title}
             </Text>
             <Text style={[styles.sub, { color: theme.textBody }]}>{festivalText(festival, language).subtitle}</Text>
+            {festival.expected ? (
+              <Text style={[styles.expected, { color: theme.textBody }]}>
+                <Text style={styles.expectedLead}>{t("fest.expected")}. </Text>
+                {t("fest.expected.why")}
+              </Text>
+            ) : null}
           </Reveal>
           <Reveal index={1}>
             <LCard theme={theme} tone="white">
@@ -118,6 +124,8 @@ const styles = StyleSheet.create({
   date: { paddingHorizontal: 10 },
   heading: { fontFamily: amFonts.display, fontSize: 34, lineHeight: 36, letterSpacing: -0.7, textTransform: "uppercase", paddingHorizontal: 10, paddingTop: 10, paddingBottom: 12 },
   sub: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 24, paddingHorizontal: 10 },
+  expected: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 21, paddingHorizontal: 10, paddingTop: 12 },
+  expectedLead: { fontFamily: amFonts.semi },
   browse: { minHeight: 44, justifyContent: "center", alignItems: "center" },
   browseText: { fontFamily: amFonts.semi, fontSize: 15 },
 })

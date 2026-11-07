@@ -319,7 +319,7 @@ export function HomeScreen() {
         const songs = phase ? festivalSongCount(f) : 0
         return {
           id: f.id,
-          label: phase ? `${phase === "today" ? t("fest.today") : t("fest.tomorrow")} · ${f.dateLabel}` : f.dateLabel,
+          label: `${phase ? `${phase === "today" ? t("fest.today") : t("fest.tomorrow")} · ${f.dateLabel}` : f.dateLabel}${f.expected ? ` · ${t("fest.expected")}` : ""}`,
           tone: (["orange", "sage", "gold", "forest"] as const)[i % 4],
           cover: i + 3,
           title: festivalText(f, language).title,

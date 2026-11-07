@@ -76,6 +76,17 @@ Finding: the fasting calendar alone does not give the festival day. In 2025 the 
 the fasting day (9 Aug), in 2026 one day after it (fast 27 Aug, festival 28 Aug). So the fasting calendar is used to
 identify the right full moon or new moon and to cross-check, and the day is taken with the tested rules below.
 
+### How the app shows a derived date (QA-013)
+
+A "Derived" row is computed, not published. The data keeps it (`basis: "lunar-derived"` in `data/festivalDates2027.ts`)
+and `extraFestivalsFrom` sets `expected: true` on the calendar entry. Every screen that shows the date says so: the
+festival list ("Expected date" under the date), the festival page ("Expected date. Worked out from the lunar calendar. The
+official calendar has not published it yet, so it can move by a day."), the Home strip and the eve panel on Today. English,
+Russian and Spanish (`fest.expected`, `fest.expected.why` in `locales/appShell.ts`). Dates carried over from the official
+lists (`fixed-civil-date`) and the reviewed 2026 dates carry no such mark. When the official calendar publishes a date,
+move its row to the published kind (or drop the flag) so the mark disappears. The notification texts (a different area)
+still say "tomorrow" for a derived date without the mark.
+
 ### Rules and how they were tested
 
 Reckoning: sunrise and sunset at Kolkata (22.57 N, 88.36 E); Delhi gives the same date for every row below. Moon-Sun

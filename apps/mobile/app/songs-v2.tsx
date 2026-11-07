@@ -290,7 +290,8 @@ export default function SongsV2Screen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  // clips the fast-scroll rail while it waits 10px off the edge (it slides in): on the web that parked rail widened the page by 9px
+  root: { flex: 1, overflow: "hidden" },
   groupHeader: {
     paddingTop: 20,
     paddingLeft: 10,

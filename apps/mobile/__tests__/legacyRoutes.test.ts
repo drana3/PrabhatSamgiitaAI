@@ -23,11 +23,35 @@ describe("legacyRouteTarget", () => {
     expect(legacyRouteTarget("/player")).toBe("/player-v2")
   })
 
-  it("maps playlists and the drive", () => {
+  it("maps playlists", () => {
     expect(legacyRouteTarget("/playlist/abc")).toBe("/playlist-v2/abc")
     expect(legacyRouteTarget("/playlist/add?song=9")).toBe("/song-v2/ps-9")
     expect(legacyRouteTarget("/playlist/add")).toBe("/library-v2")
-    expect(legacyRouteTarget("/drive")).toBe("/songs-v2?segment=mine")
+  })
+
+  it("keeps /drive where it is: the Radio screen still lives there (QA-005)", () => {
+    expect(legacyRouteTarget("/drive")).toBeNull()
+    expect(legacyRouteTarget("/drive?x=1")).toBeNull()
+  })
+
+  it("never carries the router's own not-found parameters into the new address (QA-006)", () => {
+    expect(legacyRouteTarget("/songs/12?not-found=songs&not-found=12")).toBe("/song-v2/ps-12")
+    expect(legacyRouteTarget("/song/12?from=player&not-found=song")).toBe("/song-v2/ps-12")
+    expect(legacyRouteTarget("/search?q=love&not-found=search")).toBe("/search-v2?q=love")
+    expect(legacyRouteTarget("/songs/12?lang=ru&not-found=12")).toBe("/song-v2/ps-12?lang=ru")
+  })
+
+  it("matches the first segment without regard to case (QA-021)", () => {
+    expect(legacyRouteTarget("/SONGS")).toBe("/v2/songs")
+    expect(legacyRouteTarget("/Songs/12")).toBe("/song-v2/ps-12")
+    expect(legacyRouteTarget("/SONG/PS-12")).toBe("/song-v2/PS-12")
+    expect(legacyRouteTarget("/Saved")).toBe("/library-v2")
+    expect(legacyRouteTarget("/(TABS)/Index")).toBe(NAV_V2_HOME_ROUTE)
+    expect(legacyRouteTarget("/Drive")).toBeNull()
+  })
+
+  it("sends /profile to Today: there is a profile sheet, not a profile page to open by address (QA-020)", () => {
+    expect(legacyRouteTarget("/profile")).toBe(NAV_V2_HOME_ROUTE)
   })
 
   it("leaves current routes alone", () => {

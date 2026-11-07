@@ -83,7 +83,15 @@ export function extraFestivalsFrom(templates: ReadonlyArray<UpcomingFestival>): 
     const template = templates.find((item) => item.id === `${entry.idBase}-2026`)
     if (!template) continue
     const { id: _id, year: _year, month: _month, day: _day, ...rest } = template
-    out.push({ ...rest, id: `${entry.idBase}-${entry.year}`, year: entry.year, month: entry.month, day: entry.day })
+    out.push({
+      ...rest,
+      id: `${entry.idBase}-${entry.year}`,
+      year: entry.year,
+      month: entry.month,
+      day: entry.day,
+      // a computed date is shown as "expected", with the reason, never like a published one
+      ...(entry.basis === "lunar-derived" ? { expected: true } : {}),
+    })
   }
   return out
 }

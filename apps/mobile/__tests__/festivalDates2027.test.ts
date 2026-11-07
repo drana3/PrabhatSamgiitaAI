@@ -68,6 +68,16 @@ describe("festival dates 2027 and 2028 from the official Ananda Marga material",
     expect(extraFestivalsFrom([])).toEqual([])
   })
 
+  it("marks every computed (lunar-derived) date as expected, and no published one (QA-013)", () => {
+    for (const entry of EXTRA_FESTIVAL_DATES) {
+      const item = festivalCalendar.find((candidate) => candidate.id === `${entry.idBase}-${entry.year}`)!
+      expect(Boolean(item.expected), item.id).toBe(entry.basis === "lunar-derived")
+    }
+    expect(festivalCalendar2026.some((item) => item.expected)).toBe(false)
+    expect(festivalCalendar.find((item) => item.id === "ananda-purnima-2027")?.expected).toBe(true)
+    expect(festivalCalendar.find((item) => item.id === "niilakantha-2027")?.expected).toBeUndefined()
+  })
+
   it("keeps ids unique across the merged calendar", () => {
     expect(new Set(festivalCalendar.map((item) => item.id)).size).toBe(festivalCalendar.length)
   })

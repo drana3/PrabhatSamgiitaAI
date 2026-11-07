@@ -27,6 +27,12 @@ describe("rewriteNativeSystemPath", () => {
     expect(rewriteNativeSystemPath("/songs/7")).toBe("/song-v2/ps-7")
   })
 
+  it("keeps the Radio screen's old address /drive as it is (QA-005)", () => {
+    expect(rewriteNativeSystemPath("prabhatai://drive")).toBe("/drive")
+    expect(rewriteNativeSystemPath("prabhatai:///drive")).toBe("/drive")
+    expect(rewriteNativeSystemPath("/drive")).toBe("/drive")
+  })
+
   it("maps quiz event deep links to the event screen", () => {
     expect(rewriteNativeSystemPath("prabhatai://quiz/event/abc123")).toBe("/quiz/event/abc123")
   })

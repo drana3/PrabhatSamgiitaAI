@@ -20,7 +20,7 @@ export const recordingsEn = {
 
   // the add form
   "rec.type.label": "Type",
-  "ugc.add.blurb.prabhat_samgiita": "Another performance of one of the 5018 songs",
+  "ugc.add.blurb.prabhat_samgiita": "Another performance of one of the {count} songs",
   "rec.song.label": "Which song is it?",
   "rec.song.choose": "Choose the song",
   "rec.song.none": "No song chosen yet",
@@ -107,7 +107,7 @@ export const recordingsRu: Record<string, string> = {
   "kt.toast.playlistsSoon.prabhat_samgiita": "Записи Prabhat Samgiita в плейлистах скоро появятся",
 
   "rec.type.label": "Тип",
-  "ugc.add.blurb.prabhat_samgiita": "Ещё одно исполнение одной из 5018 песен",
+  "ugc.add.blurb.prabhat_samgiita": "Ещё одно исполнение одной из {count} песен",
   "rec.song.label": "Какая это песня?",
   "rec.song.choose": "Выбрать песню",
   "rec.song.none": "Песня не выбрана",
@@ -209,7 +209,7 @@ export const recordingsEs: Record<keyof typeof recordingsEn, string> = {
   "kt.toast.playlistsSoon.prabhat_samgiita": "Las grabaciones de Prabhat Samgiita en listas llegarán pronto",
 
   "rec.type.label": "Tipo",
-  "ugc.add.blurb.prabhat_samgiita": "Otra interpretación de una de las 5018 canciones",
+  "ugc.add.blurb.prabhat_samgiita": "Otra interpretación de una de las {count} canciones",
   "rec.song.label": "¿Qué canción es?",
   "rec.song.choose": "Elegir la canción",
   "rec.song.none": "Aún no has elegido canción",

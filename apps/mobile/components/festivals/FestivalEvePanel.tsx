@@ -27,7 +27,7 @@ export function FestivalEvePanel({ p, festival, onSeeAll }: { p: AmProto; festiv
   return (
     <View style={[styles.panel, { backgroundColor: p.orange100 }]} accessibilityLabel={t("festSongs.panel.a11y", { state, title: name })}>
       <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
-        {`${state} · ${festival.dateLabel}`}
+        {`${state} · ${festival.dateLabel}${festival.expected ? ` · ${t("fest.expected")}` : ""}`}
       </Text>
       <Text style={[styles.name, { color: p.ink800 }]} accessibilityRole="header">
         {name}

@@ -11,6 +11,8 @@ export type UpcomingFestival = {
   year: number
   /** Must match a label in data/collections when set. */
   relatedCollectionLabel?: string
+  /** True when the date is worked out from the lunar rule and the official calendar has not published it (data/festivalDates2027.ts). The screens say so. */
+  expected?: boolean
   mood?: string
 }
 

@@ -24,6 +24,7 @@ import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { useT } from "@/lib/i18n"
 import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
 import { playPlaylist, starterSongForNumber } from "@/lib/playPlaylist"
 import { shouldAutoStartRandomOnDriveFocus } from "@/lib/driveAutoStart"
@@ -34,6 +35,7 @@ import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
 
 export default function DriveScreen() {
+  const t = useT()
   useExitDriveOnBlur()
   const mode = useAuthStore((s) => s.mode)
   const playlists = usePlaylistStore((s) => s.playlists)
@@ -175,14 +177,14 @@ export default function DriveScreen() {
         if (!usePlayerStore.getState().driveScreenFocused) return
         enterDrivePlayback()
         const error = await playPlaylist(playlist, startAt)
-        if (error) Alert.alert("Radio", error)
+        if (error) Alert.alert(t("radio.title"), error)
       })()
     },
-    [enterDrivePlayback],
+    [enterDrivePlayback, t],
   )
 
   return (
-    <ScreenContainer edges={["top"]} title="Radio" subtitle="Random play by default · pick a playlist to switch">
+    <ScreenContainer edges={["top"]} title={t("radio.title")} subtitle={t("radio.subtitle")}>
       <PlaylistSyncBar />
       <NestableScrollContainer
         style={styles.scroll}
@@ -192,7 +194,7 @@ export default function DriveScreen() {
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Play random Prabhat Samgiita"
+          accessibilityLabel={t("radio.random.a11y")}
           disabled={startingRandom}
           onPress={() => void startRandom(true)}
           style={({ pressed }) => [
@@ -210,11 +212,11 @@ export default function DriveScreen() {
           <View style={styles.modeIcon}>
             <Shuffle size={22} color={colors.primaryDark} />
           </View>
-          <Text style={styles.modeTitle}>Random Prabhat Samgiita</Text>
+          <Text style={styles.modeTitle}>{t("radio.random.title")}</Text>
           <Text style={styles.modeBody}>
             {playbackMode === "random" && driveAutoAdvance
-              ? "Now playing · tap for another random song"
-              : "Starts automatically when you open Drive"}
+              ? t("radio.random.playing")
+              : t("radio.random.idle")}
           </Text>
           {startingRandom ? (
             <ActivityIndicator style={styles.modeSpinner} color={colors.primary} />
@@ -223,7 +225,7 @@ export default function DriveScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Play a playlist"
+          accessibilityLabel={t("radio.list.a11y")}
           onPress={() => setShowPlaylists((value) => !value)}
           style={({ pressed }) => [
             styles.modeCard,
@@ -234,9 +236,9 @@ export default function DriveScreen() {
           <View style={styles.modeIcon}>
             <ListMusic size={22} color={colors.primaryDark} />
           </View>
-          <Text style={styles.modeTitle}>Your playlist</Text>
+          <Text style={styles.modeTitle}>{t("radio.list.title")}</Text>
           <Text style={styles.modeBody}>
-            {showPlaylists ? "Tap a playlist to expand · ▶ to play" : "Tap to show your playlists"}
+            {showPlaylists ? t("radio.list.open") : t("radio.list.closed")}
           </Text>
         </Pressable>
 
@@ -244,11 +246,11 @@ export default function DriveScreen() {
           mode === "signed_in" ? (
             <DrivePlaylistAccordion playlists={playlists} onPlayPlaylist={playDrivePlaylist} />
           ) : (
-            <Text style={styles.modeBody}>Playlist playback requires you to sign in.</Text>
+            <Text style={styles.modeBody}>{t("radio.list.signIn")}</Text>
           )
         ) : null}
         {showPlaylists && mode === "signed_in" && !playlists.length ? (
-          <Text style={styles.modeBody}>Create a playlist from the Saved tab first.</Text>
+          <Text style={styles.modeBody}>{t("radio.list.none")}</Text>
         ) : null}
 
         {driving && current ? (
@@ -275,7 +277,7 @@ export default function DriveScreen() {
         ) : (
           <View style={styles.hint}>
             <Car size={18} color={colors.textMuted} />
-            <Text style={styles.hintText}>Starting random play…</Text>
+            <Text style={styles.hintText}>{t("radio.starting")}</Text>
           </View>
         )}
       </NestableScrollContainer>

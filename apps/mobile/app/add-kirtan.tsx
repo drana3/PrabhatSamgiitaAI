@@ -24,7 +24,7 @@ import { hasWork, isRetryable, leftForTomorrow, queueCounts, queueProgress, queu
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
-import { RECORDING_KINDS, RECORDING_LANGUAGES, type RecordingKind } from "@/lib/kirtan/types"
+import { PS_SONG_COUNT, RECORDING_KINDS, RECORDING_LANGUAGES, type RecordingKind } from "@/lib/kirtan/types"
 import { moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
@@ -260,7 +260,7 @@ export default function AddKirtanScreen() {
               <View style={styles.kinds} accessibilityRole="radiogroup">
                 {RECORDING_KINDS.map((k) => {
                   const on = k === kind
-                  const blurb = t(`ugc.add.blurb.${k}`)
+                  const blurb = t(`ugc.add.blurb.${k}`, { count: PS_SONG_COUNT })
                   return (
                     <KPress
                       key={k}

@@ -20,10 +20,13 @@ function splitPath(raw: string): { segments: string[]; query: URLSearchParams } 
   return { segments, query: new URLSearchParams(search) }
 }
 
+/** Parameters the router adds by itself while it works out a redirect; they never belong in the address the user lands on. */
+const ROUTER_PARAMS = ["not-found"] as const
+
 function withQuery(path: string, query: URLSearchParams, drop: readonly string[] = []): string {
   const copy = new URLSearchParams()
   query.forEach((value, key) => {
-    if (!drop.includes(key)) copy.append(key, value)
+    if (!drop.includes(key) && !(ROUTER_PARAMS as readonly string[]).includes(key)) copy.append(key, value)
   })
   const text = copy.toString()
   return text ? `${path}?${text}` : path
@@ -35,8 +38,11 @@ function songId(value: string): string {
 
 export function legacyRouteTarget(raw: string): string | null {
   const { segments, query } = splitPath(raw)
-  const [head, second] = segments
-  const hadGroup = /\(tabs\)/.test(raw)
+  const [first, second] = segments
+  // "/SONGS" and "/Songs/12" are the same old page: the first segment is matched without regard to case
+  // (the id after it is left exactly as written)
+  const head = first?.toLowerCase()
+  const hadGroup = /\(tabs\)/i.test(raw)
 
   // The old tab group: "/(tabs)", "/(tabs)/index" and the four other tabs.
   if (hadGroup && (!head || head === "index")) return NAV_V2_HOME_ROUTE
@@ -68,8 +74,7 @@ export function legacyRouteTarget(raw: string): string | null {
       return second && segments.length === 2 ? `/playlist-v2/${second}` : null
     case "player":
       return segments.length === 1 ? "/player-v2" : null
-    case "drive":
-      return segments.length === 1 ? "/songs-v2?segment=mine" : null
+    // "/drive" is not here on purpose: the Radio screen still lives at /drive (app/drive), so the address stays as it is
     default:
       return null
   }

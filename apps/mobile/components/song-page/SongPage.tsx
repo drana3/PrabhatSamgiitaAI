@@ -6,6 +6,7 @@ import Animated, { useAnimatedRef, useSharedValue } from "react-native-reanimate
 import { useSpTheme } from "@/hooks/useSpTheme"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { routeString } from "@/lib/songMap"
+import { songRouteNumber } from "@/lib/songPage/songRoute"
 import { usePageT } from "@/lib/songPage/pageCopy"
 import { COMMENTARY_SECTION, anchorOf, scrollSections, stripActive } from "@/lib/songPage/blockTabs"
 import { STRIP_HEIGHT, activeSectionAt, jumpOffset, menuSections, sectionTops, visibleTabs, type PageSection, type TabSection } from "@/lib/songPage/pageSections"
@@ -45,8 +46,15 @@ export function SongPage() {
   const songId = routeString(params.songId)
   const router = useRouter()
   const t = useSpTheme()
+  const onBack = () => (router.canGoBack() ? router.back() : router.replace("/"))
+  // a number the catalogue does not have (0, 5019, "abc") is a not-found page with a way back, not a made-up song
+  if (songRouteNumber(songId) === null) return <ShellMessage t={t} loading={false} missing onBack={onBack} />
+  return <SongPageOf songId={songId} t={t} onBack={onBack} />
+}
+
+function SongPageOf({ songId, t, onBack }: { songId: string | undefined; t: SpTheme; onBack: () => void }) {
   const model = useSongPageModel(songId)
-  if (!model.song) return <ShellMessage t={t} loading={model.loading} onBack={() => (router.canGoBack() ? router.back() : router.replace("/"))} />
+  if (!model.song) return <ShellMessage t={t} loading={model.loading} onBack={onBack} />
   return <LoadedSongPage t={t} model={model} />
 }
 

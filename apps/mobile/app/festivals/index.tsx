@@ -44,12 +44,13 @@ export default function FestivalsScreen() {
           <Reveal key={item.id} index={Math.min(index, 6)}>
             <PressBox
               accessibilityRole="button"
-              accessibilityLabel={t("fest.open.a11y", { title: festivalText(item, language).title, date: item.dateLabel })}
+              accessibilityLabel={t("fest.open.a11y", { title: festivalText(item, language).title, date: item.expected ? `${item.dateLabel}, ${t("fest.expected")}` : item.dateLabel })}
               onPress={() => router.push(href(`/festival/${item.id}`))}
               pressedScale={0.98}
               style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}
             >
               <Over color={theme.eyebrow} numeric>{`${item.dateLabel} · ${when(item)}`}</Over>
+              {item.expected ? <Text style={[styles.expected, { color: theme.textBody }]}>{t("fest.expected")}</Text> : null}
               <CardTitle color={theme.textHeading}>{festivalText(item, language).title}</CardTitle>
               <CardText color={theme.textBody} wide>{festivalText(item, language).subtitle}</CardText>
             </PressBox>
@@ -62,5 +63,6 @@ export default function FestivalsScreen() {
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 24, padding: 20, gap: 8 },
+  expected: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   empty: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 24, paddingHorizontal: 10 },
 })

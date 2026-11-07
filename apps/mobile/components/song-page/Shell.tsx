@@ -19,6 +19,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useResolvedAppearance } from "@/hooks/useAmTheme"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { statusBarStyleFor } from "@/lib/appearance"
+import { PS_SONG_COUNT } from "@/lib/learn/learnSongs"
 import { postFrameStatusBar } from "@/lib/framePreview"
 import { ramp, stripHairline, stripTop } from "@/lib/songPage/stickyBar"
 import { usePageT } from "@/lib/songPage/pageCopy"
@@ -191,7 +192,7 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
 }
 
 /** Loading and not-found screens. */
-export function ShellMessage({ t, loading, onBack }: { t: SpTheme; loading: boolean; onBack: () => void }) {
+export function ShellMessage({ t, loading, missing, onBack }: { t: SpTheme; loading: boolean; missing?: boolean; onBack: () => void }) {
   const tr = usePageT()
   return (
     <View style={[styles.root, styles.centered, { backgroundColor: t.sand200 }]}>
@@ -200,6 +201,11 @@ export function ShellMessage({ t, loading, onBack }: { t: SpTheme; loading: bool
       ) : (
         <>
           <Text style={{ fontFamily: amFonts.medium, fontSize: 17, color: t.ink800 }}>{tr("songPage.notFound")}</Text>
+          {missing ? (
+            <Text style={{ fontFamily: amFonts.regular, fontSize: 14, lineHeight: 20, color: t.ink500, textAlign: "center", paddingHorizontal: 32 }}>
+              {tr("songPage.notFound.range", { max: PS_SONG_COUNT })}
+            </Text>
+          ) : null}
           <SpPill t={t} label={tr("songPage.goBack")} onPress={onBack} />
         </>
       )}
