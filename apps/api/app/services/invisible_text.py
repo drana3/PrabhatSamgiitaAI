@@ -13,10 +13,13 @@ how text is DRAWN and cannot hide anything:
 - between two letters or marks of the Arabic script (Persian and Urdu: "می‌خواهم");
 - between two emoji, as in the family sequence of 👨‍👩‍👧.
 
-Tag characters (U+E0020 to U+E007F) are dropped too, except the sequence that follows the waving
-black flag U+1F3F4 and ends with the cancel tag U+E007F: that is the England, Scotland and Wales
-flag. Blank-looking characters (Hangul fillers, braille blank, combining grapheme joiner, Khmer
-inherent vowels) are dropped, so a value made only of them is empty.
+Tag characters (U+E0020 to U+E007F) are dropped too, except the three flag sequences: the waving
+black flag U+1F3F4, tags spelling exactly gbeng, gbsct or gbwls, and the cancel tag U+E007F
+(England, Scotland, Wales). Any other tag run, however short, is dropped, because tags can carry
+hidden text that a person cannot see and a model later reads.
+
+Blank-looking characters (Hangul fillers, braille blank, combining grapheme joiner, Khmer inherent
+vowels) are dropped, so a value made only of them is empty.
 
 Leading, trailing, doubled, and next to a Latin letter, a space or a digit, they are dropped:
 "Adm‍in" is "Admin". (The staff and look-alike checks ignore joiners separately: they fold
@@ -30,6 +33,9 @@ import unicodedata
 JOINERS = ("\u200c", "\u200d")
 BLACK_FLAG = "\U0001f3f4"
 TAG_FIRST, TAG_LAST_LETTER, TAG_CANCEL = 0xE0020, 0xE007E, "\U000e007f"
+# The only tag sequences kept: the flags of England, Scotland and Wales (ISO 3166-2 codes).
+FLAG_SUBDIVISIONS = frozenset({"gbeng", "gbsct", "gbwls"})
+MAX_FLAG_TAGS = 5
 # Characters that look blank (or are blank) and are not covered by the Unicode "format" class:
 # the Hangul fillers, the Khmer inherent vowels (invisible), the combining grapheme joiner and the
 # braille blank. A name or note made only of them would look empty, so they are dropped
@@ -74,15 +80,19 @@ def joiner_belongs(text: str, index: int) -> bool:
 
 
 def _flag_tags_end(text: str, start: int) -> int | None:
-    """If `text[start]` is the waving black flag followed by tag characters and the cancel tag
-    (England, Scotland, Wales: the flag, tags for "gbeng", the cancel tag), the index just after
-    the sequence; else None."""
+    """If `text[start]` is the waving black flag followed by EXACTLY the tags of England, Scotland
+    or Wales and the cancel tag, the index just after the sequence; else None. Any other tag run
+    (hidden text, an unknown subdivision) is not kept, so tags cannot carry a message."""
     if text[start] != BLACK_FLAG:
         return None
     index = start + 1
+    letters: list[str] = []
     while index < len(text) and TAG_FIRST <= ord(text[index]) <= TAG_LAST_LETTER:
+        if len(letters) >= MAX_FLAG_TAGS:
+            return None
+        letters.append(chr(ord(text[index]) - TAG_FIRST + 0x20))
         index += 1
-    if index > start + 1 and index < len(text) and text[index] == TAG_CANCEL:
+    if "".join(letters) in FLAG_SUBDIVISIONS and index < len(text) and text[index] == TAG_CANCEL:
         return index + 1
     return None
 
