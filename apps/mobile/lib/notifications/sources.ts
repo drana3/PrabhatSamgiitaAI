@@ -3,6 +3,7 @@ import type { SongSummary } from "@prabhat/core"
 
 import { festivalCalendar } from "@/data/festivals"
 import { festivalSongCount } from "@/data/festivalSongs"
+import { resolveTarget, type ResolvedTarget } from "@/lib/notifications/target"
 import { dateKey, type FestivalEntry, type SongPick, type TodaySong } from "@/lib/notifications/schedule"
 import { readTodayCache } from "@/lib/todayCache"
 
@@ -50,5 +51,22 @@ export async function readTodaySong(now: number = Date.now()): Promise<TodaySong
     return { date: dateKey(now), song: { number: first.number, title: first.title.trim() } }
   } catch {
     return null
+  }
+}
+
+/**
+ * Check where a notification points before opening it (lib/notifications/target.ts). The song numbers are
+ * the ones the phone saved from the catalogue (empty until it was loaded once: then no song is called missing);
+ * the festival ids are the calendar's. Never throws.
+ */
+export async function resolveForOpen(item: { kind: string; target: unknown }): Promise<ResolvedTarget> {
+  try {
+    const picks = await readSongPicks()
+    return resolveTarget(item, {
+      songNumbers: new Set(picks.map((p) => p.number)),
+      festivalIds: new Set(FESTIVAL_ENTRIES.map((f) => f.id)),
+    })
+  } catch {
+    return resolveTarget(item)
   }
 }

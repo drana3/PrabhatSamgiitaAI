@@ -1,10 +1,17 @@
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
-import { useRouter } from "expo-router"
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { BookOpen, ChevronLeft, Flame, Megaphone, Music, Newspaper, PartyPopper, Radio, Repeat2, X } from "lucide-react-native"
+import { ChevronLeft, X } from "lucide-react-native"
 
 import { HOME_INSET, HomeCover } from "@/components/home/HomeBlocks"
+import { CentreBanner, type BannerKind } from "@/components/notifications/CentreBanner"
+import { ConfirmDialog } from "@/components/notifications/ConfirmDialog"
+import { GroupRow } from "@/components/notifications/GroupRow"
+import { kindIcon, kindTile } from "@/components/notifications/kindVisual"
+import { SwipeRow } from "@/components/notifications/SwipeRow"
+import { UndoBar, type Bar } from "@/components/notifications/UndoBar"
 import { Reveal } from "@/components/today/motion"
 import { overStyle } from "@/components/today/TodayBlocks"
 import { TodayPress } from "@/components/today/TodayPress"
@@ -13,40 +20,18 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { amProto, protoFor, type AmProto } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
-import { timeLabel, type AppNotification, type NotificationKind } from "@/lib/notifications"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { keptByClearAll, timeLabel, unreadIds, type AppNotification } from "@/lib/notifications"
+import { rowsOf } from "@/lib/notifications/grouping"
+import { nativeNotificationsAvailable, openSystemSettings } from "@/lib/notifications/native"
+import { ensurePermission, refreshPermission } from "@/lib/notifications/permission"
+import { resolveForOpen } from "@/lib/notifications/sources"
+import { useNotificationHealthStore } from "@/stores/notificationHealthStore"
+import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { href } from "@/utils/href"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useT } from "@/lib/i18n"
-
-const ICONS: Record<Exclude<NotificationKind, "song">, typeof Flame> = {
-  festival: PartyPopper,
-  words: Repeat2,
-  story: BookOpen,
-  streak: Flame,
-  live: Radio,
-  upload: Music,
-  announcement: Megaphone,
-}
-
-/** Tile colours of the non-song rows; the glyph always has contrast on its tile. */
-function tile(p: AmProto, kind: NotificationKind): { bg: string; fg: string } {
-  switch (kind) {
-    case "festival":
-      return { bg: p.gold300, fg: "#1E1E1E" }
-    case "words":
-      return { bg: p.action, fg: "#FFFFFF" }
-    case "story":
-      return { bg: p.sage700, fg: "#FFFFFF" }
-    case "live":
-      return { bg: p.sage800, fg: "#FFFFFF" }
-    case "upload":
-    case "announcement":
-      return { bg: p.sand300, fg: p.ink800 }
-    default:
-      return { bg: p.dark ? p.sage800 : p.sage900, fg: p.gold300 }
-  }
-}
 
 function Row({
   p,
@@ -64,8 +49,8 @@ function Row({
   onDelete: () => void
 }) {
   const t = useT()
-  const Icon = item.kind === "song" ? Newspaper : ICONS[item.kind]
-  const tint = tile(p, item.kind)
+  const Icon = kindIcon(item.kind)
+  const tint = kindTile(p, item.kind)
   const time = timeLabel(item.firedAt, now)
   return (
     <View
@@ -114,9 +99,13 @@ function Row({
 }
 
 /**
- * Notifications (opened from the bell on Home). What has fired, "Today" and "Earlier"; an orange dot on
- * what is unread, a tap opens the target and marks it read, an X deletes a row, "Mark all read" clears
- * the dots and "Settings" chooses what is sent. Items older than 30 days are gone.
+ * Notifications (opened from the bell on Home). What has fired, in sections: "Needs your attention" (unread
+ * notices about your own uploads, whatever their age), "Today", "Earlier". An orange dot on what is unread; a
+ * tap opens the target (or the nearest real screen when the target is gone) and marks it read; a swipe to the
+ * left or the X deletes a row, with Undo; several reminders of one kind on one day fold into a group;
+ * "Mark all read" clears the dots; "Clear all" asks first and keeps unread notices about your uploads;
+ * "Settings" chooses what is sent. A banner above the list says when reminders cannot reach you (permission off,
+ * or the phone refused to schedule them). How long things stay: docs/notifications.md, "Retention".
  */
 export default function NotificationsScreen() {
   const bottomInset = useScrollBottomInset()
@@ -126,13 +115,87 @@ export default function NotificationsScreen() {
   const p = protoFor(theme)
   const insets = useSafeAreaInsets()
   const top = insets.top || amProto.statusArea
+  const params = useLocalSearchParams<{ permission?: string; failed?: string }>()
   const { items, read, unread, sections, now } = useNotificationItems()
   const open = useNotificationsStore((st) => st.open)
   const markAll = useNotificationsStore((st) => st.markAll)
   const remove = useNotificationsStore((st) => st.remove)
-  const done = new Set(read)
+  const restore = useNotificationsStore((st) => st.restore)
+  const clear = useNotificationsStore((st) => st.clear)
+  const stored = useNotificationsStore((st) => st.items)
+  const master = useNotificationSettingsStore((st) => st.master)
+  const storedPermission = useNotificationSettingsStore((st) => st.permission)
+  const scheduleFailed = useNotificationHealthStore((st) => st.scheduleFailed)
+  const retry = useNotificationHealthStore((st) => st.retry)
+  const unreadSet = new Set(unreadIds(items, read, now))
+
+  const [bar, setBar] = useState<Bar | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const dismissBar = useCallback(() => setBar(null), [])
+  const say = useCallback((message: string, undo?: { label: string; run: () => void }) => {
+    setBar({ key: Date.now(), message, actionLabel: undo?.label, onAction: undo?.run })
+  }, [])
+
+  // the system permission as it is now (it may have been changed in system settings since the app was last open)
+  useEffect(() => {
+    void refreshPermission()
+  }, [])
+
+  // the preview can show the banners: ?permission=denied | undetermined, ?failed=1
+  const previewPermission = MOCKUP_DATA && (params.permission === "denied" || params.permission === "undetermined") ? params.permission : null
+  const permission = previewPermission ?? storedPermission
+  const failed = (MOCKUP_DATA && params.failed === "1") || scheduleFailed
+  const banner: BannerKind | null =
+    !master || (!nativeNotificationsAvailable && !previewPermission && !failed)
+      ? null
+      : permission === "denied"
+        ? "denied"
+        : permission === "undetermined"
+          ? "undetermined"
+          : failed
+            ? "failed"
+            : null
+
+  // the explanation of a target that is gone waits for the person to come back to this screen: the
+  // fallback screen is on top of it right after the tap, and a bar under it would be seen by nobody
+  const pendingNote = useRef<string | null>(null)
+  useFocusEffect(
+    useCallback(() => {
+      if (pendingNote.current) {
+        say(pendingNote.current)
+        pendingNote.current = null
+      }
+    }, [say]),
+  )
 
   const back = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/today")))
+
+  const openItem = (item: AppNotification) => {
+    open(item.id)
+    void resolveForOpen(item).then((resolved) => {
+      if (resolved.missing) pendingNote.current = t(resolved.reason === "song" ? "notif.gone.song" : resolved.reason === "festival" ? "notif.gone.festival" : "notif.gone.route")
+      router.push(href(resolved.route))
+    })
+  }
+  const deleteItem = (item: AppNotification) => {
+    remove(item)
+    say(t("notif.inbox.deleted"), { label: t("common.undo"), run: () => restore(item, Date.now()) })
+  }
+  const clearAllNow = () => {
+    setConfirming(false)
+    const keptStored = clear(Date.now())
+    // preview sample items are not in the store: delete them one by one
+    const inStore = new Set(stored.map((n) => n.id))
+    for (const item of items) if (!inStore.has(item.id) && !(unreadSet.has(item.id) && keptByClearAll([item], []) > 0)) remove(item)
+    say(keptStored > 0 ? t("notif.inbox.cleared.kept", { count: keptStored }) : t("notif.inbox.cleared"))
+  }
+  const kept = keptByClearAll(items, read)
+
+  const renderRow = (item: AppNotification) => (
+    <SwipeRow key={item.id} p={p} label={t("common.delete")} onDelete={() => deleteItem(item)}>
+      <Row p={p} item={item} now={now} unread={unreadSet.has(item.id)} onPress={() => openItem(item)} onDelete={() => deleteItem(item)} />
+    </SwipeRow>
+  )
   let reveal = 1
 
   return (
@@ -142,11 +205,6 @@ export default function NotificationsScreen() {
           <ChevronLeft size={22} color={p.ink800} strokeWidth={1.9} />
         </TodayPress>
         <View style={s.barRight}>
-          {unread > 0 ? (
-            <TodayPress accessibilityRole="button" accessibilityLabel={t("notif.inbox.markAll")} onPress={() => markAll(items)} pressedScale={0.95} style={s.barText}>
-              <Text style={[s.markText, { color: p.orange700 }]}>{t("notif.inbox.markAll")}</Text>
-            </TodayPress>
-          ) : null}
           <TodayPress accessibilityRole="button" accessibilityLabel={t("common.settings")} onPress={() => router.push(href("/notification-settings"))} pressedScale={0.95} style={s.barText}>
             <Text style={[s.markText, { color: p.orange700 }]}>{t("common.settings")}</Text>
           </TodayPress>
@@ -162,8 +220,31 @@ export default function NotificationsScreen() {
           </Text>
         </Reveal>
 
+        {banner ? (
+          <Reveal index={reveal++}>
+            <CentreBanner
+              p={p}
+              kind={banner}
+              onPress={() => (banner === "denied" ? openSystemSettings() : banner === "undetermined" ? void ensurePermission() : retry())}
+            />
+          </Reveal>
+        ) : null}
+
+        {items.length > 0 ? (
+          <Reveal index={reveal++} style={s.actions}>
+            {unread > 0 ? (
+              <TodayPress accessibilityRole="button" accessibilityLabel={t("notif.inbox.markAll")} onPress={() => markAll(items)} pressedScale={0.95} style={[s.pill, { borderColor: p.orange700 }]}>
+                <Text style={[s.pillText, { color: p.orange700 }]}>{t("notif.inbox.markAll")}</Text>
+              </TodayPress>
+            ) : null}
+            <TodayPress accessibilityRole="button" accessibilityLabel={t("notif.inbox.clearAll")} onPress={() => setConfirming(true)} pressedScale={0.95} style={[s.pill, { borderColor: p.sand400 }]}>
+              <Text style={[s.pillText, { color: p.ink500 }]}>{t("notif.inbox.clearAll")}</Text>
+            </TodayPress>
+          </Reveal>
+        ) : null}
+
         {sections.length === 0 ? (
-          <Reveal index={1} style={s.empty}>
+          <Reveal index={reveal++} style={s.empty}>
             <Image source={todayAssets.logo} style={s.emptyLogo} contentFit="contain" accessibilityIgnoresInvertColors />
             <Text style={[s.emptyTitle, { color: p.ink800 }]}>{t("notif.inbox.empty.title")}</Text>
             <Text style={[s.emptyText, { color: p.ink500 }]}>{t("notif.inbox.empty.text")}</Text>
@@ -173,25 +254,30 @@ export default function NotificationsScreen() {
             <Reveal key={section.id} index={Math.min(reveal++, 6)} style={s.section}>
               <Text style={[overStyle, { color: p.orange700, paddingHorizontal: HOME_INSET }]}>{section.label}</Text>
               <View style={s.list}>
-                {section.items.map((item) => (
-                  <Row
-                    key={item.id}
-                    p={p}
-                    item={item}
-                    now={now}
-                    unread={!done.has(item.id)}
-                    onPress={() => {
-                      open(item.id)
-                      router.push(href(item.target))
-                    }}
-                    onDelete={() => remove(item)}
-                  />
-                ))}
+                {rowsOf(section.items).map((row) =>
+                  row.type === "item" ? (
+                    renderRow(row.item)
+                  ) : (
+                    <GroupRow key={row.id} p={p} items={row.items} now={now} unreadIds={unreadSet} renderRow={renderRow} />
+                  ),
+                )}
               </View>
             </Reveal>
           ))
         )}
       </ScrollView>
+
+      <UndoBar p={p} bar={bar} bottom={bottomInset} onDismiss={dismissBar} />
+      <ConfirmDialog
+        p={p}
+        visible={confirming}
+        title={t("notif.inbox.clear.title")}
+        body={t("notif.inbox.clear.body")}
+        note={kept > 0 ? t("notif.inbox.clear.keeps", { count: kept }) : undefined}
+        confirmLabel={t("notif.inbox.clear.confirm")}
+        onConfirm={clearAllNow}
+        onCancel={() => setConfirming(false)}
+      />
     </View>
   )
 }
@@ -217,6 +303,9 @@ const s = StyleSheet.create({
   body: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19 },
   time: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: HOME_INSET },
+  pill: { minHeight: 44, borderRadius: 22, borderWidth: 1, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
+  pillText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   empty: { alignItems: "center", gap: 10, paddingTop: 60, paddingHorizontal: 40 },
   emptyLogo: { width: 72, height: 86 },
   emptyTitle: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, textTransform: "uppercase", letterSpacing: -0.5, textAlign: "center" },

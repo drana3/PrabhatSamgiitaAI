@@ -6,17 +6,18 @@ import { PREVIEW_SONG_PICKS } from "@/lib/fixtures/notifications"
 import { learningStreak } from "@/lib/learn/streak"
 import { learnWordsAvailable } from "@/lib/learn/verified"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { unreadCount } from "@/lib/notifications"
 import { nowMs } from "@/lib/notifications/clock"
 import {
   applySchedule,
   cancelAll,
   configureNotifications,
+  dismissStalePresented,
   listenForTaps,
   nativeNotificationsAvailable,
   setBadge,
 } from "@/lib/notifications/native"
 import { ensurePermission, refreshPermission, shouldAskInContext } from "@/lib/notifications/permission"
+import { badgeCount } from "@/lib/notifications/retention"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import {
   firedSince,
@@ -27,8 +28,9 @@ import {
   type SongPick,
   type TodaySong,
 } from "@/lib/notifications/schedule"
-import { FESTIVAL_ENTRIES, readSongPicks, readTodaySong } from "@/lib/notifications/sources"
+import { FESTIVAL_ENTRIES, readSongPicks, readTodaySong, resolveForOpen } from "@/lib/notifications/sources"
 import { useLearnStore } from "@/stores/learnStore"
+import { useNotificationHealthStore } from "@/stores/notificationHealthStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { href } from "@/utils/href"
@@ -78,6 +80,8 @@ export function NotificationsHost() {
   const streakOn = useNotificationSettingsStore((s) => s.streak)
   const permission = useNotificationSettingsStore((s) => s.permission)
   const cards = useLearnStore((s) => s.cards)
+  // "Try again" in the centre
+  const retryTick = useNotificationHealthStore((s) => s.retryTick)
   // reminders carry text: when the language changes, the pending ones are planned again in the new one
   const language = useLanguage()
 
@@ -121,6 +125,13 @@ export function NotificationsHost() {
     inbox.receive(firedSince(input(now), since).map(toInboxItem), now)
   }, [input])
 
+  /** Take read and stale notifications off the lock screen and out of the shade. */
+  const tidyShade = useCallback(async () => {
+    if (!nativeNotificationsAvailable) return
+    const read = new Set(useNotificationsStore.getState().read)
+    await dismissStalePresented((id) => read.has(id), nowMs())
+  }, [])
+
   /** Make the phone's schedule equal the plan, and set the badge. */
   const reschedule = useCallback(async () => {
     // the permission first: the inbox must not take in reminders from a time when the OS no longer allowed them
@@ -137,7 +148,9 @@ export function NotificationsHost() {
       useNotificationsStore.getState().setScheduled([])
     }
     const inbox = useNotificationsStore.getState()
-    await setBadge(unreadCount(inbox.items, inbox.read))
+    // master off or no permission: no number on the icon either
+    await setBadge(granted && st.master ? badgeCount(inbox.items, inbox.read, nowMs()) : 0)
+    await tidyShade()
   }, [input, syncInbox])
 
   // ask for the OS permission in context: when the first song or word is saved, not at launch
@@ -153,11 +166,17 @@ export function NotificationsHost() {
   }, [hydrated, savedCount, cardCount, permission, master])
 
   // the icon badge follows the unread count at once (Read all, opening one), not at the next reschedule
-  const unread = useNotificationsStore((s) => unreadCount(s.items, s.read))
+  const unread = useNotificationsStore((s) => (master && permission !== "denied" ? badgeCount(s.items, s.read, nowMs()) : 0))
+  const readCount = useNotificationsStore((s) => s.read.length)
   useEffect(() => {
     if (!hydrated || !nativeNotificationsAvailable) return
     void setBadge(unread)
   }, [hydrated, unread])
+
+  // a notification opened or marked read in the app also leaves the lock screen
+  useEffect(() => {
+    if (hydrated) void tidyShade()
+  }, [hydrated, readCount, tidyShade])
 
   // the Android channel name is in the app language; calling again renames it
   useEffect(() => {
@@ -183,7 +202,7 @@ export function NotificationsHost() {
     if (!hydrated) return
     const timer = setTimeout(() => void reschedule(), 400)
     return () => clearTimeout(timer)
-  }, [hydrated, reschedule, master, song, festival, words, streakOn, permission, cards, songs, language])
+  }, [hydrated, reschedule, master, song, festival, words, streakOn, permission, cards, songs, language, retryTick])
 
   // back to the front: look again; while it is in front, keep the inbox current
   useEffect(() => {
@@ -203,14 +222,17 @@ export function NotificationsHost() {
   // app is on a real screen, so the two navigations never race (and the tap never opens twice).
   const pathname = usePathname()
   const booted = pathname !== "/" && pathname !== ""
-  const pendingTarget = useRef<string | null>(null)
+  const pendingTarget = useRef<{ target: string; kind: string } | null>(null)
   const openTarget = useCallback(
-    (target: string) => {
-      try {
-        router.push(href(target))
-      } catch {
-        /* the navigator was not ready; the inbox still has the item */
-      }
+    (target: string, kind: string) => {
+      // a notification can outlive what it points at: a missing song or festival opens the kind's list instead
+      void resolveForOpen({ kind, target }).then((resolved) => {
+        try {
+          router.push(href(resolved.route))
+        } catch {
+          /* the navigator was not ready; the inbox still has the item */
+        }
+      })
     },
     [router],
   )
@@ -219,19 +241,19 @@ export function NotificationsHost() {
 
   useEffect(() => {
     if (!hydrated) return
-    return listenForTaps(({ id, target }) => {
+    return listenForTaps(({ id, target, kind }) => {
       if (id) useNotificationsStore.getState().open(id)
-      if (bootedRef.current) setTimeout(() => openTarget(target), 150)
-      else pendingTarget.current = target
+      if (bootedRef.current) setTimeout(() => openTarget(target, kind), 150)
+      else pendingTarget.current = { target, kind }
     })
   }, [hydrated, openTarget])
 
   useEffect(() => {
     if (!booted || !pendingTarget.current) return
     const timer = setTimeout(() => {
-      const target = pendingTarget.current
+      const pending = pendingTarget.current
       pendingTarget.current = null
-      if (target) openTarget(target)
+      if (pending) openTarget(pending.target, pending.kind)
     }, 300)
     return () => clearTimeout(timer)
   }, [booted, openTarget])

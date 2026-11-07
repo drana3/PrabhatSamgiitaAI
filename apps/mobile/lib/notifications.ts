@@ -1,4 +1,13 @@
 import { formatDate, formatTime, t } from "@/lib/i18n"
+import { isImportant, type NotificationKind } from "@/lib/notifications/kinds"
+import {
+  DELETED_KEEP_DAYS,
+  INBOX_KEEP_DAYS,
+  capItems,
+  daysBetween,
+  isExpired,
+  isUnread,
+} from "@/lib/notifications/retention"
 /**
  * Notifications: the inbox model and the pure reducers behind the bell.
  *
@@ -7,15 +16,8 @@ import { formatDate, formatTime, t } from "@/lib/i18n"
  * inbox item. Phase 2 adds server items (docs/notifications.md). No React, no stores, no clock reads:
  * `now` is always passed in.
  */
-export type NotificationKind =
-  | "song"
-  | "festival"
-  | "words"
-  | "story"
-  | "streak"
-  | "live"
-  | "upload"
-  | "announcement"
+export type { NotificationKind }
+export { INBOX_KEEP_DAYS }
 
 export type AppNotification = {
   /** deterministic ("song:2026-11-05"): the same event always gets the same id */
@@ -31,21 +33,13 @@ export type AppNotification = {
   coverNumber?: number
 }
 
-/** An inbox item older than this is dropped. */
-export const INBOX_KEEP_DAYS = 30
-const DAY_MS = 86_400_000
+/*
+ * How long an item stays is decided per kind (lib/notifications/kinds.ts, lib/notifications/retention.ts):
+ * reminders 14 days, stories and team messages 30, a live notice 2, a notice about the person's own upload 90
+ * (180 while unread); at most 100 ordinary items. INBOX_KEEP_DAYS (30) is the longest an ordinary item can stay.
+ */
 
 /* ------------------------------------------------------------------ time */
-
-function dayStart(ms: number): number {
-  const d = new Date(ms)
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-}
-
-/** Whole local calendar days from `a` to `b` (positive when b is later). */
-function daysBetween(a: number, b: number): number {
-  return Math.round((dayStart(b) - dayStart(a)) / DAY_MS)
-}
 
 /** The short time on a row: "8:00" today, "Yesterday", "Mon" within a week, "12 Oct" later. */
 export function timeLabel(firedAt: number, now: number): string {
@@ -60,13 +54,14 @@ export function timeLabel(firedAt: number, now: number): string {
 
 /* --------------------------------------------------------------- reducers */
 
-export function unreadIds(items: readonly AppNotification[], read: readonly string[]): string[] {
+/** `now` makes a reminder that stayed unread for a week stop counting (retention.ts `isUnread`); without it every item not opened counts. */
+export function unreadIds(items: readonly AppNotification[], read: readonly string[], now?: number): string[] {
   const done = new Set(read)
-  return items.filter((n) => !done.has(n.id)).map((n) => n.id)
+  return items.filter((n) => (now == null ? !done.has(n.id) : isUnread(n, done, now))).map((n) => n.id)
 }
 
-export function unreadCount(items: readonly AppNotification[], read: readonly string[]): number {
-  return unreadIds(items, read).length
+export function unreadCount(items: readonly AppNotification[], read: readonly string[], now?: number): number {
+  return unreadIds(items, read, now).length
 }
 
 export function markRead(read: readonly string[], id: string): string[] {
@@ -77,19 +72,24 @@ export function markAllRead(items: readonly AppNotification[], read: readonly st
   return Array.from(new Set([...read, ...items.map((n) => n.id)]))
 }
 
-export type NotificationSection = { id: "today" | "earlier"; label: string; items: AppNotification[] }
+export type NotificationSection = { id: "important" | "today" | "earlier"; label: string; items: AppNotification[] }
 
 /**
- * "Today" then "Earlier", newest first inside each; an empty section is left out and anything older
- * than 30 days is dropped.
+ * "Important" (unread notices about the person's own content, whatever their age), then "Today", then
+ * "Earlier", newest first inside each; an empty section is left out and anything past its keep time is
+ * dropped. Without `read` there is no "Important" section.
  */
-export function sectionsOf(items: readonly AppNotification[], now: number): NotificationSection[] {
+export function sectionsOf(items: readonly AppNotification[], now: number, read?: readonly string[]): NotificationSection[] {
+  const done = new Set(read ?? [])
   const newest = [...items]
-    .filter((n) => daysBetween(n.firedAt, now) < INBOX_KEEP_DAYS)
+    .filter((n) => !isExpired(n, done, now))
     .sort((a, b) => b.firedAt - a.firedAt || a.id.localeCompare(b.id))
-  const today = newest.filter((n) => daysBetween(n.firedAt, now) <= 0)
-  const earlier = newest.filter((n) => daysBetween(n.firedAt, now) > 0)
+  const pinned = read ? newest.filter((n) => isImportant(n.kind) && !done.has(n.id)) : []
+  const rest = newest.filter((n) => !pinned.includes(n))
+  const today = rest.filter((n) => daysBetween(n.firedAt, now) <= 0)
+  const earlier = rest.filter((n) => daysBetween(n.firedAt, now) > 0)
   const out: NotificationSection[] = []
+  if (pinned.length) out.push({ id: "important", label: t("notif.inbox.section.important"), items: pinned })
   if (today.length) out.push({ id: "today", label: t("notif.inbox.section.today"), items: today })
   if (earlier.length) out.push({ id: "earlier", label: t("notif.inbox.section.earlier"), items: earlier })
   return out
@@ -110,15 +110,16 @@ export type InboxState = {
 
 export const EMPTY_INBOX: InboxState = { items: [], read: [], deleted: {}, syncedAt: null }
 
-function isOld(firedAt: number, now: number): boolean {
-  return daysBetween(firedAt, now) >= INBOX_KEEP_DAYS
-}
-
-/** Drop what is older than 30 days from items and from the deleted memory. */
+/**
+ * Drop what has outlived its kind (retention.ts), keep the newest 100 ordinary and 50 important items, and
+ * forget deleted ids and read ids that no item needs any more.
+ */
 export function pruneInbox(state: InboxState, now: number): InboxState {
-  const items = state.items.filter((n) => !isOld(n.firedAt, now))
+  const done = new Set(state.read)
+  const ordered = [...state.items].sort((a, b) => b.firedAt - a.firedAt || a.id.localeCompare(b.id))
+  const items = capItems(ordered.filter((n) => !isExpired(n, done, now)))
   const deleted: Record<string, number> = {}
-  for (const [id, firedAt] of Object.entries(state.deleted)) if (!isOld(firedAt, now)) deleted[id] = firedAt
+  for (const [id, firedAt] of Object.entries(state.deleted)) if (daysBetween(firedAt, now) < DELETED_KEEP_DAYS) deleted[id] = firedAt
   // read ids are tiny; a cap keeps the list from growing for ever (sample items are not in `items`)
   return { ...state, items, read: state.read.slice(-300), deleted }
 }
@@ -131,7 +132,7 @@ export function receiveFired(state: InboxState, fired: readonly AppNotification[
   const known = new Set(state.items.map((n) => n.id))
   const added: AppNotification[] = []
   for (const n of fired) {
-    if (known.has(n.id) || n.id in state.deleted || n.firedAt > now || isOld(n.firedAt, now)) continue
+    if (known.has(n.id) || n.id in state.deleted || n.firedAt > now || isExpired(n, state.read, now)) continue
     known.add(n.id)
     added.push(n)
   }
@@ -147,4 +148,36 @@ export function removeItem(state: InboxState, id: string, firedAt: number): Inbo
     read: state.read.filter((r) => r !== id),
     deleted: { ...state.deleted, [id]: firedAt },
   }
+}
+
+/** Undo a delete: the item is back, and the memory that kept it away is cleared. */
+export function restoreItem(state: InboxState, item: AppNotification, now: number): InboxState {
+  const deleted = { ...state.deleted }
+  delete deleted[item.id]
+  if (state.items.some((n) => n.id === item.id)) return { ...state, deleted }
+  return pruneInbox({ ...state, items: [...state.items, item], deleted }, now)
+}
+
+/**
+ * "Clear all": every item goes (and is remembered as deleted so it does not come back), except unread
+ * important items: a removal notice must be read before it can disappear. Returns the new state and how many were kept.
+ */
+export function clearAll(state: InboxState, now: number): { state: InboxState; kept: number } {
+  const done = new Set(state.read)
+  const keep = state.items.filter((n) => isImportant(n.kind) && !done.has(n.id))
+  const deleted = { ...state.deleted }
+  for (const n of state.items) if (!keep.includes(n)) deleted[n.id] = n.firedAt
+  const next: InboxState = {
+    ...state,
+    items: keep,
+    read: state.read.filter((id) => !(id in deleted)),
+    deleted,
+  }
+  return { state: pruneInbox(next, now), kept: keep.length }
+}
+
+/** How many unread important items `clearAll` would keep (for the confirm text). */
+export function keptByClearAll(items: readonly AppNotification[], read: readonly string[]): number {
+  const done = new Set(read)
+  return items.filter((n) => isImportant(n.kind) && !done.has(n.id)).length
 }

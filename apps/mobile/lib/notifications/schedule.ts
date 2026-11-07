@@ -3,7 +3,9 @@ import { getActiveLanguage } from "@/lib/i18n/core"
 import { festivalText } from "@/lib/i18n/festivalText"
 import type { WordCard } from "@/lib/learn/srs"
 import type { LearningStreak } from "@/lib/learn/streak"
-import type { AppNotification, NotificationKind } from "@/lib/notifications"
+import type { AppNotification } from "@/lib/notifications"
+import type { NotificationKind } from "@/lib/notifications/kinds"
+import { KIND_META } from "@/lib/notifications/kinds"
 import { FESTIVAL_EVE_AT, STREAK_AT, kindEnabled, type NotificationSettings } from "@/lib/notifications/settings"
 
 /**
@@ -89,17 +91,10 @@ export type PlannedNotification = {
   coverNumber?: number
 }
 
-/** Order of notifications that fire at the same minute (lower number first). `live` is only an inbox kind now. */
-export const PRIORITY: Record<NotificationKind, number> = {
-  live: 0,
-  festival: 1,
-  words: 2,
-  song: 3,
-  streak: 4,
-  story: 5,
-  upload: 5,
-  announcement: 5,
-}
+/** Order of notifications that fire at the same minute (lower number first); from the registry (kinds.ts). `live` is only an inbox kind now. */
+export const PRIORITY: Record<NotificationKind, number> = Object.fromEntries(
+  (Object.keys(KIND_META) as NotificationKind[]).map((k) => [k, KIND_META[k].priority]),
+) as Record<NotificationKind, number>
 
 /* ------------------------------------------------------------------ dates */
 

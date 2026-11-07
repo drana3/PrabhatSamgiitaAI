@@ -1,8 +1,12 @@
 import { Linking, Platform } from "react-native"
 
 import { getActiveLanguage, type Language } from "@/lib/i18n/core"
-import { remindersChannelName } from "@/lib/notifications/channelNames"
+import { channelGroupName, channelName, privatePreviewText } from "@/lib/notifications/channelNames"
+import { channelFor, nativeContent } from "@/lib/notifications/content"
+import { CHANNELS, CHANNEL_GROUPS, KIND_META, categoryOf, isImportant, type ChannelGroupId, type NotificationKind } from "@/lib/notifications/kinds"
+import { STALE_PRESENTED_HOURS } from "@/lib/notifications/retention"
 import { capForPlatform, diffSchedule, type PlannedNotification } from "@/lib/notifications/schedule"
+import { useNotificationHealthStore } from "@/stores/notificationHealthStore"
 
 /**
  * The only file that talks to `expo-notifications`. On the web preview (react-native-web) and wherever
@@ -38,7 +42,13 @@ function toPermission(res: { granted: boolean; canAskAgain: boolean; status: str
   return res.status === "undetermined" ? "undetermined" : "denied"
 }
 
-/** Foreground banner and the Android channel, named in the app language (calling again renames it). Safe to call more than once. */
+/**
+ * Foreground banner (no sound while the app is open), the Android channels and their groups, and the iOS
+ * categories, named in the app language (calling again renames them). Safe to call more than once.
+ * Android: one channel per class of notification (kinds.ts CHANNELS) so each can be muted on its own in system
+ * settings; the channel id `reminders` is the original one and keeps the person's own choices. iOS: a category
+ * `ps.<kind>` for every important kind, with a private preview so the lock screen can hide the text.
+ */
 export async function configureNotifications(language: Language = getActiveLanguage()): Promise<void> {
   const N = expo()
   if (!N) return
@@ -51,15 +61,38 @@ export async function configureNotifications(language: Language = getActiveLangu
         shouldSetBadge: false,
       }),
     })
-    if (Platform.OS === "android") {
-      await N.setNotificationChannelAsync(REMINDERS_CHANNEL, {
-        name: remindersChannelName(language),
-        importance: N.AndroidImportance.DEFAULT,
-        showBadge: true,
-      })
-    }
   } catch {
-    /* a missing channel is not worth failing the app for */
+    /* a missing handler only costs the foreground banner */
+  }
+  if (Platform.OS === "android") {
+    try {
+      for (const group of CHANNEL_GROUPS) {
+        await N.setNotificationChannelGroupAsync?.(group satisfies ChannelGroupId, { name: channelGroupName(group, language) })
+      }
+      for (const channel of Object.values(CHANNELS)) {
+        await N.setNotificationChannelAsync(channel.id, {
+          name: channelName(channel.id, language),
+          importance: channel.importance === "high" ? N.AndroidImportance.HIGH : N.AndroidImportance.DEFAULT,
+          showBadge: true,
+          groupId: channel.group,
+          lightColor: "#B94D0C",
+          // a notice about the person's own upload hides its text on a secured lock screen
+          lockscreenVisibility: channel.id === "notices" ? N.AndroidNotificationVisibility.PRIVATE : N.AndroidNotificationVisibility.PUBLIC,
+        })
+      }
+    } catch {
+      /* a missing channel is not worth failing the app for */
+    }
+  }
+  if (Platform.OS === "ios") {
+    try {
+      for (const kind of Object.keys(KIND_META) as NotificationKind[]) {
+        if (!isImportant(kind)) continue
+        await N.setNotificationCategoryAsync(categoryOf(kind), [], { previewPlaceholder: privatePreviewText(language) })
+      }
+    } catch {
+      /* categories only change the lock-screen text of notices */
+    }
   }
 }
 
@@ -105,21 +138,30 @@ export async function applySchedule(planned: readonly PlannedNotification[]): Pr
   const N = expo()
   if (!N) return []
   const accepted: PlannedNotification[] = []
+  let failed = false
   try {
     const existing = await N.getAllScheduledNotificationsAsync()
     const { cancel, schedule } = diffSchedule(existing.map((e) => e.identifier), capForPlatform(planned))
     await Promise.all(cancel.map((id) => N.cancelScheduledNotificationAsync(id)))
     for (const n of schedule) {
-      await N.scheduleNotificationAsync({
-        identifier: n.id,
-        content: { title: n.title, body: n.text, data: { id: n.id, target: n.target }, sound: false },
-        trigger: { type: N.SchedulableTriggerInputTypes.DATE, date: n.fireAt, channelId: REMINDERS_CHANNEL },
-      })
-      accepted.push(n)
+      try {
+        await N.scheduleNotificationAsync({
+          identifier: n.id,
+          content: nativeContent(n),
+          trigger: { type: N.SchedulableTriggerInputTypes.DATE, date: n.fireAt, channelId: channelFor(n.kind) },
+        })
+        accepted.push(n)
+      } catch {
+        // one refused reminder must not stop the others
+        failed = true
+      }
     }
     return accepted
   } catch {
+    failed = true
     return accepted
+  } finally {
+    useNotificationHealthStore.getState().setScheduleFailed(failed)
   }
 }
 
@@ -134,6 +176,35 @@ export async function cancelAll(): Promise<void> {
   }
 }
 
+/**
+ * Clear the lock screen and the shade of notifications the person no longer needs: the ones the app knows
+ * are read (opened in the centre, or "Mark all read") and the ones delivered more than
+ * STALE_PRESENTED_HOURS ago. Without this the system keeps every "Song of the day" until it is swiped away.
+ * Returns how many were removed.
+ */
+export async function dismissStalePresented(isRead: (id: string) => boolean, now: number): Promise<number> {
+  const N = expo()
+  if (!N) return 0
+  let removed = 0
+  try {
+    const shown = await N.getPresentedNotificationsAsync()
+    for (const item of shown) {
+      const data = item.request.content.data as { id?: unknown } | undefined
+      const id = typeof data?.id === "string" ? data.id : null
+      // `date` is seconds on some platforms and milliseconds on others
+      const deliveredAt = item.date < 1e12 ? item.date * 1000 : item.date
+      const old = now - deliveredAt > STALE_PRESENTED_HOURS * 3_600_000
+      if ((id && isRead(id)) || old) {
+        await N.dismissNotificationAsync(item.request.identifier)
+        removed += 1
+      }
+    }
+  } catch {
+    /* nothing presented, or the platform cannot list them */
+  }
+  return removed
+}
+
 /** The number on the app icon. */
 export async function setBadge(count: number): Promise<void> {
   const N = expo()
@@ -145,12 +216,12 @@ export async function setBadge(count: number): Promise<void> {
   }
 }
 
-type Tap = { id: string | null; target: string }
+type Tap = { id: string | null; target: string; kind: string }
 
 function tapOf(response: { notification: { request: { content: { data?: unknown } } } } | null | undefined): Tap | null {
-  const data = response?.notification.request.content.data as { id?: unknown; target?: unknown } | undefined
+  const data = response?.notification.request.content.data as { id?: unknown; target?: unknown; kind?: unknown } | undefined
   if (!data || typeof data.target !== "string" || !data.target.startsWith("/")) return null
-  return { id: typeof data.id === "string" ? data.id : null, target: data.target }
+  return { id: typeof data.id === "string" ? data.id : null, target: data.target, kind: typeof data.kind === "string" ? data.kind : "announcement" }
 }
 
 /**

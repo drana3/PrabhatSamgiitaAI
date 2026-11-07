@@ -47,11 +47,12 @@ describe("inbox: receiving what has fired", () => {
 })
 
 describe("inbox: age and sections", () => {
-  it("drops items and deleted memory older than 30 days", () => {
+  it("drops items past their keep time and deleted memory older than 90 days", () => {
     const old = new Date(2026, 9, 1, 8).getTime()
-    const state = { ...EMPTY_INBOX, items: [n("old", old), n("new", at(4))], deleted: { x: old, y: at(3) }, read: ["old", "new"] }
+    const state = { ...EMPTY_INBOX, items: [n("old", old), n("new", at(4))], deleted: { x: new Date(2026, 6, 1, 8).getTime(), y: old }, read: ["old", "new"] }
     const out = pruneInbox(state, NOW)
     expect(out.items.map((i) => i.id)).toEqual(["new"])
+    // the deleted memory is kept 90 days: a 35-day-old one stays, a July one goes
     expect(Object.keys(out.deleted)).toEqual(["y"])
   })
 

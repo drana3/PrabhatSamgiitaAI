@@ -1,4 +1,5 @@
 import { clearCachedMemberEmail } from "@/lib/memberEmail"
+import { isAccountBound } from "@/lib/notifications/kinds"
 import { useChatStore } from "@/stores/chatStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { clearPlaylistsOnDevice } from "@/stores/playlistStore"
@@ -26,7 +27,7 @@ export async function wipeLocalUserData(accountId?: string | null): Promise<void
     /* keep going */
   }
   try {
-    useNotificationsStore.setState((state) => ({ items: state.items.filter((item) => item.kind !== "upload") }))
+    useNotificationsStore.setState((state) => ({ items: state.items.filter((item) => !isAccountBound(item.kind)) }))
   } catch {
     /* keep going */
   }

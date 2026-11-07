@@ -22,6 +22,7 @@ import { assistantErrorsRu } from "./assistantErrors"
 import { songCommentsRu } from "./songComments"
 import { chordProposalsRu } from "./chordProposals"
 import { pronunciationRu } from "./pronunciation"
+import { notificationCentreRu } from "./notificationCentre"
 
 /** Русский. Обращение на «вы». Киртан и Бхаджан по-русски, Prabhat Samgiita латиницей. */
 export const ru: Dictionary = {
@@ -1368,4 +1369,5 @@ export const ru: Dictionary = {
   ...songCommentsRu,
   ...chordProposalsRu,
   ...pronunciationRu,
+  ...notificationCentreRu,
 }

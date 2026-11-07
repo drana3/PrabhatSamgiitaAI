@@ -5,11 +5,13 @@ import { createJSONStorage, persist } from "zustand/middleware"
 import type { PlannedNotification } from "@/lib/notifications/schedule"
 import {
   EMPTY_INBOX,
+  clearAll,
   markAllRead,
   markRead,
   pruneInbox,
   receiveFired,
   removeItem,
+  restoreItem,
   type AppNotification,
   type InboxState,
 } from "@/lib/notifications"
@@ -30,6 +32,10 @@ type NotificationsState = InboxState & {
   open: (id: string) => void
   markAll: (items: readonly AppNotification[]) => void
   remove: (item: Pick<AppNotification, "id" | "firedAt">) => void
+  /** undo a delete */
+  restore: (item: AppNotification, now: number) => void
+  /** "Clear all": everything goes except unread important items; returns how many stayed */
+  clear: (now: number) => number
   prune: (now: number) => void
   reset: () => void
 }
@@ -58,7 +64,7 @@ export function migrateScheduled(saved: unknown): ScheduledLedger {
 
 /**
  * The inbox: notifications that have fired (with when), which are read, and which were deleted.
- * Kept on the phone for 30 days.
+ * Kept on the phone per kind (lib/notifications/retention.ts): reminders 14 days, notices about uploads 90.
  */
 export const useNotificationsStore = create<NotificationsState>()(
   persist(
@@ -70,6 +76,16 @@ export const useNotificationsStore = create<NotificationsState>()(
       open: (id) => set((s) => ({ read: markRead(s.read, id) })),
       markAll: (items) => set((s) => ({ read: markAllRead(items, s.read) })),
       remove: (item) => set((s) => removeItem(s, item.id, item.firedAt)),
+      restore: (item, now) => set((s) => restoreItem(s, item, now)),
+      clear: (now) => {
+        let kept = 0
+        set((s) => {
+          const out = clearAll(s, now)
+          kept = out.kept
+          return out.state
+        })
+        return kept
+      },
       prune: (now) => set((s) => pruneInbox(s, now)),
       reset: () => set({ ...EMPTY_INBOX, scheduled: [] }),
     }),

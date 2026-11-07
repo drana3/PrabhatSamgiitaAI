@@ -17,10 +17,10 @@ export function useNotificationItems() {
   const deleted = useNotificationsStore((s) => s.deleted)
   return useMemo(() => {
     const now = nowMs()
-    const samples: AppNotification[] = MOCKUP_DATA ? inboxFixtures(now).filter((n) => !(n.id in deleted)) : []
+    const samples: AppNotification[] = MOCKUP_DATA ? inboxFixtures(now).filter((n) => !(n.id in deleted) && !stored.some((m) => m.id === n.id)) : []
     const items: readonly AppNotification[] = [...stored, ...samples]
-    const sections = sectionsOf(items, now)
+    const sections = sectionsOf(items, now, read)
     const visible = sections.flatMap((section) => section.items)
-    return { items: visible, read, unread: unreadCount(visible, read), sections, now }
+    return { items: visible, read, unread: unreadCount(visible, read, now), sections, now }
   }, [stored, read, deleted])
 }
