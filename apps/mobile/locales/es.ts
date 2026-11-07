@@ -19,6 +19,7 @@ import { homeFestivalsEs } from "./homeFestivals"
 import { festivalSongsEs } from "./festivalSongs"
 import { profileRowsEs } from "./profileRows"
 import { assistantErrorsEs } from "./assistantErrors"
+import { recordingExtrasEs } from "./recordingExtras"
 import { songCommentsEs } from "./songComments"
 import { chordProposalsEs } from "./chordProposals"
 import { pronunciationEs } from "./pronunciation"
@@ -1283,6 +1284,7 @@ export const es: Dictionary = {
   ...profileRowsEs,
   ...assistantErrorsEs,
   ...songCommentsEs,
+  ...recordingExtrasEs,
   ...chordProposalsEs,
   ...pronunciationEs,
   ...authorsEs,

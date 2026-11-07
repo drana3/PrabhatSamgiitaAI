@@ -7,6 +7,7 @@ import { kindHasLanguage } from "@/lib/kirtan/kind"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { useKirtanStore } from "@/stores/kirtanStore"
+import { useRecordingChordsPendingStore } from "@/stores/recordingChordsPendingStore"
 
 /**
  * The bulk-upload form and its queue, kept in memory for as long as the app is open: leaving the Add screen does
@@ -81,6 +82,12 @@ function outcomeOf(result: Awaited<ReturnType<typeof runUpload>>, submissionId: 
   return { status: "published", submissionId }
 }
 
+/** The chords typed on a row go to the recording once it is up (docs/recording-extras.md). Never throws, never changes the upload's result. */
+function sendChords(rowKey: string, submissionId: string, title: string): void {
+  const mine = useKirtanStore.getState().submissions.find((k) => k.id === submissionId)
+  void useRecordingChordsPendingStore.getState().flush(rowKey, mine?.serverId ?? submissionId, title)
+}
+
 export const useUploadQueueStore = create<QueueState>()((set, get) => {
   const patch = (id: string, change: Partial<QueueItem>) => set({ items: patchItem(get().items, id, change) })
 
@@ -113,7 +120,9 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     const result = await runUpload(added.id)
     // A row that failed lives in the queue (with "Try again"), not in the person's list.
     if (result.status === "failed") useKirtanStore.getState().withdraw(added.id)
-    return outcomeOf(result, added.id)
+    const outcome = outcomeOf(result, added.id)
+    if (outcome.status === "published") sendChords(item.id, added.id, item.title || item.fileName)
+    return outcome
   }
 
   const run = async () => {
@@ -152,6 +161,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
         void cancelSimilar(row.similar.key)
         useKirtanStore.getState().withdraw(row.similar.submissionId)
       }
+      useRecordingChordsPendingStore.getState().forget(id)
       set({ items: removeItem(get().items, id) })
     },
     start: run,
@@ -179,6 +189,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       if (result.status === "failed") useKirtanStore.getState().withdraw(submissionId)
       const outcome = outcomeOf(result, submissionId)
       patch(id, applyOutcome(outcome).patch)
+      if (outcome.status === "published") sendChords(id, submissionId, row.title || row.fileName)
     },
     clearFinished: () => set({ items: withoutFinished(get().items), stopped: null }),
     reset: () => set({ items: [], draft: EMPTY_DRAFT, running: false, stopped: null }),

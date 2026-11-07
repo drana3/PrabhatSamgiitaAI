@@ -18,6 +18,9 @@ export type ActionId =
   | "playback"
   | "drive"
   | "report"
+  /** only on a recording (lib/recordingExtras/playerRows.ts), never in `buildActionRows` */
+  | "recordingChords"
+  | "recordingPage"
 
 export type ActionIcon =
   | "share"

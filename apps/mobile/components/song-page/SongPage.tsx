@@ -12,6 +12,7 @@ import { COMMENTARY_SECTION, anchorOf, scrollSections, stripActive } from "@/lib
 import { STRIP_HEIGHT, activeSectionAt, jumpOffset, menuSections, sectionTops, visibleTabs, type PageSection, type TabSection } from "@/lib/songPage/pageSections"
 
 import { AboutSection } from "./About"
+import { useSongVideos } from "@/components/recording-extras/SongVideos"
 import { CommentsSection } from "./Comments"
 import { ChordsSection } from "./Chords"
 import { Actions, FadeHero, fadeHeight, songTitle } from "./Hero"
@@ -111,6 +112,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const lit = stripActive(active, ui.blockTab)
   const items = tabs.map((id) => ({ id, label: tr(`songPage.tab.${id}`) }))
   const show = new Set<PageSection>(sections)
+  const songVideos = useSongVideos(t, model.song?.number, model.showToast)
   const divider = <View style={[styles.divider, { backgroundColor: t.sand400 }]} />
 
   const page = (
@@ -139,7 +141,12 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
       onMore={() => model.setSheet("actions")}
       onMenu={() => ui.setSheet("menu")}
       overlay={<ReadingStrip t={t} model={model} ui={ui} />}
-      sheets={<PageSheets t={t} model={model} ui={ui} sections={sections} onJump={jump} />}
+      sheets={
+        <>
+          <PageSheets t={t} model={model} ui={ui} sections={sections} onJump={jump} />
+          {songVideos.sheet}
+        </>
+      }
     >
       <View onLayout={place("lyrics")} style={styles.first}>
         <TextBlock t={t} model={model} ui={ui} blockTop={heroHeight + STRIP_HEIGHT + FIRST_PAD} topInset={bar + STRIP_HEIGHT} motion={motion} scrollRef={scrollRef} controller={panels} />
@@ -148,6 +155,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
         <View onLayout={place("recordings")} style={styles.section}>
           {divider}
           <RecordingsSection t={t} model={model} />
+          {songVideos.section ? <View style={styles.videos}>{songVideos.section}</View> : null}
         </View>
       ) : null}
       <View onLayout={place("chords")} style={styles.section}>
@@ -172,6 +180,13 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
         <PronunciationRow t={t} ui={ui} last />
       </View>
       {/* members' comments close the page; not a tab, so the strip and the jump math do not know it */}
+      {/* members' video links sit under the Recordings; a song without that section gets them here, before the comments */}
+      {!show.has("recordings") && songVideos.section ? (
+        <View style={styles.section}>
+          {divider}
+          {songVideos.section}
+        </View>
+      ) : null}
       <View style={styles.section}>
         {divider}
         <CommentsSection t={t} model={model} />
@@ -182,6 +197,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
 }
 
 const styles = StyleSheet.create({
+  videos: { paddingTop: 32 },
   first: { paddingTop: FIRST_PAD },
   section: { paddingTop: 0 },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 20, marginBottom: 28, marginTop: 32 },

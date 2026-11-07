@@ -22,6 +22,14 @@ vi.mock("@/lib/kirtan/uploadRunner", () => ({
   cancelSimilar: (...args: unknown[]) => cancelSimilar(...(args as [])),
 }))
 
+// Chords typed on a row are sent by this store after a publish (docs/recording-extras.md); it reaches the network
+// layer, which this test does not load, so it is replaced here and its calls are watched.
+const flushChords = vi.fn(async () => undefined)
+const forgetChords = vi.fn()
+vi.mock("@/stores/recordingChordsPendingStore", () => ({
+  useRecordingChordsPendingStore: { getState: () => ({ flush: flushChords, forget: forgetChords }) },
+}))
+
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { EMPTY_DRAFT, useUploadQueueStore, yearOf } from "@/stores/uploadQueueStore"
 
@@ -32,6 +40,8 @@ const statuses = () => queue().items.map((i) => i.status)
 beforeEach(() => {
   runUpload.mockReset()
   cancelSimilar.mockClear()
+  flushChords.mockClear()
+  forgetChords.mockClear()
   useKirtanStore.getState().reset()
   queue().reset()
   queue().setDraft({ performer: "Priya Devi" })
@@ -86,6 +96,14 @@ describe("uploading the queue", () => {
     expect(runUpload).not.toHaveBeenCalled()
     expect(useKirtanStore.getState().submissions).toHaveLength(0)
     expect(statuses()).toEqual(["failed"])
+  })
+
+  it("sends the chords of a row once it is published, and not when it failed", async () => {
+    pick("a.mp3", "b.mp3")
+    runUpload.mockResolvedValueOnce({ status: "published" }).mockResolvedValueOnce({ status: "failed", failure: { code: "network" } })
+    await queue().start()
+    expect(flushChords).toHaveBeenCalledTimes(1)
+    expect(flushChords).toHaveBeenCalledWith(queue().items[0]!.id, expect.any(String), "a")
   })
 
   it("a failed row stays in the queue with Try again and does not stay in the person's list", async () => {

@@ -18,6 +18,7 @@ import { homeFestivalsEn } from "./homeFestivals"
 import { festivalSongsEn } from "./festivalSongs"
 import { profileRowsEn } from "./profileRows"
 import { assistantErrorsEn } from "./assistantErrors"
+import { recordingExtrasEn } from "./recordingExtras"
 import { songCommentsEn } from "./songComments"
 import { chordProposalsEn } from "./chordProposals"
 import { pronunciationEn } from "./pronunciation"
@@ -1289,6 +1290,7 @@ export const en = {
   ...profileRowsEn,
   ...assistantErrorsEn,
   ...songCommentsEn,
+  ...recordingExtrasEn,
   ...chordProposalsEn,
   ...pronunciationEn,
   ...authorsEn,

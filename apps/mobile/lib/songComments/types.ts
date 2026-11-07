@@ -6,9 +6,9 @@
  */
 export type CommentAuthor = { name: string; avatarUrl: string | null }
 
-export type SongComment = {
+/** What every comment has, under a song or under a recording; the list, its state and the section only need this. */
+export type CommentBase = {
   id: string
-  songId: number
   body: string
   createdAt: string
   isAnonymous: boolean
@@ -18,7 +18,9 @@ export type SongComment = {
   canRemove: boolean
 }
 
-export type CommentPage = { items: SongComment[]; total: number; hasMore: boolean }
+export type SongComment = CommentBase & { songId: number }
+
+export type CommentPage<T extends CommentBase = SongComment> = { items: T[]; total: number; hasMore: boolean }
 
 export type CommentReportReason = "offensive" | "spam" | "private" | "other"
 
@@ -35,12 +37,14 @@ export type CommentFailure =
   | "gone" // the comment is not there any more
   | "server"
 
-export type PostOutcome = { ok: true; comment: SongComment } | { ok: false; failure: CommentFailure }
+export type PostOutcome<T extends CommentBase = SongComment> = { ok: true; comment: T } | { ok: false; failure: CommentFailure }
 
-/** The five things the section asks of a server (the real one, or the in-memory one of the preview). */
-export interface CommentsBackend {
-  list(songId: number, query: { limit: number; offset: number }): Promise<CommentPage>
-  post(songId: number, draft: { body: string; isAnonymous: boolean }): Promise<SongComment>
+/** The four things a comments section asks of a server (the real one, or the in-memory one of the preview). `K` is what the comments hang on: a song number, a recording id. */
+export interface CommentsBackendOf<T extends CommentBase, K> {
+  list(target: K, query: { limit: number; offset: number }): Promise<CommentPage<T>>
+  post(target: K, draft: { body: string; isAnonymous: boolean }): Promise<T>
   remove(commentId: string): Promise<void>
   report(commentId: string, report: { reason: CommentReportReason }): Promise<{ status: "received" | "already_reported" }>
 }
+
+export type CommentsBackend = CommentsBackendOf<SongComment, number>

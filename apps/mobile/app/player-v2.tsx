@@ -48,6 +48,10 @@ import { amSpring, projectMomentum } from "@/constants/tokens/amMotion"
 import { allCollections } from "@/data/collections"
 import { amFonts, amType } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useSpTheme } from "@/hooks/useSpTheme"
+import { RecordingChordsSheet } from "@/components/recording-extras/RecordingChordsSheet"
+import { apiIdOf, recordingPageHref } from "@/lib/recordingExtras/links"
+import { withRecordingExtras } from "@/lib/recordingExtras/playerRows"
 import { useSaveState } from "@/hooks/useSaveState"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { SAMPLE_GLOSS_LANGUAGES, sampleGloss, sampleTranslationLines } from "@/lib/fixtures/player"
@@ -157,6 +161,7 @@ const PLAYER_PHOTO = require("../assets/player-baba.jpg")
 export default function PlayerV2Screen() {
   const router = useRouter()
   const theme = useAmTheme()
+  const spTheme = useSpTheme()
   const insets = useSafeAreaInsets()
   const { height: windowHeight, width: windowWidth } = useWindowDimensions()
   const toast = usePlayerToast()
@@ -197,6 +202,7 @@ export default function PlayerV2Screen() {
   const flushPlaylists = usePlaylistStore((s) => s.flushSync)
 
   const [sheet, setSheet] = useState<SheetName>(null)
+  const [chordsOpen, setChordsOpen] = useState(false)
   const [drive, setDrive] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const reduce = useReducedMotion()
@@ -591,6 +597,10 @@ export default function PlayerV2Screen() {
         : null
   const collection = useMemo(() => (song ? collectionForSong(song.number, allCollections) : null), [song])
   const performer = selectedVersion?.performer ?? song?.performer ?? ""
+  const extrasRecording = useMemo(() => {
+    const k = isK && kiirtanId ? kirtanById(kiirtanId) : null
+    return k && k.status === "published" && (k.serverId || MOCKUP_DATA) ? k : null
+  }, [isK, kiirtanId])
   const actionRows = useMemo(() => {
     const rows = buildActionRows({
         saved: isSaved,
@@ -601,8 +611,11 @@ export default function PlayerV2Screen() {
         sleepText: sleepValue,
       })
     // A Kiirtan has no song page, collection, playlist or song sources.
-    return isK ? rows.filter((r) => ["share", "save", "queue", "goQueue", "playback", "drive", "report"].includes(r.id)) : rows
-  }, [isSaved, isK, song, list, collection, source, rate, sleepValue])
+    if (!isK) return rows
+    const kept = rows.filter((r) => ["share", "save", "queue", "goQueue", "playback", "drive", "report"].includes(r.id))
+    // a recording that is on the server also has chords, videos and comments (docs/recording-extras.md)
+    return extrasRecording ? withRecordingExtras(kept) : kept
+  }, [isSaved, isK, song, list, collection, source, rate, sleepValue, extrasRecording])
   const sharePayload = useMemo(
     () =>
       !song
@@ -660,6 +673,14 @@ export default function PlayerV2Screen() {
       case "drive":
         setSheet(null)
         return setDrive(true)
+      case "recordingChords":
+        setSheet(null)
+        return setChordsOpen(true)
+      case "recordingPage": {
+        if (!extrasRecording) return
+        closePlayer()
+        return router.push(href(recordingPageHref(apiIdOf(extrasRecording))))
+      }
       case "report": {
         setSheet(null)
         // A Kiirtan or a Bhajan: the report sheet (reason, then it is sent to the team).
@@ -921,6 +942,9 @@ export default function PlayerV2Screen() {
       <PlayerToast message={toast.message} theme={theme} />
       {/* The full player is a native modal on iOS and hides the root, so it draws the Save to sheet itself. */}
       <SaveHost />
+      {extrasRecording ? (
+        <RecordingChordsSheet t={spTheme} recordingId={apiIdOf(extrasRecording)} title={extrasRecording.title} visible={chordsOpen} onClose={() => setChordsOpen(false)} beforeNavigate={closePlayer} />
+      ) : null}
 
       {!isK ? (
       <VersionsSheet

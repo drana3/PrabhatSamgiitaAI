@@ -1,4 +1,4 @@
-import type { CommentFailure, CommentPage, SongComment } from "./types"
+import type { CommentBase, CommentFailure, CommentPage, SongComment } from "./types"
 
 /**
  * What the comments section knows, as a plain reducer (no React): the list, whether there is more, and one honest
@@ -6,9 +6,9 @@ import type { CommentFailure, CommentPage, SongComment } from "./types"
  */
 export type ListStatus = "loading" | "ready" | "error" | "offline"
 
-export type CommentsState = {
+export type CommentsState<T extends CommentBase = SongComment> = {
   status: ListStatus
-  items: SongComment[]
+  items: T[]
   total: number
   hasMore: boolean
   /** loading the next page */
@@ -17,23 +17,27 @@ export type CommentsState = {
   failure: CommentFailure | null
 }
 
-export const initialState: CommentsState = { status: "loading", items: [], total: 0, hasMore: false, more: "idle", failure: null }
+export function emptyState<T extends CommentBase = SongComment>(): CommentsState<T> {
+  return { status: "loading", items: [], total: 0, hasMore: false, more: "idle", failure: null }
+}
 
-export type Action =
+export const initialState: CommentsState = emptyState()
+
+export type Action<T extends CommentBase = SongComment> =
   | { type: "reload" }
-  | { type: "loaded"; page: CommentPage }
+  | { type: "loaded"; page: CommentPage<T> }
   | { type: "loadFailed"; failure: CommentFailure }
   | { type: "moreStart" }
-  | { type: "moreLoaded"; page: CommentPage }
+  | { type: "moreLoaded"; page: CommentPage<T> }
   | { type: "moreFailed" }
-  | { type: "posted"; comment: SongComment }
+  | { type: "posted"; comment: T }
   | { type: "removed"; id: string }
 
-export function reducer(state: CommentsState, action: Action): CommentsState {
+export function reducer<T extends CommentBase = SongComment>(state: CommentsState<T>, action: Action<T>): CommentsState<T> {
   switch (action.type) {
     case "reload":
       // keep what is on screen while it reloads; only the very first load shows the loading state
-      return state.status === "ready" ? state : { ...initialState }
+      return state.status === "ready" ? state : emptyState<T>()
     case "loaded":
       return { status: "ready", items: action.page.items, total: action.page.total, hasMore: action.page.hasMore, more: "idle", failure: null }
     case "loadFailed":

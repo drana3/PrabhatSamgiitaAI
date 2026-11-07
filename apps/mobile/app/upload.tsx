@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path, Rect } from "react-native-svg"
 
 import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
+import { MyRecordingCharts } from "@/components/recording-extras/MyRecordingCharts"
 import { DraftList, MyCharts } from "@/components/song-chords/MyCharts"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ActionButton, CORNER, Hint } from "@/components/song-chords/parts"
@@ -166,6 +167,15 @@ export default function UploadScreen() {
             </>
           )}
         </Reveal>
+
+        {signedIn ? (
+          <Reveal index={4} style={s.mine}>
+            <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
+              {t("recChordsHub.title")}
+            </Text>
+            <MyRecordingCharts theme={theme} reloadKey={tick} />
+          </Reveal>
+        ) : null}
       </ScrollView>
 
       <ConfirmDialog

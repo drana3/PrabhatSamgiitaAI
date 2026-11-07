@@ -7,6 +7,7 @@ import { uploadSubmission } from "@/lib/kirtan/upload"
 import type { UploadFailure } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
+import { useRecordingChordsPendingStore } from "@/stores/recordingChordsPendingStore"
 
 /**
  * The calls the playlist store makes, behind one object so the store can be tested without a network
@@ -33,6 +34,11 @@ function demoDelay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** The chords typed on a track go to its recording once it is up (docs/recording-extras.md). Never throws, never changes the track's result. */
+function sendTrackChords(track: SetTrack, recordingId: string): void {
+  void useRecordingChordsPendingStore.getState().flush(track.id, recordingId, track.title || track.fileName)
+}
+
 const realPorts: SetPorts = {
   online: () => MOCKUP_DATA || canUseServer(),
   async create(draft) {
@@ -55,6 +61,7 @@ const realPorts: SetPorts = {
   async uploadTrack(draft, track, position) {
     if (MOCKUP_DATA) {
       await demoDelay(350)
+      sendTrackChords(track, `demo-${track.id}`)
       return { status: "published", recordingId: `demo-${track.id}` }
     }
     const fields = trackFields(track, draft)
@@ -76,7 +83,10 @@ const realPorts: SetPorts = {
       confirmDifferent: track.similar ? true : undefined,
       key: track.similar?.key,
     })
-    if (outcome.status === "published") return { status: "published", recordingId: outcome.recording.id }
+    if (outcome.status === "published") {
+      sendTrackChords(track, outcome.recording.id)
+      return { status: "published", recordingId: outcome.recording.id }
+    }
     if (outcome.status === "similar") return { status: "similar", key: outcome.key, similar: outcome.similar, submissionId: track.id }
     return { status: "failed", failure: outcome.failure }
   },

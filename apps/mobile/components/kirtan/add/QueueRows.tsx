@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSprin
 import Svg, { Path } from "react-native-svg"
 
 import { DanceChoices, RequiredMark } from "@/components/kirtan/add/KindFields"
+import { ChordsPrompt } from "@/components/recording-extras/ChordsPrompt"
 import { KPress } from "@/components/kirtan/KPress"
 import { amColors } from "@/constants/tokens/amColors"
 import { amSpring } from "@/constants/tokens/amMotion"
@@ -204,6 +205,7 @@ export function QueueRow({
         {meta}
       </Text>
       {kindFields && onRowLanguage && onRowDance && item.status === "waiting" && (kindHasLanguage(kindFields.kind) || kindHasDance(kindFields.kind)) ? <RowKindLine theme={theme} item={item} fields={kindFields} onLanguage={onRowLanguage} onDance={onRowDance} /> : null}
+      <ChordsPrompt theme={theme} rowKey={item.id} title={item.title || item.fileName} locked={!editable} />
       <View style={styles.statusLine}>
         <View style={[styles.dot, { backgroundColor: item.status === "uploading" ? amColors.orange700 : tone }]} />
         <Text style={[styles.status, { color: tone }]} accessibilityLiveRegion="polite">

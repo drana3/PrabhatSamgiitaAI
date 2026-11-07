@@ -19,6 +19,7 @@ import { homeFestivalsRu } from "./homeFestivals"
 import { festivalSongsRu } from "./festivalSongs"
 import { profileRowsRu } from "./profileRows"
 import { assistantErrorsRu } from "./assistantErrors"
+import { recordingExtrasRu } from "./recordingExtras"
 import { songCommentsRu } from "./songComments"
 import { chordProposalsRu } from "./chordProposals"
 import { pronunciationRu } from "./pronunciation"
@@ -1369,6 +1370,7 @@ export const ru: Dictionary = {
   ...profileRowsRu,
   ...assistantErrorsRu,
   ...songCommentsRu,
+  ...recordingExtrasRu,
   ...chordProposalsRu,
   ...pronunciationRu,
   ...authorsRu,

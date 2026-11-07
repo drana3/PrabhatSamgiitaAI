@@ -208,6 +208,9 @@ export default function RootLayout() {
             <Stack.Screen name="upload-set" options={{ presentation: "modal" }} />
             <Stack.Screen name="recording-set/[id]" options={{ presentation: "card" }} />
             <Stack.Screen name="my-sets" options={{ presentation: "card" }} />
+            {/* What members add to one recording: chord charts, video links, comments (docs/recording-extras.md). */}
+            <Stack.Screen name="recording/[id]" options={{ presentation: "card" }} />
+            <Stack.Screen name="recording-chords" options={{ presentation: "modal" }} />
             {/* Author pages: the directory, a public page, becoming an author, the author's own page and its edit form. */}
             <Stack.Screen name="authors" options={{ presentation: "card" }} />
             <Stack.Screen name="author/[slug]" options={{ presentation: "card" }} />
