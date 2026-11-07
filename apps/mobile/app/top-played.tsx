@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { FlatList, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
@@ -28,19 +28,24 @@ export default function TopPlayedScreen() {
   const sp = useSpTheme()
   const inset = useScreenTop()
   const bottomInset = useScrollBottomInset()
-  const { state, setPeriod, setKind, retry, more } = useTopPlayed()
+  const { state, view, setPeriod, setKind, retry, more } = useTopPlayed()
   const [toast, setToast] = useState<string | null>(null)
+
+  // every loaded row belonged to a blocked author: nothing to scroll, so ask for the next page ourselves
+  useEffect(() => {
+    if (state.status === "ready" && view.items.length === 0 && state.hasMore && !state.loadingMore && !state.moreFailed) more()
+  }, [state.status, state.hasMore, state.loadingMore, state.moreFailed, view.items.length, more])
 
   const back = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/today")))
 
   const play = useCallback(
     (index: number) => {
-      const message = playTopItem(state.items, index)
+      const message = playTopItem(view.items, index)
       if (!message) return
       setToast(message)
       setTimeout(() => setToast((current) => (current === message ? null : current)), 2200)
     },
-    [state.items],
+    [view.items],
   )
 
   const header = (
@@ -65,7 +70,7 @@ export default function TopPlayedScreen() {
         </View>
       </View>
       <FlatList
-        data={state.status === "ready" ? state.items : []}
+        data={state.status === "ready" ? view.items : []}
         keyExtractor={(item) => `${item.ref}:${item.id}`}
         renderItem={({ item, index }) => <TopRow theme={theme} item={item} onPlay={() => play(index)} />}
         ListHeaderComponent={header}

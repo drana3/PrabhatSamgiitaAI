@@ -1,5 +1,6 @@
 import { demoKirtanById } from "@/lib/fixtures/searchMenuDemo"
 import { t } from "@/lib/i18n"
+import { isAuthorBlocked } from "@/lib/kirtan/blocked"
 import { kirtanById } from "@/lib/kirtan/catalog"
 import { playQueue } from "@/lib/kirtan/mixPlayback"
 import { fromRemote } from "@/lib/kirtan/submissions"
@@ -18,10 +19,14 @@ import { useKirtanStore } from "@/stores/kirtanStore"
 function recordingOf(item: TopItem): Kirtan | null {
   if (item.ref !== "rec") return null
   if (item.recording) {
+    // The server's record bypasses the library's blocked filter, so check it here, before it is added anywhere.
+    const remote = fromRemote(item.recording)
+    if (isAuthorBlocked(remote)) return null
     useKirtanStore.getState().addToCatalog([item.recording])
-    return fromRemote(item.recording)
+    return remote
   }
-  return kirtanById(`srv-${item.id}`) ?? kirtanById(item.id) ?? (MOCKUP_DATA ? demoKirtanById(item.id) : null)
+  const known = kirtanById(`srv-${item.id}`) ?? kirtanById(item.id) ?? (MOCKUP_DATA ? demoKirtanById(item.id) : null)
+  return known && !isAuthorBlocked(known) ? known : null
 }
 
 export function playTopItem(items: readonly TopItem[], index: number): string | null {

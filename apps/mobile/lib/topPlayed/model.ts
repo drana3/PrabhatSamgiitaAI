@@ -1,3 +1,4 @@
+import { isAuthorBlocked } from "@/lib/kirtan/blocked"
 import type { RadioCategory } from "@/lib/radio/categories"
 import type { TopItem, TopPage, TopPeriod, TopQuery } from "@/lib/topPlayed/types"
 
@@ -92,4 +93,21 @@ export function formatCount(n: number): string {
   } catch {
     return String(n)
   }
+}
+
+/**
+ * What the screen shows: the loaded rows without the recordings of authors the person blocked (the server does not know
+ * the person's blocks), ranks numbered again from 1 down the visible list, and the total reduced by what was left out.
+ * Pure: unblocking an author brings the rows back, because `state.items` keeps everything that was loaded.
+ */
+export function visibleTop(
+  state: Pick<TopState, "items" | "total">,
+  blockedAuthorIds: readonly string[],
+): { items: TopItem[]; total: number } {
+  if (!blockedAuthorIds.length) return { items: state.items, total: state.total }
+  const kept = state.items.filter(
+    (item) => item.ref !== "rec" || !isAuthorBlocked({ authorId: item.recording?.author_id ?? null, author: item.author }, blockedAuthorIds),
+  )
+  const removed = state.items.length - kept.length
+  return { items: kept.map((item, i) => ({ ...item, rank: i + 1 })), total: Math.max(kept.length, state.total - removed) }
 }

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useReducer, useRef } from "react"
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react"
 
 import { topPlayedApi } from "@/lib/topPlayed/api"
-import { initialTopState, queryFor, topReducer, type TopKind } from "@/lib/topPlayed/model"
+import { initialTopState, queryFor, topReducer, visibleTop, type TopKind } from "@/lib/topPlayed/model"
 import type { TopPeriod, TopPlayedApi } from "@/lib/topPlayed/types"
+import { useKirtanStore } from "@/stores/kirtanStore"
 
 /**
  * Drives the Top Played screen: asks the server for the first page whenever a chip changes (older answers are dropped by
@@ -39,8 +40,14 @@ export function useTopPlayed(api: TopPlayedApi = topPlayedApi(), start?: { perio
       .catch(() => dispatch({ type: "failed", seq, append: true }))
   }, [api])
 
+  // the person's blocked authors are applied on top of what was loaded (paging still counts the raw rows)
+  const blocked = useKirtanStore((s) => s.blockedAuthorIds)
+  const view = useMemo(() => visibleTop(state, blocked), [state.items, state.total, blocked])
+
   return {
     state,
+    /** the rows to show (blocked authors left out, ranks renumbered) */
+    view,
     setPeriod: (period: TopPeriod) => dispatch({ type: "choose", period }),
     setKind: (kind: TopKind) => dispatch({ type: "choose", kind }),
     retry: () => dispatch({ type: "retry" }),

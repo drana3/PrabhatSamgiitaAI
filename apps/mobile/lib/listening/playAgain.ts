@@ -1,5 +1,6 @@
 import { demoKirtanById } from "@/lib/fixtures/searchMenuDemo"
 import { t } from "@/lib/i18n"
+import { isAuthorBlocked } from "@/lib/kirtan/blocked"
 import { kirtanById } from "@/lib/kirtan/catalog"
 import { playQueue } from "@/lib/kirtan/mixPlayback"
 import { kiirtanNumber, registerKiirtans } from "@/lib/kirtan/track"
@@ -19,7 +20,7 @@ export function playHistoryEntry(entry: HistoryEntry): string | null {
     return playQueue([number], source, number) || null
   }
   const k = kirtanById(entry.itemId) ?? (MOCKUP_DATA ? demoKirtanById(entry.itemId) : null)
-  if (!k || k.status !== "published") return t("history.gone")
+  if (!k || k.status !== "published" || isAuthorBlocked(k)) return t("history.gone")
   registerKiirtans([k])
   const number = kiirtanNumber(k.id)
   return playQueue([number], source, number) || null

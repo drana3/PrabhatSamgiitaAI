@@ -1,5 +1,6 @@
 import type { Kirtan } from "@/lib/kirtan/types"
 import { DEMO_BABA } from "@/lib/fixtures/searchMenuDemo"
+import { isAuthorBlocked } from "@/lib/kirtan/blocked"
 import { allKirtans, ensureKirtansRegistered } from "@/lib/kirtan/catalog"
 import { kiirtanNumber } from "@/lib/kirtan/track"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
@@ -22,7 +23,7 @@ import { useRadioSelectionStore } from "@/stores/radioSelectionStore"
 function playableRecordings(): Kirtan[] {
   // the preview also has its three sample discourses (they are not in the library, only on the Search menu shelf)
   const base = allKirtans()
-  const all = MOCKUP_DATA ? [...base, ...DEMO_BABA.filter((d) => !base.some((k) => k.id === d.id))] : base
+  const all = MOCKUP_DATA ? [...base, ...DEMO_BABA.filter((d) => !base.some((k) => k.id === d.id) && !isAuthorBlocked(d))] : base
   return all.filter((k) => k.status === "published" && (MOCKUP_DATA || Boolean(k.audioUrl?.trim())))
 }
 
@@ -73,7 +74,10 @@ export function installRadioPicker(): void {
 export function lastPickStillAllowed(): boolean {
   const last = radioPicker().lastPick()
   if (!last) return true
-  const chosen = effectiveSelection(useRadioSelectionStore.getState().selected, radioPools().counts)
+  const { counts, recording } = radioPools()
+  const chosen = effectiveSelection(useRadioSelectionStore.getState().selected, counts)
+  // a recording whose author was blocked since it was picked is no longer in the pool: it must not play next either
+  if (last.key.startsWith("rec:") && !recording(last.key)) return false
   return chosen.includes(last.category)
 }
 
