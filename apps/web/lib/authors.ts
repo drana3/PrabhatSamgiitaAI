@@ -184,7 +184,7 @@ const KIND_LABEL: Record<string, string> = {
   bhajan: "Bhajan",
   prabhat_samgiita: "Prabhat Samgiita",
   spiritual_song: "Spiritual song",
-  dance_song: "Dance song",
+  dance_song: "Dance music",
 }
 
 export function kindLabel(kind: string): string {
