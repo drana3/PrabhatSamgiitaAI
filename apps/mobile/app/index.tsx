@@ -5,13 +5,14 @@ import { ActivityIndicator, Platform, StyleSheet, View } from "react-native"
 import { colors } from "@/constants/colors"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 export default function Index() {
   const router = useRouter()
   const hasCompletedWelcome = useAuthStore((s) => s.hasCompletedWelcome)
 
   useEffect(() => {
-    const target = hasCompletedWelcome ? href("/(tabs)") : href("/welcome")
+    const target = hasCompletedWelcome ? href(NAV_V2_HOME_ROUTE) : href("/welcome")
     // Redirect during the first native frame can close the app on Android cold start.
     const navigate = () => router.replace(target)
     if (Platform.OS === "android") {

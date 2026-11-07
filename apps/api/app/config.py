@@ -92,6 +92,42 @@ class Settings(BaseSettings):
         alias="GOOGLE_TRANSLATE_QUOTA_PATH",
     )
 
+    # Kiirtan / Bhajan recordings (docs/kiirtan-publishing.md). No real credentials here.
+    recording_storage_backend: str = Field(default="local", alias="RECORDING_STORAGE_BACKEND")
+    recording_local_dir: str = Field(
+        default="./data/generated/recordings", alias="RECORDING_LOCAL_DIR"
+    )
+    recording_max_bytes: int = Field(default=60 * 1024 * 1024, alias="RECORDING_MAX_BYTES", ge=1024)
+    recording_signing_secret: str | None = Field(default=None, alias="RECORDING_SIGNING_SECRET")
+    recording_upload_ttl_seconds: int = Field(
+        default=900, alias="RECORDING_UPLOAD_TTL_SECONDS", ge=60, le=86_400
+    )
+    recording_terms_version: str = Field(default="2026-11", alias="RECORDING_TERMS_VERSION")
+    recording_flag_threshold: int = Field(default=3, alias="RECORDING_FLAG_THRESHOLD", ge=1)
+    recording_fpcalc_path: str = Field(default="fpcalc", alias="RECORDING_FPCALC_PATH")
+    # How many recordings one member may add in 24 hours (docs/kiirtan-publishing.md, "Duplicates").
+    recording_uploads_per_day: int = Field(default=20, alias="RECORDING_UPLOADS_PER_DAY", ge=1)
+    # Playlists from an event (docs/kiirtan-sets.md, "Limits"). A team member is not held to the
+    # per-day numbers; the per-set cap for the team is only a sanity bound.
+    recording_set_max_tracks: int = Field(default=60, alias="RECORDING_SET_MAX_TRACKS", ge=1)
+    recording_set_max_tracks_team: int = Field(
+        default=200, alias="RECORDING_SET_MAX_TRACKS_TEAM", ge=1
+    )
+    recording_set_tracks_per_day: int = Field(
+        default=60, alias="RECORDING_SET_TRACKS_PER_DAY", ge=1
+    )
+    recording_sets_per_day: int = Field(default=3, alias="RECORDING_SETS_PER_DAY", ge=1)
+    recording_set_empty_drafts: int = Field(default=5, alias="RECORDING_SET_EMPTY_DRAFTS", ge=1)
+    # S3-compatible storage (Cloudflare R2). All empty until Dada creates the bucket.
+    recording_s3_endpoint: str | None = Field(default=None, alias="RECORDING_S3_ENDPOINT")
+    recording_s3_bucket: str | None = Field(default=None, alias="RECORDING_S3_BUCKET")
+    recording_s3_region: str = Field(default="auto", alias="RECORDING_S3_REGION")
+    recording_s3_access_key_id: str | None = Field(default=None, alias="RECORDING_S3_ACCESS_KEY_ID")
+    recording_s3_secret_access_key: str | None = Field(
+        default=None, alias="RECORDING_S3_SECRET_ACCESS_KEY"
+    )
+    recording_public_base_url: str | None = Field(default=None, alias="RECORDING_PUBLIC_BASE_URL")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

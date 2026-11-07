@@ -23,6 +23,7 @@ from app.services.catalog import (
     catalog_song_snapshot,
 )
 from app.services.faiss_store import get_faiss_store
+from app.services.media_quality import ACCEPTED_MEDIA_STATUSES, accepted_media
 from app.services.seed_data import load_rows
 
 
@@ -642,7 +643,8 @@ class HybridSearchService:
         return [str(number) for number, _ in ranked[:limit]]
 
     def _seed_media(self) -> list[Media]:
-        return list(catalog_media_snapshot())
+        # Same rule as CatalogService.get_media: accepted review status only, each recording once.
+        return accepted_media(catalog_media_snapshot())
 
     def _seed_notations(self) -> list[Notation]:
         return list(catalog_notation_snapshot())
@@ -691,7 +693,12 @@ class HybridSearchService:
                         func.sum(case((Media.kind == "audio", 1), else_=0)).label("audio_count"),
                         func.sum(case((Media.kind == "video", 1), else_=0)).label("video_count"),
                     )
-                    .where(Media.song_number.is_not(None))
+                    .where(
+                        Media.song_number.is_not(None),
+                        func.lower(func.trim(Media.verification_status)).in_(
+                            sorted(ACCEPTED_MEDIA_STATUSES)
+                        ),
+                    )
                     .group_by(Media.song_number)
                 )
                 notation_result = await self.session.execute(

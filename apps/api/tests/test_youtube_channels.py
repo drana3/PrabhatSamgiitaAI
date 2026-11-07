@@ -241,7 +241,7 @@ async def test_scan_description_channel_links_number_from_description() -> None:
         patch("app.services.youtube_channels.channel_videos", return_value=videos),
         patch(
             "scripts.sync_youtube.fetch_video_description",
-            return_value="Prabhat Samgiita No. 1 - devotional",
+            return_value="Bandhu He Niye Calo - Prabhat Samgiita No. 1 - devotional",
         ),
     ):
         result = await scan_youtube_channel(session, channel.id)  # type: ignore[arg-type]

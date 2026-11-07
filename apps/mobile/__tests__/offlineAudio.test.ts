@@ -7,6 +7,9 @@ const fs = vi.hoisted(() => ({
   getInfoAsync: vi.fn(),
   makeDirectoryAsync: vi.fn(async () => undefined),
   deleteAsync: vi.fn(async () => undefined),
+  moveAsync: vi.fn(async () => undefined),
+  getFreeDiskStorageAsync: vi.fn(async () => 10 * 1024 * 1024 * 1024),
+  readDirectoryAsync: vi.fn(async () => [] as string[]),
   createDownloadResumable: vi.fn(),
 }))
 
@@ -31,6 +34,9 @@ vi.mock("expo-file-system/legacy", () => ({
   getInfoAsync: fs.getInfoAsync,
   makeDirectoryAsync: fs.makeDirectoryAsync,
   deleteAsync: fs.deleteAsync,
+  moveAsync: fs.moveAsync,
+  getFreeDiskStorageAsync: fs.getFreeDiskStorageAsync,
+  readDirectoryAsync: fs.readDirectoryAsync,
   createDownloadResumable: fs.createDownloadResumable,
 }))
 
@@ -59,7 +65,12 @@ vi.mock("@/stores/authStore", () => ({
 }))
 
 import {
+  absoluteOfflineUri,
+  hydrateOfflineAudio,
   offlineAudioScopeKey,
+  parseOfflineIndex,
+  relativeOfflinePath,
+  serializeOfflineIndex,
   offlineRecordingState,
   offlineSaveControls,
   reconcileOfflineProgress,
@@ -100,7 +111,7 @@ function fileUriFor(auth: typeof memberA, songNumber: number, url: string) {
 }
 
 function mockSuccessfulDownload() {
-  fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
+  fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 8 })
   fs.createDownloadResumable.mockImplementation(
     (
       _url: string,
@@ -265,7 +276,7 @@ describe("offline save UI", () => {
     fs.getInfoAsync.mockImplementation(async () => ({
       exists: fileOnDisk,
       isDirectory: false,
-      size: fileOnDisk ? 1024 : 0,
+      size: fileOnDisk ? 100 : 0,
     }))
     fs.createDownloadResumable.mockImplementation((_u: string, d: string, _o: unknown, cb: typeof report) => {
       report = cb
@@ -547,41 +558,292 @@ describe("offline audio", () => {
     expect(useOfflineAudioStore.getState().files[url7]?.fileUri).toBe(fileUriFor(memberA, 7, url7))
   })
 
-  it("completes when the file appears on disk even if downloadAsync is slow", async () => {
+  it("completes when the part file reaches the announced size even if downloadAsync never reports back", async () => {
     const url = "https://cdn.test/12.mp3"
     const dest = fileUriFor(memberA, 12, url)
-    let resolveDownload: ((value: { status: number; uri: string }) => void) | undefined
     fs.createDownloadResumable.mockImplementation(
       (
         _remote: string,
-        fileDest: string,
+        _fileDest: string,
         _opts: unknown,
         callback?: (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void,
       ) => ({
         downloadAsync: () =>
-          new Promise((resolve) => {
-            resolveDownload = resolve
-            callback?.({ totalBytesWritten: 100, totalBytesExpectedToWrite: 100 })
+          new Promise(() => {
+            callback?.({ totalBytesWritten: 4096, totalBytesExpectedToWrite: 4096 })
           }),
         cancelAsync: vi.fn(async () => undefined),
       }),
     )
     fs.getInfoAsync.mockImplementation(async (uri: string) => ({
-      exists: uri === dest,
+      exists: uri.endsWith(".part"),
       isDirectory: false,
-      size: uri === dest ? 4096 : 0,
+      size: uri.endsWith(".part") ? 4096 : 0,
     }))
 
-    const pending = useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
-    await vi.waitFor(() =>
-      expect(offlineSaveControls({ mode: "signed_in", downloaded: false, progress: 1 }).label).toBe(
-        "Saving offline…",
-      ),
-    )
-    await vi.waitFor(() => expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest))
+    await useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest)
+    expect(fs.moveAsync).toHaveBeenCalledWith({ from: `${dest}.part`, to: dest })
     expect(useOfflineAudioStore.getState().progress[url]).toBeUndefined()
+  }, 10_000)
+})
 
-    resolveDownload?.({ status: 200, uri: dest })
+describe("download state machine", () => {
+  const url = "https://cdn.test/77.mp3"
+  const dest = () => fileUriFor(memberA, 77, url)
+
+  function task(opts: {
+    expected?: number
+    written?: number
+    status?: number
+    reject?: Error
+    headers?: Record<string, string>
+  }) {
+    fs.createDownloadResumable.mockImplementation(
+      (
+        _u: string,
+        file: string,
+        _o: unknown,
+        cb?: (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void,
+      ) => ({
+        downloadAsync: async () => {
+          if (opts.expected) cb?.({ totalBytesWritten: opts.written ?? opts.expected, totalBytesExpectedToWrite: opts.expected })
+          if (opts.reject) throw opts.reject
+          return { status: opts.status ?? 200, uri: file, headers: opts.headers }
+        },
+        cancelAsync: vi.fn(async () => undefined),
+      }),
+    )
+  }
+
+  beforeEach(() => {
+    store.clear()
+    applyAuth(memberA)
+    for (const m of [fs.getInfoAsync, fs.createDownloadResumable, fs.deleteAsync, fs.moveAsync, fs.getFreeDiskStorageAsync]) {
+      m.mockReset()
+    }
+    fs.deleteAsync.mockResolvedValue(undefined)
+    fs.moveAsync.mockResolvedValue(undefined)
+    fs.getFreeDiskStorageAsync.mockResolvedValue(10 * 1024 * 1024 * 1024)
+    useOfflineAudioStore.setState({ ready: true, files: {}, progress: {}, errors: {}, activeBySong: {} })
+    // hydrate() decides which account's index the store holds
+    return useOfflineAudioStore.getState().hydrate()
+  })
+
+  it("a file shorter than the announced size is never marked done and the half file is removed", async () => {
+    task({ expected: 5000 })
+    fs.getInfoAsync.mockImplementation(async (uri: string) => ({ exists: true, isDirectory: false, size: uri.endsWith(".part") ? 3000 : 0 }))
+    await expect(useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })).rejects.toMatchObject({ code: "incomplete" })
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+    expect(fs.moveAsync).not.toHaveBeenCalled()
+    expect(fs.deleteAsync).toHaveBeenCalledWith(`${dest()}.part`, { idempotent: true })
+    expect(useOfflineAudioStore.getState().progress[url]).toBeUndefined()
+  })
+
+  it("99% is not done: the song is saved only when the last byte is in", async () => {
+    let finish: (() => void) | undefined
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 5000 }))
+    fs.createDownloadResumable.mockImplementation(
+      (_u: string, file: string, _o: unknown, cb?: (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void) => ({
+        downloadAsync: () =>
+          new Promise((resolve) => {
+            cb?.({ totalBytesWritten: 4990, totalBytesExpectedToWrite: 5000 })
+            finish = () => resolve({ status: 200, uri: file })
+          }),
+        cancelAsync: vi.fn(async () => undefined),
+      }),
+    )
+    const pending = useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBeGreaterThan(0.98))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+    finish?.()
     await pending
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest())
+  })
+
+  it("a whole file is moved into place in one step", async () => {
+    task({ expected: 5000 })
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 5000 }))
+    await useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })
+    expect(fs.moveAsync).toHaveBeenCalledWith({ from: `${dest()}.part`, to: dest() })
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest())
+  })
+
+  it("trusts the Content-Length header when no progress event announced a size", async () => {
+    task({ headers: { "Content-Length": "5000" } })
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 1200 }))
+    await expect(useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })).rejects.toMatchObject({ code: "incomplete" })
+  })
+
+  it("a server refusal is an http failure, not a saved file", async () => {
+    task({ status: 404 })
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 300 }))
+    await expect(useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })).rejects.toMatchObject({ code: "http" })
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+  })
+
+  it("a full phone stops before the download with a no-space failure", async () => {
+    fs.getFreeDiskStorageAsync.mockResolvedValue(2 * 1024 * 1024)
+    task({ expected: 5000 })
+    await expect(useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })).rejects.toMatchObject({ code: "no-space" })
+    expect(fs.createDownloadResumable).not.toHaveBeenCalled()
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+  })
+
+  it("an out-of-space error from the file system is reported as no-space", async () => {
+    task({ reject: new Error("ENOSPC: no space left on device") })
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 10 }))
+    await expect(useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })).rejects.toMatchObject({ code: "no-space" })
+    expect(fs.deleteAsync).toHaveBeenCalledWith(`${dest()}.part`, { idempotent: true })
+  })
+
+  it("a dropped connection is reported as offline", async () => {
+    task({ reject: new Error("The Internet connection appears to be offline.") })
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: false, isDirectory: false }))
+    await expect(useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })).rejects.toMatchObject({ code: "offline" })
+  })
+
+  it("a double tap starts one download", async () => {
+    let finish: (() => void) | undefined
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 100 }))
+    fs.createDownloadResumable.mockImplementation((_u: string, file: string) => ({
+      downloadAsync: () => new Promise((resolve) => { finish = () => resolve({ status: 200, uri: file }) }),
+      cancelAsync: vi.fn(async () => undefined),
+    }))
+    const first = useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })
+    const second = useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })
+    await vi.waitFor(() => expect(finish).toBeDefined())
+    finish?.()
+    await Promise.all([first, second])
+    expect(fs.createDownloadResumable).toHaveBeenCalledTimes(1)
+  })
+
+  it("a delete that did not work keeps the file in the list and says so", async () => {
+    task({ expected: 5000 })
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 5000 }))
+    await useOfflineAudioStore.getState().download(url, 77, { userInitiated: true })
+    // deleteAsync "succeeds" but the file is still there
+    const gone = await useOfflineAudioStore.getState().remove(url)
+    expect(gone).toBe(false)
+    expect(useOfflineAudioStore.getState().files[url]).toBeDefined()
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: false, isDirectory: false }))
+    expect(await useOfflineAudioStore.getState().remove(url)).toBe(true)
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+  })
+
+  it("a save that fails to write the index does not stop later saves from being remembered", async () => {
+    task({ expected: 5000 })
+    fs.getInfoAsync.mockImplementation(async () => ({ exists: true, isDirectory: false, size: 5000 }))
+    const AsyncStorage = (await import("@react-native-async-storage/async-storage")).default
+    vi.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error("disk full"))
+    await useOfflineAudioStore.getState().download(url, 77, { userInitiated: true }).catch(() => undefined)
+    const other = "https://cdn.test/78.mp3"
+    await useOfflineAudioStore.getState().download(other, 78, { userInitiated: true })
+    const saved = JSON.parse(store.get(`ps.offline.audio.v2.${offlineAudioScopeKey(memberA)}`) ?? "{}")
+    expect(Object.keys(saved)).toContain(other)
+  })
+})
+
+describe("offline index stores relative paths", () => {
+  const docs = "file:///docs/"
+  const newDocs = "file:///var/mobile/Containers/Data/Application/NEW-UUID/Documents/"
+  const oldAbsolute = "file:///var/mobile/Containers/Data/Application/OLD-UUID/Documents/offline-audio/member%3Aa/12-abc.mp3"
+
+  beforeEach(() => {
+    store.clear()
+    applyAuth(memberA)
+  })
+
+  it("cuts the document directory off an address", () => {
+    expect(relativeOfflinePath(`${docs}offline-audio/s/12-x.mp3`, docs)).toBe("offline-audio/s/12-x.mp3")
+    expect(relativeOfflinePath(oldAbsolute, newDocs)).toBe("offline-audio/member%3Aa/12-abc.mp3")
+    expect(relativeOfflinePath("file:///elsewhere/song.mp3", docs)).toBeNull()
+    expect(absoluteOfflineUri("offline-audio/s/12-x.mp3", docs)).toBe(`${docs}offline-audio/s/12-x.mp3`)
+  })
+
+  it("writes only relative paths, never the container", () => {
+    const raw = serializeOfflineIndex(
+      { "https://cdn.test/12.mp3": { remoteUrl: "https://cdn.test/12.mp3", fileUri: `${docs}offline-audio/s/12-x.mp3`, songNumber: 12 } },
+      docs,
+    )
+    const saved = JSON.parse(raw)["https://cdn.test/12.mp3"]
+    expect(saved.path).toBe("offline-audio/s/12-x.mp3")
+    expect(saved.fileUri).toBeUndefined()
+    expect(raw).not.toContain("file:")
+  })
+
+  it("moves an old absolute entry onto the current container and reads the new format", () => {
+    const raw = JSON.stringify({
+      "https://cdn.test/old.mp3": { remoteUrl: "https://cdn.test/old.mp3", fileUri: oldAbsolute, songNumber: 12 },
+      "https://cdn.test/new.mp3": { remoteUrl: "https://cdn.test/new.mp3", path: "offline-audio/member%3Aa/13-def.mp3", songNumber: 13 },
+    })
+    const files = parseOfflineIndex(raw, newDocs)
+    expect(files["https://cdn.test/old.mp3"]?.fileUri).toBe(`${newDocs}offline-audio/member%3Aa/12-abc.mp3`)
+    expect(files["https://cdn.test/new.mp3"]?.fileUri).toBe(`${newDocs}offline-audio/member%3Aa/13-def.mp3`)
+  })
+
+  it("hydrate migrates an old absolute index and saves it back as relative paths", async () => {
+    const scope = offlineAudioScopeKey(memberA)
+    const encoded = encodeURIComponent(scope)
+    const url = "https://cdn.test/12.mp3"
+    store.set(
+      `ps.offline.audio.v2.${scope}`,
+      JSON.stringify({
+        [url]: {
+          remoteUrl: url,
+          fileUri: `file:///var/mobile/Containers/Data/Application/OLD-UUID/Documents/offline-audio/${encoded}/12-abc.mp3`,
+          songNumber: 12,
+        },
+      }),
+    )
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
+    await hydrateOfflineAudio()
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(`file:///docs/offline-audio/${encoded}/12-abc.mp3`)
+    const saved = JSON.parse(store.get(`ps.offline.audio.v2.${scope}`) as string)[url]
+    expect(saved.path).toBe(`offline-audio/${encoded}/12-abc.mp3`)
+    expect(saved.fileUri).toBeUndefined()
+  })
+})
+
+describe("offline folder is kept out of backups (config plugin)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const plugin = require("../plugins/withOfflineBackupExclusion.js") as {
+    injectIosBackupExclusion: (contents: string) => string | null
+    FULL_BACKUP_XML: string
+    DATA_EXTRACTION_XML: string
+  }
+  const appDelegate = [
+    "public class AppDelegate: ExpoAppDelegate {",
+    "  public override func application(",
+    "    _ application: UIApplication,",
+    "    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil",
+    "  ) -> Bool {",
+    "    let delegate = ReactNativeDelegate()",
+    "    return super.application(application, didFinishLaunchingWithOptions: launchOptions)",
+    "  }",
+    "}",
+  ].join("\n")
+
+  it("flags Documents/offline-audio before the app finishes launching, once", () => {
+    const patched = plugin.injectIosBackupExclusion(appDelegate) as string
+    expect(patched).toContain("isExcludedFromBackup = true")
+    expect(patched).toContain('"offline-audio"')
+    expect(patched.indexOf("isExcludedFromBackup")).toBeLessThan(patched.indexOf("return super.application"))
+    expect(plugin.injectIosBackupExclusion(patched)).toBe(patched)
+  })
+
+  it("does not guess when the AppDelegate has another shape", () => {
+    expect(plugin.injectIosBackupExclusion("class AppDelegate {}")).toBeNull()
+  })
+
+  it("excludes the folder from Android Auto Backup and device transfer", () => {
+    expect(plugin.FULL_BACKUP_XML).toContain('<exclude domain="file" path="offline-audio" />')
+    expect(plugin.DATA_EXTRACTION_XML.match(/path="offline-audio"/g)).toHaveLength(2)
+  })
+
+  it("is registered in app.json", () => {
+    const app = JSON.parse(require("node:fs").readFileSync(require("node:path").resolve(__dirname, "../app.json"), "utf8"))
+    expect(app.expo.plugins).toContain("./plugins/withOfflineBackupExclusion")
   })
 })

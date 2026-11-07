@@ -19,6 +19,7 @@ from app.core.db import SessionLocal, engine
 from app.core.middleware import RequestContextMiddleware
 from app.logging import configure_logging
 from app.models import Base
+from app.services.ai_quota_report import EXPOSED_HEADERS
 from app.services.bootstrap import BootstrapService
 from app.services.embedding_index import build_embedding_indexes, load_faiss_snapshot
 
@@ -187,6 +188,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Error-Code", *EXPOSED_HEADERS],
 )
 app.add_middleware(
     TrustedHostMiddleware,

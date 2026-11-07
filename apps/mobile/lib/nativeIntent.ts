@@ -1,10 +1,17 @@
 import { webUrlToAppPath } from "@/lib/deepLinks"
+import { legacyRouteTarget } from "@/lib/legacyRoutes"
 
 /**
  * Rewrite OS launch / deep-link URLs before Expo Router matches them.
  * Custom-scheme cold starts often arrive as `prabhatai:///` (unmatched).
  */
 export function rewriteNativeSystemPath(path: string): string {
+  const rewritten = rewriteRaw(path)
+  // Old (v1) addresses go to the redesigned screens: shared links and bookmarks keep working.
+  return legacyRouteTarget(rewritten) ?? rewritten
+}
+
+function rewriteRaw(path: string): string {
   const raw = path?.trim()
   if (!raw || raw === "/" || raw === "prabhatai:" || raw === "prabhatai://" || raw === "prabhatai:///") {
     return "/"
@@ -16,8 +23,6 @@ export function rewriteNativeSystemPath(path: string): string {
   // Already a normal in-app path.
   if (!raw.includes("://")) {
     const normalized = raw.startsWith("/") ? raw : `/${raw}`
-    const songPath = normalized.match(/^\/songs\/(\d+)\/?$/i)
-    if (songPath) return `/song/ps-${songPath[1]}`
     return normalized
   }
 

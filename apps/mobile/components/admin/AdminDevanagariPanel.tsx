@@ -17,6 +17,7 @@ import type { AdminDevanagariSong } from "@prabhat/core"
 import * as Clipboard from "expo-clipboard"
 import { Languages } from "lucide-react-native"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
@@ -312,7 +313,7 @@ export function AdminDevanagariPanel({
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={keyboardBehavior(Platform.OS)}
       keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
     >
     <ScrollView

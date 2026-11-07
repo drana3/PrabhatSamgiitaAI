@@ -1,0 +1,81 @@
+sample,number,title,pipeline_version,predicted_feeling,predicted_subject,verdict_feeling,verdict_subject,subject_confidence_at_time
+A,3891,TOMÁR ÁMÁR EI PARICAY,first_pass,,cosmos,N,A,0.239
+A,1145,TOMÁR PARASHE PRÁŃERA PRADIIP,first_pass,nearness,cosmos,A,W,0.218
+A,193,ÁNDHÁR SAGARE PATH HÁRIYE,first_pass,surrender,cosmos,W,B,0.469
+A,3717,RÚPER SÁYARE D́ÚB DIYE ÁMI,first_pass,,cosmos,N,B,0.279
+A,3437,"TUMI, ÁMÁR ÁPAN SABÁR SVAJAN",first_pass,surrender,devotion,A,A,0.367
+A,2806,TOMÁRE DEKHINI KONO VÁŃII SHUNINI,first_pass,,devotion,M,A,0.219
+A,2286,ELE BUJHI ÁJI SHYÁMA RÁY,first_pass,longing,devotion,A,A,0.242
+A,1500,NIVIŔ NISHIITH T́UT́I,first_pass,surrender,devotion,B,A,0.2
+A,3334,TOMÁR KATHÁ BHEVE,first_pass,peace,humanity,W,W,0.25
+A,3284,NÁM NÁ JÁNÁ JAGAT THEKE,first_pass,,humanity,N,B,0.377
+A,58,"DU JANE JAKHAN, MILICHE TAKHAN",first_pass,nearness,humanity,B,A,0.69
+A,4889,TUMI PRABHU ÁCHO ÁMIO RAYECHI,first_pass,surrender,humanity,A,W,0.214
+A,2573,ES MANERI GAHANE,first_pass,,light_dark,M,W,0.261
+A,956,ÁLO JHARÁ RÁTE TUMI ELE,first_pass,nearness,light_dark,A,A,0.336
+A,941,ÁMÁR RUDDHA GHARE ÁLOY BHARE,first_pass,,light_dark,M,A,0.347
+A,3034,BHULOKE DYULOKE TOMÁR PULAKE,first_pass,joy,light_dark,B,W,0.332
+A,4886,PARAMA PURUŚA PARAM PRIYA,first_pass,longing,meditation,B,W,0.339
+A,4433,VIJAYÁNANDA AMEGHÁNANDA,first_pass,surrender,meditation,A,W,0.239
+A,3343,KATA NÁ YUGA PARE,first_pass,longing,meditation,B,A,0.406
+A,1327,TUMI NÁ BOLE ESE CHILE,first_pass,nearness,meditation,A,W,0.498
+A,236,GHUM GHORE DEKHECHI GO,first_pass,sorrow_hope,memory,A,W,0.25
+A,901,APÁR PAYODHI PÁR HOYE ELE,first_pass,,memory,M,B,0.27
+A,4142,PARICAYA HOYE CHILO,first_pass,,memory,M,A,0.41
+A,1024,"TUMI, ÁMÁY BHÁLOBESE CHILE",first_pass,,memory,M,W,0.48
+A,595,MADHUR SVAPANE MRIDUL CARAŃE,first_pass,nearness,music,A,B,0.395
+A,1400,NIJERA CHANDA HÁRIYE PHELECHI,first_pass,surrender,music,A,A,0.299
+A,350,TUMI BINÁ KE BÁ KRPÁ KARITE PÁRE,first_pass,nearness,music,B,W,0.25
+A,564,"ÁJI, BHUVAN BHARÁ ÁNANDE",first_pass,longing,music,B,B,0.257
+A,1638,SINDHUR RAŃANE SHUKTI ANVESHAŃE,first_pass,,nature,N,A,0.226
+A,5001,BHÁLOBESECHILE TUMI,first_pass,,nature,N,W,0.421
+A,4121,PHÚLER SHOBHÁ PHÚRIYE GECHE,first_pass,,nature,M,A,0.316
+A,4803,D́EKE GECHI JANAM BHARE,first_pass,surrender,nature,B,W,0.369
+A,1918,TOMÁKE BHÁVITE BHÁLO LÁGE MOR,first_pass,longing,path,A,W,0.199
+A,3829,TUMI YADI NÁHI ELE,first_pass,longing,path,A,W,0.355
+A,432,RÚP KATHÁR EK RÁJÁ CHILO,first_pass,,path,N,W,0.431
+A,2198,TUMI ESECHO BHÁLOBESECHO,first_pass,nearness,path,B,A,0.353
+A,2234,ÁSIBE BOLE KENO NÁ ELE,first_pass,longing,,A,M,
+A,67,TÁRI PATH PÁNE MAN CHUT́E JÁY,first_pass,longing,,A,M,
+A,2158,PRIYA TUMI PRIYA TUMI,first_pass,longing,,A,M,
+A,1313,NAYANÁBHIRÁM PRABHU,first_pass,longing,,A,M,
+B,2232,KON AJÁNÁ HOTE ESECHO BHÁVER SROTE,improved,,cosmos,N,A,0.28
+B,4197,SE NISHIITHE CHILUM EKELÁ,improved,courage,cosmos,W,A,0.481
+B,3614,TOMÁR E GÁN ANÁDI KÁLER,improved,nearness,cosmos,B,A,0.483
+B,2620,ARÚP RATAN TUMI VISHVA MOHAN,improved,nearness,cosmos,B,B,0.4
+B,2324,PÁINI TIIRTHE GIRI GUHÁTE,improved,surrender,devotion,B,B,0.2
+B,3671,SUDÚR AMBARE MEGH D́AMBARU,improved,joy,devotion,B,B,0.2
+B,324,MODER DHARÁ RÚPE PEYECHE,improved,,devotion,N,B,0.2
+B,3064,JE VAHNI SHALÁKÁ JVÁLÁLE,improved,,devotion,N,B,0.2
+B,4510,TUMI SHUNE JÁO,improved,surrender,devotion,B,A,0.35
+B,4215,ÁLO JÁ TUMI D́HELE DIYE GELE,improved,nearness,devotion,A,A,0.35
+B,3734,TUMI YADI NÁHI ELE,improved,longing,devotion,A,A,0.2
+B,2665,ARÚPE CHILE TUMI RÚPE ESECHO,improved,surrender,devotion,A,A,0.2
+B,3316,TOMÁR CARAŃ TALE PRABHU,improved,surrender,humanity,A,W,0.4
+B,1515,EKERI AHVÁNE SABE JÁGE ÁJI JÁGE,improved,courage,humanity,A,A,0.27
+B,4714,KŚAŃIKER PARASH TAVA,improved,,humanity,N,A,0.426
+B,690,ÁLOKERA OGO PATHIKRIT,improved,courage,humanity,B,B,0.27
+B,746,NIJERE PHOT́ÁECHO TUMI,improved,surrender,light_dark,B,A,0.348
+B,4452,ÁNDHÁR PÁTHÁRE KHUNJECHI TOMÁRE,improved,longing,light_dark,A,A,0.415
+B,506,PRABHU ÁMÁY,improved,nearness,light_dark,B,A,0.529
+B,2038,"ESO, ÁMÁR HRDAYE ESO",improved,nearness,light_dark,W,A,0.396
+B,1135,TOMÁRE DEKHECHI NAVA RÚPE,improved,nearness,meditation,A,B,0.254
+B,24,BANDHU HE,improved,longing,meditation,A,W,0.371
+B,4620,TUMI AGATIR GATI,improved,nearness,meditation,B,W,0.24
+B,4417,KUNJA VITÁNE DAKŚINÁ PAVANE,improved,nearness,meditation,A,B,0.485
+B,1519,PRATIITI REKHE GELE,improved,nearness,memory,B,W,0.417
+B,1148,"TUMI, AŃU AŃUTE ÁCHO, TUMI",improved,longing,memory,B,W,0.296
+B,4065,TOMÁR ÁSÁR PATH CEYE,improved,,memory,M,A,0.28
+B,1138,SHATA BÁDHÁ UTKRAMI TUMI ESO,improved,peace,memory,W,W,0.26
+B,294,(BANGLÁ TRANSLATION OF OWN URDU GHAZAL),improved,peace,music,B,A,0.319
+B,2961,"ÁJI, MALAY PARASHE",improved,joy,music,A,A,0.49
+B,3159,"TUMI, MUKULER LUKONO MADHU",improved,longing,music,B,B,0.247
+B,4918,VEŃU BEJE CHILO SUR BHESE CHILO,improved,,music,N,A,0.304
+B,1472,VAN PÁHÁŔERA DESHE,improved,nearness,nature,W,A,0.299
+B,2447,EI SANDHYÁ RAKTA RÁGE,improved,nearness,nature,A,A,0.429
+B,3858,"EI, SNIGDHA SHARATE JHARÁ SHEFÁLI TE",improved,peace,nature,A,A,0.6
+B,903,TUMI JAKHAN ESE CHILE,improved,joy,nature,A,A,0.407
+B,3700,"JIIVAN SARITÁ MOR, BAHE JÁY",improved,joy,path,B,A,0.284
+B,185,DINER ÁLOY GÁNER TARII,improved,,path,N,B,0.387
+B,3148,SHABDA SPARSHA RÚPA RASE BHARE ÁCHO,improved,surrender,path,B,B,0.285
+B,1080,ÁLOKER EI JÁTRÁ PATHE,improved,longing,path,B,A,0.347

@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "prabhatai",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -15,8 +15,9 @@
       "backgroundColor": "#FAF7F2"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
+      "usesAppleSignIn": true,
       "buildNumber": "140",
       "associatedDomains": [
         "applinks:www.prabhatasamgiita.org"
@@ -26,21 +27,55 @@
         "UIBackgroundModes": [
           "audio"
         ]
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          }
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FAF7F2"
+        "backgroundColor": "#FAF7F2",
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png"
       },
       "package": "net.prabhatasamgiita.ai",
       "versionCode": 110,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "plugins": [
@@ -58,9 +93,36 @@
       ],
       "expo-router",
       "expo-font",
+      [
+        "expo-localization",
+        {
+          "supportsRTL": false
+        }
+      ],
       "expo-file-system",
       "expo-web-browser",
-      "expo-av",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Prabhat Samgiita AI to use the microphone for voice search."
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Prabhat Samgiita AI to read your photos so you can choose a profile picture.",
+          "cameraPermission": "Allow Prabhat Samgiita AI to use the camera so you can take a profile picture.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#B94D0C"
+        }
+      ],
       [
         "@react-native-google-signin/google-signin",
         {
@@ -68,6 +130,7 @@
         }
       ],
       "./plugins/withIosProjectRootFix",
+      "./plugins/withOfflineBackupExclusion",
       [
         "expo-speech-recognition",
         {

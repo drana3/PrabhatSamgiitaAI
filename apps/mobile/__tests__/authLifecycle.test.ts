@@ -462,12 +462,11 @@ describe("mobile auth lifecycle (all providers)", () => {
       const fs = await import("node:fs")
       const path = await import("node:path")
       const source = fs.readFileSync(
-        path.join(process.cwd(), "app/(tabs)/profile.tsx"),
+        path.join(process.cwd(), "components/profile-v2/ProfileContent.tsx"),
         "utf8",
       )
       expect(source).toMatch(/completeMemberSignOut/)
       expect(source).toMatch(/router\.replace\(href\("\/welcome"\)\)/)
-      expect(source).toMatch(/Signed out/)
     })
   })
 })

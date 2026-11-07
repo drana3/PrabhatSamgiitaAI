@@ -5,6 +5,17 @@ from app.models.admin_workflow import (
 )
 from app.models.ai_usage import AiDailyUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
+from app.models.author_profiles import (
+    AuthorProfile,
+    AuthorProfilePhoto,
+    AuthorRecordingLink,
+    AuthorReport,
+    AuthorSlugHistory,
+    AuthorStatsSnapshot,
+    AuthorSuspension,
+    PlayDaily,
+    PlayEvent,
+)
 from app.models.base import Base
 from app.models.chunk import SongChunk
 from app.models.domain import (
@@ -25,6 +36,7 @@ from app.models.domain import (
 )
 from app.models.google_translate_usage import GoogleTranslateUsage
 from app.models.inventory import InventoryItem
+from app.models.learn_sync import MemberLearnProgress
 from app.models.media import Media
 from app.models.member import (
     CommunityTestimonial,
@@ -45,11 +57,39 @@ from app.models.member import (
     UserPlaylistSong,
 )
 from app.models.notation import Notation
+from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
+from app.models.search_menu import SearchMenuPin
+from app.models.recording_extras import (
+    RecordingChordReport,
+    RecordingChordSheet,
+    RecordingComment,
+    RecordingCommentReport,
+    VideoLink,
+    VideoLinkReport,
+)
+from app.models.recordings import (
+    AuthorBlock,
+    MemberNotice,
+    Recording,
+    RecordingReport,
+    RecordingSimilarConfirm,
+)
 from app.models.sargam_capture import NotationCapture
 from app.models.song import Song
+from app.models.song_plays import SongPlayDaily, SongPlayEvent
+from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordReport
+from app.models.song_comments import SongComment, SongCommentReport
 
 __all__ = [
     "AiDailyUsage",
+    "AuthorBlock",
+    "AuthorProfile",
+    "AuthorProfilePhoto",
+    "AuthorRecordingLink",
+    "AuthorReport",
+    "AuthorSlugHistory",
+    "AuthorStatsSnapshot",
+    "AuthorSuspension",
     "GoogleTranslateUsage",
     "AnalyticsDaily",
     "Base",
@@ -61,21 +101,42 @@ __all__ = [
     "InspirationStoryRecord",
     "InventoryItem",
     "Media",
+    "MemberLearnProgress",
+    "MemberNotice",
     "Notation",
     "NotationCapture",
     "NotationCapture",
     "Occasion",
     "PasswordResetToken",
     "PhoneVerificationCode",
+    "PlayDaily",
+    "PlayEvent",
     "QuizAttempt",
     "QuizCertification",
     "QuizEvent",
     "QuizEventQuestion",
     "QuizEventSubmission",
     "RecommendationAudit",
+    "Recording",
+    "RecordingChordReport",
+    "RecordingChordSheet",
+    "RecordingComment",
+    "RecordingCommentReport",
+    "RecordingCollection",
+    "RecordingCollectionCover",
+    "SearchMenuPin",
+    "RecordingReport",
+    "RecordingSimilarConfirm",
     "ReflectionQuote",
     "Season",
     "Song",
+    "SongPlayDaily",
+    "SongPlayEvent",
+    "SongComment",
+    "SongCommentReport",
+    "SongChordProposal",
+    "SongChordOffer",
+    "SongChordReport",
     "SongChunk",
     "SongIngestionSubmission",
     "SongOccasionLink",
@@ -92,6 +153,8 @@ __all__ = [
     "UserInterestProfile",
     "UserPlaylist",
     "UserPlaylistSong",
+    "VideoLink",
+    "VideoLinkReport",
     "YoutubeReviewQueue",
     "YoutubeScanChannel",
 ]

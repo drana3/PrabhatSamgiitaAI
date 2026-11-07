@@ -1,0 +1,990 @@
+{
+ "suggestions": {
+  "feeling": {
+   "longing": [
+    "pass",
+    "find",
+    "vain",
+    "many",
+    "hop",
+    "garland",
+    "much",
+    "arrival",
+    "far",
+    "went",
+    "count",
+    "return",
+    "sit",
+    "wher",
+    "honey"
+   ],
+   "nearness": [
+    "cam",
+    "clos",
+    "mad",
+    "fragranc",
+    "becom",
+    "nectar",
+    "becam",
+    "charm",
+    "lift",
+    "told",
+    "heavenly",
+    "vibration",
+    "univers",
+    "onto",
+    "ankl"
+   ],
+   "surrender": [
+    "lord",
+    "accept",
+    "bestow",
+    "min",
+    "tak",
+    "beyond",
+    "liv",
+    "whatever",
+    "continu",
+    "exist",
+    "request",
+    "everyth",
+    "essenc",
+    "god",
+    "action"
+   ],
+   "sorrow_hope": [
+    "eye",
+    "many",
+    "pass",
+    "away",
+    "dri",
+    "tell",
+    "due",
+    "get",
+    "went",
+    "joy",
+    "sometim",
+    "caus",
+    "fallen",
+    "full",
+    "garland"
+   ],
+   "joy": [
+    "sky",
+    "melody",
+    "today",
+    "exuberant",
+    "float",
+    "spread",
+    "blu",
+    "fragranc",
+    "earth",
+    "peacock",
+    "divin",
+    "advent",
+    "breez",
+    "bird",
+    "oscillat"
+   ],
+   "peace": [
+    "angel",
+    "nest",
+    "anybody",
+    "chanc",
+    "whatever",
+    "kindly",
+    "forest",
+    "peopl",
+    "solitud",
+    "pulsation",
+    "constantly",
+    "ocean",
+    "hair",
+    "memory",
+    "children"
+   ],
+   "courage": [
+    "mov",
+    "fear",
+    "obstacl",
+    "ahead",
+    "path",
+    "sound",
+    "against",
+    "firm",
+    "demon",
+    "hand",
+    "high",
+    "thos",
+    "flag",
+    "break",
+    "new"
+   ]
+  },
+  "subject": {
+   "light_dark": [
+    "remov",
+    "knowledg",
+    "profusely",
+    "tor",
+    "forth",
+    "kindl",
+    "grac",
+    "stor",
+    "cimmerian",
+    "darkest",
+    "prison",
+    "flam",
+    "hand",
+    "direction",
+    "stream"
+   ],
+   "nature": [
+    "cold",
+    "dur",
+    "branch",
+    "whit",
+    "bud",
+    "tall",
+    "heat",
+    "ketakii",
+    "shefalii",
+    "tender",
+    "snow",
+    "grov",
+    "prewinter",
+    "bamboo",
+    "amidst"
+   ],
+   "meditation": [
+    "hear",
+    "incantation",
+    "purity",
+    "contemplat",
+    "spiritual",
+    "crown",
+    "illusiv",
+    "contemplation",
+    "object",
+    "endeavour",
+    "exist",
+    "lord",
+    "work",
+    "proper",
+    "form"
+   ],
+   "path": [
+    "ahead",
+    "steer",
+    "mov",
+    "pol",
+    "tir",
+    "lonely",
+    "anxiety",
+    "vanity",
+    "right",
+    "arrangement",
+    "track",
+    "relat",
+    "anytim",
+    "cloudy",
+    "unknowingly"
+   ],
+   "cosmos": [
+    "controller",
+    "divin",
+    "great",
+    "form",
+    "everyth",
+    "prostrat",
+    "wav",
+    "merg",
+    "bondag",
+    "effulgenc",
+    "entity",
+    "exist",
+    "try",
+    "big",
+    "revolv"
+   ],
+   "music": [
+    "octav",
+    "scal",
+    "jingl",
+    "ankl",
+    "magic",
+    "instrument",
+    "play",
+    "vibrat",
+    "far",
+    "form",
+    "intoxication",
+    "overflow",
+    "whichever",
+    "viina",
+    "heart"
+   ],
+   "humanity": [
+    "devil",
+    "avidya",
+    "food",
+    "sam",
+    "march",
+    "together",
+    "differenc",
+    "deadly",
+    "animal",
+    "staticity",
+    "messag",
+    "harmony",
+    "earth",
+    "demon",
+    "objectiv"
+   ],
+   "devotion": [
+    "vraja",
+    "view",
+    "bind",
+    "inertial",
+    "whether",
+    "yamuna",
+    "enthron",
+    "want",
+    "temporary",
+    "sin",
+    "roll",
+    "preparation",
+    "touch",
+    "ready",
+    "description"
+   ],
+   "memory": [
+    "current",
+    "realisation",
+    "many",
+    "newer",
+    "immortal",
+    "year",
+    "imprint",
+    "pass",
+    "town",
+    "glacier",
+    "despondent",
+    "pyr",
+    "thou",
+    "dar",
+    "dropp"
+   ]
+  }
+ },
+ "pseudo_labels": {
+  "feeling": {
+   "longing": 346,
+   "nearness": 437,
+   "surrender": 223,
+   "sorrow_hope": 211,
+   "joy": 134,
+   "peace": 35,
+   "courage": 104
+  },
+  "subject": {
+   "light_dark": 42,
+   "nature": 293,
+   "meditation": 36,
+   "path": 25,
+   "cosmos": 75,
+   "music": 34,
+   "humanity": 31,
+   "devotion": 14,
+   "memory": 9
+  }
+ },
+ "kmeans_check": [
+  {
+   "cluster": 10,
+   "size": 452,
+   "top_terms": [
+    "exist",
+    "beyond",
+    "world",
+    "within",
+    "entity",
+    "lord",
+    "creation",
+    "remain",
+    "attribut",
+    "present",
+    "form",
+    "great"
+   ],
+   "subject_mix": {
+    "devotion": 299,
+    "cosmos": 91,
+    "meditation": 27,
+    "light_dark": 11
+   },
+   "feeling_mix": {
+    "none": 141,
+    "surrender": 130,
+    "nearness": 77,
+    "longing": 34
+   },
+   "example_numbers": [
+    13,
+    14,
+    80,
+    167,
+    187
+   ]
+  },
+  {
+   "cluster": 4,
+   "size": 446,
+   "top_terms": [
+    "know",
+    "want",
+    "clos",
+    "understand",
+    "com",
+    "away",
+    "think",
+    "lov",
+    "mind",
+    "unabl",
+    "thi",
+    "stay"
+   ],
+   "subject_mix": {
+    "devotion": 374,
+    "meditation": 16,
+    "cosmos": 12,
+    "nature": 12
+   },
+   "feeling_mix": {
+    "longing": 117,
+    "none": 92,
+    "nearness": 77,
+    "surrender": 72
+   },
+   "example_numbers": [
+    8,
+    10,
+    12,
+    20,
+    41
+   ]
+  },
+  {
+   "cluster": 11,
+   "size": 435,
+   "top_terms": [
+    "darkness",
+    "light",
+    "night",
+    "dark",
+    "remov",
+    "cam",
+    "kindl",
+    "lamp",
+    "morn",
+    "door",
+    "open",
+    "wer"
+   ],
+   "subject_mix": {
+    "devotion": 264,
+    "light_dark": 83,
+    "humanity": 24,
+    "nature": 19
+   },
+   "feeling_mix": {
+    "nearness": 112,
+    "none": 99,
+    "sorrow_hope": 63,
+    "longing": 49
+   },
+   "example_numbers": [
+    6,
+    7,
+    23,
+    46,
+    48
+   ]
+  },
+  {
+   "cluster": 7,
+   "size": 405,
+   "top_terms": [
+    "melody",
+    "song",
+    "rhythm",
+    "tun",
+    "danc",
+    "fill",
+    "lif",
+    "heart",
+    "sing",
+    "float",
+    "mind",
+    "world"
+   ],
+   "subject_mix": {
+    "devotion": 177,
+    "music": 115,
+    "cosmos": 32,
+    "nature": 21
+   },
+   "feeling_mix": {
+    "nearness": 126,
+    "joy": 90,
+    "none": 73,
+    "longing": 39
+   },
+   "example_numbers": [
+    5,
+    15,
+    16,
+    19,
+    26
+   ]
+  },
+  {
+   "cluster": 3,
+   "size": 382,
+   "top_terms": [
+    "mov",
+    "path",
+    "forward",
+    "movement",
+    "ahead",
+    "toward",
+    "along",
+    "obstacl",
+    "work",
+    "fear",
+    "end",
+    "ther"
+   ],
+   "subject_mix": {
+    "devotion": 252,
+    "path": 61,
+    "humanity": 18,
+    "cosmos": 15
+   },
+   "feeling_mix": {
+    "courage": 120,
+    "none": 66,
+    "surrender": 59,
+    "longing": 42
+   },
+   "example_numbers": [
+    2,
+    9,
+    28,
+    32,
+    40
+   ]
+  },
+  {
+   "cluster": 5,
+   "size": 359,
+   "top_terms": [
+    "garden",
+    "flower",
+    "bud",
+    "bloom",
+    "bee",
+    "honey",
+    "spr",
+    "today",
+    "floral",
+    "leav",
+    "branch",
+    "petal"
+   ],
+   "subject_mix": {
+    "nature": 165,
+    "devotion": 157,
+    "music": 7,
+    "memory": 7
+   },
+   "feeling_mix": {
+    "none": 97,
+    "joy": 71,
+    "nearness": 63,
+    "longing": 48
+   },
+   "example_numbers": [
+    65,
+    72,
+    91,
+    92,
+    97
+   ]
+  },
+  {
+   "cluster": 8,
+   "size": 358,
+   "top_terms": [
+    "fill",
+    "sweetness",
+    "nectar",
+    "pour",
+    "cam",
+    "earth",
+    "lov",
+    "heart",
+    "becam",
+    "light",
+    "effulgenc",
+    "beauty"
+   ],
+   "subject_mix": {
+    "devotion": 246,
+    "light_dark": 29,
+    "nature": 22,
+    "cosmos": 20
+   },
+   "feeling_mix": {
+    "nearness": 194,
+    "none": 46,
+    "joy": 36,
+    "surrender": 32
+   },
+   "example_numbers": [
+    25,
+    30,
+    64,
+    90,
+    139
+   ]
+  },
+  {
+   "cluster": 6,
+   "size": 344,
+   "top_terms": [
+    "gam",
+    "divin",
+    "play",
+    "liila",
+    "illusiv",
+    "sometim",
+    "thi",
+    "mak",
+    "understand",
+    "perform",
+    "hid",
+    "mind"
+   ],
+   "subject_mix": {
+    "devotion": 258,
+    "cosmos": 36,
+    "nature": 14,
+    "meditation": 13
+   },
+   "feeling_mix": {
+    "joy": 76,
+    "none": 76,
+    "nearness": 58,
+    "longing": 49
+   },
+   "example_numbers": [
+    22,
+    36,
+    62,
+    71,
+    100
+   ]
+  },
+  {
+   "cluster": 1,
+   "size": 336,
+   "top_terms": [
+    "many",
+    "pass",
+    "hav",
+    "day",
+    "age",
+    "night",
+    "tim",
+    "com",
+    "era",
+    "much",
+    "away",
+    "wait"
+   ],
+   "subject_mix": {
+    "devotion": 199,
+    "nature": 45,
+    "memory": 30,
+    "meditation": 16
+   },
+   "feeling_mix": {
+    "longing": 99,
+    "sorrow_hope": 71,
+    "none": 56,
+    "nearness": 55
+   },
+   "example_numbers": [
+    24,
+    34,
+    81,
+    87,
+    126
+   ]
+  },
+  {
+   "cluster": 0,
+   "size": 329,
+   "top_terms": [
+    "breez",
+    "flower",
+    "winter",
+    "cloud",
+    "sandal",
+    "fragranc",
+    "sky",
+    "spr",
+    "autumn",
+    "float",
+    "whit",
+    "sweet"
+   ],
+   "subject_mix": {
+    "nature": 212,
+    "devotion": 95,
+    "music": 8,
+    "path": 4
+   },
+   "feeling_mix": {
+    "nearness": 81,
+    "none": 67,
+    "joy": 63,
+    "longing": 59
+   },
+   "example_numbers": [
+    3,
+    37,
+    85,
+    86,
+    88
+   ]
+  },
+  {
+   "cluster": 12,
+   "size": 321,
+   "top_terms": [
+    "garland",
+    "thread",
+    "decorat",
+    "flower",
+    "kept",
+    "hav",
+    "altar",
+    "floral",
+    "welcom",
+    "com",
+    "lamp",
+    "hom"
+   ],
+   "subject_mix": {
+    "devotion": 238,
+    "nature": 46,
+    "meditation": 13,
+    "memory": 7
+   },
+   "feeling_mix": {
+    "longing": 86,
+    "sorrow_hope": 71,
+    "none": 67,
+    "nearness": 36
+   },
+   "example_numbers": [
+    4,
+    121,
+    171,
+    192,
+    200
+   ]
+  },
+  {
+   "cluster": 13,
+   "size": 302,
+   "top_terms": [
+    "pain",
+    "pleasur",
+    "dur",
+    "sorrow",
+    "tear",
+    "cry",
+    "agony",
+    "lov",
+    "thi",
+    "hav",
+    "heart",
+    "night"
+   ],
+   "subject_mix": {
+    "devotion": 232,
+    "nature": 14,
+    "light_dark": 11,
+    "humanity": 9
+   },
+   "feeling_mix": {
+    "sorrow_hope": 118,
+    "none": 39,
+    "nearness": 38,
+    "longing": 37
+   },
+   "example_numbers": [
+    1,
+    18,
+    21,
+    49,
+    58
+   ]
+  },
+  {
+   "cluster": 2,
+   "size": 293,
+   "top_terms": [
+    "mountain",
+    "human",
+    "water",
+    "sky",
+    "sea",
+    "blu",
+    "tre",
+    "lik",
+    "desert",
+    "ocean",
+    "forest",
+    "peak"
+   ],
+   "subject_mix": {
+    "devotion": 170,
+    "nature": 43,
+    "humanity": 33,
+    "path": 16
+   },
+   "feeling_mix": {
+    "none": 92,
+    "surrender": 42,
+    "longing": 37,
+    "sorrow_hope": 32
+   },
+   "example_numbers": [
+    11,
+    17,
+    29,
+    47,
+    50
+   ]
+  },
+  {
+   "cluster": 9,
+   "size": 256,
+   "top_terms": [
+    "flut",
+    "bell",
+    "ankl",
+    "sound",
+    "yamuna",
+    "vraja",
+    "river",
+    "krsna",
+    "play",
+    "charm",
+    "danc",
+    "tinkl"
+   ],
+   "subject_mix": {
+    "devotion": 138,
+    "music": 48,
+    "nature": 33,
+    "cosmos": 16
+   },
+   "feeling_mix": {
+    "none": 68,
+    "nearness": 48,
+    "joy": 42,
+    "longing": 42
+   },
+   "example_numbers": [
+    66,
+    82,
+    146,
+    149,
+    157
+   ]
+  }
+ ],
+ "feeling_coverage": {
+  "assigned": 3939,
+  "unassigned": 1079,
+  "model_only": 94,
+  "confidence_histogram": {
+   "0.0-0.2": 189,
+   "0.2-0.3": 1427,
+   "0.3-0.4": 1250,
+   "0.4-0.5": 722,
+   "0.5-0.6": 294,
+   "0.6-1.0": 57
+  },
+  "primary_counts": {
+   "nearness": 1028,
+   "longing": 752,
+   "surrender": 583,
+   "sorrow_hope": 579,
+   "joy": 518,
+   "courage": 314,
+   "peace": 165
+  },
+  "with_any_secondary": 1648,
+  "any_count_incl_secondary": {
+   "nearness": 1511,
+   "longing": 1114,
+   "sorrow_hope": 927,
+   "joy": 862,
+   "surrender": 845,
+   "courage": 491,
+   "peace": 269
+  }
+ },
+ "subject_coverage": {
+  "assigned": 4979,
+  "unassigned": 39,
+  "model_only": 24,
+  "confidence_histogram": {
+   "0.0-0.2": 0,
+   "0.2-0.3": 2948,
+   "0.3-0.4": 1347,
+   "0.4-0.5": 443,
+   "0.5-0.6": 170,
+   "0.6-1.0": 71
+  },
+  "primary_counts": {
+   "devotion": 3099,
+   "nature": 661,
+   "cosmos": 272,
+   "music": 225,
+   "light_dark": 192,
+   "meditation": 178,
+   "path": 140,
+   "humanity": 128,
+   "memory": 84
+  },
+  "with_any_secondary": 1815,
+  "any_count_incl_secondary": {
+   "devotion": 4082,
+   "nature": 904,
+   "cosmos": 452,
+   "music": 390,
+   "light_dark": 344,
+   "meditation": 333,
+   "path": 238,
+   "humanity": 212,
+   "memory": 159
+  }
+ },
+ "time_of_day_coverage": {
+  "songs_with_any": 839,
+  "counts": {
+   "night": 483,
+   "dawn": 240,
+   "evening": 157,
+   "day": 51
+  }
+ },
+ "season_coverage": {
+  "songs_with_any": 361,
+  "counts": {
+   "rainy": 114,
+   "autumn": 109,
+   "spring": 94,
+   "winter": 62,
+   "summer": 31
+  }
+ },
+ "imagery_coverage": {
+  "songs_with_any": 1374,
+  "counts": {
+   "flowers": 349,
+   "water": 276,
+   "lamp_fire": 194,
+   "clouds_storm": 193,
+   "mountain_path": 189,
+   "moon_stars": 182,
+   "birds": 162,
+   "flute_music": 64
+  }
+ },
+ "bands": {
+  "partial": 1096,
+  "medium": 960,
+  "low": 2897,
+  "high": 54,
+  "uncovered": 11
+ },
+ "overall_confidence_histogram": {
+  "0.0-0.2": 189,
+  "0.2-0.3": 3411,
+  "0.3-0.4": 1110,
+  "0.4-0.5": 225,
+  "0.5-0.6": 54,
+  "0.6-1.0": 18
+ },
+ "source_tags": {
+  "figure": {
+   "krsna": 97,
+   "shiva": 31
+  },
+  "language": {
+   "hindi_urdu": 20,
+   "bengali_dialect": 42,
+   "sanskrit": 15,
+   "aungika": 10,
+   "magahii": 1
+  },
+  "form": {
+   "trital": 16,
+   "ghazal_qawwali": 12,
+   "rupak": 1,
+   "jhaptal": 4,
+   "ektal": 1,
+   "baetalik": 3,
+   "teora": 7
+  },
+  "source_code": {
+   "D": 2440,
+   "K": 2116,
+   "null": 357,
+   "K+D": 43,
+   "D+K": 31,
+   "Df": 16,
+   "Kf": 4,
+   "K+D+Kf": 2,
+   "D+Kf": 2,
+   "K+Kf": 2,
+   "Kf+K": 2,
+   "D+Df": 1
+  },
+  "year": {
+   "1982": 179,
+   "1983": 946,
+   "1984": 1111,
+   "1985": 1050,
+   "1986": 614,
+   "1987": 316,
+   "1988": 286,
+   "1989": 141,
+   "1990": 350
+  },
+  "no_year": 25
+ },
+ "curated": {
+  "songs_in_any_collection": 235,
+  "songs_in_none": 4783,
+  "no_feeling_and_not_curated": 1028
+ }
+}

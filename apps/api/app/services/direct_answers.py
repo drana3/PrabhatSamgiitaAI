@@ -9,6 +9,7 @@ from app.services.catalog import (
     catalog_notation_snapshot,
     catalog_song_snapshot,
 )
+from app.services.media_quality import accepted_media
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +32,8 @@ def _language_answer() -> DirectAnswer:
 
 
 def _coverage_answer(kind: str) -> DirectAnswer:
-    media = catalog_media_snapshot()
+    # Only media a client may see (accepted review status), like the song endpoints.
+    media = accepted_media(catalog_media_snapshot())
     if kind == "audio":
         audio_rows = [item for item in media if item.kind == "audio"]
         covered = {item.song_number for item in audio_rows if item.song_number is not None}

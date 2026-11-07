@@ -7,6 +7,8 @@ import {
   mediaVideosToEmbeds,
   pickPreferredAudioUrl,
   toInAppVideoEmbedUrl,
+  youtubeEmbedWebSource,
+  YOUTUBE_EMBED_REFERER,
 } from "@/lib/mediaEmbed"
 import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
 import type { SongDetail } from "@prabhat/core"
@@ -180,5 +182,30 @@ describe("in-app media embeds", () => {
         1,
       ),
     ).toEqual([])
+  })
+})
+
+describe("YouTube embed inside a WebView (Error 153)", () => {
+  it("uses the app id as an HTTPS referer, per YouTube's embedded player rules", () => {
+    expect(YOUTUBE_EMBED_REFERER).toBe("https://net.prabhatasamgiita.ai/")
+  })
+
+  it("builds html + baseUrl with a referrer policy instead of a bare uri", () => {
+    const source = youtubeEmbedWebSource("https://www.youtube.com/embed/abc123?playsinline=1&rel=0")
+    expect(source.baseUrl).toBe(YOUTUBE_EMBED_REFERER)
+    expect(source.html).toContain('referrerpolicy="strict-origin-when-cross-origin"')
+    expect(source.html).toContain("https://www.youtube.com/embed/abc123?playsinline=1&amp;rel=0&amp;widget_referrer=")
+    expect(source).not.toHaveProperty("uri")
+  })
+
+  it("escapes the embed address inside the attribute", () => {
+    const source = youtubeEmbedWebSource('https://www.youtube.com/embed/x"><script>')
+    expect(source.html).not.toContain("<script>")
+  })
+
+  it("is what both the song video card and the live embed load", async () => {
+    const { readFileSync } = await import("node:fs")
+    expect(readFileSync("components/kirtan/LiveEmbed.tsx", "utf8")).toContain("youtubeEmbedWebSource(")
+    expect(readFileSync("components/player/WatchVideoCard.tsx", "utf8")).toContain("youtubeEmbedWebSource(")
   })
 })

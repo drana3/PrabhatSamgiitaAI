@@ -223,6 +223,8 @@ describe("drive exit — end-to-end player regression", () => {
     })
     const TrackPlayer = await catalogPlayer()
     TrackPlayer.add.mockClear()
+    // The native player really is playing (the song is mid-skip), so nothing needs correcting.
+    TrackPlayer.getPlaybackState.mockResolvedValueOnce({ state: "playing" })
     usePlayerStore.getState().reconcileForegroundCatalogPlayback()
     await new Promise((r) => setTimeout(r, 50))
     expect(TrackPlayer.add).not.toHaveBeenCalled()
@@ -290,6 +292,7 @@ describe("drive exit — end-to-end player regression", () => {
       currentSong: driveSong as never,
     })
 
+    TrackPlayer.getPlaybackState.mockResolvedValueOnce({ state: "playing" })
     usePlayerStore.getState().reconcileForegroundCatalogPlayback()
     await new Promise((r) => setTimeout(r, 50))
     expect(TrackPlayer.add).not.toHaveBeenCalled()

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import InventoryItem, Media, Notation, Song, SongChunk
 from app.services.faiss_store import get_faiss_store
+from app.services.media_quality import merge_media
 from app.services.seed_data import load_rows
 
 _songs: dict[int, Song] | None = None
@@ -508,10 +509,7 @@ class CatalogService:
         by_number = songs_by_number()
         return [by_number[number] for number in sorted(numbers) if number in by_number]
 
-    async def get_media(self, song_number: int) -> list[Media]:
-        snapshot = list(media_by_song_number().get(song_number, ()))
-        if snapshot:
-            return snapshot
+    async def _db_media(self, song_number: int) -> list[Media]:
         try:
             result = await asyncio.wait_for(
                 self.session.execute(select(Media).where(Media.song_number == song_number)),
@@ -524,6 +522,18 @@ class CatalogService:
             except Exception:
                 pass
             return []
+
+    async def get_media(self, song_number: int, *, include_unreviewed: bool = False) -> list[Media]:
+        """Audio and video of one song, from the bundled snapshot and the database together.
+
+        Only media with an accepted review status is returned (verified, verified_external,
+        human_reviewed, officially_verified), each recording once (a YouTube video by its embed id),
+        in the deterministic order documented in ``app.services.media_quality``. When the database
+        is unreachable the snapshot alone is used. ``include_unreviewed`` is for review tools.
+        """
+        snapshot = list(media_by_song_number().get(song_number, ()))
+        database = await self._db_media(song_number)
+        return merge_media(snapshot, database, accepted_only=not include_unreviewed)
 
     async def get_notation(self, song_number: int) -> Notation | None:
         seeded = notations_by_song_number().get(song_number)

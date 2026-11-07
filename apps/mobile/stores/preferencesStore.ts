@@ -3,6 +3,8 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import type { MockSong } from "@/data/mock"
+import { bindOwner } from "@/lib/account/bindOwner"
+import type { OwnedData } from "@/lib/account/owner"
 import { api } from "@/lib/client"
 import { favoritesScopeKey } from "@/lib/favoritesScope"
 import { memberAuthAvailable } from "@/lib/memberAuth"
@@ -18,13 +20,24 @@ export type RecentPlay = {
 
 const MAX_RECENT = 12
 
-type PreferencesState = {
+/** What belongs to one account: what they played and searched, and their own notes on songs. */
+export type PreferencesOwnedData = {
+  recentPlays: RecentPlay[]
+  searchRecents: string[]
+  songNotes: Record<string, string>
+}
+
+const emptyOwnedData = (): PreferencesOwnedData => ({ recentPlays: [], searchRecents: [], songNotes: {} })
+
+type PreferencesState = OwnedData<PreferencesOwnedData> & {
   favoritesScope: string
   favoritesByScope: Record<string, string[]>
   savedSongIds: string[]
   recentPlays: RecentPlay[]
   searchRecents: string[]
   feelingSearchEnabled: boolean
+  /** "Download on Wi-Fi only": downloads wait for Wi-Fi instead of using mobile data. On by default. */
+  downloadWifiOnly: boolean
   songNotes: Record<string, string>
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
@@ -38,6 +51,7 @@ type PreferencesState = {
   addSearchRecent: (query: string) => void
   clearSearchRecents: () => void
   setFeelingSearchEnabled: (enabled: boolean) => void
+  setDownloadWifiOnly: (enabled: boolean) => void
   setSongNote: (songId: string, note: string) => void
 }
 
@@ -66,7 +80,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       recentPlays: [],
       searchRecents: [],
       feelingSearchEnabled: false,
+      downloadWifiOnly: true,
       songNotes: {},
+      owner: null,
+      slots: {},
       syncingFavorites: false,
 
       activateFavoritesScope: (scope) => {
@@ -190,6 +207,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       clearSearchRecents: () => set({ searchRecents: [] }),
       setFeelingSearchEnabled: (enabled) => set({ feelingSearchEnabled: enabled }),
+      setDownloadWifiOnly: (enabled) => set({ downloadWifiOnly: enabled }),
 
       setSongNote: (songId, note) => {
         const trimmed = note.trim()
@@ -202,7 +220,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     {
       name: "prabhat-preferences",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const state = persisted as {
           savedSongIds?: string[]
@@ -212,10 +230,13 @@ export const usePreferencesStore = create<PreferencesState>()(
           searchRecents?: string[]
           songNotes?: Record<string, string>
         }
+        // v3 stamps the account data with an owner; older data is taken by whoever is signed in at the first start.
+        const owned = { owner: null, slots: {} }
         if (version < 2) {
           const legacySaved = state.savedSongIds ?? []
           return {
             ...state,
+            ...owned,
             favoritesScope: state.favoritesScope ?? "guest",
             favoritesByScope: {
               ...(state.favoritesByScope ?? {}),
@@ -224,15 +245,18 @@ export const usePreferencesStore = create<PreferencesState>()(
             savedSongIds: legacySaved,
           }
         }
-        return state
+        return { ...state, ...owned }
       },
       partialize: (state) => ({
+        owner: state.owner,
+        slots: state.slots,
         favoritesScope: state.favoritesScope,
         favoritesByScope: state.favoritesByScope,
         savedSongIds: state.savedSongIds,
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,
         feelingSearchEnabled: state.feelingSearchEnabled,
+        downloadWifiOnly: state.downloadWifiOnly,
         songNotes: state.songNotes,
       }),
       onRehydrateStorage: () => (state) => {
@@ -266,4 +290,11 @@ useAuthStore.subscribe((state, previous) => {
       email: state.email,
     }),
   )
+})
+
+/** Recent songs, recent searches and notes follow the signed-in person (lib/account/owner.ts). */
+export const reconcilePreferencesOwner = bindOwner<PreferencesState, PreferencesOwnedData>(usePreferencesStore, {
+  pick: (s) => ({ recentPlays: s.recentPlays, searchRecents: s.searchRecents, songNotes: s.songNotes }),
+  empty: emptyOwnedData,
+  apply: (data) => data,
 })

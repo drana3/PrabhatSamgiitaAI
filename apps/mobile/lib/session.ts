@@ -13,10 +13,15 @@ import {
 } from "@/lib/msal"
 import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
+import "@/lib/account/ownership"
+import { wipeLocalUserData } from "@/lib/account/wipeLocalUserData"
 import { hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
 import { memberPhoneRequired } from "@/lib/memberPhone"
+import { nameIsMissing } from "@/lib/profile/validate"
 import { useAuthStore } from "@/stores/authStore"
+import { useChatStore } from "@/stores/chatStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { useProfileStore } from "@/stores/profileStore"
 
 export { microsoftAuthConfigured, getMicrosoftRedirectUri }
 export { googleAuthConfigured } from "@/lib/googleAuth"
@@ -41,7 +46,8 @@ async function hydrateFromSession() {
       displayName: auth.displayName,
       email: auth.email,
       memberId: auth.memberId,
-      isAdmin: auth.isAdmin,
+      // the server did not confirm this member, so never keep an admin flag from before
+      isAdmin: false,
       memberBackend: false,
       identityProvider: auth.identityProvider,
     })
@@ -97,6 +103,8 @@ async function finishSignIn(input: {
   email: string | null
   memberId: string
   identityProvider: string
+  /** the provider's picture (Google), kept unless the person chose their own */
+  photoUrl?: string | null
 }) {
   useAuthStore.getState().applyMemberSession({
     displayName: input.displayName,
@@ -105,11 +113,15 @@ async function finishSignIn(input: {
     memberBackend: false,
     identityProvider: input.identityProvider,
   })
+  if (input.photoUrl) useProfileStore.getState().setProviderPhoto(input.photoUrl)
+  // The name comes from the provider; when it gave none (Apple only gives it once), the page asks once.
+  const needsName = nameIsMissing(input.displayName, input.email)
 
   if (!memberAuthAvailable()) {
     return {
       ok: true as const,
       memberBackend: false,
+      needsName,
       message:
         "Signed in on this device. Favorites, quiz, and admin status will sync after you install an app update that includes member sync.",
     }
@@ -120,6 +132,7 @@ async function finishSignIn(input: {
     return {
       ok: true as const,
       memberBackend: false,
+      needsName,
       message:
         "Signed in locally. We could not reach your member account — check your connection and try again.",
     }
@@ -129,12 +142,14 @@ async function finishSignIn(input: {
       ok: true as const,
       memberBackend: true,
       needsPhone: true,
+      needsName,
       message: "Add your mobile number to finish setting up your account.",
     }
   }
   return {
     ok: true as const,
     memberBackend: true,
+    needsName,
     message: "Signed in and synced with your Prabhat Samgiita member session.",
   }
 }
@@ -149,11 +164,15 @@ export async function refreshMemberSession() {
 
 /** Clears local auth for every login type; provider SSO logout is best-effort and non-blocking. */
 export async function signOutMember() {
-  const provider = useAuthStore.getState().identityProvider
+  const before = useAuthStore.getState()
+  const provider = before.identityProvider
+  const accountId = useChatStore.getState().getAccountId(before.mode, before.email, before.memberId)
   // Always clear local session first (email/password, Google, Microsoft, Facebook).
   // In-flight Profile/AppState member sync must not revive the session after the alert.
   useAuthStore.getState().signOut()
   usePreferencesStore.getState().resetAfterSignOut()
+  // The account's data leaves the phone (see lib/account/wipeLocalUserData.ts); the sign-out itself never waits on it.
+  void wipeLocalUserData(accountId)
 
   // Do not await browser/SSO UI — that delayed the "Signed out" alert and raced sync.
   void (async () => {
@@ -195,6 +214,7 @@ export async function signInWithGoogleAccount() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: identity.provider,
+    photoUrl: identity.photoUrl,
   })
 }
 

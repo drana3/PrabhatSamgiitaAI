@@ -1,193 +1,131 @@
-import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
+import { useMemo } from "react"
+import { StyleSheet, Text } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
-import { PrimaryButton } from "@/components/common/PrimaryButton"
-import { ScreenContainer } from "@/components/common/ScreenContainer"
-import { CompactSongRow } from "@/components/songs/CompactSongRow"
-import { colors } from "@/constants/colors"
-import { softShadow } from "@/constants/shadows"
-import { radius, spacing } from "@/constants/spacing"
-import { typography } from "@/constants/typography"
-import { allCollections, collectionSearchPrompt } from "@/data/collections"
-import { getFestivalById, getUpcomingFestivals } from "@/data/festivals"
-import type { MockSong } from "@/data/mock"
-import { api } from "@/lib/client"
-import { loadCatalog } from "@/lib/catalog"
-import { songSummaryToMockSong } from "@/lib/songMap"
+import { PressBox } from "@/components/learn-v2/PressBox"
+import { CardText, CardTitle, LCard, OverlayScreen, Over, Pill } from "@/components/learn-v2/ui"
+import { FestivalSongSections } from "@/components/festivals/FestivalSongSections"
+import { Reveal } from "@/components/today/motion"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { allCollections } from "@/data/collections"
+import { protoFor } from "@/constants/tokens/amToday"
+import { getFestivalById } from "@/data/festivals"
+import { useAmTheme } from "@/hooks/useAmTheme"
+import { formatDate, useLanguage, useT } from "@/lib/i18n"
+import { festivalText } from "@/lib/i18n/festivalText"
+import { daysUntilFestival, festivalPhase } from "@/lib/festivalEve"
+import { nowMs } from "@/lib/notifications/clock"
 import { href } from "@/utils/href"
 
+/**
+ * One observance: its date, a line about it and the way to its songs. A festival with a matching
+ * collection opens that collection; any other opens a search by the festival's name. Nothing is
+ * suggested that the catalog does not actually hold.
+ */
 export default function FestivalDetailScreen() {
-  const { festivalId } = useLocalSearchParams<{ festivalId: string }>()
+  const t = useT()
+  const language = useLanguage()
+  const theme = useAmTheme()
   const router = useRouter()
-  const [songs, setSongs] = useState<MockSong[]>([])
-  const [loadingSongs, setLoadingSongs] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { festivalId } = useLocalSearchParams<{ festivalId: string }>()
 
-  const festival = useMemo(() => {
-    const upcoming = getUpcomingFestivals(new Date(), 40)
-    return (
-      upcoming.find((item) => item.id === festivalId) ??
-      (() => {
-        const base = getFestivalById(festivalId)
-        if (!base) return null
-        return {
-          ...base,
-          daysUntil: 0,
-          dateLabel: new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(
-            new Date(base.year, base.month - 1, base.day),
-          ),
-        }
-      })()
-    )
-  }, [festivalId])
-
-  const relatedCollection = festival?.relatedCollectionLabel
+  const festival = useMemo(() => getFestivalById(String(festivalId ?? "")), [festivalId])
+  // today or tomorrow by the phone's local day (the web preview can move the clock: see lib/notifications/clock.ts)
+  const phase = useMemo(() => (festival ? festivalPhase(daysUntilFestival(new Date(nowMs()), festival)) : null), [festival])
+  const collection = festival?.relatedCollectionLabel
     ? allCollections.find((item) => item.label === festival.relatedCollectionLabel)
     : undefined
 
-  useEffect(() => {
-    if (!festival) return
-    let active = true
-    setLoadingSongs(true)
-    setLoadError(null)
-    const query = relatedCollection
-      ? collectionSearchPrompt(relatedCollection.label)
-      : `${festival.title} festival songs`
-    void api
-      .searchSongs(query, { mode: "catalog" })
-      .then((rows) => {
-        if (!active) return
-        if (rows.length) {
-          setSongs(rows.slice(0, 8).map((row, index) => songSummaryToMockSong(row, index)))
-          return
-        }
-        return loadCatalog().then((catalog) => {
-          if (!active) return
-          if (catalog.error && !catalog.songs.length) setLoadError(catalog.error)
-          setSongs(catalog.songs.slice(0, 8).map((row, index) => songSummaryToMockSong(row, index)))
-        })
-      })
-      .catch(() => {
-        if (!active) return
-        setLoadError("Could not load festival songs. Check your connection and try again.")
-        setSongs([])
-      })
-      .finally(() => {
-        if (active) setLoadingSongs(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [festival, relatedCollection])
-
-  if (!festival) {
-    return (
-      <ScreenContainer title="Festival">
-        <Text style={styles.missing}>Festival not found.</Text>
-        <PrimaryButton label="Back" onPress={() => router.back()} />
-      </ScreenContainer>
+  const back = () => {
+    if (router.canGoBack()) router.back()
+    else router.replace(href("/festivals"))
+  }
+  const openCollection = () => {
+    if (!collection) return
+    router.push(
+      href(`/songs-v2-collection?id=${encodeURIComponent(collection.label)}&title=${encodeURIComponent(collection.label)}`),
     )
+  }
+  const openSearch = () => {
+    if (festival) router.push(href(`/search-v2?q=${encodeURIComponent(festival.title)}`))
   }
 
   return (
-    <ScreenContainer edges={["top"]} padded={false} title="Festival">
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <Text style={styles.date}>{festival.dateLabel}</Text>
-          <Text style={styles.title}>{festival.title}</Text>
-          <Text style={styles.subtitle}>{festival.subtitle}</Text>
-          {festival.mood ? <Text style={styles.mood}>Mood · {festival.mood}</Text> : null}
-        </View>
-
-        {relatedCollection ? (
-          <Pressable
-            style={styles.collectionCard}
-            onPress={() =>
-              router.push(
-                href(
-                  `/search?q=${encodeURIComponent(collectionSearchPrompt(relatedCollection.label))}`,
-                ),
-              )
-            }
-          >
-            <Text style={styles.collectionEyebrow}>Related collection</Text>
-            <Text style={styles.collectionTitle}>{relatedCollection.label}</Text>
-            <Text style={styles.collectionMeta}>{relatedCollection.count} songs in catalog</Text>
-          </Pressable>
-        ) : (
-          <View style={styles.collectionCard}>
-            <Text style={styles.collectionEyebrow}>Related songs</Text>
-            <Text style={styles.collectionTitle}>Suggested listening for this observance</Text>
-            <Text style={styles.collectionMeta}>Live catalog search for this festival.</Text>
-          </View>
-        )}
-
-        <Text style={styles.section}>Listen now</Text>
-        {loadingSongs ? <ActivityIndicator color={colors.primary} /> : null}
-        {!loadingSongs && !songs.length ? (
-          <Text style={styles.collectionMeta}>
-            {loadError ?? "No songs available for this festival yet."}
-          </Text>
-        ) : null}
-        {loadError && songs.length ? <Text style={styles.collectionMeta}>{loadError}</Text> : null}
-        {songs.map((song) => (
-          <CompactSongRow
-            key={song.id}
-            song={song}
-            showShare
-            onPress={() => router.push(href(`/song/${song.id}`))}
-          />
-        ))}
-
-        <View style={{ marginTop: spacing.xl }}>
-          <PrimaryButton
-            label="Browse all collections"
-            onPress={() => router.push(href("/collections"))}
-          />
-        </View>
-      </ScrollView>
-    </ScreenContainer>
+    <OverlayScreen theme={theme} onBack={back} label={t("fest.detail.label")}>
+      {!festival ? (
+        <LCard theme={theme} tone="white">
+          {(c) => (
+            <>
+              <CardTitle color={c.text}>{t("fest.missing.title")}</CardTitle>
+              <CardText color={c.body} wide>{t("fest.missing.text")}</CardText>
+              <Pill theme={theme} go label={t("fest.title")} onPress={() => router.replace(href("/festivals"))} />
+            </>
+          )}
+        </LCard>
+      ) : (
+        <>
+          <Reveal index={0}>
+            <Over color={theme.eyebrow} numeric style={styles.date}>
+              {formatDate(new Date(festival.year, festival.month - 1, festival.day), "long")}
+              {phase ? ` · ${phase === "today" ? t("fest.today") : t("fest.tomorrow")}` : ""}
+            </Over>
+            <Text accessibilityRole="header" style={[styles.heading, { color: theme.textHeading }]}>
+              {festivalText(festival, language).title}
+            </Text>
+            <Text style={[styles.sub, { color: theme.textBody }]}>{festivalText(festival, language).subtitle}</Text>
+            {festival.expected ? (
+              <Text style={[styles.expected, { color: theme.textBody }]}>
+                <Text style={styles.expectedLead}>{t("fest.expected")}. </Text>
+                {t("fest.expected.why")}
+              </Text>
+            ) : null}
+          </Reveal>
+          <Reveal index={1}>
+            <LCard theme={theme} tone="white">
+              {(c) =>
+                collection ? (
+                  <>
+                    <Over color={c.over}>{t("fest.collection.eyebrow")}</Over>
+                    <CardTitle color={c.text}>{collection.label}</CardTitle>
+                    <CardText color={c.body} wide>{t("fest.collection.count", { count: collection.count })}</CardText>
+                    <Pill theme={theme} go label={t("fest.collection.open")} onPress={openCollection} />
+                  </>
+                ) : (
+                  <>
+                    <Over color={c.over}>{t("fest.search.eyebrow")}</Over>
+                    <CardTitle color={c.text}>{t("fest.search.title")}</CardTitle>
+                    <CardText color={c.body} wide>{t("fest.search.text")}</CardText>
+                    <Pill theme={theme} go label={t("fest.search.open")} onPress={openSearch} />
+                  </>
+                )
+              }
+            </LCard>
+          </Reveal>
+          <Reveal index={2}>
+            <FestivalSongSections p={protoFor(theme)} festival={festival} />
+          </Reveal>
+          <Reveal index={3}>
+            <PressBox
+              accessibilityRole="button"
+              accessibilityLabel={t("fest.browse")}
+              onPress={() => router.push(href("/collections-v2"))}
+              style={styles.browse}
+            >
+              <Text style={[styles.browseText, { color: theme.eyebrow }]}>{t("fest.browse")}</Text>
+            </PressBox>
+          </Reveal>
+        </>
+      )}
+    </OverlayScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section },
-  hero: {
-    backgroundColor: colors.surfaceWarm,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  date: { ...typography.caption, color: colors.primaryDark },
-  title: {
-    fontFamily: "Lora_700Bold",
-    fontSize: 28,
-    lineHeight: 34,
-    color: colors.textPrimary,
-    marginTop: spacing.sm,
-  },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginTop: spacing.sm },
-  mood: { ...typography.caption, color: colors.secondary, marginTop: spacing.md },
-  collectionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.xl,
-    ...softShadow(1),
-  },
-  collectionEyebrow: { ...typography.caption, color: colors.textMuted },
-  collectionTitle: { ...typography.label, fontSize: 16, color: colors.textPrimary, marginTop: 4 },
-  collectionMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 4 },
-  section: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 18,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  missing: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.lg },
+  date: { paddingHorizontal: 10 },
+  heading: { fontFamily: amFonts.display, fontSize: 34, lineHeight: 36, letterSpacing: -0.7, textTransform: "uppercase", paddingHorizontal: 10, paddingTop: 10, paddingBottom: 12 },
+  sub: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 24, paddingHorizontal: 10 },
+  expected: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 21, paddingHorizontal: 10, paddingTop: 12 },
+  expectedLead: { fontFamily: amFonts.semi },
+  browse: { minHeight: 44, justifyContent: "center", alignItems: "center" },
+  browseText: { fontFamily: amFonts.semi, fontSize: 15 },
 })

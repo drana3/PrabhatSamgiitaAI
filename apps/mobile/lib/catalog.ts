@@ -12,19 +12,37 @@ export type CatalogLoadResult = {
   error: string | null
 }
 
+/** The parsed catalog stays in memory: 5,018 rows are read and JSON-parsed once per app run, not per screen. */
+let memoryRows: SongSummary[] | null = null
+/** One live request at a time, shared by every screen that asks. */
+let inflight: Promise<CatalogLoadResult> | null = null
+let freshAt = 0
+/** A live catalog younger than this is reused instead of fetched again (tab switches, remounts). */
+export const CATALOG_FRESH_MS = 60_000
+
+/** Forget everything held in memory (tests, sign-out). The AsyncStorage copy is untouched. */
+export function resetCatalogMemory() {
+  memoryRows = null
+  inflight = null
+  freshAt = 0
+}
+
 export async function readCatalogCache(): Promise<SongSummary[] | null> {
+  if (memoryRows?.length) return memoryRows
   try {
     const raw = await AsyncStorage.getItem(CATALOG_CACHE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed) || !parsed.length) return null
-    return parsed as SongSummary[]
+    memoryRows = parsed as SongSummary[]
+    return memoryRows
   } catch {
     return null
   }
 }
 
 async function writeCache(songs: SongSummary[]) {
+  memoryRows = songs
   try {
     await AsyncStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(songs))
   } catch {
@@ -32,13 +50,28 @@ async function writeCache(songs: SongSummary[]) {
   }
 }
 
-/** Fetch live catalog and refresh AsyncStorage cache. Falls back to cache on failure. */
-export async function loadCatalog(): Promise<CatalogLoadResult> {
+/**
+ * Fetch live catalog and refresh AsyncStorage cache. Falls back to cache on failure.
+ * Callers share one request; a live result under CATALOG_FRESH_MS old is reused unless `force`.
+ */
+export function loadCatalog(options: { force?: boolean } = {}): Promise<CatalogLoadResult> {
+  if (inflight) return inflight
+  if (!options.force && memoryRows?.length && Date.now() - freshAt < CATALOG_FRESH_MS) {
+    return Promise.resolve({ songs: memoryRows, fromCache: false, error: null })
+  }
+  inflight = fetchCatalog().finally(() => {
+    inflight = null
+  })
+  return inflight
+}
+
+async function fetchCatalog(): Promise<CatalogLoadResult> {
   const cached = await readCatalogCache()
 
   try {
     const songs = await api.fetchSongs()
     if (songs.length) {
+      freshAt = Date.now()
       void writeCache(songs)
       return { songs, fromCache: false, error: null }
     }

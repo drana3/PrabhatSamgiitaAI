@@ -5,9 +5,10 @@ const WEB_HOSTS = new Set([
 ])
 
 export function songAppPath(songNumber: number): string {
-  return `/song/ps-${songNumber}`
+  return `/song-v2/ps-${songNumber}`
 }
 
+/** The link a shared card carries. The address stays /song/ps-N (old shares keep working); the app maps it to the song page. */
 export function songAppDeepLink(songNumber: number): string {
   return `prabhatai:///song/ps-${songNumber}`
 }
@@ -49,6 +50,9 @@ export function webUrlToAppPath(raw: string): string | null {
       if (!isPublicWebHost(url.hostname)) return null
       const songMatch = url.pathname.match(/^\/songs\/(\d+)\/?$/i)
       if (songMatch) return `${songAppPath(Number(songMatch[1]))}${url.search}`
+      // Public author pages: https://<site>/author/<slug> opens the same page in the app.
+      const authorMatch = url.pathname.match(/^\/author\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/i)
+      if (authorMatch) return `/author/${authorMatch[1]!.toLowerCase()}`
       return null
     }
   } catch {

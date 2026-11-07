@@ -1,0 +1,66 @@
+/**
+ * "Script and translations" sheet. English is the source; ru and es mirror it key for key.
+ * Spread into the main dictionaries. Language names in their own script are not translated.
+ */
+export const scriptSheetEn = {
+  "scriptSheet.title": "Script and translations",
+  "scriptSheet.script": "Script",
+  "scriptSheet.translation": "Translation under each line",
+  "scriptSheet.upTo": "Up to {count}",
+  "scriptSheet.bengaliSoon": "Bengali, not added yet",
+  "scriptSheet.note": "A song that does not have the language yet shows English and says so. Word meanings have their own language: pick it on the Words card of a song or in the player.",
+  "scriptSheet.roman": "Roman",
+  "scriptSheet.roman.sub": "Latin letters, for example Bandhu, Álo",
+  "scriptSheet.devanagari.sub": "Devanagari",
+  "scriptSheet.bengali.sub": "Bengali",
+  "scriptSheet.both": "Both",
+  "scriptSheet.both.sub": "Roman and Devanagari together",
+  "scriptSheet.summary.devanagari": "Devanagari",
+  "scriptSheet.summary.bengali": "Bengali",
+  "scriptSheet.summary.both": "Both scripts",
+  "scriptSheet.cover.full": "Lines and word meanings",
+  "scriptSheet.cover.lines": "Lines only",
+  "scriptSheet.cover.none": "Not added yet",
+} as const
+
+export const scriptSheetEs = {
+  "scriptSheet.title": "Escritura y traducciones",
+  "scriptSheet.script": "Escritura",
+  "scriptSheet.translation": "Traducción bajo cada línea",
+  "scriptSheet.upTo": "Hasta {count}",
+  "scriptSheet.bengaliSoon": "Bengalí, aún no añadido",
+  "scriptSheet.note": "Una canción que aún no tiene el idioma muestra inglés y lo dice. Los significados de las palabras tienen su propio idioma: elígelo en la tarjeta Palabras de una canción o en el reproductor.",
+  "scriptSheet.roman": "Romana",
+  "scriptSheet.roman.sub": "Letras latinas, por ejemplo Bandhu, Álo",
+  "scriptSheet.devanagari.sub": "Devanagari",
+  "scriptSheet.bengali.sub": "Bengalí",
+  "scriptSheet.both": "Ambas",
+  "scriptSheet.both.sub": "Romana y devanagari juntas",
+  "scriptSheet.summary.devanagari": "Devanagari",
+  "scriptSheet.summary.bengali": "Bengalí",
+  "scriptSheet.summary.both": "Ambas escrituras",
+  "scriptSheet.cover.full": "Líneas y significados de palabras",
+  "scriptSheet.cover.lines": "Solo líneas",
+  "scriptSheet.cover.none": "Aún no añadido",
+} as const
+
+export const scriptSheetRu = {
+  "scriptSheet.title": "Письмо и переводы",
+  "scriptSheet.script": "Письмо",
+  "scriptSheet.translation": "Перевод под каждой строкой",
+  "scriptSheet.upTo": "Не больше {count}",
+  "scriptSheet.bengaliSoon": "Бенгальский, ещё не добавлен",
+  "scriptSheet.note": "Если у песни ещё нет этого языка, она покажет английский и скажет об этом. У значений слов свой язык: выберите его на карточке «Слова» у песни или в плеере.",
+  "scriptSheet.roman": "Латиница",
+  "scriptSheet.roman.sub": "Латинские буквы, например Bandhu, Álo",
+  "scriptSheet.devanagari.sub": "Деванагари",
+  "scriptSheet.bengali.sub": "Бенгальский",
+  "scriptSheet.both": "Оба",
+  "scriptSheet.both.sub": "Латиница и деванагари вместе",
+  "scriptSheet.summary.devanagari": "Деванагари",
+  "scriptSheet.summary.bengali": "Бенгальский",
+  "scriptSheet.summary.both": "Оба письма",
+  "scriptSheet.cover.full": "Строки и значения слов",
+  "scriptSheet.cover.lines": "Только строки",
+  "scriptSheet.cover.none": "Ещё не добавлено",
+} as const

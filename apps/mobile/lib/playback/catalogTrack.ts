@@ -1,4 +1,5 @@
 import type { MockSong } from "@/data/mock"
+import { versionsFromSong, versionSummary } from "@/lib/playerV2/versions"
 
 export type CatalogTrack = {
   id: string
@@ -9,14 +10,31 @@ export type CatalogTrack = {
   duration?: number
 }
 
+/** "BANDHU HE NIYE CALO" to "Bandhu He Niye Calo" for the lock screen; mixed-case titles are kept. */
+export function lockScreenTitle(title: string): string {
+  const clean = title.trim()
+  if (!clean || clean !== clean.toUpperCase() || clean === clean.toLowerCase()) return clean
+  return clean
+    .toLowerCase()
+    .replace(/(^|[\s'-])(\p{L})/gu, (_, lead: string, letter: string) => lead + letter.toUpperCase())
+}
+
+/** `PS 1 · Voice · Performer A` under the title (prototype SysIosLock / SysAndLock). */
+export function lockScreenArtist(song: MockSong, url: string): string {
+  const versions = versionsFromSong({ number: song.number, audioUrl: url || song.audioUrl, audioRecordings: song.audioRecordings })
+  const version = versions.find((v) => v.url === url) ?? versions[0]
+  return version ? `PS ${song.number} · ${versionSummary(version)}` : `PS ${song.number}`
+}
+
 export function songToTrack(song: MockSong, url: string): CatalogTrack {
   return {
     id: `ps-${song.number}`,
     url,
-    title: song.title,
-    artist: song.performer || "Prabhat Samgiita",
+    title: lockScreenTitle(song.title),
+    artist: lockScreenArtist(song, url),
     artwork: song.imageUrl || song.thumbnailUrl || undefined,
-    duration: song.durationSeconds,
+    // 0 means the length is not known: leave it out so the lock screen shows none until the file reports it
+    duration: song.durationSeconds > 0 ? song.durationSeconds : undefined,
   }
 }
 

@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
+
+import { chatStorage, trimHistory } from "@/lib/chatStorage"
 
 import type { ChatMessage } from "@/lib/chat"
 
@@ -25,7 +26,8 @@ type AccountChat = {
 
 type ChatState = {
   byAccount: Record<string, AccountChat>
-  getAccountId: (mode: "guest" | "signed_in", email: string | null) => string
+  /** `member:<email>` when the account has an email, else `member:<id>` (Apple can hide the email); never "guest" for a signed-in person. */
+  getAccountId: (mode: "guest" | "signed_in", email: string | null, memberId?: string | null) => string
   getAccountChat: (accountId: string) => AccountChat
   getActiveThread: (accountId: string) => ChatThread | null
   ensureActiveThread: (accountId: string) => string
@@ -153,9 +155,12 @@ export const useChatStore = create<ChatState>()(
     (set, get) => ({
       byAccount: {},
 
-      getAccountId: (mode, email) => {
-        if (mode === "signed_in" && email) return `member:${email.toLowerCase()}`
-        return "guest"
+      getAccountId: (mode, email, memberId) => {
+        if (mode !== "signed_in") return "guest"
+        const mail = (email || "").trim().toLowerCase()
+        if (mail) return `member:${mail}`
+        const id = (memberId || "").trim()
+        return id ? `member:${id}` : "member:unknown"
       },
 
       getAccountChat: (accountId) => get().byAccount[accountId] ?? emptyAccount(),
@@ -408,8 +413,12 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: "prabhat-chat-memory",
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ byAccount: state.byAccount }),
+      storage: createJSONStorage(() => chatStorage),
+      partialize: (state) => ({
+        byAccount: Object.fromEntries(
+          Object.entries(state.byAccount).map(([id, account]) => [id, { ...account, threads: trimHistory(account.threads) }]),
+        ),
+      }),
     },
   ),
 )

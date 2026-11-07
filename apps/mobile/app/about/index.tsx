@@ -7,40 +7,38 @@ import { brandAssets, guruCaption } from "@/constants/brand"
 import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { useT } from "@/lib/i18n"
 
 /**
  * About — compact smiling guru quote art so the written quote stays readable.
  */
 export default function AboutScreen() {
+  const t = useT()
   return (
-    <ScreenContainer edges={["top"]} padded={false} title="About" showGuru={false}>
+    <ScreenContainer edges={["top"]} padded={false} title={t("about.title")} showGuru={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.photoWrap}>
           <Image
             source={brandAssets.guruQuote}
             style={styles.photo}
             contentFit="contain"
-            accessibilityLabel={`${guruCaption.name} — Prabhat Samgiita quote`}
+            accessibilityLabel={t("about.photo.a11y", { name: guruCaption.name })}
           />
         </View>
 
         <Text style={styles.name}>{guruCaption.name}</Text>
-        <Text style={styles.role}>{guruCaption.role}</Text>
+        <Text style={styles.role}>{t("about.role")}</Text>
 
         <Text style={styles.title}>Prabhat Samgiita AI</Text>
-        <Text style={styles.body}>
-          Prabhat Samgiita is a collection of 5,018 songs composed by Shrii Shrii Anandamurti ji
-          between 14 September 1982 and 20 October 1990. This app helps you listen, understand,
-          practise, and ask — in the same spirit as the website.
-        </Text>
+        <Text style={styles.body}>{t("about.body")}</Text>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>What you can do</Text>
-          <Text style={styles.bullet}>· Discover today’s song and upcoming festivals</Text>
-          <Text style={styles.bullet}>· Browse all {collectionCount} special collections</Text>
-          <Text style={styles.bullet}>· Read lyrics, meanings, and stories</Text>
-          <Text style={styles.bullet}>· Ask the AI companion for song-grounded insight</Text>
-          <Text style={styles.bullet}>· Take the quiz and sync favorites when signed in</Text>
+          <Text style={styles.cardTitle}>{t("about.what.title")}</Text>
+          <Text style={styles.bullet}>{t("about.what.1")}</Text>
+          <Text style={styles.bullet}>{t("about.what.2", { count: collectionCount })}</Text>
+          <Text style={styles.bullet}>{t("about.what.3")}</Text>
+          <Text style={styles.bullet}>{t("about.what.4")}</Text>
+          <Text style={styles.bullet}>{t("about.what.5")}</Text>
         </View>
       </ScrollView>
     </ScreenContainer>

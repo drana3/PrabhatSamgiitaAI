@@ -23,6 +23,8 @@ export const Event = {
   PlaybackActiveTrackChanged: "playback-active-track-changed",
   PlaybackQueueEnded: "playback-queue-ended",
   PlaybackError: "playback-error",
+  PlaybackPlayWhenReadyChanged: "playback-play-when-ready-changed",
+  RemoteDuck: "remote-duck",
 }
 
 export const State = {
@@ -77,6 +79,7 @@ const TrackPlayer = {
   seekTo: vi.fn(async () => undefined),
   setVolume: vi.fn(async () => undefined),
   setRepeatMode: vi.fn(async () => undefined),
+  setRate: vi.fn(async () => undefined),
   skipToNext: vi.fn(async () => {
     if (index >= queue.length - 1) throw new Error("no next")
     index += 1
@@ -119,6 +122,7 @@ export function __resetFakeTrackPlayer() {
   TrackPlayer.seekTo.mockClear()
   TrackPlayer.setVolume.mockClear()
   TrackPlayer.setRepeatMode.mockClear()
+  TrackPlayer.setRate.mockClear()
   TrackPlayer.skipToNext.mockClear()
   TrackPlayer.skipToPrevious.mockClear()
   TrackPlayer.addEventListener.mockClear()

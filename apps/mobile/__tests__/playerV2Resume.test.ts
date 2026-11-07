@@ -1,0 +1,208 @@
+import { describe, expect, it, vi } from "vitest"
+
+import {
+  resumePositionFor,
+  shouldApplyResume,
+  shouldSaveResume,
+  upsertResume,
+} from "@/lib/playerV2/resume"
+import { createResumeTracker } from "@/lib/playerV2/resumeTracker"
+import { RESUME_NOTICE_SECONDS, resumeNoticeVisible } from "@/lib/playerV2/resumeNotice"
+import { resolveStartPosition, setStartPositionResolver } from "@/lib/playback/startPosition"
+
+describe("resume position", () => {
+  it("ignores the first seconds and the tail", () => {
+    expect(resumePositionFor(undefined)).toBeNull()
+    expect(resumePositionFor({ position: 3, duration: 200, savedAt: 0 })).toBeNull()
+    expect(resumePositionFor({ position: 195, duration: 200, savedAt: 0 })).toBeNull()
+    expect(resumePositionFor({ position: 90.7, duration: 200, savedAt: 0 })).toBe(90)
+  })
+
+  it("saves at most every five seconds", () => {
+    expect(shouldSaveResume(3, null)).toBe(false)
+    expect(shouldSaveResume(10, null)).toBe(true)
+    expect(shouldSaveResume(12, 10)).toBe(false)
+    expect(shouldSaveResume(16, 10)).toBe(true)
+  })
+
+  it("stores, drops finished songs and evicts the oldest", () => {
+    let map = upsertResume({}, 1, 60, 200, 100)
+    expect(map["1"]).toEqual({ position: 60, duration: 200, savedAt: 100, versionId: null })
+    map = upsertResume(map, 1, 199, 200, 200)
+    expect(map["1"]).toBeUndefined()
+    map = upsertResume({}, 1, 60, 200, 1, 2)
+    map = upsertResume(map, 2, 60, 200, 2, 2)
+    map = upsertResume(map, 3, 60, 200, 3, 2)
+    expect(Object.keys(map).sort()).toEqual(["2", "3"])
+  })
+
+  it("applies the saved position only once the track is really playing", () => {
+    const base = { alreadyApplied: false, isBuffering: false, position: 0, duration: 200, target: 90 }
+    expect(shouldApplyResume(base)).toBe(true)
+    expect(shouldApplyResume({ ...base, isBuffering: true })).toBe(false)
+    expect(shouldApplyResume({ ...base, duration: 1 })).toBe(false)
+    expect(shouldApplyResume({ ...base, alreadyApplied: true })).toBe(false)
+    expect(shouldApplyResume({ ...base, target: null })).toBe(false)
+    expect(shouldApplyResume({ ...base, position: 89.5 })).toBe(false)
+  })
+})
+
+describe("resume tracker", () => {
+  const obs = (over: Partial<Parameters<ReturnType<typeof createResumeTracker>>[0]>) => ({
+    songNumber: 5,
+    position: 0,
+    duration: 200,
+    isPlaying: true,
+    isBuffering: false,
+    ...over,
+  })
+
+  it("restores once, never saves the engine's zero, then saves progress and pause", () => {
+    const record = vi.fn()
+    const seekTo = vi.fn()
+    const feed = createResumeTracker({
+      getEntry: () => ({ position: 90, duration: 200, savedAt: 0 }),
+      record,
+      seekTo,
+    })
+    feed(obs({ isBuffering: true, duration: 300 }))
+    feed(obs({ isBuffering: true, duration: 300, position: 0 }))
+    expect(seekTo).not.toHaveBeenCalled()
+    feed(obs({ position: 0 }))
+    expect(seekTo).toHaveBeenCalledWith(90)
+    feed(obs({ position: 2 }))
+    expect(record).not.toHaveBeenCalled()
+    feed(obs({ position: 91 }))
+    expect(record).toHaveBeenCalledWith(5, 91, 200, null)
+    feed(obs({ position: 93 }))
+    expect(record).toHaveBeenCalledTimes(1)
+    feed(obs({ position: 94, isPlaying: false }))
+    expect(record).toHaveBeenCalledTimes(2)
+    expect(seekTo).toHaveBeenCalledTimes(1)
+  })
+
+  it("starts from zero for a song with nothing saved and saves after five seconds", () => {
+    const record = vi.fn()
+    const seekTo = vi.fn()
+    const feed = createResumeTracker({ getEntry: () => undefined, record, seekTo })
+    feed(obs({}))
+    feed(obs({ position: 3 }))
+    expect(record).not.toHaveBeenCalled()
+    feed(obs({ position: 6 }))
+    expect(record).toHaveBeenCalledWith(5, 6, 200, null)
+    expect(seekTo).not.toHaveBeenCalled()
+  })
+
+  it("restores again for the next song", () => {
+    const seekTo = vi.fn()
+    const entries: Record<number, { position: number; duration: number; savedAt: number }> = {
+      5: { position: 50, duration: 200, savedAt: 0 },
+      6: { position: 70, duration: 200, savedAt: 0 },
+    }
+    const feed = createResumeTracker({ getEntry: (n) => entries[n], record: vi.fn(), seekTo })
+    feed(obs({ songNumber: 5 }))
+    feed(obs({ songNumber: 5 }))
+    feed(obs({ songNumber: 6 }))
+    feed(obs({ songNumber: 6 }))
+    expect(seekTo.mock.calls).toEqual([[50], [70]])
+  })
+})
+
+describe("resume per version", () => {
+  const obs = (over: Record<string, unknown>) => ({
+    songNumber: 5,
+    versionId: "ps-5-v1" as string | null,
+    position: 0,
+    duration: 200,
+    isPlaying: true,
+    isBuffering: false,
+    ...over,
+  })
+
+  it("a position saved on one version does not start another", () => {
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0, versionId: "ps-5-v1" }, "ps-5-v2")).toBeNull()
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0, versionId: "ps-5-v1" }, "ps-5-v1")).toBe(90)
+    // entries saved before versions were tracked still resume
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0 }, "ps-5-v2")).toBe(90)
+    expect(resumePositionFor({ position: 90, duration: 200, savedAt: 0, versionId: null }, null)).toBe(90)
+  })
+
+  it("stores the version with the position", () => {
+    const map = upsertResume({}, 5, 60, 200, 1, undefined, "ps-5-v2")
+    expect(map["5"]?.versionId).toBe("ps-5-v2")
+  })
+
+  it("switching version starts the new one from the beginning, then saves under the new version", () => {
+    const record = vi.fn()
+    const seekTo = vi.fn()
+    const entry = { position: 90, duration: 200, savedAt: 0, versionId: "ps-5-v1" }
+    const feed = createResumeTracker({ getEntry: () => entry, record, seekTo })
+    feed(obs({ isBuffering: true }))
+    feed(obs({ position: 0 }))
+    expect(seekTo).toHaveBeenCalledWith(90)
+    seekTo.mockClear()
+
+    feed(obs({ versionId: "ps-5-v2", isBuffering: true }))
+    feed(obs({ versionId: "ps-5-v2", position: 0 }))
+    expect(seekTo).not.toHaveBeenCalled()
+    feed(obs({ versionId: "ps-5-v2", position: 12 }))
+    expect(record).toHaveBeenLastCalledWith(5, 12, 200, "ps-5-v2")
+  })
+})
+
+
+describe("resume at load (no blip) and Start over", () => {
+  const obs = (over: Record<string, unknown>) => ({
+    songNumber: 5,
+    position: 0,
+    duration: 200,
+    isPlaying: true,
+    isBuffering: false,
+    ...over,
+  })
+
+  it("a song handed to the engine already at its saved place is not sought, and saving begins", () => {
+    const record = vi.fn()
+    const seekTo = vi.fn()
+    const feed = createResumeTracker({ getEntry: () => ({ position: 90, duration: 200, savedAt: 0 }), record, seekTo })
+    feed(obs({ isBuffering: true, duration: 0 }))
+    feed(obs({ position: 90, duration: 200 }))
+    feed(obs({ position: 96 }))
+    expect(seekTo).not.toHaveBeenCalled()
+    expect(record).toHaveBeenCalledWith(5, 96, 200, null)
+  })
+
+  it("dismiss cancels the late jump: Start over while the song loads stays at 0", () => {
+    const seekTo = vi.fn()
+    const record = vi.fn()
+    const feed = createResumeTracker({ getEntry: () => ({ position: 90, duration: 200, savedAt: 0 }), record, seekTo })
+    feed(obs({ isBuffering: true, duration: 0 }))
+    feed.dismiss()
+    feed(obs({ position: 0 }))
+    expect(seekTo).not.toHaveBeenCalled()
+    feed(obs({ position: 7 }))
+    expect(record).toHaveBeenCalledWith(5, 7, 200, null)
+  })
+
+  it("the start position resolver answers 0 when there is nothing to resume and survives a failing resolver", () => {
+    const song = { number: 5 } as never
+    setStartPositionResolver(null)
+    expect(resolveStartPosition(song)).toBe(0)
+    setStartPositionResolver(() => 90.8)
+    expect(resolveStartPosition(song)).toBe(90)
+    setStartPositionResolver(() => {
+      throw new Error("x")
+    })
+    expect(resolveStartPosition(song)).toBe(0)
+    setStartPositionResolver(null)
+  })
+
+  it("the notice shows near the continued place, for that song only", () => {
+    const notice = { songNumber: 5, from: 90 }
+    expect(resumeNoticeVisible(notice, 5, 0)).toBe(true)
+    expect(resumeNoticeVisible(notice, 5, 100)).toBe(true)
+    expect(resumeNoticeVisible(notice, 5, 90 + RESUME_NOTICE_SECONDS)).toBe(false)
+    expect(resumeNoticeVisible(notice, 6, 91)).toBe(false)
+    expect(resumeNoticeVisible({ songNumber: null, from: 0 }, null, 0)).toBe(false)
+  })
+})

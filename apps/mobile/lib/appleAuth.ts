@@ -86,6 +86,14 @@ async function writeStoredAppleDisplayName(userId: string, name: string) {
   }
 }
 
+/**
+ * Keeps a name the person typed themselves for their Apple account, so the next sign-in has it even
+ * though Apple only hands the name over the first time.
+ */
+export async function rememberAppleDisplayName(userId: string, name: string) {
+  await writeStoredAppleDisplayName(userId, name)
+}
+
 async function resolveAppleDisplayName(
   userId: string,
   fullName: AppleAuthentication.AppleAuthenticationFullName | null,
@@ -134,6 +142,10 @@ export async function signInWithApple(): Promise<OAuthIdentity> {
     const code = (error as { code?: string })?.code
     if (code === "ERR_REQUEST_CANCELED") {
       throw new Error("Sign-in was cancelled.")
+    }
+    if (code === "ERR_REQUEST_UNKNOWN" || code === "ERR_REQUEST_NOT_HANDLED" || code === "ERR_REQUEST_FAILED") {
+      // Error 1000 on a real device usually means the build lacks the Sign in with Apple capability.
+      throw new Error("Sign in with Apple isn’t available in this build. Use another sign-in method.")
     }
     if (error instanceof Error && error.message) throw error
     throw new Error("Sign in with Apple didn’t finish. Try again.")

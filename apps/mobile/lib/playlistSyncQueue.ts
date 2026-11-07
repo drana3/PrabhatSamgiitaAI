@@ -17,6 +17,8 @@ let queue: PlaylistSyncOp[] = []
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 let flushing = false
 let idMap = new Map<string, string>()
+/** Bumped on reset (sign-out, another account): work that started before it must not touch anything after it. */
+let epoch = 0
 
 type SyncListeners = {
   onSyncing: (active: boolean) => void
@@ -61,18 +63,23 @@ async function flushPlaylistSyncQueue() {
     return
   }
   flushing = true
+  const startedIn = epoch
   listeners.onSyncing(true)
-  while (queue.length > 0) {
+  while (queue.length > 0 && epoch === startedIn) {
     const op = queue[0]
     try {
-      await runOp(op)
+      await runOp(op, startedIn)
+      if (epoch !== startedIn) break
       queue.shift()
     } catch (error) {
+      if (epoch !== startedIn) break
       const message = error instanceof Error ? error.message : "Playlist sync failed."
       listeners.onError(message)
       break
     }
   }
+  // A reset while this ran already cleared everything, including the flag: leave it to the new run.
+  if (epoch !== startedIn) return
   flushing = false
   listeners.onSyncing(queue.length > 0)
   if (queue.length > 0) {
@@ -80,14 +87,16 @@ async function flushPlaylistSyncQueue() {
   }
 }
 
-async function runOp(op: PlaylistSyncOp) {
+async function runOp(op: PlaylistSyncOp, startedIn: number) {
   if (!listeners) return
   let playlists = listeners.readPlaylists()
 
   if (op.type === "create") {
     const created = await api.createMemberPlaylist(op.name)
+    // The account changed while the server answered: the answer belongs to the old account.
+    if (epoch !== startedIn) return
     idMap.set(op.tempId, created.id)
-    playlists = playlists.map((item) => (item.id === op.tempId ? created : item))
+    playlists = listeners.readPlaylists().map((item) => (item.id === op.tempId ? created : item))
     listeners.onPlaylists(playlists)
     await writePlaylistCache(playlists)
     return
@@ -100,16 +109,20 @@ async function runOp(op: PlaylistSyncOp) {
 
   if (op.type === "rename") {
     const updated = await api.renameMemberPlaylist(id, op.name)
-    playlists = replacePlaylist(playlists, updated)
+    if (epoch !== startedIn) return
+    playlists = replacePlaylist(listeners.readPlaylists(), updated)
   } else if (op.type === "delete") {
     await api.deleteMemberPlaylist(id)
-    playlists = playlists.filter((item) => item.id !== op.id && item.id !== id)
+    if (epoch !== startedIn) return
+    playlists = listeners.readPlaylists().filter((item) => item.id !== op.id && item.id !== id)
   } else if (op.type === "add") {
     const updated = await api.addMemberPlaylistSong(id, op.songNumber)
-    playlists = replacePlaylist(playlists, updated)
+    if (epoch !== startedIn) return
+    playlists = replacePlaylist(listeners.readPlaylists(), updated)
   } else if (op.type === "remove") {
     const updated = await api.removeMemberPlaylistSong(id, op.songNumber)
-    playlists = replacePlaylist(playlists, updated)
+    if (epoch !== startedIn) return
+    playlists = replacePlaylist(listeners.readPlaylists(), updated)
   }
 
   listeners.onPlaylists(playlists)
@@ -125,6 +138,7 @@ function replacePlaylist(list: MemberPlaylist[], next: MemberPlaylist) {
 }
 
 export function resetPlaylistSyncQueue() {
+  epoch += 1
   queue = []
   idMap = new Map()
   if (flushTimer) clearTimeout(flushTimer)
