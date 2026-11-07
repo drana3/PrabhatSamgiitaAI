@@ -864,6 +864,45 @@ async def test_directory_search_and_sort(world: World) -> None:
     assert len(page["items"]) == 1 and page["has_more"] is False and page["total"] == 2
 
 
+async def test_the_directory_filters_by_kind_and_language(world: World) -> None:
+    await world.create(display_name="Madhu Vrata", languages=["hindi", "english"])
+    await world.recording(MEMBER_A, kind="kiirtan")
+    await world.create(
+        who="b", slug="bhakti-music", display_name="Bhakti Music", languages=["bengali"]
+    )
+    await world.recording(MEMBER_B, kind="prabhat_samgiita", ps_song_number=19)
+    await world.recording(MEMBER_B, kind="bhajan", title="Another")
+
+    def slugs(**params: Any) -> Any:
+        async def run() -> list[str]:
+            got = (await world.client.get(URL, params=params)).json()
+            return [i["slug"] for i in got["items"]]
+
+        return run()
+
+    assert await slugs(kind="kiirtan") == ["madhu-vrata"]
+    assert await slugs(kind="prabhat_samgiita") == ["bhakti-music"]
+    assert await slugs(kind="bhajan") == ["bhakti-music"]
+    assert await slugs(kind="dance_song") == []
+    assert await slugs(language="hindi") == ["madhu-vrata"]
+    assert await slugs(language="bengali") == ["bhakti-music"]
+    assert await slugs(language="russian") == []
+    assert await slugs(kind="kiirtan", language="bengali") == []
+    assert await slugs(kind="kiirtan", language="english", sort="name") == ["madhu-vrata"]
+    both = (await world.client.get(URL, params={"sort": "name"})).json()
+    assert both["total"] == 2
+    # a made-up kind or language is refused, not silently ignored
+    assert (await world.client.get(URL, params={"kind": "polka"})).status_code == 422
+    assert (await world.client.get(URL, params={"language": "klingon"})).status_code == 422
+
+
+async def test_a_new_recording_kind_shows_after_the_snapshot_is_refreshed(world: World) -> None:
+    await world.create(display_name="Madhu Vrata")
+    await world.recording(MEMBER_A, kind="kiirtan")
+    assert (await world.client.get(URL, params={"kind": "kiirtan"})).json()["total"] == 1
+    assert (await world.client.get(URL, params={"kind": "dance_song"})).json()["total"] == 0
+
+
 async def test_a_page_that_hides_its_numbers_does_not_rank_by_them(world: World) -> None:
     await world.create(display_name="Madhu Vrata")
     ra = await world.recording(MEMBER_A)

@@ -26,7 +26,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, case, delete, func, or_, select
+from sqlalchemy import String, and_, case, cast, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -611,12 +611,14 @@ async def refresh_snapshot(
             return snapshot
     numbers = await stats.numbers_for(session, recording_ids(profile), today=now.date())
     count = await count_recordings(session, profile)
+    kinds = "," + ",".join(k.kind for k in await kind_counts(session, profile)) + ","
     if snapshot is None:
         snapshot = AuthorStatsSnapshot(profile_id=profile.id)
         session.add(snapshot)
     snapshot.monthly_listeners = numbers.monthly_listeners
     snapshot.total_plays = numbers.total_plays
     snapshot.recordings_count = count
+    snapshot.kinds = kinds
     snapshot.computed_at = now
     await session.commit()
     return snapshot
@@ -671,6 +673,8 @@ async def directory(
     sort: str,
     limit: int,
     offset: int,
+    kind: str | None = None,
+    language: str | None = None,
 ) -> tuple[list[AuthorCard], int]:
     await refresh_stale_snapshots(session)
     snap = AuthorStatsSnapshot
@@ -686,6 +690,11 @@ async def directory(
         ).all()
         if blocked:
             conditions.append(AuthorProfile.member_id.not_in(blocked))
+    if kind:
+        conditions.append(snap.kinds.like(f"%,{kind},%"))
+    if language:
+        # languages is a JSON list of words: ["hindi", "english"]
+        conditions.append(cast(AuthorProfile.languages, String).like(f'%"{language}"%'))
     if query and query.strip():
         like = _like(query)
         conditions.append(

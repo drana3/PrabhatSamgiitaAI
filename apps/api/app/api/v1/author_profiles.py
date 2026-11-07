@@ -316,6 +316,17 @@ async def list_authors(
     member: OptionalMember,
     q: Annotated[str | None, Query(max_length=80)] = None,
     sort: Literal["listeners", "new", "name"] = "listeners",
+    kind: Annotated[
+        Literal[
+            "kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"
+        ]
+        | None,
+        Query(description="only authors who hold a recording of this kind"),
+    ] = None,
+    language: Annotated[
+        Literal["bengali", "sanskrit", "hindi", "english", "spanish", "russian", "other"] | None,
+        Query(description="only authors who list this language"),
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=service.DIRECTORY_MAX_LIMIT)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AuthorList:
@@ -326,6 +337,8 @@ async def list_authors(
         sort=sort,
         limit=limit,
         offset=offset,
+        kind=kind,
+        language=language,
     )
     return AuthorList(
         items=items, total=total, limit=limit, offset=offset, has_more=offset + len(items) < total
@@ -401,7 +414,9 @@ async def public_recordings(
     slug: str,
     session: DatabaseSession,
     member: OptionalMember,
-    kind: Literal["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song"]
+    kind: Literal[
+        "kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"
+    ]
     | None = None,
     collection_id: UUID | None = None,
     exclude: UUID | None = None,

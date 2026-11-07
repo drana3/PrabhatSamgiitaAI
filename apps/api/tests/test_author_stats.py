@@ -261,11 +261,11 @@ async def test_the_page_counts_the_plays_of_its_own_recordings_only(world: World
     await world.create(who="b", slug="bhakti-music", display_name="Bhakti Music")
     ra = await world.recording(MEMBER_A)
     rb = await world.recording(MEMBER_B)
-    await world.listen(ra, 7)
+    await world.listen(ra, 12)
     await world.listen(rb, 20)
     a = (await world.get("madhu-vrata")).json()["stats"]
     b = (await world.get("bhakti-music")).json()["stats"]
-    assert (a["total_plays"], b["total_plays"]) == (7, 20)
+    assert (a["total_plays"], b["total_plays"]) == (12, 20)
 
 
 # --------------------------------------------------------------------------- the owner's numbers

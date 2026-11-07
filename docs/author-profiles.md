@@ -72,7 +72,7 @@ Made-up device ids: a signed-out listener is only a random device id, so one cli
 
 Retention: `play_events` rows are deleted after 400 days. `play_daily` (per recording per day: plays and listeners) is kept for the life of the page. Deleting the page deletes its statistics.
 
-Public numbers: monthly listeners (distinct listeners in the last 30 days) and total plays. Shown only when the page has at least 5 counted plays and the author has not switched numbers off. Below that the page says "Not enough listening yet" and the date counting started; it never shows a zero as if it were a measurement. In mock data the app labels every number "Demo".
+Public numbers: monthly listeners (distinct listeners in the last 30 days) and total plays. Shown only when the page has at least 10 counted plays and the author has not switched numbers off. Below that the page says "Not enough listening yet" and the date counting started; it never shows a zero as if it were a measurement. In mock data the app labels every number "Demo".
 
 Owner numbers (`GET /authors/me/stats?days=7|30|90`): plays and listeners per day, top recordings, plays by kind, monthly listeners, total plays, and countries. Countries come from the device region (two letters), which the app does not send unless the member allows it. A country is listed only with at least 5 listeners, and only when the whole sample is at least 20 listeners; otherwise the answer is hidden. The response carries `notes` that the app shows as plain sentences: how a play is counted, that own plays are excluded, that the listener count is an estimate, and when there is no or not enough data.
 
@@ -177,7 +177,7 @@ For the owners of those screens to add (one line each, components exist):
 
 1. Which uploads appear by default: all published uploads (`DEFAULT_INCLUDE_UPLOADS = "all"`), or only ones the member picks.
 2. Listener key rotation: `LISTENER_SALT_ROTATION_DAYS = 0` (the key is stable). A daily key would be more private but would make monthly listeners impossible to count. Recommended: keep stable.
-3. Minimum before public numbers: 5 plays. Country threshold: 5 listeners per country and 20 in all.
+3. Minimum before public numbers: 10 plays (Dada, 2026-11). Country threshold: 5 listeners per country and 20 in all.
 4. Address change: once in 30 days; old address held 90 days.
 5. Reports: 3 reports raise review; impersonation and copyright raise it at once.
 6. Photo kept in the database (300 KB). Alternative is object storage.
@@ -187,7 +187,7 @@ For the owners of those screens to add (one line each, components exist):
 10. Plays are counted without a separate consent screen, since only a short keyed hash is stored. Confirm that this is acceptable for the stores' privacy forms.
 11. Web plays are not counted yet.
 12. Add `/author/*` to universal links (needs a native build).
-13. Language rule for uploads (Dada's rule): language is REQUIRED for Bhajan and Spiritual song; Kiirtan has none; Prabhat Samgiita optional; Dance song: dance is required and language optional. Older rows without a language keep working, and My uploads gives a gentle "Add language" prompt for old bhajans. This is enforced by the upload code (`add-kirtan`, `lib/kirtan`, the recordings API), which another change owns, not by the author pages. Author pages only show a language when a recording has one; the owner recordings endpoint already returns `language`.
+13. Language rule for uploads (Dada's rule): language is REQUIRED for Bhajan and Spiritual song; Kiirtan has none; Prabhat Samgiita optional; Dance music: dance is required and language optional. Older rows without a language keep working, and My uploads gives a gentle "Add language" prompt for old bhajans. This is enforced by the upload code (`add-kirtan`, `lib/kirtan`, the recordings API), which another change owns, not by the author pages. Author pages only show a language when a recording has one; the owner recordings endpoint already returns `language`.
 14. Caps for made-up device ids: 10 new listeners per recording and 30 per day per client. Lower is safer against a script but undercounts a sangha hall where many phones share one wifi. The play caps (200 per recording per day, 1000 per day, per client) are a judgment call in the same way: a hall of 300 phones playing one song on one wifi would have its 100 last plays held out of the public number.
 15. The list of staff words and the owners' names that hold a page for the team (see Moderation). A verified page is exempt; a team member's own page must be verified by the team.
 

@@ -331,4 +331,6 @@ class AuthorStatsSnapshot(Base):
     monthly_listeners: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_plays: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     recordings_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # ",kiirtan,bhajan,": the public kinds the page holds, for the directory's kind filter
+    kinds: Mapped[str] = mapped_column(String(200), default="", server_default="", nullable=False)
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

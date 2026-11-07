@@ -65,6 +65,11 @@ def m35() -> ModuleType:
 
 
 @pytest.fixture
+def m38() -> ModuleType:
+    return load("0038_author_snapshot_kinds")
+
+
+@pytest.fixture
 def engine() -> Iterator[sa.Engine]:
     engine = sa.create_engine("sqlite://", poolclass=sa.pool.StaticPool)
     # what 0032 leaves: the account and recording tables, none of the new ones
@@ -108,9 +113,12 @@ def test_upgrade_on_a_database_the_app_already_filled_with_create_all(
     assert NEW_TABLES <= set(sa.inspect(engine).get_table_names())
 
 
-def test_the_tables_match_the_models(engine: sa.Engine, m33: ModuleType, m35: ModuleType) -> None:
+def test_the_tables_match_the_models(
+    engine: sa.Engine, m33: ModuleType, m35: ModuleType, m38: ModuleType
+) -> None:
     run(engine, m33.upgrade)
     run(engine, m35.upgrade)
+    run(engine, m38.upgrade)
     inspector = sa.inspect(engine)
     for model in MODELS:
         table = cast(sa.Table, model.__table__)
@@ -233,3 +241,39 @@ def test_downgrade_drops_only_the_new_tables(engine: sa.Engine, m33: ModuleType)
     names = set(sa.inspect(engine).get_table_names())
     assert not names & NEW_TABLES
     assert {"user_accounts", "recordings"} <= names
+
+
+def test_0038_adds_the_kinds_column_twice_harmlessly_and_marks_snapshots_stale(
+    engine: sa.Engine, m33: ModuleType, m35: ModuleType, m38: ModuleType
+) -> None:
+    run(engine, m33.upgrade)
+    run(engine, m35.upgrade)
+    with engine.begin() as conn:
+        conn.execute(sa.text("DROP TABLE author_stats_snapshots"))
+        conn.execute(
+            sa.text(
+                "CREATE TABLE author_stats_snapshots (profile_id CHAR(32) PRIMARY KEY, "
+                "monthly_listeners INTEGER, total_plays INTEGER, recordings_count INTEGER, "
+                "computed_at DATETIME)"
+            )
+        )
+        conn.execute(
+            sa.text(
+                "INSERT INTO author_stats_snapshots VALUES ('a', 1, 2, 3, '2026-11-01 10:00:00')"
+            )
+        )
+    run(engine, m38.upgrade)
+    run(engine, m38.upgrade)
+    with engine.connect() as conn:
+        row = conn.execute(sa.text("SELECT kinds, computed_at FROM author_stats_snapshots")).one()
+    assert row[0] == "" and str(row[1]).startswith("1970-01-01")
+    run(engine, m38.downgrade)
+    assert "kinds" not in {
+        c["name"] for c in sa.inspect(engine).get_columns("author_stats_snapshots")
+    }
+
+
+def test_0038_follows_0037(m38: ModuleType) -> None:
+    assert m38.down_revision == "0037_comment_replies"
+    script = ScriptDirectory.from_config(Config(str(VERSIONS.parents[1] / "alembic.ini")))
+    assert len(script.get_heads()) == 1

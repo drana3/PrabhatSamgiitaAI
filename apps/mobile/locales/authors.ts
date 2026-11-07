@@ -83,7 +83,7 @@ export const authorsEn = {
   "authors.note.own_plays_excluded": "Your own plays are not counted.",
   "authors.note.listener_estimate": "Listeners are an estimate: nobody is identified, one person counts once a day per recording.",
   "authors.note.no_data_yet": "Nothing has been counted yet.",
-  "authors.note.not_enough_data": "Your page shows no numbers to visitors until it has at least 5 plays.",
+  "authors.note.not_enough_data": "Your page shows no numbers to visitors until it has at least 10 plays.",
 
   "authors.report.open": "Report this page",
   "authors.report.title": "What is wrong with this page?",
@@ -348,7 +348,7 @@ export const authorsRu = {
   "authors.note.own_plays_excluded": "Ваши собственные прослушивания не считаются.",
   "authors.note.listener_estimate": "Число слушателей приблизительное: никого не опознают, один человек считается раз в сутки на запись.",
   "authors.note.no_data_yet": "Пока ничего не посчитано.",
-  "authors.note.not_enough_data": "Посетители не увидят числа, пока не наберётся хотя бы 5 прослушиваний.",
+  "authors.note.not_enough_data": "Посетители не увидят числа, пока не наберётся хотя бы 10 прослушиваний.",
 
   "authors.report.open": "Пожаловаться на страницу",
   "authors.report.title": "Что не так с этой страницей?",
@@ -607,7 +607,7 @@ export const authorsEs = {
   "authors.note.own_plays_excluded": "Tus propias reproducciones no se cuentan.",
   "authors.note.listener_estimate": "Los oyentes son una estimación: no se identifica a nadie y cada persona cuenta una vez al día por grabación.",
   "authors.note.no_data_yet": "Aún no se ha contado nada.",
-  "authors.note.not_enough_data": "Tu página no muestra cifras a los visitantes hasta que tenga al menos 5 reproducciones.",
+  "authors.note.not_enough_data": "Tu página no muestra cifras a los visitantes hasta que tenga al menos 10 reproducciones.",
 
   "authors.report.open": "Denunciar esta página",
   "authors.report.title": "¿Qué problema tiene esta página?",

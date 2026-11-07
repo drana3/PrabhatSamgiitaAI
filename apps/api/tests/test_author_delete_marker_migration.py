@@ -47,6 +47,6 @@ def test_upgrade_moves_the_marker_and_downgrade_puts_it_back() -> None:
 
 def test_0036_is_the_single_head_after_0035() -> None:
     script = ScriptDirectory.from_config(Config(str(VERSIONS.parents[1] / "alembic.ini")))
-    assert script.get_heads() == ["0036_author_delete_marker"]
+    assert len(script.get_heads()) == 1  # a later migration (0037) may follow it
     revision = script.get_revision("0036_author_delete_marker")
     assert revision is not None and revision.down_revision == "0035_author_review_and_play_caps"

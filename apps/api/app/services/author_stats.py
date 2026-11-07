@@ -58,7 +58,7 @@ DAILY_EVENT_CAP = 300  # counted plays per listener per day; more is a script, n
 COUNTRY_MIN_LISTENERS = 5
 COUNTRY_MIN_TOTAL = 20
 # Below this many counted plays the PUBLIC page shows "counting since ..." instead of numbers.
-MIN_PUBLIC_PLAYS = 5
+MIN_PUBLIC_PLAYS = 10
 MONTH_DAYS = 30
 SNAPSHOT_TTL_SECONDS = 15 * 60
 PRUNE_EVERY_HOURS = 24
