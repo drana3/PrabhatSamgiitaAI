@@ -230,25 +230,63 @@ async def _may_count_as_listener(
     return in_all < NEW_LISTENERS_PER_CLIENT_PER_DAY
 
 
-async def _client_plays_today(
-    session: AsyncSession, ckey: str, recording_id: UUID, day: date
-) -> tuple[int, int]:
-    """Plays stored today for this client: on this recording, and in all."""
-    on_recording = await session.scalar(
+async def listener_plays_today(session: AsyncSession, key: str, day: date) -> int:
+    """Plays stored today for one listener key, recordings AND catalogue songs together: the daily
+    cap of a listener is one cap, whichever way the plays are sent."""
+    recordings = await session.scalar(
         select(func.count())
         .select_from(PlayEvent)
-        .where(
-            PlayEvent.client_key == ckey,
-            PlayEvent.day == day,
-            PlayEvent.recording_id == recording_id,
-        )
+        .where(PlayEvent.listener_key == key, PlayEvent.day == day)
     )
-    in_all = await session.scalar(
+    songs = await session.scalar(
+        select(func.count())
+        .select_from(SongPlayEvent)
+        .where(SongPlayEvent.listener_key == key, SongPlayEvent.day == day)
+    )
+    return int(recordings or 0) + int(songs or 0)
+
+
+async def client_plays_today(
+    session: AsyncSession,
+    ckey: str,
+    day: date,
+    *,
+    recording_id: UUID | None = None,
+    song_number: int | None = None,
+) -> tuple[int, int]:
+    """Plays stored today for this client: on the one recording or song asked about, and in all
+    (recordings and catalogue songs together: the per-day cap of a client is one cap)."""
+    if recording_id is not None:
+        on_item = await session.scalar(
+            select(func.count())
+            .select_from(PlayEvent)
+            .where(
+                PlayEvent.client_key == ckey,
+                PlayEvent.day == day,
+                PlayEvent.recording_id == recording_id,
+            )
+        )
+    else:
+        on_item = await session.scalar(
+            select(func.count())
+            .select_from(SongPlayEvent)
+            .where(
+                SongPlayEvent.client_key == ckey,
+                SongPlayEvent.day == day,
+                SongPlayEvent.song_number == song_number,
+            )
+        )
+    recordings = await session.scalar(
         select(func.count())
         .select_from(PlayEvent)
         .where(PlayEvent.client_key == ckey, PlayEvent.day == day)
     )
-    return int(on_recording or 0), int(in_all or 0)
+    songs = await session.scalar(
+        select(func.count())
+        .select_from(SongPlayEvent)
+        .where(SongPlayEvent.client_key == ckey, SongPlayEvent.day == day)
+    )
+    return int(on_item or 0), int(recordings or 0) + int(songs or 0)
 
 
 async def ingest_plays(
@@ -301,22 +339,15 @@ async def ingest_plays(
         day = played.astimezone(UTC).date()
         key = listener_key(pepper, who, day)
         if day not in per_day:
-            per_day[day] = int(
-                await session.scalar(
-                    select(func.count())
-                    .select_from(PlayEvent)
-                    .where(PlayEvent.listener_key == key, PlayEvent.day == day)
-                )
-                or 0
-            )
+            per_day[day] = await listener_plays_today(session, key, day)
         if per_day[day] >= DAILY_EVENT_CAP:
             result.reject("limit")
             continue
         over_cap = False
         if ckey is not None:
             if (day, recording.id) not in client_rec:
-                client_rec[(day, recording.id)], client_all[day] = await _client_plays_today(
-                    session, ckey, recording.id, day
+                client_rec[(day, recording.id)], client_all[day] = await client_plays_today(
+                    session, ckey, day, recording_id=recording.id
                 )
             over_cap = (
                 client_rec[(day, recording.id)] >= UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY

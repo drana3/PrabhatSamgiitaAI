@@ -15,10 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.author_profiles import PlayEvent
 from app.models.recordings import PS_SONG_COUNT
 from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.services import author_stats as stats
@@ -29,46 +27,6 @@ class SongPlayIn:
     song_number: int
     played_at: datetime
     listened_sec: int
-
-
-async def _listener_today(session: AsyncSession, key: str, day: date) -> int:
-    songs = await session.scalar(
-        select(func.count())
-        .select_from(SongPlayEvent)
-        .where(SongPlayEvent.listener_key == key, SongPlayEvent.day == day)
-    )
-    recordings = await session.scalar(
-        select(func.count())
-        .select_from(PlayEvent)
-        .where(PlayEvent.listener_key == key, PlayEvent.day == day)
-    )
-    return int(songs or 0) + int(recordings or 0)
-
-
-async def _client_today(
-    session: AsyncSession, ckey: str, song_number: int, day: date
-) -> tuple[int, int]:
-    """Plays stored today for this client: on this song, and in all (songs and recordings)."""
-    on_song = await session.scalar(
-        select(func.count())
-        .select_from(SongPlayEvent)
-        .where(
-            SongPlayEvent.client_key == ckey,
-            SongPlayEvent.day == day,
-            SongPlayEvent.song_number == song_number,
-        )
-    )
-    songs = await session.scalar(
-        select(func.count())
-        .select_from(SongPlayEvent)
-        .where(SongPlayEvent.client_key == ckey, SongPlayEvent.day == day)
-    )
-    recordings = await session.scalar(
-        select(func.count())
-        .select_from(PlayEvent)
-        .where(PlayEvent.client_key == ckey, PlayEvent.day == day)
-    )
-    return int(on_song or 0), int(songs or 0) + int(recordings or 0)
 
 
 async def ingest_song_plays(
@@ -108,15 +66,18 @@ async def ingest_song_plays(
         day = played.astimezone(UTC).date()
         key = stats.listener_key(pepper, who, day)
         if day not in per_day:
-            per_day[day] = await _listener_today(session, key, day)
+            per_day[day] = await stats.listener_plays_today(session, key, day)
         if per_day[day] >= stats.DAILY_EVENT_CAP:
             result.reject("limit")
             continue
         over_cap = False
         if ckey is not None:
             if (day, event.song_number) not in client_song:
-                client_song[(day, event.song_number)], client_all[day] = await _client_today(
-                    session, ckey, event.song_number, day
+                (
+                    client_song[(day, event.song_number)],
+                    client_all[day],
+                ) = await stats.client_plays_today(
+                    session, ckey, day, song_number=event.song_number
                 )
             over_cap = (
                 client_song[(day, event.song_number)]

@@ -351,3 +351,75 @@ async def test_a_counted_song_listen_reaches_the_list(tw: World) -> None:
         await send(tw, [song_event(1)], device=f"device-60{i}")
     page = await top_list(tw)
     assert [(i["id"], i["plays"]) for i in page["items"]] == [("1", top.TOP_MIN_PLAYS)]
+
+
+# --------------------------------------------------------------------------- one cap, two doors
+
+
+async def recording_daily_total(world: World) -> int:
+    async with world.sessions() as session:
+        return int(await session.scalar(select(func.coalesce(func.sum(PlayDaily.plays), 0))) or 0)
+
+
+async def test_the_listener_cap_is_shared_songs_first_then_recordings(
+    tw: World, monkeypatch
+) -> None:
+    monkeypatch.setattr(stats, "DAILY_EVENT_CAP", 2)
+    rid = await tw.recording(None)
+    assert (await send(tw, [song_event(1), song_event(2)])).json()["accepted"] == 2
+    over = await send(tw, [rec_event(rid)])
+    assert over.json() == {"accepted": 0, "duplicates": 0, "rejected": {"limit": 1}}
+    assert await recording_daily_total(tw) == 0
+
+
+async def test_the_listener_cap_is_shared_recordings_first_then_songs(
+    tw: World, monkeypatch
+) -> None:
+    monkeypatch.setattr(stats, "DAILY_EVENT_CAP", 2)
+    first = await tw.recording(None, title="One")
+    second = await tw.recording(None, title="Two")
+    assert (await send(tw, [rec_event(first), rec_event(second)])).json()["accepted"] == 2
+    over = await send(tw, [song_event(1)])
+    assert over.json() == {"accepted": 0, "duplicates": 0, "rejected": {"limit": 1}}
+    assert await song_counts(tw) == (0, 0)
+
+
+async def test_the_client_day_cap_is_shared_songs_first_then_recordings(
+    tw: World, monkeypatch
+) -> None:
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_DAY", 3)
+    rid = await tw.recording(None)
+    for i in range(3):  # three devices behind one address fill the client's day with songs
+        await send(tw, [song_event(10 + i)], device=f"device-70{i}")
+    assert await song_counts(tw) == (3, 3)
+    late = await send(tw, [rec_event(rid)], device="device-7099")
+    assert late.json()["accepted"] == 1  # the phone is told the same
+    assert await recording_daily_total(tw) == 0  # stored, but in no public number
+
+
+async def test_the_client_day_cap_is_shared_recordings_first_then_songs(
+    tw: World, monkeypatch
+) -> None:
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_DAY", 3)
+    for i in range(3):
+        rid = await tw.recording(None, title=f"R{i}")
+        await send(tw, [rec_event(rid)], device=f"device-80{i}")
+    assert await recording_daily_total(tw) == 3
+    late = await send(tw, [song_event(5)], device="device-8099")
+    assert late.json()["accepted"] == 1
+    assert await song_counts(tw) == (1, 0)  # stored, but not counted
+
+
+async def test_signed_in_members_are_not_held_by_the_client_caps(tw: World, monkeypatch) -> None:
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_DAY", 1)
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY", 1)
+    rec_a = await tw.recording(None, title="A")
+    rec_b = await tw.recording(None, title="B")
+    r = await tw.client.post(
+        PLAYS,
+        json={"events": [rec_event(rec_a), rec_event(rec_b), song_event(1), song_event(2)]},
+        headers=AS["a"],
+    )
+    assert r.json() == {"accepted": 4, "duplicates": 0, "rejected": {}}
+    assert await recording_daily_total(tw) == 2
+    assert await song_counts(tw) == (2, 2)
