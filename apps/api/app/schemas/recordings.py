@@ -10,6 +10,7 @@ from app.models.recordings import (
     DANCES,
     KIND_LANGUAGE_RULE,
     KINDS_WITH_DANCE,
+    KINDS_WITH_DISCOURSE,
     PS_SONG_COUNT,
     public_kind,
 )
@@ -23,8 +24,11 @@ from app.services.recording_styles import clean_style_other, normalize_style
 # The category of a recording. "kiirtan" is Baba Nam Kevalam (the only mantra of the library),
 # "prabhat_samgiita" is a performance of one Prabhat Samgiita song (`ps_song_number`),
 # "spiritual_song" is a song in the language the uploader names (required), "dance_song" is a song
-# for Tandava or Kaoshiki (`dance`, required). `devotional_song` is gone: it reads as "bhajan".
-Kind = Literal["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song"]
+# for Tandava or Kaoshiki (`dance`, required), "baba_audio" is a spoken discourse of Baba (language
+# required, no performer). `devotional_song` is gone: it reads as "bhajan".
+Kind = Literal[
+    "kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"
+]
 # An ISO 639 code from app/services/recording_languages.py, or "other" (named in `language_other`).
 Language = str
 FIRST_YEAR = 1900
@@ -50,7 +54,7 @@ def kind_field_problem(
 
     ONE place for the per-category rules, used by the schema (a plain upload) and by the set
     service (a track whose language or dance comes from its playlist). The rules:
-    Bhajan and spiritual song = language required; dance song = dance required (from DANCES),
+    Bhajan and spiritual song = language required; dance music = dance required (from DANCES),
     language optional; Prabhat Samgiita = song number, language optional; Kiirtan = no language.
     """
     if kind == "prabhat_samgiita" and ps_song_number is None:
@@ -58,7 +62,11 @@ def kind_field_problem(
     if kind != "prabhat_samgiita" and ps_song_number is not None:
         return "A song number belongs to the Prabhat Samgiita category only."
     if KIND_LANGUAGE_RULE.get(kind) == "required" and not language:
-        return "Choose the language of this song."
+        return (
+            "Choose the language of this discourse."
+            if kind == "baba_audio"
+            else "Choose the language of this song."
+        )
     if language == OTHER and not language_other:
         return "Write the name of the language."
     if kind in KINDS_WITH_DANCE:
@@ -67,7 +75,7 @@ def kind_field_problem(
         if dance not in DANCES:
             return "Choose one of the dances: " + ", ".join(DANCES) + "."
     elif dance:
-        return "A dance belongs to the Dance song category only."
+        return "A dance belongs to the Dance music category only."
     return None
 
 
@@ -97,16 +105,18 @@ class RecordingCreate(BaseModel):
     # The uploader types the title.
     title: str = Field(min_length=1, max_length=200)
     # Performer or group: required (the form prefills it with the member's name).
-    author: str = Field(min_length=1, max_length=200)
+    # Not asked for Baba's Audio Discourses (the speaker is Baba); a playlist track may leave it out
+    # too (the service then uses the uploader's name). Every other single upload names it.
+    author: str = Field(default="", max_length=200)
     by_author: bool = False
     terms_accepted: bool
     terms_version: str = Field(min_length=1, max_length=32)
     # Language: an ISO code, "other" (then `language_other`), or one of the five old words.
-    # Required for a Bhajan and a spiritual song, optional for Prabhat Samgiita and dance song,
+    # Required for a Bhajan and a spiritual song, optional for Prabhat Samgiita and dance music,
     # dropped for a Kiirtan.
     language: str | None = Field(default=None, max_length=16)
     language_other: str | None = Field(default=None, max_length=200)
-    # Required for a dance song (one of DANCES), refused for every other category.
+    # Required for a dance music (one of DANCES), refused for every other category.
     dance: str | None = Field(default=None, max_length=16)
     # Optional, Kiirtan only: how it is sung (STYLES or "other" + `style_other`). Dropped for the others.
     style: str | None = Field(default=None, max_length=16)
@@ -115,6 +125,9 @@ class RecordingCreate(BaseModel):
     credits: str | None = Field(default=None, max_length=300)
     year: int | None = Field(default=None, ge=FIRST_YEAR)
     notes: str | None = Field(default=None, max_length=500)
+    # Baba's Audio Discourses only (dropped for the other kinds): where, and which discourse.
+    place: str | None = Field(default=None, max_length=200)
+    discourse: str | None = Field(default=None, max_length=200)
     # Required for a Prabhat Samgiita recording (1..5018), not allowed for the other categories.
     ps_song_number: int | None = Field(default=None, ge=1, le=PS_SONG_COUNT)
     # The uploader saw "Sounds like a recording already in the library" and said theirs is a
@@ -177,6 +190,12 @@ class RecordingCreate(BaseModel):
         self.style_other = clean_style_other(self.style_other) if self.style == OTHER else None
         if self.style == OTHER and not self.style_other:
             raise ValueError("Write the name of the style.")
+        if self.kind not in KINDS_WITH_DISCOURSE and not kind_unsaid:
+            self.place = None
+            self.discourse = None
+        # The performer is named by every single upload except an audio discourse of Baba.
+        if self.collection_id is None and self.kind != "baba_audio" and not self.author.strip():
+            raise ValueError("Add who performs it.")
         # The free-text name only goes with "other", and is cleaned before it is stored.
         self.language_other = (
             clean_language_other(self.language_other) if self.language == OTHER else None
@@ -193,6 +212,33 @@ class RecordingCreate(BaseModel):
             )
             if problem:
                 raise ValueError(problem)
+        return self
+
+
+class LanguageSet(BaseModel):
+    """`PATCH /recordings/{id}/language`: the language of a recording stored without one (an old
+    Bhajan or Spiritual song). Same rules as an upload: a catalog code, or "other" with its name."""
+
+    language: str = Field(min_length=1, max_length=16)
+    language_other: str | None = Field(default=None, max_length=200)
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _known_code(cls, value: object) -> str:
+        if not isinstance(value, str):
+            raise ValueError("Choose a language from the list.")
+        code = normalize_language(value)
+        if code is None:
+            raise ValueError("Choose a language from the list.")
+        return code
+
+    @model_validator(mode="after")
+    def _other_has_its_name(self) -> Self:
+        self.language_other = (
+            clean_language_other(self.language_other) if self.language == OTHER else None
+        )
+        if self.language == OTHER and not self.language_other:
+            raise ValueError("Write the name of the language.")
         return self
 
 
@@ -227,7 +273,10 @@ class RecordingOut(BaseModel):
     credits: str | None = None
     notes: str | None = None
     ps_song_number: int | None = None
-    # Dance song: "tandava" or "kaoshiki". Language: the ISO code ("other" + `language_other`).
+    # Baba's Audio Discourses: where it was given, and the name or number of the discourse.
+    place: str | None = None
+    discourse: str | None = None
+    # Dance music: "tandava" or "kaoshiki". Language: the ISO code ("other" + `language_other`).
     dance: str | None = None
     language_other: str | None = None
     # Kiirtan only: how it is sung (a STYLES id or "other" + `style_other`).

@@ -39,6 +39,7 @@ RECORDING_KINDS = (
     "prabhat_samgiita",
     "spiritual_song",
     "dance_song",
+    "baba_audio",
 )
 # "Devotional song" was a fourth category once. A Bhajan already is one, so it is gone from every
 # form and list. Rows stored with it stay valid (the database check still allows the word) and are
@@ -57,14 +58,20 @@ KIND_LANGUAGE_RULE: dict[str, str] = {
     "prabhat_samgiita": "optional",
     "spiritual_song": "required",
     "dance_song": "optional",
+    # Baba's Audio Discourses: a talk, not a song, but it is spoken in a language: required.
+    "baba_audio": "required",
 }
 # Categories that carry a sung language at all.
 KINDS_WITH_LANGUAGE = tuple(k for k, rule in KIND_LANGUAGE_RULE.items() if rule != "none")
-# The dances a dance song names (required for that category). ONE list: add an id here and on the
+# The dances a dance music names (required for that category). ONE list: add an id here and on the
 # phone (lib/kirtan/types.ts DANCES) and it exists; the database does not list the values, so no
 # migration is needed to grow it.
 DANCES = ("tandava", "kaoshiki")
 KINDS_WITH_DANCE = ("dance_song",)
+# Baba's Audio Discourses (`baba_audio`): the speaker is always Baba, so no performer is asked and
+# this name is stored; the optional place and discourse name or number are asked for this kind only.
+BABA_AUTHOR = "Shrii Shrii Anandamurti"
+KINDS_WITH_DISCOURSE = ("baba_audio",)
 
 
 def public_kind(stored: str) -> str:
@@ -97,7 +104,7 @@ class Recording(Base, TimestampMixin):
         Index("ix_recordings_audio_sha256", "audio_sha256", unique=True),
         CheckConstraint(
             "kind IN ('kiirtan', 'bhajan', 'devotional_song', 'prabhat_samgiita', "
-            "'spiritual_song', 'dance_song')",
+            "'spiritual_song', 'dance_song', 'baba_audio')",
             name="ck_recordings_kind",
         ),
         CheckConstraint(
@@ -106,8 +113,8 @@ class Recording(Base, TimestampMixin):
         CheckConstraint(
             "(kind = 'kiirtan' AND type IN ('bnk', 'lila', 'festival', 'other')) OR "
             "(kind = 'bhajan' AND type IN ('morning', 'evening', 'devotional', 'other')) OR "
-            "(kind IN ('devotional_song', 'prabhat_samgiita', 'spiritual_song', 'dance_song') "
-            "AND type = 'other')",
+            "(kind IN ('devotional_song', 'prabhat_samgiita', 'spiritual_song', 'dance_song', "
+            "'baba_audio') AND type = 'other')",
             name="ck_recordings_type_for_kind",
         ),
         # A Prabhat Samgiita recording names its song (1..5018); no other category has one.
@@ -123,15 +130,15 @@ class Recording(Base, TimestampMixin):
             "language IS NULL OR (length(language) >= 2 AND length(language) <= 8)",
             name="ck_recordings_language",
         ),
-        # A dance song names its dance; no other category has one.
+        # A dance music names its dance; no other category has one.
         CheckConstraint(
             "(kind = 'dance_song' AND dance IS NOT NULL) OR "
             "(kind <> 'dance_song' AND dance IS NULL)",
             name="ck_recordings_dance",
         ),
-        # A spiritual song always names its language.
+        # A spiritual song and an audio discourse of Baba always name their language.
         CheckConstraint(
-            "kind <> 'spiritual_song' OR language IS NOT NULL",
+            "kind NOT IN ('spiritual_song', 'baba_audio') OR language IS NOT NULL",
             name="ck_recordings_spiritual_language",
         ),
     )
@@ -209,7 +216,10 @@ class Recording(Base, TimestampMixin):
     style: Mapped[str | None] = mapped_column(String(16))
     # What the uploader called the style when they chose "other" (only then).
     style_other: Mapped[str | None] = mapped_column(String(80))
-    # The dance of a dance song (one of DANCES); null for every other category.
+    # Baba's Audio Discourses only: where it was given, and the name or number of the discourse.
+    place: Mapped[str | None] = mapped_column(String(200))
+    discourse: Mapped[str | None] = mapped_column(String(200))
+    # The dance of a dance music (one of DANCES); null for every other category.
     dance: Mapped[str | None] = mapped_column(String(16))
     # When it was recorded, when it differs from the year (a track of an event playlist).
     recorded_on: Mapped[date | None] = mapped_column(Date)

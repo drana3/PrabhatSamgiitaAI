@@ -139,24 +139,32 @@ tidies a database that ran the old draft, see the checklist).
   500 characters). The duration is read from the file. Checks: "I am the author or I perform this" and the content rules.
 - Language rule: ONE table per side, `KIND_LANGUAGE_RULE` (phone `lib/kirtan/types.ts`, API `app/models/recordings.py`;
   a test pins them, see below). Kiirtan: none (a sent `language` is ignored). Bhajan and Spiritual song: REQUIRED.
-  Prabhat Samgiita: optional. Dance song: optional (the dance is what is required). The rule is for NEW uploads: a
+  Prabhat Samgiita: optional. Dance music: optional (the dance is what is required). The rule is for NEW uploads: a
   Bhajan stored before it (no language, including the old `devotional_song` id, which still reads as Bhajan) stays valid
   and listed. There is no endpoint that edits a recording yet, so no "Add language" prompt exists for old Bhajans.
 - Public listing: `GET /recordings?kind=&song_number=&sort=` filters by type (`kind=bhajan` includes old
   devotional-song rows), plus `language=` and `dance=` for the two new types. My uploads and the Kiirtan page show the
-  type on every recording (a tag, and the chips All, Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance song).
+  type on every recording (a tag, and the chips All, Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music).
 - The old "Kiirtan or Bhajan" sub-types (Dharmacakra, Akhanda, ...) stay as an optional `type` for the Kiirtan area.
 
 ### Five types, languages and dances
 
 Added with migration `0032_recording_sets_and_categories` (additive and idempotent; it never rewrites a row).
 
-- Types: Kiirtan, Bhajan, Prabhat Samgiita, **Spiritual song** (`spiritual_song`) and **Dance song** (`dance_song`).
+- Types: Kiirtan, Bhajan, Prabhat Samgiita, **Spiritual song** (`spiritual_song`) and **Dance music** (`dance_song`).
   The `kind` check constraint grows by the two values; old rows are untouched.
-- Dance song: Tandava or Kaoshiki is REQUIRED (`dance`, ids in `DANCES`, `app/models/recordings.py`; phone
+- Dance music: Tandava or Kaoshiki is REQUIRED (`dance`, ids in `DANCES`, `app/models/recordings.py`; phone
   `lib/kirtan/types.ts`). Missing: a 422 with "Choose the dance: Tandava or Kaoshiki." on the API, an inline error and a blocked button on the form, a
   "Dance missing" line on a queue row, and the import script rejects the CSV row. A `dance` on another type is a 422.
   The Russian label for Kaoshiki ("Каушики") is not checked by a Russian speaker yet.
+- **Baba's Audio Discourses** (`baba_audio`, migration 0040): a spoken talk of Baba. Fields: title (required), language
+  (REQUIRED, the usual list), and optional `place`, `year`, `discourse` (a name or number). NO performer is asked: the
+  API stores "Shrii Shrii Anandamurti" as the author whatever was sent, and `by_author` is false. `place` and `discourse`
+  are dropped for every other kind. Same upload screen and review flow; the kind rule table (`KIND_LANGUAGE_RULE`) and
+  the phone's (`lib/kirtan/types.ts`) are pinned together by tests. The Today shelf and the search chip read the id only.
+- **Add a language to an old recording** (`PATCH /recordings/{id}/language`, body `{language, language_other?}`): for a
+  Bhajan or Spiritual song stored before the language became required. Its uploader or the team; it only ADDS (409 when a
+  language is already there, 409 for a removed recording, 422 for a Kiirtan). The recording page and My uploads show the prompt.
 - Bhajan and Spiritual song: the language is REQUIRED (a 422 with "Choose the language of this song."; the form shows it above "More details" with the red Required marker). "Other" needs its name (up to 80 characters)
   for every type that has a language.
 - Languages: ISO 639 codes, one catalog of 49 (`app/services/recording_languages.py`, phone

@@ -30,8 +30,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.models import UserAccount
 from app.models.recordings import (
+    BABA_AUTHOR,
     BHAJAN_TYPES,
     KINDS_WITH_DANCE,
+    KINDS_WITH_DISCOURSE,
+    KINDS_WITH_LANGUAGE,
     KIRTAN_TYPES,
     AuthorBlock,
     MemberNotice,
@@ -49,6 +52,7 @@ from app.schemas.recordings import (
     RecordingOut,
 )
 from app.services.admin_members import normalize_member_email, owner_admin_emails
+from app.services.invisible_text import strip_invisible
 from app.services.recording_fingerprint import (
     SIMILAR_THRESHOLD,
     compute_fingerprint,
@@ -57,6 +61,7 @@ from app.services.recording_fingerprint import (
     similar_matches,
     similarity,
 )
+from app.services.recording_languages import OTHER
 from app.services.recording_storage import (
     RecordingStorage,
     StorageError,
@@ -73,7 +78,8 @@ KIND_WORD = {
     "devotional_song": "Bhajan",  # legacy rows: a Bhajan now
     "prabhat_samgiita": "Prabhat Samgiita recording",
     "spiritual_song": "Spiritual song",
-    "dance_song": "Dance song",
+    "dance_song": "Dance music",
+    "baba_audio": "Audio discourse",
 }
 # Bulk uploading by a team member (admin) is not held to the daily limit; the hourly brake is
 # only raised for them, so a script gone wrong still stops.
@@ -181,6 +187,8 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         credits=recording.credits,
         notes=recording.notes,
         ps_song_number=recording.ps_song_number,
+        place=recording.place,
+        discourse=recording.discourse,
         dance=recording.dance,
         language_other=recording.language_other,
         style=recording.style,
@@ -216,6 +224,43 @@ def admin_out(recording: Recording) -> AdminRecordingOut:
 
 def clean_text(value: str | None, limit: int) -> str:
     return " ".join((value or "").split())[:limit]
+
+
+def clean_line(value: str | None, limit: int) -> str | None:
+    """One line a person typed (place, discourse name): zero-width and control characters dropped,
+    spaces folded, cut to `limit`; None when nothing is left."""
+    kept = "".join(ch for ch in strip_invisible(value or "") if ch.isprintable() or ch.isspace())
+    return clean_text(kept, limit) or None
+
+
+async def set_missing_language(
+    session: AsyncSession,
+    *,
+    recording: Recording,
+    member: UserAccount,
+    settings: Settings,
+    language: str,
+    language_other: str | None,
+) -> Recording:
+    """Adds the language to a recording stored without one (an old Bhajan or Spiritual song).
+
+    Only its uploader or the team may, only for a category that has a language, only while it has
+    none (this adds, it never rewrites a language somebody chose), and not for a removed one.
+    """
+    owner = recording.author_id is not None and recording.author_id == member.id
+    if not (owner or is_team_member(member, settings)):
+        raise HTTPException(status_code=403, detail="Only the person who uploaded it can do this.")
+    if recording.status == "removed":
+        raise HTTPException(status_code=409, detail="This recording was removed.")
+    if public_kind(recording.kind) not in KINDS_WITH_LANGUAGE:
+        raise HTTPException(status_code=422, detail="This category has no language.")
+    if recording.language:
+        raise HTTPException(status_code=409, detail="This recording already has a language.")
+    recording.language = language
+    recording.language_other = language_other if language == OTHER else None
+    await session.commit()
+    await session.refresh(recording)
+    return recording
 
 
 def validate_type(kind: str, type_id: str) -> str:
@@ -462,6 +507,10 @@ async def create_recording(
     if not title:
         raise HTTPException(status_code=422, detail="Add a title.")
     performer = clean_text(payload.author, 200)
+    if payload.kind == "baba_audio":
+        performer = BABA_AUTHOR  # the speaker is Baba: no performer is asked, whatever was sent
+    if not performer and payload.collection_id is not None:
+        performer = clean_text(member_name, 200)  # a playlist's performer is optional
     if not performer:
         raise HTTPException(status_code=422, detail="Add who performs it.")
     # Imported here: the playlist service imports this module.
@@ -533,7 +582,7 @@ async def create_recording(
         author=performer,
         added_by=member_name,
         author_id=member_id,
-        by_author=payload.by_author,
+        by_author=payload.by_author and payload.kind != "baba_audio",
         status="published",
         duration_sec=payload.duration_sec or info.duration_sec,
         audio_key=payload.key,
@@ -552,6 +601,10 @@ async def create_recording(
         style=payload.style if payload.kind == "kiirtan" else None,
         style_other=payload.style_other if payload.kind == "kiirtan" else None,
         dance=payload.dance if payload.kind in KINDS_WITH_DANCE else None,
+        place=clean_line(payload.place, 200) if payload.kind in KINDS_WITH_DISCOURSE else None,
+        discourse=(
+            clean_line(payload.discourse, 200) if payload.kind in KINDS_WITH_DISCOURSE else None
+        ),
         recorded_on=payload.recorded_on,
         collection_id=collection.id if collection is not None else None,
         position=position,

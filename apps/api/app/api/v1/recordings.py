@@ -37,6 +37,7 @@ from app.schemas.recordings import (
     DiscardRequest,
     DuplicateOfRequest,
     Kind,
+    LanguageSet,
     NoticeOut,
     RecordingCreate,
     RecordingList,
@@ -414,6 +415,29 @@ async def read_recording(
     if recording.status == "removed" and not owner:
         raise HTTPException(status_code=404, detail="Recording not found")
     return service.recording_out(recording, owner=owner)
+
+
+@router.patch("/{recording_id}/language", response_model=RecordingOut)
+async def add_language(
+    recording_id: UUID,
+    payload: LanguageSet,
+    session: DatabaseSession,
+    member: Member,
+    settings: AppSettings,
+) -> RecordingOut:
+    """Adds the language to a recording that was stored without one (an old Bhajan or Spiritual
+    song). Its uploader or the team; it never changes a language that is already there."""
+    service.limiter.hit("add-language", str(member.id), limit=60, window_seconds=3600)
+    recording = await get_recording(session, recording_id)
+    updated = await service.set_missing_language(
+        session,
+        recording=recording,
+        member=member,
+        settings=settings,
+        language=payload.language,
+        language_other=payload.language_other,
+    )
+    return service.recording_out(updated, owner=True)
 
 
 @router.post("/{recording_id}/play", status_code=status.HTTP_204_NO_CONTENT)

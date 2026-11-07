@@ -628,7 +628,7 @@ async def test_a_spiritual_song_row_needs_a_language_and_a_dance_row_needs_its_d
     text = out.getvalue()
     assert "language of this song" in text and "the dance" in text.lower()
     assert "dance must be one of tandava, kaoshiki" in text
-    assert "A dance belongs to the Dance song category only" in text
+    assert "A dance belongs to the Dance music category only" in text
     assert "name of the language" in text
     async with world.sessions() as session:
         rows = {r.title: r for r in (await session.scalars(select(Recording))).all()}

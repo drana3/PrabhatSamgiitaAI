@@ -339,7 +339,7 @@ def with_set_defaults(payload: RecordingCreate, collection: RecordingCollection)
 
     Kind, language and dance are filled from the playlist only when the request left them out; the
     category rules are then checked on the result, so a spiritual song without any language, or a
-    dance song without a dance, is a 422 even inside a playlist.
+    dance music without a dance, is a 422 even inside a playlist.
     """
     sent = payload.model_fields_set
     merged = payload.model_dump()

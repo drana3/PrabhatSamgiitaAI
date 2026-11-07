@@ -17,10 +17,11 @@ folder; when it is missing, the file whose name without extension equals the tit
 `title` is required; the rest may be empty. Commas or semicolons both work; UTF-8.
 
   * `category`: kiirtan (default; a Kiirtan is a version of Baba Nam Kevalam, there is no mantra
-    column), bhajan, prabhat_samgiita, spiritual_song or dance_song (an old devotional_song reads
+    column), bhajan, prabhat_samgiita, spiritual_song, dance_song or baba_audio (Baba's Audio
+    Discourses: the speaker is Baba, the performer cell is ignored; an old devotional_song reads
     as bhajan). Empty means `--category`. A Kiirtan has no language: the cell is ignored for it.
   * `language`: an ISO code (bn, sa, hi, en, ru, ...) or the English name (Bengali, Hindi, ...);
-    `other` needs `language_name`. REQUIRED for bhajan and spiritual_song (the cell, or
+    `other` needs `language_name`. REQUIRED for bhajan, spiritual_song and baba_audio (the cell, or
     `--language`). Empty cells take `--language` / `--language-name`.
   * `dance`: tandava or kaoshiki. REQUIRED for dance_song (the cell, or `--dance`), not allowed
     for any other category.
@@ -86,6 +87,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E40
 
 from app.models.recording_collections import RecordingCollection  # noqa: E402
 from app.models.recordings import (  # noqa: E402
+    BABA_AUTHOR,
     DANCES,
     KINDS_WITH_DANCE,
     KINDS_WITH_LANGUAGE,
@@ -738,7 +740,7 @@ class Importer:
                     kind=category,
                     type=validate_type(category, row.type),
                     title=row.title,
-                    author=row.performer,
+                    author=BABA_AUTHOR if category == "baba_audio" else row.performer,
                     added_by=config.added_by,
                     author_id=None,
                     by_author=False,

@@ -21,7 +21,7 @@ Server (`apps/api`, migration `0032_recording_sets_and_categories`):
 - State is DERIVED, never stored: `removed` (the team took it down), `draft` (nothing live yet), `uploading` (the last
   file was not sent yet: `finished_at` empty and `tracks_expected` above the live count), `published`.
 - A track inherits kind, language and dance from the playlist only when it did not send its own; the category rules
-  are then checked on the result (a Bhajan or a Spiritual song without a language, or a Dance song without a dance, is a 422 even
+  are then checked on the result (a Bhajan or a Spiritual song without a language, or a Dance music without a dance, is a 422 even
   inside a playlist).
 
 Phone (`apps/mobile`):
