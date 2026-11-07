@@ -588,6 +588,8 @@ class Importer:
                     place=clean_text(config.set_place, 200) or None,
                     starts_on=config.set_date,
                     ends_on=config.set_end_date,
+                    event_year=config.set_date.year,
+                    event_month=config.set_date.month,
                     default_kind=config.kind,
                     default_language=normalize_language(config.language)
                     if config.language
@@ -899,8 +901,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--dance", choices=list(DANCES), help="dance for dance_song rows whose cell is empty"
     )
     parser.add_argument("--set-title", help="import the folder as ONE playlist with this title")
-    parser.add_argument("--set-date", type=date.fromisoformat, help="first day, YYYY-MM-DD")
-    parser.add_argument("--set-end-date", type=date.fromisoformat, help="last day, YYYY-MM-DD")
+    parser.add_argument("--set-date", type=date.fromisoformat, help="approximate date of the event, YYYY-MM-DD (the playlist shows only its year and month)")
+    parser.add_argument("--set-end-date", type=date.fromisoformat, help="last day, YYYY-MM-DD (kept for old data, not shown)")
     parser.add_argument("--set-place")
     parser.add_argument("--set-description")
     parser.add_argument("--added-by", default=DEFAULT_ADDED_BY)

@@ -34,7 +34,7 @@ from app.core.db import get_session
 from app.core.middleware import RequestContextMiddleware
 from app.core.security import require_admin
 from app.models import Base, UserAccount
-from app.models.recording_collections import RecordingCollection
+from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
 from app.models.recordings import (
     AuthorBlock,
     MemberNotice,
@@ -400,6 +400,7 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
         for m in (
             UserAccount,
             RecordingCollection,
+            RecordingCollectionCover,
             Recording,
             RecordingReport,
             RecordingSimilarConfirm,

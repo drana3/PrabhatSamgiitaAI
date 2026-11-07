@@ -1,7 +1,7 @@
 # Playlists from an event (Kiirtan sets)
 
-A concert, a retreat or a satsang goes up as ONE playlist: a title, the dates, the place, a description and the
-recordings in order. Each recording is still a normal recording of the library (same checks, same duplicate rules,
+A concert, a retreat or a satsang goes up as ONE playlist: a title, an approximate date (year and month), the place,
+an optional cover picture and the recordings in order. Each recording is still a normal recording of the library (same checks, same duplicate rules,
 same reports); the playlist only groups them and gives them an order. Entry point in the app: "Upload a playlist from
 an event" on the add screen (`/upload-set`), and "My event playlists" (`/my-sets`).
 
@@ -13,7 +13,9 @@ Related: `docs/kiirtan-publishing.md` (the five types, languages and dances, dup
 Server (`apps/api`, migration `0032_recording_sets_and_categories`):
 
 - `recording_collections`: the playlist. `id` (the phone makes it, so a create sent twice is the same playlist),
-  `owner_id`, `title`, `description`, `place`, `starts_on`, `ends_on`, `cover_url`, defaults (`default_kind`,
+  `owner_id`, `title`, `description`, `place`, `event_year`, `event_month` (migration `0041`; the month may be empty),
+  `starts_on` (NOT NULL, filled from the year and month: the first of the month, or 1 January), `ends_on` (old
+  column, kept, not shown), `cover_version`, defaults (`default_kind`,
   `default_language`, `default_language_other`, `default_dance`), `tracks_expected`, `finished_at`, `status`
   (`active` or `removed`), removal fields.
 - `recordings.collection_id`, `position` (1 first), `recorded_on`: a track says which playlist it is in, its place and
@@ -38,8 +40,9 @@ Phone (`apps/mobile`):
 
 1. **Files.** Pick many audio files (system picker; the browser has a multi-file input). A file already in the set
    (same name and size) is left out, and so is every file beyond the room left; the screen says how many.
-2. **Details.** Title, first day (with Today and Yesterday), last day if the event lasted longer, place, performer
-   (prefilled from the profile name), description, and the defaults for the tracks: type, and the language or dance that
+2. **Details.** Title of the event (required), place, approximate date as a YEAR (required) and a MONTH (optional,
+   "Month not known"), performer or group (optional, only for kinds that have a performer; empty means the uploader's
+   name), an optional cover picture, and the defaults for the tracks: type, and the language or dance that
    the type needs. Errors are inline and the step does not move on until they are fixed.
 3. **Tracks.** The list in the order the files were picked, with "Sort by file name" (numbers read as numbers: "2"
    before "10"). Each track has an editable title, up and down buttons, a remove button, its own date, its own type,
@@ -79,9 +82,9 @@ same set id), and delete the whole playlist with a confirm that asks what to do 
 
 ## Public page
 
-Title, dates, place, "Added by", the number of recordings, description, "Play all" (the whole list goes to the one
+Cover (when there is one), title, month and year, place, "Added by", the number of recordings, description, "Play all" (the whole list goes to the one
 player with the playlist title as "Playing from"), tapping a row plays from there, and Share (text only: title, count,
-place and dates). Not found, loading, failed (with "Try again") and empty states have their own text.
+place and month/year). Not found, loading, failed (with "Try again") and empty states have their own text.
 
 ## Limits and why
 
@@ -115,7 +118,7 @@ device"). Rename, reorder, take out and delete are server calls and are only off
 ## Import script
 
 `apps/api/scripts/import_kiirtan_library.py --folder DIR --set-title "..." [--set-date --set-end-date --set-place
---set-description]` imports a folder as one playlist (the CSV is optional; the files go in file-name order; a CSV `date`
+--set-description]` (the playlist keeps only the year and month of `--set-date`) imports a folder as one playlist (the CSV is optional; the files go in file-name order; a CSV `date`
 column gives a track its own day). `--category`, `--language`, `--language-name` and `--dance` are the defaults for
 rows without their own; a row that misses its required language or dance fails alone. Same duplicate checks as the
 app, dry run by default.
@@ -124,8 +127,8 @@ app, dry run by default.
 
 - The same set id sent twice (app killed before the answer): the server returns the one that exists.
 - A file picked twice, or two files with the same name and size: one track.
-- A date is read only as a real calendar day (`2026-02-30` is refused), and the API refuses a day more than one day
-  ahead of today.
+- The event date is a year and an optional month; the API refuses a year before 1900, a year or month ahead of today.
+  A track's own date is read only as a real calendar day (`2026-02-30` is refused).
 - Reordering while the run goes on: the position of a track is read from the list at the moment it is sent, and the
   final order is sent at the end, so a move made during the run is kept.
 - Removing the last failed track finishes the set.
@@ -138,7 +141,10 @@ app, dry run by default.
 
 ## Limitations (honest)
 
-- **Cover picture:** the field exists (`cover_url`, an https address) but there is no cover upload or picker yet.
+- **Cover picture:** one image, at most 300 KB, JPEG, PNG or WebP; the phone re-encodes it small (this drops the
+  camera's GPS and other metadata) and the server checks the type and cuts out any metadata again
+  (`app/services/image_clean.py`, same rules as an author's photo). It is sent after the playlist exists; if that fails
+  the playlist still goes up and the person can add the cover later from the playlist page ("Manage this playlist").
 - **Web reload:** in the browser a picked file is a blob address that does not survive a reload; such a track shows
   "file is gone", and the person removes it or picks it again. On a phone the file stays (cached copy).
 - **Share is text only** (no link/deep link, no poster card).

@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import select
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.recordings import (
@@ -21,7 +21,7 @@ from app.api.v1.recordings import (
     Member,
     OptionalMember,
 )
-from app.models.recording_collections import RecordingCollection
+from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
 from app.models.recordings import Recording
 from app.schemas.recording_collections import (
     AdminSetFilter,
@@ -39,6 +39,7 @@ from app.schemas.recording_collections import (
 from app.schemas.recordings import RecordingOut
 from app.services import recording_collections as sets
 from app.services import recordings as service
+from app.services.image_clean import PHOTO_MAX_BYTES
 
 router = APIRouter(prefix="/recording-sets", tags=["recording-sets"])
 admin_router = APIRouter(prefix="/admin/recording-sets", tags=["admin"])
@@ -89,6 +90,29 @@ async def my_sets(session: DatabaseSession, member: Member) -> SetList:
     return SetList(items=items, total=len(items))
 
 
+@router.get("/{set_id}/cover")
+async def read_cover(set_id: UUID, session: DatabaseSession, member: OptionalMember) -> Response:
+    """The cover picture. Anyone sees it while the playlist is visible; its owner always."""
+    collection = await sets.get_set(session, set_id)
+    owner = member is not None and collection.owner_id == member.id
+    if not owner and (
+        collection.status == "removed" or await sets.count_visible(session, set_id) == 0
+    ):
+        raise HTTPException(status_code=404, detail="No picture")
+    cover = await session.get(RecordingCollectionCover, set_id)
+    if cover is None or not collection.cover_version:
+        raise HTTPException(status_code=404, detail="No picture")
+    return Response(
+        content=cover.data,
+        media_type=cover.mime,
+        headers={
+            "Cache-Control": "private, max-age=60" if owner else "public, max-age=86400",
+            "ETag": f'"{cover.sha256[:16]}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.get("/{set_id}", response_model=SetDetail)
 async def read_set(set_id: UUID, session: DatabaseSession, member: OptionalMember) -> SetDetail:
     collection = await sets.get_set(session, set_id)
@@ -121,6 +145,8 @@ async def create_set(
                 raise HTTPException(status_code=409, detail="This playlist id is taken.")
             response.status_code = status.HTTP_200_OK
             return await _owner_out(session, existing)
+    if payload.starts_on is None or payload.event_year is None:
+        raise HTTPException(status_code=422, detail="Choose the year of the event.")
     team = service.is_team_member(member, settings)
     await sets.ensure_can_start_set(session, member.id, settings, team=team)
     title = sets.clean_set_text(payload.title, 200)
@@ -132,6 +158,8 @@ async def create_set(
         title=title,
         description=sets.clean_optional(payload.description, 1000),
         place=sets.clean_optional(payload.place, 200),
+        event_year=payload.event_year,
+        event_month=payload.event_month,
         starts_on=payload.starts_on,
         ends_on=payload.ends_on,
         cover_url=payload.cover_url,
@@ -157,6 +185,29 @@ async def patch_set(
     """Rename it, change the date, place or description, or say how many files are coming."""
     collection = await _own_set(session, set_id, member)
     await sets.apply_patch(session, collection, payload)
+    return await _owner_out(session, collection)
+
+
+@router.put("/{set_id}/cover", response_model=SetOut)
+async def put_cover(
+    set_id: UUID, request: Request, session: DatabaseSession, member: Member
+) -> SetOut:
+    """The body is the picture itself (JPEG, PNG or WebP, at most 300 KB). The phone makes it
+    small; the server cuts the metadata out whatever the phone did."""
+    collection = await _own_set(session, set_id, member)
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > PHOTO_MAX_BYTES * 2:
+        raise HTTPException(
+            status_code=413, detail={"code": "photo_too_big", "message": "The picture is too big."}
+        )
+    await sets.set_cover(session, collection, await request.body())
+    return await _owner_out(session, collection)
+
+
+@router.delete("/{set_id}/cover", response_model=SetOut)
+async def delete_cover(set_id: UUID, session: DatabaseSession, member: Member) -> SetOut:
+    collection = await _own_set(session, set_id, member)
+    await sets.remove_cover(session, collection)
     return await _owner_out(session, collection)
 
 
@@ -292,6 +343,9 @@ async def delete_set(
             await sets.author_removes(session, track)
         sets.detach(track)
     await session.flush()
+    await session.execute(
+        delete(RecordingCollectionCover).where(RecordingCollectionCover.collection_id == set_id)
+    )
     await session.delete(collection)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

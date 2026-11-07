@@ -25,11 +25,35 @@ def _not_far_in_the_future(value: date | None) -> date | None:
     return value
 
 
+def _event_year(value: int | None) -> int | None:
+    """The year of an event: from the first year a recording may name to this year."""
+    if value is None:
+        return None
+    if value < FIRST_YEAR or value > datetime.now(UTC).year:
+        raise ValueError(f"Choose a year from {FIRST_YEAR} to this year.")
+    return value
+
+
+def _event_month(value: int | None) -> int | None:
+    if value is not None and not 1 <= value <= 12:
+        raise ValueError("Choose a month from 1 to 12.")
+    return value
+
+
+def first_day(year: int, month: int | None) -> date:
+    """The day a playlist is filed under: the first of its month, or 1 January if no month."""
+    return date(year, month or 1, 1)
+
+
 class _SetFields(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
     place: str | None = Field(default=None, max_length=200)
-    starts_on: date
+    # What people give: the year of the event and, when they know it, the month. `starts_on` is
+    # filled from them; an older app that sends `starts_on` alone still works.
+    event_year: int | None = None
+    event_month: int | None = None
+    starts_on: date | None = None
     ends_on: date | None = None
     cover_url: str | None = Field(default=None, max_length=500, pattern=r"^https://\S+$")
     default_kind: Kind = "kiirtan"
@@ -42,6 +66,16 @@ class _SetFields(BaseModel):
     def _dates_not_in_the_future(cls, value: date | None) -> date | None:
         return _not_far_in_the_future(value)
 
+    @field_validator("event_year")
+    @classmethod
+    def _year_in_range(cls, value: int | None) -> int | None:
+        return _event_year(value)
+
+    @field_validator("event_month")
+    @classmethod
+    def _month_in_range(cls, value: int | None) -> int | None:
+        return _event_month(value)
+
     @field_validator("default_language", mode="before")
     @classmethod
     def _known_language(cls, value: object) -> str | None:
@@ -51,6 +85,13 @@ class _SetFields(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
+        if self.event_year is not None:
+            self.starts_on = _not_far_in_the_future(first_day(self.event_year, self.event_month))
+            self.ends_on = None
+        elif self.starts_on is not None:
+            self.event_year, self.event_month = self.starts_on.year, self.starts_on.month
+        else:
+            raise ValueError("Choose the year of the event.")
         if self.ends_on is not None and self.ends_on < self.starts_on:
             raise ValueError("The last day cannot be before the first day.")
         if KIND_LANGUAGE_RULE.get(self.default_kind) == "none":
@@ -84,11 +125,23 @@ class SetPatch(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
     place: str | None = Field(default=None, max_length=200)
+    event_year: int | None = None
+    event_month: int | None = None
     starts_on: date | None = None
     ends_on: date | None = None
     cover_url: str | None = Field(default=None, max_length=500, pattern=r"^https://\S+$")
     default_kind: Kind | None = None
     tracks_expected: int | None = Field(default=None, ge=0, le=1000)
+
+    @field_validator("event_year")
+    @classmethod
+    def _year_in_range(cls, value: int | None) -> int | None:
+        return _event_year(value)
+
+    @field_validator("event_month")
+    @classmethod
+    def _month_in_range(cls, value: int | None) -> int | None:
+        return _event_month(value)
 
     @field_validator("starts_on", "ends_on")
     @classmethod
@@ -120,8 +173,11 @@ class SetOut(BaseModel):
     title: str
     description: str | None
     place: str | None
+    event_year: int
+    event_month: int | None
     starts_on: date
     ends_on: date | None
+    # The picture the member uploaded (a path on this API), or the team's link; null if none.
     cover_url: str | None
     owner_id: str | None
     owner_name: str

@@ -1,7 +1,7 @@
 """A playlist from an event: a set of recordings uploaded together (docs/kiirtan-sets.md).
 
-One person uploads all the Kiirtans of a retreat; the set carries the title, the date or date
-range and the place, and every track is an ordinary recording (`recordings.collection_id`,
+One person uploads all the Kiirtans of a retreat; the set carries the title, the year and month
+of the event and the place, and every track is an ordinary recording (`recordings.collection_id`,
 `recordings.position`) that goes through the same pipeline: hash check, fingerprint warning, daily
 allowance. A set is exactly as published as its tracks: it is listed while at least one track is
 visible, and the team can take a track or the whole set down.
@@ -12,7 +12,16 @@ from __future__ import annotations
 from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -47,9 +56,15 @@ class RecordingCollection(Base, TimestampMixin):
     # The day of the event, or its first day; `ends_on` is the last day of a range.
     starts_on: Mapped[date] = mapped_column(Date, nullable=False)
     ends_on: Mapped[date | None] = mapped_column(Date)
-    # An https link to a cover picture. Picking and uploading an image is not built yet: the
-    # recording storage takes audio only. The team can set it; the phone shows it when it is there.
+    # The approximate date people give: a year and, when they know it, a month. `starts_on` is
+    # always filled from them (the first of the month, or 1 January), so ordering and the old
+    # clients keep working; `ends_on` is no longer asked for and stays for old rows.
+    event_year: Mapped[int | None] = mapped_column(Integer)
+    event_month: Mapped[int | None] = mapped_column(Integer)
+    # An https link to a cover picture the team set by hand. A picture the member uploads lives in
+    # `recording_collection_covers`; `cover_version` is the hash prefix of it (null when none).
     cover_url: Mapped[str | None] = mapped_column(Text)
+    cover_version: Mapped[str | None] = mapped_column(String(16))
     # What the tracks are unless a track says otherwise (the app fills these per track as well).
     default_kind: Mapped[str] = mapped_column(
         String(16), default="kiirtan", server_default="kiirtan", nullable=False
@@ -70,3 +85,20 @@ class RecordingCollection(Base, TimestampMixin):
     removed_reason: Mapped[str | None] = mapped_column(Text)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     removed_by: Mapped[str | None] = mapped_column(String(255))
+
+
+class RecordingCollectionCover(Base):
+    """The cover picture of a playlist, kept apart so listing playlists never loads image bytes
+    (a JPEG, PNG or WebP of at most 300 KB with its metadata stripped)."""
+
+    __tablename__ = "recording_collection_covers"
+
+    collection_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recording_collections.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    mime: Mapped[str] = mapped_column(String(32), nullable=False)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

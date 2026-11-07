@@ -17,21 +17,23 @@ Numbers (settings, all can be changed by environment variables), with the reason
 
 from __future__ import annotations
 
+import hashlib
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import exists, func, or_, select
+from sqlalchemy import delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.models import UserAccount
-from app.models.recording_collections import RecordingCollection
+from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
 from app.models.recordings import MemberNotice, Recording
-from app.schemas.recording_collections import SetDetail, SetOut, SetPatch, SetState
+from app.schemas.recording_collections import SetDetail, SetOut, SetPatch, SetState, first_day
 from app.schemas.recordings import RecordingCreate, kind_field_problem
 from app.services import recordings as rec
+from app.services.image_clean import ImageError, clean_image
 from app.services.song_comments import strip_invisible
 
 SET_DAILY_LIMIT_CODE = "set_daily_limit"
@@ -110,15 +112,26 @@ def state_of(collection: RecordingCollection, visible: int) -> SetState:
     return "published"
 
 
+def cover_url_of(collection: RecordingCollection) -> str | None:
+    """The picture to show: the one the member uploaded, else the link the team set by hand."""
+    if collection.cover_version:
+        return f"/api/v1/recording-sets/{collection.id}/cover?v={collection.cover_version}"
+    return collection.cover_url
+
+
 def set_out(collection: RecordingCollection, visible: int, *, owner: bool = False) -> SetOut:
     return SetOut(
         id=str(collection.id),
         title=collection.title,
         description=collection.description,
         place=collection.place,
+        event_year=collection.event_year or collection.starts_on.year,
+        event_month=(
+            collection.event_month if collection.event_year else collection.starts_on.month
+        ),
         starts_on=collection.starts_on,
         ends_on=collection.ends_on,
-        cover_url=collection.cover_url,
+        cover_url=cover_url_of(collection),
         owner_id=str(collection.owner_id) if collection.owner_id else None,
         owner_name=collection.owner_name,
         default_kind=collection.default_kind,  # type: ignore[arg-type]
@@ -389,18 +402,77 @@ async def apply_patch(
         collection.description = clean_optional(patch.description, 1000)
     if "place" in sent:
         collection.place = clean_optional(patch.place, 200)
-    starts = patch.starts_on if "starts_on" in sent and patch.starts_on else collection.starts_on
-    ends = patch.ends_on if "ends_on" in sent else collection.ends_on
-    if ends is not None and ends < starts:
-        raise HTTPException(status_code=422, detail="The last day cannot be before the first day.")
-    collection.starts_on = starts
-    collection.ends_on = ends
+    if "event_year" in sent and patch.event_year is not None:
+        year = patch.event_year
+        month = patch.event_month if "event_month" in sent else collection.event_month
+        collection.event_year, collection.event_month = year, month
+        collection.starts_on = first_day(year, month)
+        collection.ends_on = None
+    elif "event_month" in sent:
+        year = collection.event_year or collection.starts_on.year
+        collection.event_year, collection.event_month = year, patch.event_month
+        collection.starts_on = first_day(year, patch.event_month)
+        collection.ends_on = None
+    elif "starts_on" in sent and patch.starts_on:
+        # an older app: the day it sent is the date; the year and month follow it
+        ends = patch.ends_on if "ends_on" in sent else collection.ends_on
+        if ends is not None and ends < patch.starts_on:
+            raise HTTPException(
+                status_code=422, detail="The last day cannot be before the first day."
+            )
+        collection.starts_on = patch.starts_on
+        collection.ends_on = ends
+        collection.event_year, collection.event_month = patch.starts_on.year, patch.starts_on.month
+    elif "ends_on" in sent:
+        ends = patch.ends_on
+        if ends is not None and ends < collection.starts_on:
+            raise HTTPException(
+                status_code=422, detail="The last day cannot be before the first day."
+            )
+        collection.ends_on = ends
     if "cover_url" in sent:
         collection.cover_url = patch.cover_url
     if "default_kind" in sent and patch.default_kind:
         collection.default_kind = patch.default_kind
     if "tracks_expected" in sent and patch.tracks_expected is not None:
         collection.tracks_expected = patch.tracks_expected
+    await session.commit()
+
+
+async def set_cover(session: AsyncSession, collection: RecordingCollection, data: bytes) -> None:
+    """Keep the picture the member chose: JPEG, PNG or WebP, at most 300 KB, metadata cut out."""
+    try:
+        mime, clean = clean_image(data)
+    except ImageError as problem:
+        raise HTTPException(
+            status_code=problem.status,
+            detail={"code": problem.code, "message": problem.message},
+        ) from problem
+    digest = hashlib.sha256(clean).hexdigest()
+    row = await session.get(RecordingCollectionCover, collection.id)
+    if row is None:
+        session.add(
+            RecordingCollectionCover(
+                collection_id=collection.id,
+                mime=mime,
+                data=clean,
+                sha256=digest,
+                updated_at=rec.now_utc(),
+            )
+        )
+    else:
+        row.mime, row.data, row.sha256, row.updated_at = mime, clean, digest, rec.now_utc()
+    collection.cover_version = digest[:16]
+    await session.commit()
+
+
+async def remove_cover(session: AsyncSession, collection: RecordingCollection) -> None:
+    await session.execute(
+        delete(RecordingCollectionCover).where(
+            RecordingCollectionCover.collection_id == collection.id
+        )
+    )
+    collection.cover_version = None
     await session.commit()
 
 
