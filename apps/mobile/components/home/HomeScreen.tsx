@@ -28,6 +28,7 @@ import { KirtanRow } from "@/components/kirtan/KirtanParts"
 import { chipColorsOf, StickyChipsRow, StickyTopBlock } from "@/components/nav-v2/StickyChips"
 import { RowMenuSheet } from "@/components/songs-v2/CatalogSheets"
 import { Toast } from "@/components/songs-v2/Toast"
+import { TodayListeningExtras } from "@/components/today/TodayListeningExtras"
 import { Reveal } from "@/components/today/motion"
 import { fixtureDay } from "@/components/today/TodayPrototypeScreen"
 import { songCategories } from "@/constants/categories"
@@ -540,6 +541,7 @@ export function HomeScreen() {
           {!MOCKUP_DATA && !hero && phase === "loading" ? <HomeSkeleton p={p} /> : null}
           {!MOCKUP_DATA && !hero && phase === "failed" ? <HomeOffline p={p} onRetry={() => setAttempt((n) => n + 1)} /> : null}
           {visible.map((id) => section(id))}
+          <TodayListeningExtras p={p} filter={filter} />
           {visible.length === 0 && (MOCKUP_DATA || phase === "ready") ? <HomeEmpty p={p} text={t("home.empty")} /> : null}
         </View>
       </Animated.ScrollView>

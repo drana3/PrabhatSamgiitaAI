@@ -12,7 +12,9 @@ import {
   EmptyMessage,
   ResultList,
 } from "@/components/search-v2/SearchBlocks"
-import { BrowseView, SearchHeader } from "@/components/search-v2/BrowseBlocks"
+import { SearchHeader } from "@/components/search-v2/BrowseBlocks"
+import { SearchMenuView } from "@/components/search-v2/SearchMenuView"
+import { AuthorsSearchBlock } from "@/components/authors/AuthorsSearchBlock"
 import { StoryResults } from "@/components/search-v2/StoryResults"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
 import { KirtanRow } from "@/components/kirtan/KirtanParts"
@@ -22,6 +24,8 @@ import { Toast } from "@/components/songs-v2/Toast"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
+import { useSearchMenu } from "@/hooks/useSearchMenu"
+import { playHistoryEntry } from "@/lib/listening/playAgain"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchArtists, searchKirtans, type SearchScope } from "@/lib/kirtan/search"
@@ -105,7 +109,7 @@ export default function UnifiedSearchScreen() {
   }, [])
   const bottomInset = contentInsetFor(insets.bottom, miniPlayerVisible({ pathname: "/search-v2", hasSong }))
   const reduce = useReducedMotion()
-  const params = useLocalSearchParams<{ q?: string; hint?: string; focus?: string; listen?: string; scope?: string }>()
+  const params = useLocalSearchParams<{ q?: string; hint?: string; focus?: string; listen?: string; scope?: string; menu?: string }>()
   const parsed = useMemo(
     () => parseSearchParams(params),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,6 +126,7 @@ export default function UnifiedSearchScreen() {
   const songsTheme = useSongsTheme()
   const kActions = useKirtanActions()
   const { playable: kirtanCatalog } = useKirtans()
+  const menu = useSearchMenu(params.menu)
   const chipScroll = useSharedValueRN(0)
   const [query, setQuery] = useState(parsed.query)
   const [selectOnFocus, setSelectOnFocus] = useState(parsed.prefilled)
@@ -385,18 +390,28 @@ export default function UnifiedSearchScreen() {
         {showHint ? <DetectLabel p={p} text={voiceError ?? hintLine(query, parsed.hint)} /> : null}
 
         {empty ? (
-          <BrowseView
+          <SearchMenuView
             p={p}
+            theme={songsTheme}
+            menu={menu}
             top={SEARCH_TOP_TILES}
             discover={SEARCH_DISCOVER}
-            all={kindTiles}
+            kindTiles={kindTiles}
             recents={MOCKUP_DATA ? [] : recents}
             played={recentPlays.slice(0, 8)}
+            history={menu.history}
             onTile={(tile) => router.push(href(tile.target))}
             onTag={(tag) => pick(tag.query)}
             onRecent={pick}
             onClearRecents={clearSearchRecents}
             onPlayed={(play) => router.push(href(`/song-v2/${play.id}`))}
+            onOpen={(k, list, label) => kActions.open(k, list, label)}
+            onSeeAll={(target) => router.push(href(target))}
+            onPlayEntry={(entry) => {
+              const message = playHistoryEntry(entry)
+              if (message) kActions.flash(message)
+            }}
+            onHistory={() => router.push(href("/listening-history"))}
           />
         ) : (
           <View style={styles.results}>
@@ -410,6 +425,7 @@ export default function UnifiedSearchScreen() {
             ) : null}
             {show.songs && rows.length ? <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} /> : null}
             {show.songs && collections.length ? <CollectionChips p={p} names={collections} onPick={pick} /> : null}
+            {show.songs && scope === "all" ? <AuthorsSearchBlock theme={songsTheme} query={query} /> : null}
             {kirtanFirst ? null : kirtanSection}
             {show.songs && waitingForMeaning ? (
               <View style={styles.waiting} accessibilityLiveRegion="polite">

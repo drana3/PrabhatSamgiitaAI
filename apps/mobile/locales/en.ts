@@ -24,6 +24,7 @@ import { chordProposalsEn } from "./chordProposals"
 import { pronunciationEn } from "./pronunciation"
 import { authorsEn } from "./authors"
 import { notificationCentreEn } from "./notificationCentre"
+import { listeningEn } from "./listening"
 import { searchMenuEn } from "./searchMenu"
 
 /**
@@ -1296,4 +1297,5 @@ export const en = {
   ...authorsEn,
   ...notificationCentreEn,
   ...searchMenuEn,
+  ...listeningEn,
 } as const

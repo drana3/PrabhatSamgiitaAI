@@ -1,5 +1,6 @@
 import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
+import { cleanStyle } from "@/lib/kirtan/styles"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
 
@@ -207,6 +208,9 @@ export type PublishPayload = {
   language?: string | null
   /** the person's own name for the language, sent only with `language: "other"` */
   languageOther?: string | null
+  /** Kiirtan only: the Indian Kiirtan style id or `other` (then `styleOther` names it); optional */
+  style?: string | null
+  styleOther?: string | null
   /** required for the Dance music kind, refused for the others */
   dance?: string | null
   /** a track of a playlist from an event, and its place there; kind, language and dance left out come from the playlist */
@@ -238,6 +242,10 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     ...(payload.year ? { year: payload.year } : {}),
     ...(payload.language && kindHasLanguage(payload.kind) ? { language: payload.language } : {}),
     ...(payload.language === OTHER_LANGUAGE && kindHasLanguage(payload.kind) && cleanLanguageOther(payload.languageOther) ? { language_other: cleanLanguageOther(payload.languageOther) } : {}),
+    ...(() => {
+      const st = cleanStyle(payload.kind, payload.style, payload.styleOther)
+      return st.style && !st.missingName ? { style: st.style, ...(st.styleOther ? { style_other: st.styleOther } : {}) } : {}
+    })(),
     ...(payload.dance && kindHasDance(payload.kind) ? { dance: payload.dance } : {}),
     ...(payload.collectionId ? { collection_id: payload.collectionId, ...(payload.position ? { position: payload.position } : {}) } : {}),
     ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),

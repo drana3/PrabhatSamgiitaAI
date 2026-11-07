@@ -41,7 +41,16 @@ type Candidate = {
   alwaysIfAny?: boolean
 }
 
-const BLOCK_ORDER: readonly MenuBlock[] = ["pulse", "ps", "kiirtan", "authors", "spiritual", "bhajans", "themes"]
+const BLOCK_ORDER: readonly MenuBlock[] = ["pulse", "baba", "ps", "kiirtan", "authors", "spiritual", "bhajans", "themes"]
+
+/** The named Bhajan languages in the order the menu ranks them (your own listening first, then by count, then by code). The first `bhajanLanguage.max` get shelves; the rest go into "More languages". */
+export function rankBhajanLanguages(stats: Pick<MenuStats, "bhajanLanguages" | "listener">): [string, number][] {
+  const personalLang = stats.listener?.languages ?? {}
+  const score = (code: string, n: number) => n + ((personalLang[code] ?? 0) >= MENU_RULES.authors.personalPlays ? 1_000_000 : 0)
+  return Object.entries(stats.bhajanLanguages)
+    .filter(([code]) => code !== "other" && code !== "")
+    .sort(([a, x], [b, y]) => score(b, y) - score(a, x) || a.localeCompare(b))
+}
 
 function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf[] } {
   const R = MENU_RULES
@@ -65,6 +74,12 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
     })
   }
 
+  // ---- Baba's Audio Discourses (his own voice, right after the pulse)
+  all.push({
+    id: "baba", block: "baba", label: { type: "key", key: "searchMenu.baba.title" },
+    count: stats.babaAudio ?? 0, threshold: R.baba, reason: "threshold", score: 0,
+  })
+
   // ---- 1. Prabhat Samgiita
   stats.psCollections.forEach((c, i) => {
     all.push({
@@ -82,6 +97,12 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
     all.push({
       id: `kiirtan:type:${id}`, block: "kiirtan", label: { type: "kiirtanType", id },
       count, threshold: R.kiirtanType, reason: "threshold", score: id === "other" ? -1 : count,
+    })
+  }
+  for (const [id, count] of Object.entries(stats.kiirtanStyles ?? {})) {
+    all.push({
+      id: `kiirtan:style:${id}`, block: "kiirtan", label: { type: "kiirtanStyle", id },
+      count, threshold: R.kiirtanStyle, reason: "threshold", score: id === "other" ? -2 : count - 0.5,
     })
   }
   all.push({
@@ -123,10 +144,9 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
   })
 
   // ---- 5. Bhajans by language (then by type)
-  const named = Object.entries(stats.bhajanLanguages).filter(([code]) => code !== "other" && code !== "")
   const personalLang = stats.listener?.languages ?? {}
   const scoreLang = (code: string, n: number) => n + ((personalLang[code] ?? 0) >= R.authors.personalPlays ? 1_000_000 : 0)
-  const ranked = named.sort(([a, x], [b, y]) => scoreLang(b, y) - scoreLang(a, x) || a.localeCompare(b))
+  const ranked = rankBhajanLanguages(stats)
   ranked.forEach(([code, n], i) => {
     all.push({
       id: `bhajan:lang:${code}`, block: "bhajans", label: { type: "language", id: code },
@@ -226,10 +246,13 @@ export function buildMenu(stats: MenuStats): MenuResult {
     ordered = ordered.concat(items)
   }
 
-  // global cap: drop from the end, never a pinned shelf and never a Prabhat Samgiita collection
-  while (ordered.length > R.maxShelves) {
+  // global cap: drop from the end, never a pinned shelf, Baba's voice or a compact group. Prabhat Samgiita collections (one
+  // tile grid) and moods (one row of chips) are compact: they do not use up the 14 and are not dropped by the cap.
+  const compact = (s: MenuShelf) => s.id.startsWith("ps:kind:") || s.block === "themes"
+  const counted = () => ordered.filter((s) => !compact(s)).length
+  while (counted() > R.maxShelves) {
     let i = ordered.length - 1
-    while (i >= 0 && (ordered[i].reason === "pinned" || ordered[i].id.startsWith("ps:kind:"))) i--
+    while (i >= 0 && (ordered[i].reason === "pinned" || ordered[i].id === "baba" || compact(ordered[i]))) i--
     if (i < 0) break
     hidden.push({ id: ordered[i].id, why: "over-limit" })
     ordered.splice(i, 1)

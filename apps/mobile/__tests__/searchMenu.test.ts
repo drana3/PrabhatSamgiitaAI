@@ -198,7 +198,7 @@ describe("order, pins, caps", () => {
       kiirtanTypes: { bnk: 9, lila: 9, festival: 9, other: 9 }, kiirtanSets: 3, authors, spiritualSongs: 9,
       bhajanLanguages: langs, bhajanTypes: { morning: 5, evening: 5, devotional: 5 }, themes, pins: ["theme:f"],
     }))
-    expect(r.shelves.length).toBeLessThanOrEqual(MENU_RULES.maxShelves)
+    expect(r.shelves.filter((s) => !s.id.startsWith("ps:kind:") && s.block !== "themes").length).toBeLessThanOrEqual(MENU_RULES.maxShelves)
     expect(r.shelves.filter((s) => s.id.startsWith("ps:kind:")).length).toBe(PS.length)
     expect(r.shelves.map((s) => s.id)).toContain("theme:f")
   })
@@ -256,5 +256,76 @@ describe("visible words", () => {
   })
   it("Kiirtan is spelled with two i's", () => {
     for (const key of MENU_TITLE_KEYS) expect(String(en[key as keyof typeof en])).not.toMatch(/\bKirtan/)
+  })
+})
+
+describe("Round 3: Baba's voice, Kiirtan styles, moods", () => {
+  it("Baba's Audio Discourses is a shelf from the first recording, right after the pulse block", () => {
+    const r = buildMenu(stats({ newInWindow: 5, babaAudio: 1 }))
+    expect(r.shelves.map((s) => s.id).slice(0, 3)).toEqual(["new", "baba", "ps:kind:mood"])
+    expect(r.shelves.find((s) => s.id === "baba")).toMatchObject({ block: "baba", count: 1, label: { type: "key", key: "searchMenu.baba.title" } })
+    expect(ids(stats({ babaAudio: 0 }))).not.toContain("baba")
+    expect(ids(stats())).not.toContain("baba")
+  })
+
+  it("Baba's shelf is never the one the cap drops", () => {
+    const authors = Array.from({ length: 6 }, (_, i) => author(`x${i}`, 9, { listeners30: 30 }))
+    const langs = Object.fromEntries(["ru", "en", "hi", "bn", "es", "pt", "de"].map((c) => [c, 9]))
+    const themes = ["joyful", "longing", "calm", "ecstatic", "devotion", "sad"].map((id) => ({ id, confirmed: 9 }))
+    const r = buildMenu(stats({
+      babaAudio: 2, newInWindow: 9, psRecordings: 5, kiirtanTypes: { bnk: 9, lila: 9, festival: 9, other: 9 }, kiirtanSets: 3,
+      kiirtanStyles: { bengali: 9, hindi: 9, folk: 9 }, authors, spiritualSongs: 9, bhajanLanguages: langs, bhajanTypes: { morning: 5, evening: 5 }, themes,
+    }))
+    expect(r.shelves.filter((s) => !s.id.startsWith("ps:kind:") && s.block !== "themes").length).toBeLessThanOrEqual(MENU_RULES.maxShelves)
+    expect(r.shelves.map((s) => s.id)).toContain("baba")
+  })
+
+  it("collection tiles and mood chips are compact: they do not use up the 14 and the cap never drops them", () => {
+    const authors = Array.from({ length: 6 }, (_, i) => author(`y${i}`, 9, { listeners30: 30 }))
+    const themes = ["joyful", "longing", "calm", "ecstatic", "devotion", "sad"].map((id) => ({ id, confirmed: 9 }))
+    const r = buildMenu(stats({
+      babaAudio: 2, newInWindow: 9, psRecordings: 5, kiirtanTypes: { bnk: 9, lila: 9, festival: 9, other: 9 }, kiirtanSets: 3,
+      kiirtanStyles: { bengali: 9, hindi: 9, folk: 9 }, authors, spiritualSongs: 9,
+      bhajanLanguages: Object.fromEntries(["ru", "en", "hi", "bn", "es", "pt", "de"].map((c) => [c, 9])), bhajanTypes: { morning: 5 }, themes,
+      psCollections: ["mood", "festival", "theme", "occasion", "season", "language"].map((kind) => ({ kind, count: 4 })),
+    }))
+    const all = r.shelves.map((x) => x.id)
+    expect(all.filter((id) => id.startsWith("ps:kind:"))).toHaveLength(6)
+    expect(all.filter((id) => id.startsWith("theme:"))).toHaveLength(6)
+    expect(r.shelves.filter((x) => !x.id.startsWith("ps:kind:") && x.block !== "themes")).toHaveLength(MENU_RULES.maxShelves)
+  })
+
+  it("a style shelf appears at three Kiirtans, leaves under two, and Other styles comes last", () => {
+    expect(ids(stats({ kiirtanStyles: { bengali: 2 } }))).not.toContain("kiirtan:style:bengali")
+    const on = buildMenu(stats({ kiirtanStyles: { bengali: 3, other: 4, folk: 6 } }))
+    const styleIds = on.shelves.filter((s) => s.id.startsWith("kiirtan:style:")).map((s) => s.id)
+    expect(styleIds).toEqual(["kiirtan:style:folk", "kiirtan:style:bengali", "kiirtan:style:other"])
+    expect(on.shelves.find((s) => s.id === "kiirtan:style:folk")?.label).toEqual({ type: "kiirtanStyle", id: "folk" })
+    // at 2 it stays (on 3, off 2) because it was shown
+    const stays = buildMenu(stats({ kiirtanStyles: { bengali: 2 }, memory: on.memory, now: NOW + DAY }))
+    expect(stays.shelves.map((s) => s.id)).toContain("kiirtan:style:bengali")
+    const gone = buildMenu(stats({ kiirtanStyles: { bengali: 1 }, memory: on.memory, now: NOW + 8 * DAY }))
+    expect(gone.shelves.map((s) => s.id)).not.toContain("kiirtan:style:bengali")
+  })
+
+  it("mood shelves need five confirmed recordings, biggest first", () => {
+    const six = ["joyful", "longing", "calm", "ecstatic", "devotion", "sad"]
+    const got = buildMenu(stats({ themes: six.map((id, i) => ({ id, confirmed: 3 + i })) })).shelves.filter((s) => s.block === "themes")
+    // counts 3,4 are under the threshold; 5,6,7,8 appear, biggest first
+    expect(got.map((s) => s.id)).toEqual(["theme:sad", "theme:devotion", "theme:ecstatic", "theme:calm"])
+  })
+
+  it("aggregate counts Baba, styles (Kiirtan only) and moods from the recordings", () => {
+    const rec = (over: Partial<MenuRecording>): MenuRecording => ({ kind: "kiirtan", type: "bnk", author: "A", createdAt: NOW - DAY, ...over })
+    const s = aggregateRecordings(
+      [rec({ style: "folk", moods: ["joyful"] }), rec({ style: "folk", moods: ["joyful", "calm"] }), rec({ kind: "bhajan", style: "folk", language: "ru" }), rec({ kind: "baba_audio", type: "other" }), rec({ kind: "baba_audio" })],
+      NOW,
+      { psCollections: PS },
+    )
+    expect(s.babaAudio).toBe(2)
+    expect(s.kiirtanStyles).toEqual({ folk: 2 })
+    expect(s.themes.sort((a, b) => a.id.localeCompare(b.id))).toEqual([{ id: "calm", confirmed: 1 }, { id: "joyful", confirmed: 2 }])
+    // baba recordings are not Kiirtans
+    expect(s.kiirtanTypes).toEqual({ bnk: 2 })
   })
 })

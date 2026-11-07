@@ -20,6 +20,8 @@ export const PROFILE_ROUTES = {
   downloads: "/storage",
   /** Your library: everything that is the person's own, app/library-v2.tsx */
   library: "/library-v2",
+  /** What the person heard on this phone (local only): app/listening-history.tsx */
+  listeningHistory: "/listening-history",
   /** the avatar and name block opens this: app/edit-profile.tsx */
   editProfile: "/edit-profile",
   /** the rules for a Kiirtan or a Bhajan: app/content-rules.tsx */
@@ -40,6 +42,7 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/language": true,
   "/storage": true,
   "/library-v2": true,
+  "/listening-history": true,
   "/edit-profile": true,
   "/content-rules": true,
   "/admin": true,

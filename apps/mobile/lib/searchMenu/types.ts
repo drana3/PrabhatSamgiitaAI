@@ -4,7 +4,7 @@
  */
 
 /** The blocks of the menu, in the order the rules emit them (a layout may regroup them). */
-export type MenuBlock = "pulse" | "ps" | "kiirtan" | "authors" | "spiritual" | "bhajans" | "themes"
+export type MenuBlock = "pulse" | "baba" | "ps" | "kiirtan" | "authors" | "spiritual" | "bhajans" | "themes"
 
 /** Why a shelf is on the menu. `kept` = below its "on" threshold but inside the anti-flicker hold. */
 export type ShelfReason = "default" | "threshold" | "popular" | "personal" | "catalogue" | "pinned" | "kept"
@@ -14,6 +14,7 @@ export type ShelfLabel =
   | { type: "key"; key: string }
   | { type: "psKind"; id: string }
   | { type: "kiirtanType"; id: string }
+  | { type: "kiirtanStyle"; id: string }
   | { type: "bhajanType"; id: string }
   | { type: "language"; id: string }
   | { type: "author"; id: string; name: string }
@@ -61,6 +62,10 @@ export type MenuStats = {
   psRecordings: number
   /** Kiirtans per type id (bnk, lila, festival, other) */
   kiirtanTypes: Record<string, number>
+  /** Kiirtans per style id (bengali, hindi, brajabuli, dhrupad, folk, other); absent = none named yet */
+  kiirtanStyles?: Record<string, number>
+  /** Baba's Audio Discourses (kind baba_audio): his own voice; absent = none */
+  babaAudio?: number
   /** event sets with at least two published tracks */
   kiirtanSets: number
   /** Bhajans per language code; recordings without a language are not counted here */
@@ -113,6 +118,10 @@ export type MenuRecording = {
   author: string
   /** ms since epoch (created_at) */
   createdAt: number
+  /** Kiirtan style id, when the uploader named one */
+  style?: string | null
+  /** confirmed mood ids (lib/kirtan/moods.ts) */
+  moods?: readonly string[] | null
   /** counted plays since the start, when the server sends it */
   plays?: number | null
   /** event set the track belongs to */

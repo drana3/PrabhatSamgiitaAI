@@ -10,6 +10,10 @@ export const MENU_RULES = {
   maxShelves: 14,
   maxPins: 3,
 
+  /** Baba's own voice is rare and wanted: one recording is enough, and the shelf is never the one dropped by the cap */
+  baba: { on: 1, off: 1 },
+  kiirtanStyle: { on: 3, off: 2 },
+
   newMonth: { on: 3, off: 2, show: 12 },
   /** "Most played" needs real counts: this many recordings with plays and this many plays in all */
   mostPlayed: { minRecordings: 5, minTotalPlays: 50, show: 10 },
@@ -49,6 +53,9 @@ export const MENU_TITLE_KEYS = [
   "searchMenu.mostPlayed.lifetime",
   "searchMenu.ps.recordings",
   "searchMenu.kiirtan.sets",
+  "searchMenu.baba.title",
+  "searchMenu.block.baba",
+  "searchMenu.kiirtan.styleOther",
   "searchMenu.authors.popular",
   "searchMenu.authors.catalogue",
   "searchMenu.spiritual.title",

@@ -1,7 +1,10 @@
 # Search browse menu: blocks, adaptive rules, themes
 
-Status: design plus a pure rules module (`apps/mobile/lib/searchMenu/*`, tests in `apps/mobile/__tests__/searchMenu.test.ts`).
-Nothing is wired to a screen yet. Dada picks a layout variant first (boards in `Для-Дады/поиск-меню/`).
+Status: **built and wired** (round 3). Dada chose **variant D on top of A** (a "Listen again" strip from the phone's own history,
+then stacked shelves block by block). The pure rules module is `apps/mobile/lib/searchMenu/*`; the live data layer is
+`lib/searchMenu/live.ts` and `hooks/useSearchMenu.ts`; the screen is `components/search-v2/SearchMenuView.tsx` inside
+`app/search-v2.tsx`; "See all" opens `app/browse-shelf.tsx`. Boards of every state: `Для-Дады/поиск-v2/`.
+The decisions of round 3 are in section 9. Older layout boards: `Для-Дады/поиск-меню/`.
 This page extends `docs/search-scenarios.md` (what Search does and where every control leads).
 
 ## 1. What the menu is
@@ -13,19 +16,19 @@ shelf with nothing in it, and never see a number the app did not count.
 | # | Block | What is in it | Where the data is today |
 |---|-------|---------------|-------------------------|
 | 0 | Pulse (top) | New this month, Most played | `recordings.created_at`; play counts (see 4) |
+| 0b | Baba's voice | One shelf, "Baba's Audio Discourses" (kind `baba_audio`); also on Today with "See all" | `recordings.kind = baba_audio` |
 | 1 | Prabhat Samgiita | The real collections (moods, festivals, themes, occasions, seasons, languages) and, when there are enough, performances of PS songs | `lib/searchBrowse.ts` (collections), recordings of `kind = prabhat_samgiita` |
-| 2 | Kiirtan | Categories by **type** (Baba Nam Kevalam, Lila, Festival, Other) and "Events and retreats" (sets uploaded together) | `recordings.type`, `recordings.collection_id` |
+| 2 | Kiirtan | Categories by **type** (Baba Nam Kevalam, Lila, Festival, Other), "Events and retreats" (sets uploaded together), and "Indian Kiirtan by style" (Bengali, Hindi, Brajabuli, Dhrupad-flavoured, Folk, Other) | `recordings.type`, `recordings.collection_id`, `recordings.style` |
 | 3 | Kiirtans by authors | One shelf per author, named by the author | `recordings.author` (text) |
 | 4 | Spiritual songs | One shelf | `recordings.kind = spiritual_song` (API has it; the phone's kind list does not yet) |
 | 5 | Bhajans by language | One shelf per language that has Bhajans, then a "More languages" shelf, then types (morning, evening, devotional) | `recordings.language` (ISO code), `recordings.type` |
-| 6 | Themes | Joyful, longing... only after the team has confirmed enough recordings (section 6) | does not exist yet |
+| 6 | Moods | The six moods (Joyful, Longing, Calm, Ecstatic, Devotion, Sad) as one row of chips, only for moods with enough confirmed recordings (section 6) | the tags do not exist yet (section 9.4) |
 
 ### Honest limits of the data (nothing is invented)
 
-* **"Indian kiirtans" has no field behind it.** A Kiirtan is Baba Nam Kevalam, so it has no sung language, and the API has no
-  origin or style. The categories that really exist for a Kiirtan are its type (BNK, Lila, Festival, Other), its author, its
-  event set and its year. Block 2 uses those. If Dada wants an "origin" or "style" category, someone must first add that field
-  to the upload form (open question 1).
+* **"Indian Kiirtan" is now a field: the optional style.** A Kiirtan is Baba Nam Kevalam, so it has no sung language; the
+  uploader may name an Indian style (a short list plus "Other"). Round 3 added `recordings.style` and `style_other` (Kiirtan
+  only). A style shelf appears at 3 Kiirtans of that style (section 9.2). Types, authors, event sets and years stay as before.
 * **Bhajan languages** come from the ISO code the uploader chose. Rows without a language, and "other", are not a language shelf;
   they go into "More languages" so no Bhajan is unreachable.
 * **Authors** are free text typed by the uploader. The rules treat "Priya Devi", "priya  devi" and the first name of
@@ -59,7 +62,9 @@ All numbers live in `lib/searchMenu/config.ts` (`MENU_RULES`). **Thresholds belo
 | Bhajan language | 3+ Bhajans in that language | under 2 | all |
 | More languages | 3+ Bhajans in languages past the top five, or with "other" | under 2 | all |
 | Bhajan type | 3+ | under 2 | all |
-| Theme | 5+ confirmed recordings | under 3 | all |
+| Theme (mood) | 5+ confirmed recordings | under 3 | all |
+| Baba's Audio Discourses | 1+ recording | under 1 (empty) | all, newest first |
+| Kiirtan style | 3+ Kiirtans of that style | under 2 | all, newest first |
 
 ### 2.2 Windows
 
@@ -70,8 +75,8 @@ All numbers live in `lib/searchMenu/config.ts` (`MENU_RULES`). **Thresholds belo
 
 ### 2.3 Maximums and order
 
-* At most **14 shelves** in all. Over the cap, the lowest-priority shelves go first. Prabhat Samgiita collections and pinned
-  shelves are never dropped.
+* At most **14 shelves** in all. Over the cap, the lowest-priority shelves go first. Pinned shelves, Baba's voice, the Prabhat
+  Samgiita collections (one tile grid) and the mood chips (one row) are never dropped, and the last two do not use up the 14.
 * Authors: at most **4** shelves, at most **2** of them personal, at most **3** in cold start. Languages: top **5** plus "More languages". Themes: **6**.
 * Blocks come in a fixed order (0 to 6). Inside a block: pinned first, then "you listen" shelves, then shelves that were already
   visible (in their old order), then newcomers by score. Scores: authors by distinct listeners (then recording count), languages
@@ -107,8 +112,10 @@ The block title is chosen by `authorsTitleKey`: "popular" only when at least one
 ### 2.7 Team pins
 
 The team may pin up to **3** shelves (for example a festival set during a festival). A pinned shelf skips the thresholds but not
-the "not empty" rule, goes first in its block, and counts toward the 14. Where the pin list is stored (a small `menu_pins` table
-or a remote config file) is open question 4.
+the "not empty" rule, goes first in its block, counts toward the 14, and shows "Chosen by the team". Stored in a tiny table,
+`search_menu_pins` (shelf id, position, who pinned, when); the API is `GET /api/v1/search-menu/pins` (public, the phone reads it
+at most once a day and keeps the last list for offline) and `PUT /api/v1/admin/search-menu/pins` (team only, replaces the list,
+at most three ids, an id is lowercase letters, digits, `:`, `_`, `-`). There is no team screen for it yet (section 9.5).
 
 ## 3. Data the rules need
 
@@ -206,16 +213,71 @@ If audio analysis is ever tried, it should only **order** the voting queue (show
 
 * `lib/searchMenu/types.ts`: `MenuStats`, `MenuShelf`, `MenuResult`, `MenuMemory`.
 * `lib/searchMenu/config.ts`: `MENU_RULES` (all thresholds), `MENU_TITLE_KEYS` (visible words; en/ru/es in `locales/searchMenu.ts`).
-* `lib/searchMenu/rules.ts`: `buildMenu`, `isColdStart`.
+* `lib/searchMenu/rules.ts`: `buildMenu`, `isColdStart`, `rankBhajanLanguages`.
+* `lib/searchMenu/live.ts`: `buildLiveMenu` (recordings, history, pins, memory to shelves), `shelfItems` (the recordings on a
+  shelf, from the same filter that counted it), `shelfTitle`, `shelfHref`, `labelFromId`. `lib/searchMenu/remote.ts`: the pins calls.
+* `lib/listening/*` and `stores/listeningHistoryStore.ts`: the local history.
+* Preview only: `lib/fixtures/searchMenuDemo.ts`; `/search-v2?menu=new|early|grown` picks the sample stage (default grown).
 * `lib/searchMenu/aggregate.ts`: `aggregateRecordings`, `normalizeKindId` (an old `devotional_song` reads as a Bhajan).
 * Labels of types, languages, authors, collections and themes are resolved by the screen from the app's own dictionaries
   (`kt.type.*`, `kt.btype.*`, `lang.<code>`), not by the module.
 
 ## 8. Open questions for Dada
 
-1. Do you want an "Indian" or "style" category for Kiirtans? There is no data for it; it needs a field on the upload form.
-2. The list of themes (sad, joyful, ...): which words, and how many? Five to six is a good size.
-3. Are the thresholds right (3 recordings to appear, 5 listeners for a popular author)? Small numbers show more shelves early.
-4. Where should team pins live: a table in the admin, or a small config file?
-5. Which variant (A, B, C or D)?
-6. Should "You listen" shelves exist at all, or is a local listening log more than you want to keep on the phone?
+Answered in round 3 (see section 9): 1 style field (yes, optional, built on the API), 2 six moods, 4 pins in a table, 5 variant D on A,
+6 a local history screen (the log feeds "you listen" on the phone only). Still open:
+
+1. The thresholds below are Dada's to keep or change; each is one number in `lib/searchMenu/config.ts`.
+2. The upload forms do not offer the style field yet (section 9.2), and nobody can tag a mood yet (section 9.4).
+3. A screen for the team to edit the pins (section 9.5).
+
+## 9. Round 3 decisions
+
+### 9.1 Layout: D on A
+
+Top of the idle Search: recent searches, the four section tiles, then **"Listen again"** (the last eight tracks of this phone's own
+history, tap = play again, "My listening history" opens the whole screen). While the history is empty the old "Recently played"
+songs strip shows instead. Then the shelves the rules chose, block by block, each with its real count and a "See all" button:
+Baba's voice, Prabhat Samgiita (collection tiles and, when 3+ exist, "Sung by our community"), Kiirtan (types, events, then the
+sub-heading "Indian Kiirtan by style"), authors, spiritual songs, Bhajans by language, Moods. The "Discover" photo shelf stays at
+the end. A typed search also shows the **Authors** block (`<AuthorsSearchBlock>`, route `/authors`) for names that match.
+
+### 9.2 The style field ("Indian kiirtan / style")
+
+Optional, Kiirtan only: Bengali, Hindi, Brajabuli, Dhrupad-flavoured, Folk, or Other with a name (up to 80 characters). API:
+`recordings.style` + `style_other` (migration 0039), refused for other kinds, "Other" needs a name. Phone: `lib/kirtan/styles.ts`
+(ids, labels, `cleanStyle`), the read side (`Kirtan.style/styleOther`, `RemoteRecording.style/style_other`, the publish payload) and
+the picker `components/kirtan/add/StyleField.tsx`. **Not done:** placing the picker in the add form and the playlist/bulk-queue rows
+(the drafts are being changed by the batch-upload work). The shelf rule: 3+ Kiirtans of one style to appear, under 2 to leave.
+
+### 9.3 Baba's Audio Discourses
+
+Kind id `baba_audio` (owned by the upload work; the menu only reads the id). One shelf as soon as one recording exists, never
+dropped by the 14-cap. On Today a shelf "Baba's voice" with "See all"; in Search a block of its own at the top of the menu.
+
+### 9.4 Moods
+
+Exactly six: Joyful, Longing, Calm, Ecstatic, Devotion, Sad (ru: Радостное, Тоска, Спокойное, Экстатическое, Преданность, Грустное;
+es likewise). A mood chip appears at 5 confirmed recordings and leaves under 3. The words live in `lib/kirtan/moods.ts` and
+`locales/searchMenu.ts` (`mood.*`). **The tagging itself (uploader suggests, listeners confirm, section 6) is not built**: the menu
+reads `themes` from the recordings' `moods` when they exist and shows no chips until then. In the preview, five moods are sample data.
+
+### 9.5 Team pins
+
+Table and endpoints in section 2.7. The phone reads the list at most once a day. A team-only toggle in the team screen was left out
+(not cheap); until then the list is set with the admin API.
+
+### 9.6 Listening history (phone only)
+
+Screen `/listening-history`: "My listening history", grouped Today / Yesterday / Earlier. A row shows the title, a kind icon and the
+time; tap plays it again; the cross removes one; "Clear all" asks first; a switch pauses logging; an empty state explains. An entry is
+added only after a **counted play** (30 seconds, or half of a short track and never under 10, the same rule as the author numbers),
+one entry per track per day, newest 500 kept. Nothing is sent anywhere. The same log feeds the "you listen" author and language
+rules locally (`lib/listening/stats.ts`). Reachable from Today ("Listening history") and the profile menu. Store
+`prabhat-listening-history` (persist version 1); the menu's memory and pins are `prabhat-search-menu` (version 1).
+
+### 9.7 Thresholds (unchanged, written down)
+
+Appear at 3, leave under 2, plus a 7-day hold so a shelf does not blink. A popular author needs 3+ recordings and 5+ distinct
+listeners in 30 days. At most 14 shelves (compact groups excepted, section 2.3). Baba's voice: 1 / 1. Style: 3 / 2. Mood: 5 / 3.
+

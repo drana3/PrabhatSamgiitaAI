@@ -39,6 +39,7 @@ import { LegacyRedirectHost } from "@/components/nav-v2/LegacyRedirectHost"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
 import { NotificationsHost } from "@/components/notifications/NotificationsHost"
 import { PlayReporterHost } from "@/components/authors/PlayReporterHost"
+import { ListeningHistoryHost } from "@/components/listening/ListeningHistoryHost"
 import { SaveHost } from "@/components/save/SaveHost"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
@@ -230,6 +231,9 @@ export default function RootLayout() {
             <Stack.Screen name="collections-v2" options={{ presentation: "card" }} />
             {/* Your library: the person's own songs, Kiirtans, playlists, downloads and uploads; opened from the profile sheet. */}
             <Stack.Screen name="library-v2" options={{ presentation: "card" }} />
+            {/* My listening history (on this phone only) and the full list behind a Search menu shelf. */}
+            <Stack.Screen name="listening-history" options={{ presentation: "card" }} />
+            <Stack.Screen name="browse-shelf" options={{ presentation: "card" }} />
             {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
             <Stack.Screen name="player-v2" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
           </Stack>
@@ -239,6 +243,8 @@ export default function RootLayout() {
           <SaveHost />
           {/* Counts plays of recordings for their authors' statistics (watches the player, draws nothing). */}
           <PlayReporterHost />
+          {/* The local listening history: adds a counted play to the log on this phone (draws nothing, sends nothing). */}
+          <ListeningHistoryHost />
           {/* Reminders and the inbox: schedules local notifications, fills the bell. Draws nothing. */}
           <NotificationsHost />
         </FrameSafeArea>

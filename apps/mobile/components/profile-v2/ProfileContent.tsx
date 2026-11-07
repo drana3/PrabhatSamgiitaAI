@@ -200,6 +200,7 @@ export function useProfileContent(theme: AmTheme) {
       {/* Your library: closes this sheet and opens the page, so Back returns to the screen under it */}
       <Group p={p}>
         <LibraryEntryRow p={p} onPress={() => swapTo(PROFILE_ROUTES.library)} />
+        <SetRow p={p} label={t("history.link")} chevron onPress={() => swapTo(PROFILE_ROUTES.listeningHistory)} />
       </Group>
 
       {/* "Quiz and certificates" row hidden for now (Dada 2026-11-05), see lib/learn/hub.ts */}
