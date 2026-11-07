@@ -52,12 +52,23 @@ class World:
         self.sessions = sessions
 
     async def post(
-        self, who: str | None, song: int = 19, body: str = "A story.", anonymous: bool = False
+        self,
+        who: str | None,
+        song: int = 19,
+        body: str = "A story.",
+        anonymous: bool = False,
+        parent: str | None = None,
+        flood: bool = False,
     ) -> httpx.Response:
+        """`flood=False` empties the anti-flood count first, so a test can post freely; the flood
+        tests pass `flood=True` to keep it."""
+        if not flood:
+            service.limiter.reset()
+        payload: dict[str, Any] = {"body": body, "is_anonymous": anonymous}
+        if parent is not None:
+            payload["parent_id"] = parent
         return await self.client.post(
-            f"{URL}/songs/{song}",
-            headers={"X-Test-Member": who} if who else {},
-            json={"body": body, "is_anonymous": anonymous},
+            f"{URL}/songs/{song}", headers={"X-Test-Member": who} if who else {}, json=payload
         )
 
     async def listing(self, who: str | None = None, song: int = 19, **params: Any) -> Any:
@@ -263,6 +274,11 @@ async def test_an_anonymous_comment_carries_no_trace_of_its_author(world: World)
             "author",
             "mine",
             "can_remove",
+            "deleted",
+            "parent_id",
+            "reply_to",
+            "reply_count",
+            "replies",
         }
     # the comment id is a fresh random id, not derived from the account
     assert str(MEMBER_A) not in walk(created.json())
@@ -291,11 +307,15 @@ async def test_the_author_deletes_their_own_comment_also_an_anonymous_one(world:
         assert (
             await world.client.delete(f"{URL}/{item['id']}", headers={"X-Test-Member": "a"})
         ).status_code == 204
-    assert (await world.listing()).json()["total"] == 0
-    # QA-009: the row stays (it counts toward the daily allowance) but the text is gone for good
+    listed = (await world.listing()).json()
+    # each leaves a tombstone: no text, no author; none is counted as a comment people can read
+    assert listed["total"] == 2 and listed["live_total"] == 0
+    assert all(i["deleted"] and i["body"] == "" and i["author"] is None for i in listed["items"])
+    # the row stays but the text is gone for good
     rows = await world.rows()
     assert len(rows) == 2
-    assert {r.status for r in rows} == {"removed"} and {r.removed_by for r in rows} == {"author"}
+    assert {r.status for r in rows} == {"removed"}
+    assert {r.removed_by for r in rows} == {service.AUTHOR_DELETED_BY}
     assert {r.body for r in rows} == {service.AUTHOR_DELETED_BODY}
     assert "named" not in json.dumps((await world.listing("team")).json())
     # deleting it a second time finds nothing, like any missing comment
@@ -316,24 +336,7 @@ async def test_the_author_cannot_wipe_a_comment_the_team_removed(world: World) -
     assert len(after) == 1
     assert after[0].body == "Evidence text" == before.body
     assert after[0].status == "removed" and after[0].removed_reason == "Abuse"
-    assert after[0].removed_by == "Carya" and after[0].removed_by != "author"
-
-
-async def test_deleting_comments_does_not_give_the_daily_allowance_back(world: World) -> None:
-    """QA-009: the daily count includes deleted and removed comments."""
-    for number in range(service.DAILY_COMMENTS):
-        service.limiter.reset()
-        posted = await world.post("b", body=f"c{number}")
-        assert posted.status_code == 201
-        assert (
-            await world.client.delete(
-                f"{URL}/{posted.json()['id']}", headers={"X-Test-Member": "b"}
-            )
-        ).status_code == 204
-    service.limiter.reset()
-    stopped = await world.post("b", body="one more")
-    assert stopped.status_code == 429
-    assert stopped.headers["x-error-code"] == service.DAILY_LIMIT_CODE
+    assert after[0].removed_by == "Carya" and after[0].removed_by != service.AUTHOR_DELETED_BY
 
 
 async def test_another_member_cannot_delete_and_learns_nothing(world: World) -> None:
@@ -409,42 +412,60 @@ async def test_the_team_queue_shows_reported_comments_with_their_author(world: W
 # --------------------------------------------------------------------------- limits
 
 
-async def test_the_daily_limit_stops_members_but_not_the_team(world: World) -> None:
-    for number in range(service.DAILY_COMMENTS):
-        service.limiter.reset()
-        assert (await world.post("b", body=f"c{number}")).status_code == 201
-    service.limiter.reset()
-    stopped = await world.post("b", body="one more")
-    assert stopped.status_code == 429
-    assert stopped.headers["x-error-code"] == service.DAILY_LIMIT_CODE
-    async with world.sessions() as session:
-        await session.execute(
-            update(SongComment).values(created_at=datetime.now(UTC) - timedelta(hours=25))
-        )
-        await session.commit()
-    assert (await world.post("b", body="the next day")).status_code == 201
-    for number in range(service.DAILY_COMMENTS + 2):
-        service.limiter.reset()
-        assert (await world.post("team", body=f"t{number}")).status_code == 201
+async def test_the_anti_flood_stops_a_script_and_there_is_no_daily_limit(world: World) -> None:
+    """One rule: at most POSTS_PER_MINUTE posts per member in 60 seconds. Nothing else counts."""
+    results = [(await world.post("b", body=f"burst {n}", flood=True)).status_code for n in range(8)]
+    assert results[: service.POSTS_PER_MINUTE] == [201] * service.POSTS_PER_MINUTE
+    assert results[service.POSTS_PER_MINUTE :] == [429] * (8 - service.POSTS_PER_MINUTE)
+    assert not hasattr(service, "DAILY_COMMENTS")
+    # a member who waited a minute posts again, and may post 40 comments in a day, a minute apart
+    for number in range(40):
+        assert (await world.post("b", body=f"spread {number}")).status_code == 201
 
 
-async def test_the_hourly_brake_stops_a_script(world: World) -> None:
-    results = [(await world.post("b", body=f"burst {n}")).status_code for n in range(12)]
-    assert results[: service.HOURLY_COMMENTS] == [201] * service.HOURLY_COMMENTS
-    assert results[service.HOURLY_COMMENTS :] == [429, 429]
+async def test_the_team_has_a_roomier_flood_limit_and_each_member_their_own(world: World) -> None:
+    for number in range(service.POSTS_PER_MINUTE):
+        assert (await world.post("b", body=f"b{number}", flood=True)).status_code == 201
+    assert (await world.post("b", body="one more", flood=True)).status_code == 429
+    # another member is not held back by b
+    assert (await world.post("a", body="a first", flood=True)).status_code == 201
+    for number in range(service.POSTS_PER_MINUTE + 3):
+        assert (await world.post("team", body=f"t{number}", flood=True)).status_code == 201
 
 
-async def test_refused_posts_do_not_use_up_the_hourly_allowance(world: World) -> None:
+async def test_refused_posts_do_not_use_up_the_flood_allowance(world: World) -> None:
     """QA-009: an empty post or a link flood is refused before it is counted."""
-    for _ in range(service.HOURLY_COMMENTS + 5):
-        assert (await world.post("b", body="   ")).status_code == 422
-        assert (await world.post("b", body="a.com b.org c.net")).status_code == 422
+    for _ in range(service.POSTS_PER_MINUTE + 5):
+        assert (await world.post("b", body="   ", flood=True)).status_code == 422
+        assert (await world.post("b", body="a.com b.org c.net", flood=True)).status_code == 422
     results = [
-        (await world.post("b", body=f"real {n}")).status_code
-        for n in range(service.HOURLY_COMMENTS + 1)
+        (await world.post("b", body=f"real {n}", flood=True)).status_code
+        for n in range(service.POSTS_PER_MINUTE + 1)
     ]
-    assert results[: service.HOURLY_COMMENTS] == [201] * service.HOURLY_COMMENTS
+    assert results[: service.POSTS_PER_MINUTE] == [201] * service.POSTS_PER_MINUTE
     assert results[-1] == 429
+
+
+async def test_a_team_member_named_author_does_not_pass_for_an_author_delete(world: World) -> None:
+    """QA-059: the marker of an author's own delete can never equal a display name."""
+    async with world.sessions() as session:
+        team = await session.get(UserAccount, TEAM)
+        assert team is not None
+        team.display_name = "author"
+        await session.commit()
+    item = (await world.post("a", body="Rude words")).json()
+    await world.client.request(
+        "DELETE",
+        f"{URL}/{item['id']}",
+        headers={"X-Test-Member": "team"},
+        json={"reason": "unkind"},
+    )
+    (row,) = await world.rows()
+    assert row.removed_by == "author" and row.removed_by != service.AUTHOR_DELETED_BY
+    listed = (await world.listing("b")).json()
+    assert listed["items"] == [] and listed["total"] == 0  # a team removal leaves no tombstone
+    assert service.team_removed_by("\x1fauthor") != service.AUTHOR_DELETED_BY
+    assert service.AUTHOR_DELETED_BY.startswith("\x1f")
 
 
 # ------------------------------------------------------------ invisible text, links, duplicates
@@ -528,6 +549,63 @@ async def test_a_deleted_comment_can_be_written_again(world: World) -> None:
     assert (await world.post("a", body="Say it again")).status_code == 201
 
 
+# --------------------------------------------------------------------------- replies
+
+
+async def test_song_replies_nest_count_and_keep_the_tombstone_rules(world: World) -> None:
+    """The same code as the recording comments (tests/test_comment_replies.py), on a song."""
+    first = (await world.post("a", body="Top words here")).json()
+    reply = await world.post("b", body="A reply here", parent=first["id"])
+    assert reply.status_code == 201 and reply.json()["parent_id"] == first["id"]
+    answer = await world.post("a", body="Answering that", parent=reply.json()["id"])
+    assert answer.json()["parent_id"] == first["id"]  # still one level
+    assert answer.json()["reply_to"] == {"name": "Bhakti", "deleted": False}
+    listed = (await world.listing("b")).json()
+    assert listed["total"] == 1 and listed["live_total"] == 3
+    assert listed["items"][0]["reply_count"] == 2
+    # the author deletes the top comment: a tombstone with its replies; the count drops by one
+    await world.client.delete(f"{URL}/{first['id']}", headers={"X-Test-Member": "a"})
+    listed = (await world.listing("b")).json()
+    entry = listed["items"][0]
+    assert entry["deleted"] is True and entry["body"] == "" and len(entry["replies"]) == 2
+    assert listed["live_total"] == 2
+    # a deleted comment cannot be answered; another song cannot be reached through its id
+    assert (await world.post("b", body="Too late", parent=first["id"])).status_code == 404
+    live = (await world.post("a", body="Live one here")).json()
+    assert (await world.post("b", body="Wrong song", song=20, parent=live["id"])).status_code == 404
+
+
+async def test_song_replies_are_reported_removed_and_restored_by_the_team(world: World) -> None:
+    first = (await world.post("a", body="Top words here")).json()
+    rude = (await world.post("b", body="Rude reply here", parent=first["id"])).json()
+    report = await world.client.post(
+        f"{URL}/{rude['id']}/report", headers={"X-Test-Member": "a"}, json={"reason": "spam"}
+    )
+    assert report.status_code == 201
+    queue = (await world.client.get(f"{URL}/review", headers={"X-Test-Member": "team"})).json()
+    assert [(i["body"], i["parent_id"]) for i in queue["items"]] == [
+        ("Rude reply here", first["id"])
+    ]
+    assert (
+        await world.client.get(f"{URL}/review", headers={"X-Test-Member": "a"})
+    ).status_code == 403
+    await world.client.request(
+        "DELETE", f"{URL}/{rude['id']}", headers={"X-Test-Member": "team"}, json={"reason": "no"}
+    )
+    assert (await world.listing("a")).json()["live_total"] == 1
+    removed = (
+        await world.client.get(
+            f"{URL}/review", headers={"X-Test-Member": "team"}, params={"filter": "removed"}
+        )
+    ).json()
+    assert [i["body"] for i in removed["items"]] == ["Rude reply here"]
+    back = await world.client.post(f"{URL}/{rude['id']}/restore", headers={"X-Test-Member": "team"})
+    assert back.status_code == 200
+    assert (await world.listing("a")).json()["live_total"] == 2
+    kept = await world.client.post(f"{URL}/{first['id']}/keep", headers={"X-Test-Member": "team"})
+    assert kept.status_code == 200
+
+
 # --------------------------------------------------------------------------- migration 0030
 
 VERSIONS = Path(__file__).resolve().parents[1] / "alembic" / "versions"
@@ -562,6 +640,11 @@ def test_the_migration_builds_the_tables_runs_twice_and_matches_the_model() -> N
         connection.execute(sa.text("CREATE TABLE user_accounts (id CHAR(32) PRIMARY KEY)"))
     run(engine, migration.upgrade)
     run(engine, migration.upgrade)  # again: nothing breaks
+    replies = importlib.util.spec_from_file_location("m0037", VERSIONS / "0037_comment_replies.py")
+    assert replies and replies.loader
+    later = importlib.util.module_from_spec(replies)
+    replies.loader.exec_module(later)
+    run(engine, later.upgrade)  # the reply columns come with 0037
     inspector = sa.inspect(engine)
     for model in (SongComment, SongCommentReport):
         table = cast(Table, model.__table__)

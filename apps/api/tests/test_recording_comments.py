@@ -16,6 +16,8 @@ from sqlalchemy import func, select
 from app.models import UserAccount
 from app.models.recording_extras import RecordingComment
 from app.models.song_comments import SongComment
+from app.services import recording_comments as service
+from app.services import song_comments as base
 from app.services.extras_common import AUTHOR_DELETED_BY, team_removed_by
 from tests.extras_support import (
     AVATAR,
@@ -31,14 +33,21 @@ URL = "/api/v1/recording-comments"
 
 
 async def post(
-    world: World, who: str | None = "a", body: str = "A story.", anonymous: bool = False, rec=REC
+    world: World,
+    who: str | None = "a",
+    body: str = "A story.",
+    anonymous: bool = False,
+    rec=REC,
+    parent: str | None = None,
+    flood: bool = False,
 ):
-    return await world.call(
-        "POST",
-        f"{URL}/recordings/{rec}",
-        who,
-        json={"body": body, "is_anonymous": anonymous},
-    )
+    """`flood=False` empties the anti-flood count first so a test can post freely."""
+    if not flood:
+        service.limiter.reset()
+    payload = {"body": body, "is_anonymous": anonymous}
+    if parent is not None:
+        payload["parent_id"] = parent
+    return await world.call("POST", f"{URL}/recordings/{rec}", who, json=payload)
 
 
 async def listing(world: World, who: str | None = None, rec=REC, **params):
@@ -112,73 +121,55 @@ async def test_content_rules_are_the_song_comments(world: World) -> None:
     assert duplicate.status_code == 409
 
 
-async def test_a_refused_post_does_not_use_the_hourly_allowance(world: World) -> None:
+async def test_a_refused_post_does_not_use_the_flood_allowance(world: World) -> None:
     for _ in range(12):
-        assert (await post(world, body="   ")).status_code == 422
+        assert (await post(world, body="   ", flood=True)).status_code == 422
     for _ in range(3):
-        assert (await post(world, rec=REC_REMOVED)).status_code == 404
-    assert (await post(world, body="A real one.")).status_code == 201
+        assert (await post(world, rec=REC_REMOVED, flood=True)).status_code == 404
+    for n in range(service.POSTS_PER_MINUTE):
+        assert (await post(world, body=f"A real one {n}.", flood=True)).status_code == 201
+    assert (await post(world, body="One too many.", flood=True)).status_code == 429
 
 
-async def test_hourly_brake_for_members_not_for_the_team(world: World) -> None:
-    for i in range(10):
-        assert (await post(world, body=f"Story number {i} here")).status_code == 201
-    over = await post(world, body="One more story")
-    assert over.status_code == 429
-    assert over.headers.get("x-error-code") is None  # the hourly brake, not the daily allowance
-    for i in range(11):
-        assert (await post(world, "team", body=f"Team note {i} ok")).status_code == 201
+# --------------------------------------------------------------------------- anti-flood
 
 
-# --------------------------------------------------------------------------- daily allowance
+async def test_one_flood_rule_for_songs_recordings_and_replies_and_no_daily_limit(
+    world: World,
+) -> None:
+    """At most POSTS_PER_MINUTE posts per member in 60 seconds, shared by every kind of comment."""
+    assert service.POSTS_PER_MINUTE == base.POSTS_PER_MINUTE
+    first = (await post(world, "a", "The first.", flood=True)).json()
+    for n in range(service.POSTS_PER_MINUTE - 1):
+        kind = await post(world, "a", f"Reply {n} here.", parent=first["id"], flood=True)
+        assert kind.status_code == 201
+    over = await post(world, "a", "One more.", flood=True)
+    assert over.status_code == 429 and over.headers.get("x-error-code") is None
+    # a song comment by the same member is counted in the same minute
+    assert base.limiter is service.limiter
+    # another member is free, and the team has a roomier limit
+    assert (await post(world, "b", "Another member.", flood=True)).status_code == 201
+    for i in range(service.POSTS_PER_MINUTE + 3):
+        assert (await post(world, "team", f"Team note {i} ok", flood=True)).status_code == 201
 
 
-async def _fill_day(world: World, count: int, model=RecordingComment, **extra) -> None:
+async def test_there_is_no_daily_allowance_any_more(world: World) -> None:
+    """Many comments spread over a day are fine, however many of them are removed or deleted."""
     async with world.sessions() as session:
-        for i in range(count):
-            if model is RecordingComment:
-                session.add(
-                    RecordingComment(recording_id=REC, member_id=MEMBER_A, body=f"old {i}", **extra)
+        for i in range(40):
+            session.add(
+                RecordingComment(
+                    recording_id=REC,
+                    member_id=MEMBER_A,
+                    body=f"old {i}",
+                    status="removed",
+                    removed_by=AUTHOR_DELETED_BY,
                 )
-            else:
-                session.add(SongComment(song_id=19, member_id=MEMBER_A, body=f"song {i}", **extra))
+            )
+            session.add(SongComment(song_id=19, member_id=MEMBER_A, body=f"song {i}"))
         await session.commit()
-
-
-async def test_daily_allowance_counts_removed_ones_and_the_team_is_free(world: World) -> None:
-    await _fill_day(world, 20, status="removed", removed_by=AUTHOR_DELETED_BY)
-    blocked = await post(world, body="Another one today")
-    assert blocked.status_code == 429
-    assert blocked.headers["x-error-code"] == "comment_daily_limit"
-    assert (await post(world, "team", body="Team is free")).status_code == 201
-
-
-async def test_old_comments_do_not_count(world: World) -> None:
-    await _fill_day(world, 20)
-    async with world.sessions() as session:
-        old = datetime.now(UTC) - timedelta(hours=25)
-        for row in (await session.scalars(select(RecordingComment))).all():
-            row.created_at = old
-        await session.commit()
-    assert (await post(world, body="A new day")).status_code == 201
-
-
-async def test_the_allowance_is_shared_with_song_comments(world: World) -> None:
-    await _fill_day(world, 19, model=SongComment)
-    assert (await post(world, body="Number twenty")).status_code == 201
-    blocked = await post(world, body="Number twenty-one")
-    assert blocked.status_code == 429
-    assert blocked.headers["x-error-code"] == "comment_daily_limit"
-
-
-async def test_deleting_does_not_give_the_allowance_back(world: World) -> None:
-    await _fill_day(world, 19)
-    created = await post(world, body="The twentieth")
-    assert created.status_code == 201
-    assert (await world.call("DELETE", f"{URL}/{created.json()['id']}", "a")).status_code == 204
-    blocked = await post(world, body="After deleting")
-    assert blocked.status_code == 429
-    assert blocked.headers["x-error-code"] == "comment_daily_limit"
+    assert (await post(world, body="Still welcome")).status_code == 201
+    assert not hasattr(service, "DAILY_COMMENTS") and not hasattr(service, "DAILY_LIMIT_CODE")
 
 
 # --------------------------------------------------------------------------- delete and remove

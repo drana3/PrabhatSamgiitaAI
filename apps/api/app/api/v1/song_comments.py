@@ -8,7 +8,7 @@ services/song_comments.py (`public_out`). Design and guarantees: apps/mobile/doc
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response, status
@@ -22,6 +22,7 @@ from app.models.recordings import PS_SONG_COUNT
 from app.models.song_comments import SongComment
 from app.schemas.song_comments import (
     AdminSongCommentList,
+    AdminSongCommentOut,
     CommentRemoveRequest,
     CommentReportCreate,
     CommentReportResponse,
@@ -30,6 +31,7 @@ from app.schemas.song_comments import (
     SongCommentOut,
 )
 from app.services import song_comments as service
+from app.services.comment_threads import page_for_new
 from app.services.members import require_member_identity, sync_member, try_member_identity
 from app.services.recordings import is_team_member
 
@@ -78,21 +80,25 @@ async def list_comments(
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> SongCommentList:
-    """Published comments of one song, newest first.
+    """Top-level comments of one song, newest first, each with its replies (oldest first). A comment
+    its author deleted is a tombstone (`deleted: true`) and keeps its replies.
 
     An anonymous comment has `author: null`: no id, name or avatar, for any reader.
     """
     # The answer depends on who asks (`mine`, `can_remove`): never share it between readers.
     response.headers["Cache-Control"] = "private, no-store"
-    rows, total = await service.list_published(session, song_id, limit=limit, offset=offset)
+    page = await service.list_threads(session, song_id, limit=limit, offset=offset)
     team = member is not None and is_team_member(member, settings)
     viewer = member.id if member else None
     return SongCommentList(
-        items=[service.public_out(c, a, viewer_id=viewer, team=team) for c, a in rows],
-        total=total,
+        items=[
+            service.public_out(c, a, viewer_id=viewer, team=team, page=page) for c, a in page.tops
+        ],
+        total=page.total,
+        live_total=page.live_total,
         limit=limit,
         offset=offset,
-        has_more=offset + len(rows) < total,
+        has_more=offset + len(page.tops) < page.total,
     )
 
 
@@ -107,17 +113,11 @@ async def post_comment(
     member: Member,
     settings: AppSettings,
 ) -> SongCommentOut:
-    """Share a comment. Live at once. Signed-in members only."""
+    """Share a comment, or a reply (`parent_id`). Live at once. Signed-in members only."""
     team = is_team_member(member, settings)
     # A post refused for its content (empty, too many links) costs nothing: it must not use up the
-    # hourly allowance.
+    # anti-flood allowance.
     body = service.validate_body(payload.body)
-    service.limiter.hit(
-        "post",
-        str(member.id),
-        limit=service.HOURLY_COMMENTS_TEAM if team else service.HOURLY_COMMENTS,
-        window_seconds=3600,
-    )
     try:
         comment = await service.create_comment(
             session,
@@ -126,12 +126,14 @@ async def post_comment(
             body=body,
             is_anonymous=payload.is_anonymous,
             team=team,
+            parent_id=payload.parent_id,
         )
     except SQLAlchemyError as exc:
         await session.rollback()
         logger.exception("Song comment could not be stored")
         raise HTTPException(status_code=503, detail="Comments are temporarily unavailable") from exc
-    return service.public_out(comment, member, viewer_id=member.id, team=team)
+    page = await page_for_new(session, SongComment, comment)
+    return service.public_out(comment, member, viewer_id=member.id, team=team, page=page)
 
 
 # --------------------------------------------------------------------------- moderation
@@ -153,6 +155,47 @@ async def reported(
     return AdminSongCommentList(items=[service.admin_out(c, a) for c, a in rows], total=total)
 
 
+@router.get("/review", response_model=AdminSongCommentList)
+async def review(
+    session: DatabaseSession,
+    member: Member,
+    settings: AppSettings,
+    filter: Annotated[Literal["reported", "removed"], Query()] = "reported",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AdminSongCommentList:
+    """Team only: `reported` (live comments somebody reported) or `removed` (the team's own
+    removals, to restore one). Shows the author, also of an anonymous comment."""
+    if not is_team_member(member, settings):
+        raise HTTPException(status_code=403, detail="Only the team can see this.")
+    rows, total = await service.review_queue(session, which=filter, limit=limit, offset=offset)
+    return AdminSongCommentList(items=[service.admin_out(c, a) for c, a in rows], total=total)
+
+
+@router.post("/{comment_id}/keep", response_model=AdminSongCommentOut)
+async def keep_comment(
+    comment_id: UUID, session: DatabaseSession, member: Member, settings: AppSettings
+) -> AdminSongCommentOut:
+    """Team only: the reports were looked at and the comment stays (the reports leave the queue)."""
+    if not is_team_member(member, settings):
+        raise HTTPException(status_code=403, detail="Only the team can do this.")
+    comment = await get_comment(session, comment_id)
+    await service.keep(session, comment)
+    return service.admin_out(comment, await session.get(UserAccount, comment.member_id))
+
+
+@router.post("/{comment_id}/restore", response_model=AdminSongCommentOut)
+async def restore_comment(
+    comment_id: UUID, session: DatabaseSession, member: Member, settings: AppSettings
+) -> AdminSongCommentOut:
+    """Team only: a comment the team removed is published again."""
+    if not is_team_member(member, settings):
+        raise HTTPException(status_code=403, detail="Only the team can do this.")
+    comment = await get_comment(session, comment_id)
+    await service.restore(session, comment)
+    return service.admin_out(comment, await session.get(UserAccount, comment.member_id))
+
+
 @router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_comment(
     comment_id: UUID,
@@ -161,10 +204,10 @@ async def delete_comment(
     settings: AppSettings,
     payload: CommentRemoveRequest | None = None,
 ) -> Response:
-    """The author deletes their own comment (also an anonymous one): it disappears for everybody and
-    its text is wiped, but the row stays and still counts toward the daily allowance. A comment the
-    team already removed is kept as it is for the record; the author gets the same answer. The team
-    removes any comment; that keeps the text and carries a reason."""
+    """The author deletes their own comment (also an anonymous one): its text is wiped; a top-level
+    comment leaves a tombstone with its replies, a reply just goes. A comment the team already
+    removed is kept as it is for the record; the author gets the same answer. The team removes any
+    comment; that keeps the text and carries a reason."""
     comment = await get_comment(session, comment_id)
     if comment.member_id == member.id:
         if not await service.delete_by_author(session, comment):

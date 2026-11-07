@@ -1,4 +1,4 @@
-"""Comments of members under a recording (Kiirtan, Bhajan, Spiritual song, Dance song, Prabhat
+"""Comments of members under a recording (Kiirtan, Bhajan, Spiritual song, Dance music, Prabhat
 Samgiita recording).
 
 The same behaviour as `api/v1/song_comments.py`, aimed at a recording id instead of a song number:
@@ -9,7 +9,7 @@ the author deletes. Design and guarantees: docs/recording-extras.md.
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
@@ -25,9 +25,11 @@ from app.api.v1.extras_common import (
     get_member,  # noqa: F401  (re-exported: tests override it)
     get_optional_member,  # noqa: F401
 )
+from app.models import UserAccount
 from app.models.recording_extras import RecordingComment
 from app.schemas.recording_extras import (
     AdminRecordingCommentList,
+    AdminRecordingCommentOut,
     RecordingCommentList,
     RecordingCommentOut,
     RemoveRequest,
@@ -35,6 +37,7 @@ from app.schemas.recording_extras import (
 )
 from app.schemas.song_comments import CommentReportCreate, SongCommentCreate
 from app.services import recording_comments as service
+from app.services.comment_threads import page_for_new
 from app.services.extras_common import visible_recording
 from app.services.recordings import is_team_member
 
@@ -59,24 +62,24 @@ async def list_comments(
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> RecordingCommentList:
-    """Comments of one recording, newest first, with a tombstone (`deleted: true`, no text, no author)
-    where the author deleted theirs. An anonymous comment has `author: null`: no id, name or avatar,
-    for any reader."""
+    """Top-level comments of one recording, newest first, each with its replies (oldest first), and
+    a tombstone (`deleted: true`, no text, no author, replies kept) where the author deleted theirs.
+    An anonymous comment has `author: null`: no id, name or avatar, for any reader."""
     # The answer depends on who asks (`mine`, `can_remove`): never share it between readers.
     response.headers["Cache-Control"] = "private, no-store"
     await visible_recording(session, recording_id)
-    rows, total, live = await service.list_published(
-        session, recording_id, limit=limit, offset=offset
-    )
+    page = await service.list_threads(session, recording_id, limit=limit, offset=offset)
     team = member is not None and is_team_member(member, settings)
     viewer = member.id if member else None
     return RecordingCommentList(
-        items=[service.public_out(c, a, viewer_id=viewer, team=team) for c, a in rows],
-        total=total,
-        live_total=live,
+        items=[
+            service.public_out(c, a, viewer_id=viewer, team=team, page=page) for c, a in page.tops
+        ],
+        total=page.total,
+        live_total=page.live_total,
         limit=limit,
         offset=offset,
-        has_more=offset + len(rows) < total,
+        has_more=offset + len(page.tops) < page.total,
     )
 
 
@@ -92,18 +95,12 @@ async def post_comment(
     member: Member,
     settings: AppSettings,
 ) -> RecordingCommentOut:
-    """Share a comment. Live at once. Signed-in members only."""
+    """Share a comment, or a reply (`parent_id`). Live at once. Signed-in members only."""
     team = is_team_member(member, settings)
     # A post refused for its content (empty, too many links) or for its target costs nothing: it
-    # must not use up the hourly allowance (QA-009).
+    # must not use up the anti-flood allowance (QA-009).
     body = service.validate_body(payload.body)
     await visible_recording(session, recording_id)
-    service.limiter.hit(
-        "post",
-        str(member.id),
-        limit=service.HOURLY_COMMENTS_TEAM if team else service.HOURLY_COMMENTS,
-        window_seconds=3600,
-    )
     try:
         comment = await service.create_comment(
             session,
@@ -112,12 +109,14 @@ async def post_comment(
             body=body,
             is_anonymous=payload.is_anonymous,
             team=team,
+            parent_id=payload.parent_id,
         )
     except SQLAlchemyError as exc:
         await session.rollback()
         logger.exception("Recording comment could not be stored")
         raise HTTPException(status_code=503, detail="Comments are temporarily unavailable") from exc
-    return service.public_out(comment, member, viewer_id=member.id, team=team)
+    page = await page_for_new(session, RecordingComment, comment)
+    return service.public_out(comment, member, viewer_id=member.id, team=team, page=page)
 
 
 @router.get("/reported", response_model=AdminRecordingCommentList)
@@ -136,6 +135,47 @@ async def reported(
     return AdminRecordingCommentList(items=[service.admin_out(c, a) for c, a in rows], total=total)
 
 
+@router.get("/review", response_model=AdminRecordingCommentList)
+async def review(
+    session: DatabaseSession,
+    member: Member,
+    settings: AppSettings,
+    filter: Annotated[Literal["reported", "removed"], Query()] = "reported",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AdminRecordingCommentList:
+    """Team only: `reported` (live comments somebody reported) or `removed` (the team's own
+    removals, to restore one). Shows the author, also of an anonymous comment."""
+    if not is_team_member(member, settings):
+        raise HTTPException(status_code=403, detail="Only the team can see this.")
+    rows, total = await service.review_queue(session, which=filter, limit=limit, offset=offset)
+    return AdminRecordingCommentList(items=[service.admin_out(c, a) for c, a in rows], total=total)
+
+
+@router.post("/{comment_id}/keep", response_model=AdminRecordingCommentOut)
+async def keep_comment(
+    comment_id: UUID, session: DatabaseSession, member: Member, settings: AppSettings
+) -> AdminRecordingCommentOut:
+    """Team only: the reports were looked at and the comment stays (the reports leave the queue)."""
+    if not is_team_member(member, settings):
+        raise HTTPException(status_code=403, detail="Only the team can do this.")
+    comment = await get_comment(session, comment_id)
+    await service.keep(session, comment)
+    return service.admin_out(comment, await session.get(UserAccount, comment.member_id))
+
+
+@router.post("/{comment_id}/restore", response_model=AdminRecordingCommentOut)
+async def restore_comment(
+    comment_id: UUID, session: DatabaseSession, member: Member, settings: AppSettings
+) -> AdminRecordingCommentOut:
+    """Team only: a comment the team removed is published again."""
+    if not is_team_member(member, settings):
+        raise HTTPException(status_code=403, detail="Only the team can do this.")
+    comment = await get_comment(session, comment_id)
+    await service.restore(session, comment)
+    return service.admin_out(comment, await session.get(UserAccount, comment.member_id))
+
+
 @router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_comment(
     comment_id: UUID,
@@ -144,9 +184,9 @@ async def delete_comment(
     settings: AppSettings,
     payload: RemoveRequest | None = None,
 ) -> Response:
-    """The author deletes their own comment (also an anonymous one): its text is wiped and readers
-    see a tombstone, but the row stays and still counts toward the daily allowance. The team
-    removes any comment; that keeps the text and carries a reason."""
+    """The author deletes their own comment (also an anonymous one): its text is wiped; a top-level
+    comment leaves a tombstone with its replies, a reply just goes. The team removes any comment;
+    that keeps the text and carries a reason."""
     comment = await get_comment(session, comment_id)
     if comment.member_id == member.id:
         if not await service.delete_by_author(session, comment):

@@ -105,6 +105,20 @@ class RecordingComment(Base, TimestampMixin):
     removed_reason: Mapped[str | None] = mapped_column(Text)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     removed_by: Mapped[str | None] = mapped_column(String(255))
+    # One level of replies. `parent_id` is the top-level comment a reply hangs under (null for a
+    # top-level comment). `reply_to_id` is the reply it answers when it answers a reply, so the app
+    # can say "to Name".
+    parent_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recording_comments.id", ondelete="CASCADE"),
+        index=True,
+        nullable=True,
+    )
+    reply_to_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recording_comments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
 
 class RecordingCommentReport(Base, TimestampMixin):

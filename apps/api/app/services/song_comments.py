@@ -11,43 +11,59 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserAccount
 from app.models.recordings import PS_SONG_COUNT
 from app.models.song_comments import COMMENT_MAX_LENGTH, SongComment, SongCommentReport
-from app.schemas.song_comments import (
-    AdminSongCommentOut,
-    CommentAuthor,
-    SongCommentOut,
-)
+from app.schemas.song_comments import AdminSongCommentOut, SongCommentOut
 from app.services.invisible_text import strip_invisible  # noqa: F401  (also imported from here)
 from app.services.recordings import RateLimiter, clean_text, now_utc
 
-DAILY_COMMENTS = 20
-HOURLY_COMMENTS = 10
-HOURLY_COMMENTS_TEAM = 120
+# The one anti-flood rule of the comments (songs, recordings and replies together): at most this
+# many posts per member in any 60 seconds. There is no daily limit.
+POSTS_PER_MINUTE = 5
+POSTS_PER_MINUTE_TEAM = 30
 MAX_LINKS = 2
-DAILY_LIMIT_CODE = "comment_daily_limit"
 FALLBACK_NAME = "Member"
 
 # The in-process limiter keeps its counts in this API process only (see
 # apps/mobile/docs/song-comments.md, "Limits that are only as strong as one process"): a restart
-# empties it and several instances do not share it. The daily allowance is the strong one: it is
-# counted from rows in the database.
+# empties it and several instances do not share it. It stops a script, not a botnet.
 limiter = RateLimiter()
 
-# What the author's own delete leaves behind: the row stays (so the daily allowance is not given
-# back and the team keeps who and when), the text is replaced, nobody sees it. `removed_by` says
-# the author did it.
-AUTHOR_DELETED_BY = "author"
+
+def check_flood(member_id: UUID, *, team: bool) -> None:
+    """429 when this member posted too often in the last minute (a comment, a reply, on a song or a
+    recording: one shared count). Call it AFTER the text was validated, so a refused post costs
+    nothing."""
+    limiter.hit(
+        "post",
+        str(member_id),
+        limit=POSTS_PER_MINUTE_TEAM if team else POSTS_PER_MINUTE,
+        window_seconds=60,
+    )
+
+
+# What the author's own delete leaves behind: the row stays (the team keeps who and when) and the
+# text is replaced. `removed_by` says the author did it. The marker starts with a control
+# character, which `team_removed_by` strips from every name a team removal records, so no display
+# name (however it was chosen) can ever equal it: a team removal can never pass for an author
+# delete (QA-056, QA-059).
+AUTHOR_DELETED_BY = "\x1fauthor"
 AUTHOR_DELETED_BODY = "[deleted by the author]"
+_NAME_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def team_removed_by(name: str | None, fallback: str = "team") -> str:
+    """The `removed_by` of a team removal: the member's name, never equal to the author marker."""
+    return _NAME_CONTROL.sub("", name or "").strip()[:255] or fallback
+
 
 _LINK = re.compile(r"(?:https?://|www\.)", re.IGNORECASE)
 _LINK_TOKEN = re.compile(r"(?:https?://|www\.)[^\s,;<>\"')\]]*", re.IGNORECASE)
@@ -109,20 +125,20 @@ def public_out(
     *,
     viewer_id: UUID | None,
     team: bool,
+    page: Any = None,
 ) -> SongCommentOut:
-    """What every reader gets. `author` is filled only for a NAMED comment."""
-    shown = None
-    if not comment.is_anonymous and author is not None:
-        shown = CommentAuthor(name=display_name(author), avatar_url=author.avatar_url)
-    return SongCommentOut(
-        id=str(comment.id),
-        song_id=comment.song_id,
-        body=comment.body,
-        created_at=comment.created_at,
-        is_anonymous=comment.is_anonymous,
-        author=shown,
-        mine=viewer_id is not None and comment.member_id == viewer_id,
-        can_remove=team,
+    """What every reader gets. `author` is filled only for a NAMED comment; a comment its author
+    deleted is a tombstone (no text, no author). `page` carries a top-level comment's replies."""
+    from app.services import comment_threads as threads
+
+    return threads.render(
+        SongCommentOut,
+        comment,
+        author,
+        viewer_id=viewer_id,
+        team=team,
+        target={"song_id": comment.song_id},
+        page=page,
     )
 
 
@@ -138,50 +154,18 @@ def admin_out(comment: SongComment, author: UserAccount | None) -> AdminSongComm
         author_id=comment.member_id,
         author_name=display_name(author) if author is not None else FALLBACK_NAME,
         removed_reason=comment.removed_reason,
+        parent_id=str(comment.parent_id) if comment.parent_id else None,
     )
 
 
-async def list_published(
-    session: AsyncSession, song_id: int, *, limit: int, offset: int
-) -> tuple[list[tuple[SongComment, UserAccount | None]], int]:
-    """Published comments of one song, newest first, each with its author's account."""
-    condition = (SongComment.song_id == song_id, SongComment.status == "published")
-    total = await session.scalar(select(func.count()).select_from(SongComment).where(*condition))
-    rows = (
-        await session.execute(
-            select(SongComment, UserAccount)
-            .join(UserAccount, UserAccount.id == SongComment.member_id, isouter=True)
-            .where(*condition)
-            .order_by(SongComment.created_at.desc(), SongComment.id.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-    ).all()
-    return [(c, a) for c, a in rows], int(total or 0)
+async def list_threads(session: AsyncSession, song_id: int, *, limit: int, offset: int) -> Any:
+    """One page of the song's top-level comments (tombstones included), newest first, each with its
+    replies, and the two counts (see `comment_threads`)."""
+    from app.services import comment_threads as threads
 
-
-async def comments_in_last_day(session: AsyncSession, member_id: UUID) -> int:
-    since = now_utc() - timedelta(hours=24)
-    total = await session.scalar(
-        select(func.count())
-        .select_from(SongComment)
-        .where(SongComment.member_id == member_id, SongComment.created_at >= since)
+    return await threads.list_threads(
+        session, SongComment, (SongComment.song_id == song_id,), limit=limit, offset=offset
     )
-    return int(total or 0)
-
-
-async def ensure_daily_allowance(
-    session: AsyncSession, member_id: UUID, *, team: bool, limit: int = DAILY_COMMENTS
-) -> None:
-    """At most DAILY_COMMENTS per member in 24 hours (removed ones count). The team has no limit."""
-    if team:
-        return
-    if await comments_in_last_day(session, member_id) >= limit:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"You can add up to {limit} comments a day. Please come back tomorrow.",
-            headers={"X-Error-Code": DAILY_LIMIT_CODE},
-        )
 
 
 def validate_body(raw: str) -> str:
@@ -193,14 +177,21 @@ def validate_body(raw: str) -> str:
     return body
 
 
-async def shared_before(session: AsyncSession, member_id: UUID, song_id: int, body: str) -> bool:
-    """Has this member already published the same comment on this song (see `same_text_key`)?"""
+async def shared_before(
+    session: AsyncSession, member_id: UUID, song_id: int, body: str, parent_id: UUID | None = None
+) -> bool:
+    """Has this member already published the same comment on this song (see `same_text_key`)?
+    A reply
+    is only compared with the replies of the same conversation, so "Thank you" can be said twice."""
     key = same_text_key(body)
     earlier = await session.scalars(
         select(SongComment.body).where(
             SongComment.member_id == member_id,
             SongComment.song_id == song_id,
             SongComment.status == "published",
+            SongComment.parent_id.is_(None)
+            if parent_id is None
+            else SongComment.parent_id == parent_id,
         )
     )
     return any(same_text_key(text) == key for text in earlier)
@@ -213,14 +204,28 @@ async def create_comment(
     song_id: int,
     body: str,
     is_anonymous: bool,
-    team: bool,
+    team: bool = False,
+    parent_id: UUID | None = None,
 ) -> SongComment:
+    from app.services import comment_threads as threads
+
     body = validate_body(body)
-    await ensure_daily_allowance(session, member.id, team=team)
-    if await shared_before(session, member.id, song_id, body):
+    top_id: UUID | None = None
+    reply_to_id: UUID | None = None
+    if parent_id is not None:
+        top_id, reply_to_id = await threads.resolve_parent(
+            session, SongComment, (SongComment.song_id == song_id,), parent_id
+        )
+    check_flood(member.id, team=team)
+    if await shared_before(session, member.id, song_id, body, top_id):
         raise HTTPException(status_code=409, detail="You already shared this comment.")
     comment = SongComment(
-        song_id=song_id, member_id=member.id, body=body, is_anonymous=is_anonymous
+        song_id=song_id,
+        member_id=member.id,
+        body=body,
+        is_anonymous=is_anonymous,
+        parent_id=top_id,
+        reply_to_id=reply_to_id,
     )
     session.add(comment)
     await session.commit()
@@ -266,18 +271,17 @@ async def remove_by_team(
     comment.status = "removed"
     comment.removed_reason = clean_text(reason, 500) or None
     comment.removed_at = now_utc()
-    comment.removed_by = by[:255]
+    comment.removed_by = team_removed_by(by)
     await session.commit()
 
 
 async def delete_by_author(session: AsyncSession, comment: SongComment) -> bool:
     """The author deletes their own comment. False when there is nothing to delete (already done).
 
-    The text goes at once (it is replaced) and the comment disappears for every reader, but the row
-    stays, marked removed: it still counts toward the author's daily allowance (deleting and posting
-    again is not a way around the limit). A comment the TEAM already removed is left exactly as it
-    is, text and reason included: the team keeps it for the record, and the author asking to delete
-    it changes nothing (the answer is the same).
+    The text goes at once (it is replaced). A top-level comment leaves a tombstone with its replies
+    under it; a reply just disappears. A comment the TEAM already removed is left exactly as it is,
+    text and reason included: the team keeps it for the record, and the author asking to delete it
+    changes nothing (the answer is the same).
     """
     if comment.status == "removed":
         return comment.removed_by != AUTHOR_DELETED_BY
@@ -290,20 +294,58 @@ async def delete_by_author(session: AsyncSession, comment: SongComment) -> bool:
     return True
 
 
-async def reported_queue(
-    session: AsyncSession, *, limit: int, offset: int
+async def keep(session: AsyncSession, comment: SongComment) -> None:
+    """The team looked at the reports and the comment stays: the reports leave the queue."""
+    comment.reports_count = 0
+    await session.commit()
+
+
+async def restore(session: AsyncSession, comment: SongComment) -> None:
+    """A comment the team removed is published again (a mistake). An author's own delete stays."""
+    if comment.status != "removed" or comment.removed_by == AUTHOR_DELETED_BY:
+        raise HTTPException(
+            status_code=409, detail="Only a comment the team removed can be restored."
+        )
+    comment.status = "published"
+    comment.removed_reason = None
+    comment.removed_at = None
+    comment.removed_by = None
+    comment.reports_count = 0
+    await session.commit()
+
+
+async def review_queue(
+    session: AsyncSession, *, which: str, limit: int, offset: int
 ) -> tuple[list[tuple[SongComment, UserAccount | None]], int]:
-    """Published comments somebody reported, most reported first (the team's daily list)."""
-    condition: tuple[Any, ...] = (SongComment.status == "published", SongComment.reports_count > 0)
+    """The team's list: `reported` = live comments somebody reported, most reported first;
+    `removed` = comments the team took down (to restore one). An author's own delete is not for the
+    team to read."""
+    condition: tuple[Any, ...] = (
+        (SongComment.status == "removed", SongComment.removed_by != AUTHOR_DELETED_BY)
+        if which == "removed"
+        else (SongComment.status == "published", SongComment.reports_count > 0)
+    )
+    order = (
+        (SongComment.removed_at.desc(),)
+        if which == "removed"
+        else (SongComment.reports_count.desc(), SongComment.created_at.desc())
+    )
     total = await session.scalar(select(func.count()).select_from(SongComment).where(*condition))
     rows = (
         await session.execute(
             select(SongComment, UserAccount)
             .join(UserAccount, UserAccount.id == SongComment.member_id, isouter=True)
             .where(*condition)
-            .order_by(SongComment.reports_count.desc(), SongComment.created_at.desc())
+            .order_by(*order)
             .limit(limit)
             .offset(offset)
         )
     ).all()
     return [(c, a) for c, a in rows], int(total or 0)
+
+
+async def reported_queue(
+    session: AsyncSession, *, limit: int, offset: int
+) -> tuple[list[tuple[SongComment, UserAccount | None]], int]:
+    """Published comments somebody reported, most reported first (the team's daily list)."""
+    return await review_queue(session, which="reported", limit=limit, offset=offset)

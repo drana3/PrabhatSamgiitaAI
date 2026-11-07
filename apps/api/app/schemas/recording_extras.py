@@ -18,7 +18,7 @@ from app.models.recording_extras import (
     VIDEO_TITLE_MAX_LENGTH,
     VIDEO_URL_MAX_LENGTH,
 )
-from app.schemas.song_comments import CommentAuthor
+from app.schemas.song_comments import CommentAuthor, ReplyTo
 
 # --------------------------------------------------------------------------- comments
 
@@ -35,17 +35,25 @@ class RecordingCommentOut(BaseModel):
     can_remove: bool = False
     # True for the line an author's own delete leaves behind: no text, no author, nothing to act on
     deleted: bool = False
+    # Replies, as under a song (`SongCommentOut`)
+    parent_id: str | None = None
+    reply_to: ReplyTo | None = None
+    reply_count: int = 0
+    replies: list[RecordingCommentOut] = Field(default_factory=list)
 
 
 class RecordingCommentList(BaseModel):
     items: list[RecordingCommentOut]
-    # every entry the list pages through, tombstones included (it drives `has_more`)
+    # the top-level entries the list pages through, tombstones included (it drives `has_more`)
     total: int
-    # the comments people can read: `total` without the tombstones. This is the number to show.
+    # the comments people can read, replies included, tombstones left out: the number to show
     live_total: int
     limit: int
     offset: int
     has_more: bool
+
+
+RecordingCommentOut.model_rebuild()
 
 
 class AdminRecordingCommentOut(BaseModel):
@@ -61,6 +69,8 @@ class AdminRecordingCommentOut(BaseModel):
     author_id: UUID
     author_name: str
     removed_reason: str | None = None
+    # set for a reply: the top-level comment it hangs under
+    parent_id: str | None = None
 
 
 class AdminRecordingCommentList(BaseModel):
