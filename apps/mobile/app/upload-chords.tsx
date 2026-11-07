@@ -52,6 +52,7 @@ import { revealOffset } from "@/lib/songChords/reveal"
 import type { ChordFailure, ChordProposal } from "@/lib/songChords/types"
 import { splitWords } from "@/lib/songPage/chordChart"
 import { MAX_CAPO } from "@/lib/songPage/chords"
+import { PS_SONG_COUNT } from "@/lib/learn/learnSongs"
 import { useAuthStore } from "@/stores/authStore"
 import { useChordDraftStore } from "@/stores/chordDraftStore"
 import { href } from "@/utils/href"
@@ -476,7 +477,7 @@ export default function UploadChordsScreen() {
                     </View>
                   )}
                 </KPress>
-                {locked ? null : <Hint theme={theme}>{t("chordOffer.song.hint")}</Hint>}
+                {locked ? null : <Hint theme={theme}>{t("chordOffer.song.hint", { count: String(PS_SONG_COUNT) })}</Hint>}
               </Reveal>
 
               {/* 2. instrument */}
