@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 
 import { SheetTopBar } from "@/components/common/SheetTopBar"
+import { AuthorLine } from "@/components/authors/AuthorLine"
 import { CommentsView } from "@/components/comments/CommentsView"
 import { useComments } from "@/components/comments/useComments"
 import { AddVideoSheet } from "@/components/recording-extras/AddVideoSheet"
@@ -98,6 +99,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
             {recording.title}
           </Text>
           {recording.author ? <Text style={[styles.author, { color: theme.textHeading }]}>{recording.author}</Text> : null}
+          <AuthorLine theme={theme} recordingId={recording.serverId} />
           <View style={styles.row}>
             <SpPress onPress={() => actions.open(recording, [recording], recording.title)} accessibilityLabel={tr("recPage.play")} style={[styles.play, { backgroundColor: t.action }]}>
               <Text style={[styles.playText, { color: t.onAction }]}>{tr("recPage.play")}</Text>

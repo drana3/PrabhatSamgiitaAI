@@ -19,7 +19,7 @@ import { href } from "@/utils/href"
  * One row for the Upload hub (and the profile sheet): "Become an author" when there is no page yet, "Your author page"
  * with its state when there is one. One line for the hub: `<AuthorHubRow theme={theme} />`.
  */
-export function AuthorHubRow({ theme }: { theme: SongsTheme }) {
+export function AuthorHubRow({ theme, flush }: { theme: SongsTheme; flush?: boolean }) {
   const t = useT()
   const router = useRouter()
   const load = useAuthorStore((s) => s.load)
@@ -38,7 +38,7 @@ export function AuthorHubRow({ theme }: { theme: SongsTheme }) {
       accessibilityLabel={`${title}. ${sub}`}
       onPress={() => router.push(href(mine ? MY_AUTHOR_HREF : BECOME_AUTHOR_HREF))}
       pressedScale={0.98}
-      outerStyle={styles.outer}
+      outerStyle={flush ? undefined : styles.outer}
       style={[styles.row, { backgroundColor: theme.card, borderColor: theme.line }]}
     >
       <View style={styles.text}>
@@ -54,7 +54,7 @@ export function AuthorHubRow({ theme }: { theme: SongsTheme }) {
 
 const styles = StyleSheet.create({
   outer: { paddingHorizontal: SIDE },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, borderRadius: 18, borderWidth: 1, minHeight: 64 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16, borderRadius: 20, borderWidth: 1, minHeight: 64 },
   text: { flex: 1, gap: 2 },
   title: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22 },
   sub: { fontFamily: amFonts.regular, fontSize: 14, lineHeight: 20 },

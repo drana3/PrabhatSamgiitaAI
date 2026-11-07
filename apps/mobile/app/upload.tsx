@@ -20,6 +20,7 @@ import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { chordFailure, chordsBackend } from "@/lib/songChords/backend"
 import type { DraftEntry } from "@/lib/songChords/drafts"
 import type { ChordProposal } from "@/lib/songChords/types"
+import { AuthorHubRow } from "@/components/authors/AuthorHubRow"
 import { useAuthStore } from "@/stores/authStore"
 import { useChordDraftStore } from "@/stores/chordDraftStore"
 import { href } from "@/utils/href"
@@ -137,6 +138,7 @@ export default function UploadScreen() {
             onPress={() => router.push(href("/upload-chords"))}
             theme={theme}
           />
+          <AuthorHubRow theme={theme} flush />
           <Choice icon={null} title={t("set.entry.mine")} body="" onPress={() => router.push(href("/my-sets"))} theme={theme} quiet />
           {team ? (
             <Choice
