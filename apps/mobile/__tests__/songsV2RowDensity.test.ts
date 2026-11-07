@@ -43,33 +43,32 @@ const song = (number: number): ListRow => ({
 const header = (label: string): ListRow => ({ kind: "header", id: `h:${label}`, label, groupIndex: 0 })
 
 /** Slot height of the default look: the most a song may take on any list. */
-const MAX_DEFAULT_SLOT = 50
+const MAX_DEFAULT_SLOT = 56
 
-describe("the default song row is the small one", () => {
-  it("is Compact: a 44px tile, 6px apart, no group headers", () => {
-    expect(DEFAULT_ROW_STYLE).toBe("compact")
-    expect(ROW_GEOMETRY.compact).toMatchObject({ row: 44, gap: 6, header: 0 })
-    expect(slotHeight(DEFAULT_ROW_STYLE, "song")).toBe(50)
-    expect(slotHeight(DEFAULT_ROW_STYLE, "header")).toBe(0)
+describe("the default song row is the Tracklist", () => {
+  it("is Tracklist: a 56px row, no gap, hairline between rows", () => {
+    expect(DEFAULT_ROW_STYLE).toBe("tracklist")
+    expect(ROW_GEOMETRY.tracklist).toMatchObject({ row: 56, gap: 0 })
+    expect(slotHeight(DEFAULT_ROW_STYLE, "song")).toBe(56)
   })
 
-  it("never takes more than 50px per song, on the Songs tab or on a list page", () => {
+  it("never takes more than 56px per song, on the Songs tab or on a list page", () => {
     expect(slotHeight(DEFAULT_ROW_STYLE, "song")).toBeLessThanOrEqual(MAX_DEFAULT_SLOT)
     expect(listPageRowHeight(DEFAULT_ROW_STYLE)).toBeLessThanOrEqual(MAX_DEFAULT_SLOT)
     const rows = Array.from({ length: 5018 }, (_, i) => song(i + 1))
     const { total } = rowMetrics(rows, 0, DEFAULT_ROW_STYLE)
-    expect(total).toBe(5018 * 50)
+    expect(total).toBe(5018 * 56)
   })
 
-  it("keeps the other looks taller than Compact, so the default stays the densest", () => {
+  it("keeps Cards taller than the Tracklist and Compact the smallest", () => {
     expect(slotHeight("tracklist", "song")).toBeGreaterThan(slotHeight("compact", "song"))
     expect(slotHeight("cards", "song")).toBeGreaterThan(slotHeight("tracklist", "song"))
   })
 
-  it("draws no letter headers by default and the A-Z rail does not jump to them", () => {
+  it("Compact draws no letter headers and the A-Z rail does not jump to them", () => {
     const mixed = [header("A"), song(1), header("B"), song(2)]
-    expect(rowsForStyle(mixed, DEFAULT_ROW_STYLE).map((r) => r.kind)).toEqual(["song", "song"])
-    expect(groupedForStyle(true, DEFAULT_ROW_STYLE)).toBe(false)
+    expect(rowsForStyle(mixed, "compact").map((r) => r.kind)).toEqual(["song", "song"])
+    expect(groupedForStyle(true, "compact")).toBe(false)
   })
 
   it("stacked rows (Saved, a playlist page) use the style's own gap", () => {
@@ -80,21 +79,21 @@ describe("the default song row is the small one", () => {
 })
 
 describe("the Rows setting starts on the default", () => {
-  it("a new phone has Compact", () => {
-    expect(useListViewStore.getState().rowStyle).toBe("compact")
+  it("a new phone has the Tracklist", () => {
+    expect(useListViewStore.getState().rowStyle).toBe("tracklist")
   })
 
-  it("a setting saved before Compact became the default (version 1) is dropped once", async () => {
-    memory.set("prabhat-list-view", JSON.stringify({ state: { rowStyle: "tracklist" }, version: 1 }))
+  it("a setting saved before the Tracklist became the default (version 2) is dropped once", async () => {
+    memory.set("prabhat-list-view", JSON.stringify({ state: { rowStyle: "compact" }, version: 2 }))
     await useListViewStore.persist.rehydrate()
-    expect(useListViewStore.getState().rowStyle).toBe("compact")
-    expect(migrateListView()).toEqual({ rowStyle: "compact" })
+    expect(useListViewStore.getState().rowStyle).toBe("tracklist")
+    expect(migrateListView()).toEqual({ rowStyle: "tracklist" })
   })
 
   it("a choice made now is kept", async () => {
     useListViewStore.getState().setRowStyle("cards")
     await useListViewStore.persist.rehydrate()
     expect(useListViewStore.getState().rowStyle).toBe("cards")
-    useListViewStore.getState().setRowStyle("compact")
+    useListViewStore.getState().setRowStyle("tracklist")
   })
 })

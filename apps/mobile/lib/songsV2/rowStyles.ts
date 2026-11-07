@@ -5,15 +5,15 @@ import type { ListRow } from "./sort"
 
 /**
  * Row styles of the song lists (Songs tab, Mine, collections and All songs).
- *  - tracklist: no card, 56px rows, the PS number in a column on the left, hairline between rows
- *  - compact:   44px tiles, number and title only, 6px apart, no group headers (default: the design Dada chose,
- *               "a small list, a narrow card, no grouping")
+ *  - tracklist: no card, 56px rows, the PS number in a column on the left, hairline between rows (default: the
+ *               look Dada chose again from the three side by side)
+ *  - compact:   44px tiles, number and title only, 6px apart, no group headers
  *  - cards:     the first design, 76px white cards with an eyebrow over the title
  * The choice is stored per device (stores/listViewStore.ts).
  */
 export type RowStyle = "tracklist" | "compact" | "cards"
 
-export const DEFAULT_ROW_STYLE: RowStyle = "compact"
+export const DEFAULT_ROW_STYLE: RowStyle = "tracklist"
 
 export const ROW_STYLE_OPTIONS: readonly { id: RowStyle; label: string }[] = [
   { id: "tracklist", get label() { return t("songs.rows.tracklist") } },

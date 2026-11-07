@@ -5,14 +5,14 @@ import { createJSONStorage, persist } from "zustand/middleware"
 import { DEFAULT_ROW_STYLE, normalizeRowStyle, type RowStyle } from "@/lib/songsV2/rowStyles"
 
 type ListViewState = {
-  /** how song rows are drawn: Compact (default), Tracklist or Cards */
+  /** how song rows are drawn: Tracklist (default), Compact or Cards */
   rowStyle: RowStyle
   setRowStyle: (value: RowStyle) => void
 }
 
 /**
- * Version 2 drops a Rows choice saved before Compact became the default (the first build stored Tracklist while
- * the choice was still open), so every phone starts on the chosen look. From here on a saved choice is kept.
+ * Version 3 drops a Rows choice saved before Dada picked Tracklist from the three looks side by side (the builds
+ * before stored Compact as the default), so every phone starts on the chosen look. From here on a saved choice is kept.
  */
 export function migrateListView(): { rowStyle: RowStyle } {
   return { rowStyle: DEFAULT_ROW_STYLE }
@@ -28,7 +28,7 @@ export const useListViewStore = create<ListViewState>()(
     {
       name: "prabhat-list-view",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
+      version: 3,
       migrate: migrateListView,
       partialize: (state) => ({ rowStyle: state.rowStyle }),
       merge: (persisted, current) => ({
