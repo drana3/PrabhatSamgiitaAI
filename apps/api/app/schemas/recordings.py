@@ -18,6 +18,7 @@ from app.services.recording_languages import (
     clean_language_other,
     normalize_language,
 )
+from app.services.recording_styles import clean_style_other, normalize_style
 
 # The category of a recording. "kiirtan" is Baba Nam Kevalam (the only mantra of the library),
 # "prabhat_samgiita" is a performance of one Prabhat Samgiita song (`ps_song_number`),
@@ -107,6 +108,9 @@ class RecordingCreate(BaseModel):
     language_other: str | None = Field(default=None, max_length=200)
     # Required for a dance song (one of DANCES), refused for every other category.
     dance: str | None = Field(default=None, max_length=16)
+    # Optional, Kiirtan only: how it is sung (STYLES or "other" + `style_other`). Dropped for the others.
+    style: str | None = Field(default=None, max_length=16)
+    style_other: str | None = Field(default=None, max_length=200)
     # Optional details ("More details" in the app).
     credits: str | None = Field(default=None, max_length=300)
     year: int | None = Field(default=None, ge=FIRST_YEAR)
@@ -129,6 +133,13 @@ class RecordingCreate(BaseModel):
         if value is None or isinstance(value, str):
             return normalize_language(value)
         raise ValueError("Choose a language from the list.")
+
+    @field_validator("style", mode="before")
+    @classmethod
+    def _style_is_a_known_id(cls, value: object) -> str | None:
+        if value is None or isinstance(value, str):
+            return normalize_style(value)
+        raise ValueError("Choose a style from the list.")
 
     @field_validator("dance", mode="before")
     @classmethod
@@ -160,6 +171,12 @@ class RecordingCreate(BaseModel):
         kind_unsaid = self.collection_id is not None and "kind" not in self.model_fields_set
         if KIND_LANGUAGE_RULE.get(self.kind) == "none" and not kind_unsaid:
             self.language = None
+        # A style belongs to a Kiirtan only; "other" needs its name.
+        if self.kind != "kiirtan" and not kind_unsaid:
+            self.style = None
+        self.style_other = clean_style_other(self.style_other) if self.style == OTHER else None
+        if self.style == OTHER and not self.style_other:
+            raise ValueError("Write the name of the style.")
         # The free-text name only goes with "other", and is cleaned before it is stored.
         self.language_other = (
             clean_language_other(self.language_other) if self.language == OTHER else None
@@ -213,6 +230,9 @@ class RecordingOut(BaseModel):
     # Dance song: "tandava" or "kaoshiki". Language: the ISO code ("other" + `language_other`).
     dance: str | None = None
     language_other: str | None = None
+    # Kiirtan only: how it is sung (a STYLES id or "other" + `style_other`).
+    style: str | None = None
+    style_other: str | None = None
     # Playlist from an event: its id, the place in it, the day this track was recorded.
     collection_id: str | None = None
     position: int | None = None

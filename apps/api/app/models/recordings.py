@@ -205,6 +205,10 @@ class Recording(Base, TimestampMixin):
     language: Mapped[str | None] = mapped_column(String(16))
     # What the uploader called the language when they chose "other" (only then).
     language_other: Mapped[str | None] = mapped_column(String(80))
+    # How a Kiirtan is sung (one of services/recording_styles.py STYLES, or "other"); null for everything else.
+    style: Mapped[str | None] = mapped_column(String(16))
+    # What the uploader called the style when they chose "other" (only then).
+    style_other: Mapped[str | None] = mapped_column(String(80))
     # The dance of a dance song (one of DANCES); null for every other category.
     dance: Mapped[str | None] = mapped_column(String(16))
     # When it was recorded, when it differs from the year (a track of an event playlist).

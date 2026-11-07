@@ -23,6 +23,8 @@ from app.api.v1.recording_sets import router as recording_sets_router
 from app.api.v1.recordings import admin_router as recordings_admin_router
 from app.api.v1.recordings import router as recordings_router
 from app.api.v1.search import router as search_router
+from app.api.v1.search_menu import admin_router as search_menu_admin_router
+from app.api.v1.search_menu import router as search_menu_router
 from app.api.v1.song_chords import admin_router as song_chords_admin_router
 from app.api.v1.song_chords import router as song_chords_router
 from app.api.v1.song_comments import router as song_comments_router
@@ -60,3 +62,5 @@ router.include_router(author_profiles_admin_router)
 router.include_router(recording_comments_router)
 router.include_router(recording_chords_router)
 router.include_router(video_links_router)
+router.include_router(search_menu_router)
+router.include_router(search_menu_admin_router)

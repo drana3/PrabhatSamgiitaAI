@@ -58,6 +58,7 @@ from app.models.member import (
 )
 from app.models.notation import Notation
 from app.models.recording_collections import RecordingCollection
+from app.models.search_menu import SearchMenuPin
 from app.models.recording_extras import (
     RecordingChordReport,
     RecordingChordSheet,
@@ -121,6 +122,7 @@ __all__ = [
     "RecordingComment",
     "RecordingCommentReport",
     "RecordingCollection",
+    "SearchMenuPin",
     "RecordingReport",
     "RecordingSimilarConfirm",
     "ReflectionQuote",

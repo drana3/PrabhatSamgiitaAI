@@ -183,6 +183,8 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         ps_song_number=recording.ps_song_number,
         dance=recording.dance,
         language_other=recording.language_other,
+        style=recording.style,
+        style_other=recording.style_other,
         collection_id=str(recording.collection_id) if recording.collection_id else None,
         position=recording.position,
         recorded_on=recording.recorded_on,
@@ -547,6 +549,8 @@ async def create_recording(
         year=payload.year,
         language=payload.language,  # None for a Kiirtan (the schema drops it)
         language_other=payload.language_other,
+        style=payload.style if payload.kind == "kiirtan" else None,
+        style_other=payload.style_other if payload.kind == "kiirtan" else None,
         dance=payload.dance if payload.kind in KINDS_WITH_DANCE else None,
         recorded_on=payload.recorded_on,
         collection_id=collection.id if collection is not None else None,
