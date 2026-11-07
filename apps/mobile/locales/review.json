@@ -1728,6 +1728,8 @@
     "pron.entry": false,
     "pron.entry.sub": false,
     "pron.entry.a11y": false,
+    "pron.chip": false,
+    "pron.chip.a11y": false,
     "pron.title": false,
     "pron.close": false,
     "pron.lang.a11y": false,

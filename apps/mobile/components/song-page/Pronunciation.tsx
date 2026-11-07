@@ -53,6 +53,26 @@ export function PronunciationRow({ t, ui, onOpen, last }: { t: SpTheme; ui: Page
   )
 }
 
+/** The visible entry in the header of the text block, beside the Aa button: one clear tap to the memo. */
+export function PronunciationChip({ t, ui }: { t: SpTheme; ui: PageUi }) {
+  const say = useSay()
+  return (
+    <SpPress
+      onPress={() => ui.setSheet("pronounce")}
+      accessibilityRole="button"
+      accessibilityLabel={say("pron.chip.a11y")}
+      pressedScale={0.94}
+      hitSlop={{ top: 4, bottom: 4 }}
+      style={[styles.chip, { backgroundColor: t.white, borderColor: t.sand400 }]}
+    >
+      <SpIcon name="play" size={11} color={t.action} filled />
+      <Text style={[styles.chipText, { color: t.ink900 }]} numberOfLines={1}>
+        {say("pron.chip")}
+      </Text>
+    </SpPress>
+  )
+}
+
 /** The bottom sheet. Its body is only built while the sheet is open. */
 export function PronunciationSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
   const say = useSay()
@@ -216,6 +236,8 @@ function SampleRow({ t, sample, language }: { t: SpTheme; sample: PronSample; la
 }
 
 const styles = StyleSheet.create({
+  chip: { height: 36, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, borderRadius: 9999, borderWidth: 1 },
+  chipText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 18 },
   title: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 30, paddingHorizontal: 20, paddingTop: 4 },
   intro: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   pad: { paddingHorizontal: 20 },

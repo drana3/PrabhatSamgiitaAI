@@ -14,6 +14,7 @@ import { usePageT } from "@/lib/songPage/pageCopy"
 
 import { CommentaryBody } from "./Commentary"
 import { LyricsBody } from "./LyricsBody"
+import { PronunciationChip } from "./Pronunciation"
 import { useReadingStore } from "./readingState"
 import type { PageUi } from "./state"
 import { TextOptionsButton } from "./TextOptions"
@@ -109,7 +110,10 @@ export function TextBlock({
               </Text>
               <Text style={[styles.place, { color: t.ink500 }]}>{`${index + 1}/${PANEL_COUNT}`}</Text>
             </Animated.View>
-            <TextOptionsButton t={t} ui={ui} />
+            <View style={styles.tools}>
+              {BLOCK_TABS[index] === "lyrics" ? <PronunciationChip t={t} ui={ui} /> : null}
+              <TextOptionsButton t={t} ui={ui} />
+            </View>
           </View>
           <View accessibilityRole="tablist" accessibilityLabel={tr("songPage.block.a11y")} style={styles.dots}>
             <View style={styles.dotTrack}>
@@ -163,6 +167,7 @@ const styles = StyleSheet.create({
   stage: { overflow: "hidden", zIndex: 1 },
   head: { height: PANELS_HEAD, paddingHorizontal: 20 },
   headRow: { height: PANELS_HEAD - DOTS_H, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  tools: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },
   nameText: { fontFamily: amFonts.bold, fontSize: 20, lineHeight: 26 },
   place: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
