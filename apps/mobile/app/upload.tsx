@@ -123,12 +123,20 @@ export default function UploadScreen() {
             theme={theme}
           />
           <Choice
+            icon={<WaveGlyph color={theme.accent} />}
+            title={t("set.entry.title")}
+            body={t("set.entry.body")}
+            onPress={() => router.push(href("/upload-set"))}
+            theme={theme}
+          />
+          <Choice
             icon={<NeckGlyph color={theme.accent} />}
             title={t("upload.chords.title")}
             body={t("upload.chords.body")}
             onPress={() => router.push(href("/upload-chords"))}
             theme={theme}
           />
+          <Choice icon={null} title={t("set.entry.mine")} body="" onPress={() => router.push(href("/my-sets"))} theme={theme} quiet />
           {team ? (
             <Choice
               icon={null}
@@ -177,7 +185,7 @@ function Choice({ icon, title, body, onPress, theme, quiet }: { icon: React.Reac
   return (
     <KPress
       accessibilityRole="button"
-      accessibilityLabel={`${title}. ${body}`}
+      accessibilityLabel={body ? `${title}. ${body}` : title}
       onPress={onPress}
       pressedScale={0.985}
       style={[s.choice, { backgroundColor: quiet ? theme.card : theme.peach, borderColor: quiet ? theme.line : theme.accent }]}
@@ -185,7 +193,7 @@ function Choice({ icon, title, body, onPress, theme, quiet }: { icon: React.Reac
       {icon ? <View style={s.choiceIcon}>{icon}</View> : null}
       <View style={s.choiceText}>
         <Text style={[s.choiceTitle, { color: theme.textHeading }]}>{title}</Text>
-        <Text style={[s.choiceBody, { color: theme.textBody }]}>{body}</Text>
+        {body ? <Text style={[s.choiceBody, { color: theme.textBody }]}>{body}</Text> : null}
       </View>
     </KPress>
   )
@@ -199,7 +207,7 @@ const s = StyleSheet.create({
   h2: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
   intro: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 23, marginTop: 12 },
   cards: { gap: 12 },
-  choice: { minHeight: 96, borderRadius: CORNER, borderWidth: 1.5, padding: 16, flexDirection: "row", alignItems: "center", gap: 16 },
+  choice: { minHeight: 72, borderRadius: CORNER, borderWidth: 1.5, padding: 16, flexDirection: "row", alignItems: "center", gap: 16 },
   choiceIcon: { width: 40, alignItems: "center" },
   choiceText: { flex: 1, minWidth: 0, gap: 4 },
   choiceTitle: { fontFamily: amFonts.bold, fontSize: 19, lineHeight: 24 },
