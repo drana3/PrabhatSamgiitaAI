@@ -40,6 +40,9 @@ def test_a_typed_address_becomes_lowercase_ascii(typed: str, slug: str) -> None:
         ("upload-set", "reserved"),
         ("sign-in", "reserved"),
         ("signin", "reserved"),
+        ("sitemap", "reserved"),
+        ("slug-check", "reserved"),
+        ("by-recording", "reserved"),
         ("madhu-vrata", None),
         ("dada108", None),
     ],
@@ -214,3 +217,35 @@ def test_a_device_region_is_two_letters_or_nothing() -> None:
     assert stats.country_code("POL") is None
     assert stats.country_code("1a") is None
     assert stats.country_code(None) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Admin Team",
+        "PS Team",
+        "Official PS",
+        "Support",
+        "Moderator",
+        "support-team",
+        "official-ps",
+        "verified-artist",
+        "admin1",
+        "officialps",
+        "Staff",
+        "Dada Maetreya",
+        "dada-maetreya-music",
+        "Maitreya",
+        "ADMINS",
+    ],
+)
+def test_names_and_addresses_that_sound_like_staff_are_found(text: str) -> None:
+    assert rules.staff_hit(text), text
+
+
+@pytest.mark.parametrize(
+    "text", ["Madhu Vrata", "madhu-vrata", "Teamwork Kirtan", "Priya Devi", "steamboat", "Kalyani"]
+)
+def test_ordinary_names_are_not_staff(text: str) -> None:
+    # whole words only for the short word "team": "Teamwork" and "steamboat" are not staff
+    assert not rules.staff_hit(text), text

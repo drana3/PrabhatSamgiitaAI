@@ -362,7 +362,7 @@ async def check_slug(
 ) -> dict[str, Any]:
     slug = rules.normalize_slug(raw)
     problem = await slug_problem(session, slug, own=own)
-    held = problem is None and rules.protected_hit(slug)
+    held = problem is None and (rules.protected_hit(slug) or rules.staff_hit(slug))
     suggestions: list[str] = []
     if problem in ("taken", "quarantined") and slug:
         suggestions = await suggest_slugs(session, slug[: rules.SLUG_MAX - 8])
@@ -384,6 +384,7 @@ async def review_reason_for(
     claimed_name: str | None,
     own_id: UUID | None,
     skip_claim: bool = False,
+    staff_ok: bool = False,
 ) -> str | None:
     """Why the team has to look before this page goes public, or None. Checked in this order:
     a protected name (founder, organisation, app), a claim to be a known artist, a name that looks
@@ -391,6 +392,9 @@ async def review_reason_for(
     a name already in the library or on another page."""
     if rules.protected_hit(slug) or rules.protected_name_hit(display_name):
         return "protected_name"
+    # Names that sound like staff (and the owners' names); the team verifies, then it is fine.
+    if not staff_ok and (rules.staff_hit(slug) or rules.staff_hit(display_name)):
+        return "staff_name"
     # `skip_claim`: the team already verified this claim. Only the claim is exempt; the
     # protected-name check above and the look-alike checks below always run.
     if not skip_claim and claimed_name and rules.clean_line(claimed_name, 120):
@@ -937,6 +941,7 @@ async def _publish(session: AsyncSession, profile: AuthorProfile) -> None:
         claimed_name=profile.claimed_name,
         own_id=profile.id,
         skip_claim=profile.verified,
+        staff_ok=profile.verified,
     )
     if reason:
         profile.review_needed = True
@@ -1024,6 +1029,7 @@ async def update_profile(
             display_name=profile.display_name,
             claimed_name=profile.claimed_name,
             own_id=profile.id,
+            staff_ok=profile.verified,
         )
         if reason:
             # pulled from public until the team has looked; approving publishes it again
@@ -1302,12 +1308,18 @@ async def admin_list(
 
 
 async def admin_approve(session: AsyncSession, profile: AuthorProfile, by: str) -> AuthorProfile:
-    """The team has looked: the name is fine and the reports are dealt with. A page that was
-    waiting goes public. The only place that clears a report-raised flag."""
+    """The team has looked: the name is fine and the reports are dealt with.
+
+    Only a page the owner had sent for publishing and the name checks held (a draft with
+    `review_needed`) goes public. A draft the owner saved or unpublished stays a draft. The count of
+    reports starts again from zero (the reports themselves are kept), so three old reports do not
+    hold the page again on the next one. The only place that clears a report-raised flag."""
+    was_held = profile.status == "draft" and profile.review_needed
     profile.review_needed = False
     profile.review_reason = None
     profile.report_reason = None
-    if profile.status == "draft":
+    profile.reports_count = 0
+    if was_held:
         profile.status = "published"
         if profile.published_at is None:
             profile.published_at = now_utc()

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -61,6 +62,12 @@ MIN_PUBLIC_PLAYS = 5
 MONTH_DAYS = 30
 SNAPSHOT_TTL_SECONDS = 15 * 60
 PRUNE_EVERY_HOURS = 24
+# Signed-out listeners are only a made-up device id, so one client (an address bucket) may add only
+# so many NEW listeners: per recording per day, and in all per day. Beyond that the plays still
+# count as plays, but the device is not counted as a new listener. Households, schools and mobile
+# networks share addresses, so the caps are generous for people and small for a script.
+NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY = 10
+NEW_LISTENERS_PER_CLIENT_PER_DAY = 30
 
 _last_prune: datetime | None = None
 
@@ -83,6 +90,19 @@ def listener_key(pepper: str, who: str, on: date | None = None) -> str:
     digest = hmac.new((pepper + salt).encode(), who.encode(), hashlib.sha256).digest()
     bits = int.from_bytes(digest[:8], "big") >> (64 - LISTENER_KEY_BITS)
     return f"{bits:0{(LISTENER_KEY_BITS + 3) // 4}x}"
+
+
+def client_key(pepper: str, client: str) -> str:
+    """A short keyed hash of the client address bucket (an IPv6 client is bucketed by its /64, since
+    one person owns a whole /64). The address itself is never stored."""
+    try:
+        address = ipaddress.ip_address(client)
+        if address.version == 6:
+            client = str(ipaddress.ip_network(f"{client}/64", strict=False).network_address)
+    except ValueError:
+        pass
+    digest = hmac.new((pepper + "|client").encode(), client.encode(), hashlib.sha256).hexdigest()
+    return digest[:12]
 
 
 def estimate_distinct(observed: int) -> int:
@@ -158,6 +178,49 @@ def _insert(session: AsyncSession) -> Any:
     return postgresql.insert if name == "postgresql" else sqlite.insert
 
 
+async def _may_count_as_listener(
+    session: AsyncSession, ckey: str | None, key: str, recording_id: UUID, day: date
+) -> bool:
+    """False when this device would be one new listener too many for its client today."""
+    if ckey is None:
+        return True  # a signed-in member: tied to an account, not to a made-up id
+    known = await session.scalar(
+        select(PlayEvent.id)
+        .where(
+            PlayEvent.listener_key == key,
+            PlayEvent.day == day,
+            PlayEvent.counts_listener.is_(True),
+        )
+        .limit(1)
+    )
+    if known is not None:
+        return True  # already one of today's listeners: counting it again changes nothing
+    on_recording = int(
+        await session.scalar(
+            select(func.count(func.distinct(PlayEvent.listener_key))).where(
+                PlayEvent.client_key == ckey,
+                PlayEvent.day == day,
+                PlayEvent.recording_id == recording_id,
+                PlayEvent.counts_listener.is_(True),
+            )
+        )
+        or 0
+    )
+    if on_recording >= NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY:
+        return False
+    in_all = int(
+        await session.scalar(
+            select(func.count(func.distinct(PlayEvent.listener_key))).where(
+                PlayEvent.client_key == ckey,
+                PlayEvent.day == day,
+                PlayEvent.counts_listener.is_(True),
+            )
+        )
+        or 0
+    )
+    return in_all < NEW_LISTENERS_PER_CLIENT_PER_DAY
+
+
 async def ingest_plays(
     session: AsyncSession,
     *,
@@ -167,6 +230,7 @@ async def ingest_plays(
     country: str | None,
     events: list[PlayIn],
     now: datetime | None = None,
+    client: str | None = None,
 ) -> IngestResult:
     """Count a batch. Never raises for a bad event: it is rejected with a reason and the rest go
     on."""
@@ -174,6 +238,7 @@ async def ingest_plays(
     result = IngestResult()
     insert = _insert(session)
     cc = country_code(country)
+    ckey = client_key(pepper, client) if client and who.startswith("d:") else None
     oldest = now - timedelta(days=MAX_EVENT_AGE_DAYS)
     newest = now + timedelta(minutes=CLOCK_SKEW_MINUTES)
     ids = {e.recording_id for e in events}
@@ -215,6 +280,7 @@ async def ingest_plays(
         if per_day[day] >= DAILY_EVENT_CAP:
             result.reject("limit")
             continue
+        counts = await _may_count_as_listener(session, ckey, key, recording.id, day)
         stmt = (
             insert(PlayEvent)
             .values(
@@ -224,6 +290,8 @@ async def ingest_plays(
                 country=cc,
                 listened_sec=min(event.listened_sec, 6 * 3600),
                 created_at=now,
+                client_key=ckey,
+                counts_listener=counts,
             )
             .on_conflict_do_nothing(index_elements=["recording_id", "listener_key", "day"])
         )
@@ -318,7 +386,9 @@ async def numbers_for(session: AsyncSession, recording_ids: Select[Any], *, toda
     )
     distinct = await session.scalar(
         select(func.count(func.distinct(PlayEvent.listener_key))).where(
-            PlayEvent.recording_id.in_(recording_ids), PlayEvent.day >= start
+            PlayEvent.recording_id.in_(recording_ids),
+            PlayEvent.day >= start,
+            PlayEvent.counts_listener.is_(True),
         )
     )
     return Numbers(
@@ -348,7 +418,11 @@ async def daily_series(
         for row in (
             await session.execute(
                 select(PlayEvent.day, func.count(func.distinct(PlayEvent.listener_key)).label("n"))
-                .where(PlayEvent.recording_id.in_(recording_ids), PlayEvent.day >= start)
+                .where(
+                    PlayEvent.recording_id.in_(recording_ids),
+                    PlayEvent.day >= start,
+                    PlayEvent.counts_listener.is_(True),
+                )
                 .group_by(PlayEvent.day)
             )
         ).all()
@@ -373,6 +447,7 @@ async def country_counts(
                 PlayEvent.recording_id.in_(recording_ids),
                 PlayEvent.day >= start,
                 PlayEvent.country.is_not(None),
+                PlayEvent.counts_listener.is_(True),
             )
             .group_by(PlayEvent.country)
         )

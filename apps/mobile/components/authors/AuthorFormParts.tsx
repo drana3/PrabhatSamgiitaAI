@@ -7,7 +7,7 @@ import { KPress } from "@/components/kirtan/KPress"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { ABOUT_MAX, BIO_MAX, LINK_KINDS, MAX_LINKS, NAME_MAX, PLACE_MAX, PROFILE_LANGUAGES, SLUG_MAX } from "@/lib/authors/constants"
-import { type Draft, type DraftErrors, withName, withSlug } from "@/lib/authors/draft"
+import { type Draft, type DraftErrors, settleSlug, withName, withSlug } from "@/lib/authors/draft"
 import { say } from "@/lib/authors/text"
 import { problemKey } from "@/lib/authors/slug"
 import type { AuthorType, IncludeMode, LinkKind } from "@/lib/authors/types"
@@ -83,6 +83,7 @@ export function NameAndAddress({
           label={t("authors.form.slug")}
           value={draft.slug}
           onChangeText={(v) => onChange(withSlug(draft, v))}
+          onBlur={() => onChange(settleSlug(draft))}
           maxLength={SLUG_MAX}
           autoCapitalize="none"
           autoCorrect={false}

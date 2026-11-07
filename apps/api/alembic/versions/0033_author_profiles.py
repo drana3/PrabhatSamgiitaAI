@@ -106,7 +106,6 @@ def upgrade() -> None:
             sa.Column("status", sa.String(12), server_default="draft", nullable=False),
             sa.Column("review_needed", sa.Boolean(), server_default=sa.false(), nullable=False),
             sa.Column("review_reason", sa.String(200)),
-            sa.Column("report_reason", sa.String(40)),
             sa.Column("verified", sa.Boolean(), server_default=sa.false(), nullable=False),
             sa.Column("verified_at", sa.DateTime(timezone=True)),
             sa.Column("verified_by", sa.String(255)),

@@ -41,6 +41,7 @@ RESERVED_SLUGS = frozenset(
     about authors author songs song kiirtan kirtan bhajan bhajans kiirtans prabhat samgiita
     search explore stories story quiz learn today library saved playlist playlists festival
     festivals
+    sitemap slug-check by-recording photo recordings collections report
     signin sign-in signup sign-up login logout auth account settings profile privacy terms
     content-rules rules feedback contact delete-account forgot-password reset-password
     notifications radio drive harmonium assistant ai upload add-kirtan upload-set
@@ -78,6 +79,25 @@ PROTECTED_NAMES = (
     "Prabhat Samgiita AI",
     "Sadguru",
 )
+
+# Words that make a name or address LOOK like the team or the app. The page is not refused: it is
+# held for the team (review reason `staff_name`) unless the team has verified the page.
+STAFF_WORDS = ("team", "official", "support", "moderator", "admin", "verified", "staff")
+# The owners' names, matched inside the name or address without spaces and hyphens.
+OWNER_FRAGMENTS = ("dadamaetreya", "dadamaitreya", "maetreya", "maitreya")
+
+# Literal path segments of the author API ("sitemap", "slug-check", "me", ...), added by the router
+# module when it is imported, so a new route can never be taken as an address.
+_ROUTE_WORDS: set[str] = set()
+
+
+def register_route_words(words: set[str]) -> None:
+    _ROUTE_WORDS.update(w.lower() for w in words if w)
+
+
+def route_words() -> frozenset[str]:
+    return frozenset(_ROUTE_WORDS)
+
 
 _SLUG_OK = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -158,9 +178,23 @@ def slug_problem(slug: str) -> str | None:
         return "characters"
     if not re.search(r"[a-z]", slug):
         return "needs_letter"
-    if slug in RESERVED_SLUGS or slug.replace("-", "") in RESERVED_SLUGS:
+    if slug in RESERVED_SLUGS or slug.replace("-", "") in RESERVED_SLUGS or slug in _ROUTE_WORDS:
         return "reserved"
     return None
+
+
+def staff_hit(text: str | None) -> bool:
+    """The name or address sounds like staff (team, official, support, ...) or carries an owner's
+    name. Whole words (also with a number, "admin1", or a plural) and, for the longer words, inside
+    a longer one ("officialps", "supportteam")."""
+    tokens = re.findall(r"[a-z]+", ascii_fold(text or "").lower())
+    for token in tokens:
+        if token in STAFF_WORDS or (token.endswith("s") and token[:-1] in STAFF_WORDS):
+            return True
+    compact = name_key(text)
+    if any(word in compact for word in STAFF_WORDS if len(word) >= 5):
+        return True
+    return any(fragment in compact for fragment in OWNER_FRAGMENTS)
 
 
 def protected_hit(slug_or_name: str) -> bool:

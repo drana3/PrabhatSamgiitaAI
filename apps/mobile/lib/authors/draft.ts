@@ -1,5 +1,5 @@
 import { ABOUT_MAX, BIO_MAX, MAX_LINKS, NAME_MAX, NAME_MIN, PLACE_MAX } from "@/lib/authors/constants"
-import { localSlugProblem, normalizeSlug, suggestSlug, type SlugProblem } from "@/lib/authors/slug"
+import { localSlugProblem, normalizeSlug, suggestSlug, typingSlug, type SlugProblem } from "@/lib/authors/slug"
 import type { AuthorLink, AuthorProfileOwner, AuthorType, CreateInput, IncludeMode, PatchInput } from "@/lib/authors/types"
 
 /**
@@ -64,8 +64,15 @@ export function withName(draft: Draft, displayName: string): Draft {
   return { ...draft, displayName, slug: draft.slugTouched ? draft.slug : suggestSlug(displayName) }
 }
 
+/** Typing in the address field: a hyphen at the end is kept (see `typingSlug`). */
 export function withSlug(draft: Draft, raw: string): Draft {
-  return { ...draft, slug: normalizeSlug(raw), slugTouched: true }
+  return { ...draft, slug: typingSlug(raw), slugTouched: true }
+}
+
+/** On blur: the address as it will be sent (no hyphen at either end). */
+export function settleSlug(draft: Draft): Draft {
+  const slug = normalizeSlug(draft.slug)
+  return slug === draft.slug ? draft : { ...draft, slug }
 }
 
 export type DraftErrors = {
@@ -84,7 +91,7 @@ export function validateDraft(d: Draft): DraftErrors {
   const name = clean(d.displayName)
   if (name.length < NAME_MIN) errors.name = "too_short"
   else if (name.length > NAME_MAX) errors.name = "too_long"
-  const slug = localSlugProblem(d.slug)
+  const slug = localSlugProblem(normalizeSlug(d.slug))
   if (slug) errors.slug = slug
   if (d.bio.trim().length > BIO_MAX) errors.bio = "too_long"
   if (d.about.trim().length > ABOUT_MAX) errors.about = "too_long"
@@ -104,7 +111,7 @@ function linksOf(d: Draft): AuthorLink[] {
 
 export function toCreateInput(d: Draft, publish: boolean): CreateInput {
   return {
-    slug: d.slug,
+    slug: normalizeSlug(d.slug),
     display_name: clean(d.displayName),
     author_type: d.authorType,
     bio: d.bio.trim(),

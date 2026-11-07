@@ -361,3 +361,81 @@ async def test_a_listener_can_have_their_raw_rows_erased(world: World) -> None:
         )
     assert removed == 1
     assert (await counts(world))[0] == 1
+
+
+# ------------------------------------------------------------------ one client, many device ids
+
+
+async def test_one_client_cannot_make_many_new_listeners_with_made_up_device_ids(
+    world: World,
+) -> None:
+    await world.create()  # member A's published page
+    rid = await world.recording(MEMBER_A)
+    for i in range(40):
+        sent = await send(world, [event(rid)], device=f"fake-device-{i:04d}")
+        assert sent.json()["accepted"] == 1
+    # every play counts as a play ...
+    assert (await counts(world)) == (40, 40)
+    # ... but only a few of the devices are new listeners
+    async with world.sessions() as session:
+        listeners = await session.scalar(
+            select(func.count(func.distinct(PlayEvent.listener_key))).where(
+                PlayEvent.counts_listener.is_(True)
+            )
+        )
+    assert listeners == stats.NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY
+    mine = (await world.client.get(f"{URL}/me/stats", headers=AS["a"])).json()
+    assert mine["total_plays"] == 40
+    assert mine["monthly_listeners"] == stats.NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY
+    assert mine["series"][-1]["listeners"] == stats.NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY
+
+
+async def test_one_client_is_also_capped_over_all_recordings_in_a_day(world: World) -> None:
+    await world.create()
+    total = stats.NEW_LISTENERS_PER_CLIENT_PER_DAY + 10
+    for i in range(total):
+        rid = await world.recording(MEMBER_A, title=f"Song {i}")
+        await send(world, [event(rid)], device=f"fake-device-{i:04d}")
+    mine = (await world.client.get(f"{URL}/me/stats", headers=AS["a"])).json()
+    assert mine["total_plays"] == total
+    assert mine["monthly_listeners"] == stats.NEW_LISTENERS_PER_CLIENT_PER_DAY
+
+
+async def test_a_device_already_counted_today_is_never_dropped(world: World) -> None:
+    await world.create()
+    first = await world.recording(MEMBER_A, title="One")
+    second = await world.recording(MEMBER_A, title="Two")
+    await send(world, [event(first)], device="device-real-1")
+    for i in range(10):
+        await send(world, [event(first)], device=f"fake-device-{i:04d}")
+    # the real listener, counted first, is still a listener when they play another song
+    await send(world, [event(second)], device="device-real-1")
+    async with world.sessions() as session:
+        rows = (
+            await session.scalars(select(PlayEvent).where(PlayEvent.recording_id == second))
+        ).all()
+    assert [r.counts_listener for r in rows] == [True]
+
+
+async def test_the_client_address_is_never_stored(world: World) -> None:
+    rid = await world.recording(None)
+    await send(world, [event(rid)], device="device-0001")
+    async with world.sessions() as session:
+        row = (await session.scalars(select(PlayEvent))).one()
+    assert row.client_key is not None and len(row.client_key) == 12
+    for column in (row.client_key, row.listener_key, row.country or ""):
+        assert "127.0.0.1" not in column and "testclient" not in column
+    assert stats.client_key("pepper", "203.0.113.5") != stats.client_key("pepper", "203.0.113.6")
+    assert stats.client_key("pepper", "203.0.113.5") != stats.client_key("other", "203.0.113.5")
+    # one person owns a whole IPv6 /64: its addresses are one client
+    assert stats.client_key("p", "2001:db8:1:2::1") == stats.client_key("p", "2001:db8:1:2:ffff::9")
+
+
+async def test_signed_in_listeners_are_not_capped_by_the_client(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    for who in ("b", "c"):
+        await send(world, [event(rid)], device=None, who=who)
+    async with world.sessions() as session:
+        rows = (await session.scalars(select(PlayEvent))).all()
+    assert all(r.counts_listener and r.client_key is None for r in rows)

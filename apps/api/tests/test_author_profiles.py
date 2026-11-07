@@ -1067,6 +1067,123 @@ async def test_renaming_or_moving_a_verified_page_removes_the_verification(world
     assert renamed.json()["review_reason"] == "protected_name"
 
 
+async def test_every_literal_route_under_authors_is_a_reserved_address(world: World) -> None:
+    from app.api.v1.author_profiles import router
+    from app.services import author_rules as rules
+
+    # derived from the router: what the router has literally under /authors can never be a slug
+    literal = {
+        r.path[len(router.prefix) + 1 :].split("/", 1)[0]
+        for r in router.routes
+        if r.path.startswith(router.prefix + "/")
+    }
+    literal = {w for w in literal if w and not w.startswith("{")}
+    assert {"sitemap", "slug-check", "me", "by-recording"} <= literal
+    assert literal <= rules.route_words()
+    for word in literal:
+        assert rules.slug_problem(word) in ("reserved", "too_short"), word
+    for word in ("sitemap", "slug-check", "by-recording"):
+        check = await world.client.get(f"{URL}/slug-check", headers=AS["a"], params={"slug": word})
+        assert check.json()["problem"] == "reserved", word
+        made = await world.create(slug=word)
+        assert made.status_code == 422, word
+
+
+STAFF_CASES = [
+    ("Admin Team", "madhu-vrata"),
+    ("PS Team", "madhu-vrata"),
+    ("Official PS", "madhu-vrata"),
+    ("Support", "madhu-vrata"),
+    ("Moderator", "madhu-vrata"),
+    ("Dada Maetreya", "madhu-vrata"),
+    ("Madhu Vrata", "support-team"),
+    ("Madhu Vrata", "official-ps"),
+    ("Madhu Vrata", "verified-artist"),
+    ("Madhu Vrata", "admin1"),
+]
+
+
+@pytest.mark.parametrize(("name", "slug"), STAFF_CASES)
+async def test_staff_sounding_names_wait_for_the_team(world: World, name: str, slug: str) -> None:
+    made = await world.create(display_name=name, slug=slug)
+    assert made.status_code == 201, made.text
+    assert made.json()["status"] == "draft"
+    assert made.json()["review_needed"] is True
+    assert made.json()["review_reason"] in ("staff_name", "protected_name")
+    assert (await world.get(slug)).status_code == 404
+
+
+async def test_the_slug_check_warns_about_a_staff_sounding_address(world: World) -> None:
+    check = await world.client.get(
+        f"{URL}/slug-check", headers=AS["a"], params={"slug": "support-team"}
+    )
+    assert check.json()["available"] is True and check.json()["held_for_review"] is True
+
+
+async def test_a_verified_page_may_keep_a_staff_sounding_name(world: World) -> None:
+    made = await world.create(display_name="Official PS", slug="official-ps")
+    pid = made.json()["id"]
+    assert made.json()["review_reason"] == "staff_name"
+    await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    await world.client.post(f"/api/v1/admin/authors/{pid}/verify", headers=AS_TEAM)
+    await world.client.post(f"{URL}/me/unpublish", headers=AS["a"])
+    again = await world.client.post(f"{URL}/me/publish", headers=AS["a"])
+    assert again.json()["status"] == "published" and again.json()["review_needed"] is False
+
+
+async def test_approve_does_not_publish_a_draft_the_owner_made(world: World) -> None:
+    saved = await world.create(publish=False)
+    pid = saved.json()["id"]
+    assert saved.json()["status"] == "draft"
+    approved = await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    assert approved.json()["status"] == "draft"
+    assert (await world.get("madhu-vrata")).status_code == 404
+
+
+async def test_approve_does_not_publish_a_page_the_owner_unpublished(world: World) -> None:
+    held = await world.create(display_name="Prabhat Samgiita Team", slug="madhu-team")
+    pid = held.json()["id"]
+    assert held.json()["status"] == "draft" and held.json()["review_needed"] is True
+    await world.client.post(f"{URL}/me/unpublish", headers=AS["a"])
+    approved = await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    assert approved.json()["status"] == "draft"
+    # a live page with a report hold that the owner then unpublishes stays unpublished too
+    live = await world.create("b", slug="bhakti-songs", display_name="Bhakti Songs")
+    bid = live.json()["id"]
+    await world.client.post(
+        f"{URL}/bhakti-songs/report", headers=AS["c"], json={"reason": "impersonation"}
+    )
+    await world.client.post(f"{URL}/me/unpublish", headers=AS["b"])
+    approved = await world.client.post(f"/api/v1/admin/authors/{bid}/approve", headers=AS_TEAM)
+    assert approved.json()["status"] == "draft" and approved.json()["review_needed"] is False
+
+
+async def test_approve_publishes_a_page_that_was_held_for_its_name(world: World) -> None:
+    held = await world.create(display_name="Prabhat Samgiita Team", slug="madhu-team")
+    pid = held.json()["id"]
+    approved = await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    assert approved.json()["status"] == "published" and approved.json()["review_needed"] is False
+    assert (await world.get("madhu-team")).status_code == 200
+
+
+async def test_reports_count_from_the_last_approve(world: World) -> None:
+    made = await world.create()
+    pid = made.json()["id"]
+    for who in (AS["b"], AS["c"], AS_TEAM):
+        await world.client.post(f"{URL}/madhu-vrata/report", headers=who, json={"reason": "spam"})
+    assert (await world.profile("madhu-vrata")).report_reason == "spam"
+    await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    profile = await world.profile("madhu-vrata")
+    assert profile.report_reason is None and profile.reports_count == 0
+    # one new report is one report, not the fourth: the page is not held again
+    await world.client.post(f"{URL}/madhu-vrata/report", json={"reason": "spam"})
+    profile = await world.profile("madhu-vrata")
+    assert profile.reports_count == 1 and profile.report_reason is None
+    # the reports themselves are kept
+    history = await world.client.get(f"/api/v1/admin/authors/{pid}/reports", headers=AS_TEAM)
+    assert len(history.json()) == 4
+
+
 # --------------------------------------------------------------------------- limits
 
 

@@ -13,6 +13,7 @@ import {
   isoDuration,
   jsonLdString,
   kindsSentence,
+  languageName,
   safeHttpsUrl,
   siteOrigin,
   type AuthorProfile,
@@ -161,6 +162,31 @@ describe("JSON-LD", () => {
     expect(text).not.toContain("<")
     expect(text).not.toContain(" ")
     expect(JSON.parse(text)["@graph"][1].name).toBe("</script><script>alert(1)</script> & co ")
+  })
+})
+
+describe("names that carry HTML (QA)", () => {
+  const evil = `<img src=x onerror=alert(1)> & "q" </script>`
+
+  it("serialises every field with JSON.stringify and escapes < > & so nothing can leave the script tag", () => {
+    const data = authorJsonLd(
+      profile({ display_name: evil, bio: evil, city: evil, country: evil }),
+      [recording({ title: evil })],
+    )
+    const text = jsonLdString(data)
+    expect(text).not.toMatch(/[<>&]/)
+    expect(text).toContain("\\u003cimg")
+    // and it is still the same data after the browser reads it
+    const back = JSON.parse(text) as { "@graph": Record<string, unknown>[] }
+    expect(back["@graph"].find((n) => n["@type"] === "Person")?.name).toBe(evil)
+    expect(back["@graph"].find((n) => n["@type"] === "MusicRecording")?.name).toBe(evil)
+  })
+
+  it("keeps the language written by the author as text, not markup, in the data", () => {
+    expect(languageName("<b>other</b>")).toBe("<b>other</b>") // React escapes it where it is shown
+    const text = jsonLdString(authorJsonLd(profile(), [recording({ language: "<b>x</b>" })]))
+    expect(text).not.toContain("<b>")
+    expect(text).not.toContain("inLanguage") // an unknown language is left out, never copied in
   })
 })
 

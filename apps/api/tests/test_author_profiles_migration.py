@@ -60,6 +60,11 @@ def m33() -> ModuleType:
 
 
 @pytest.fixture
+def m35() -> ModuleType:
+    return load("0035_author_review_and_play_caps")
+
+
+@pytest.fixture
 def engine() -> Iterator[sa.Engine]:
     engine = sa.create_engine("sqlite://", poolclass=sa.pool.StaticPool)
     # what 0032 leaves: the account and recording tables, none of the new ones
@@ -103,13 +108,123 @@ def test_upgrade_on_a_database_the_app_already_filled_with_create_all(
     assert NEW_TABLES <= set(sa.inspect(engine).get_table_names())
 
 
-def test_the_tables_match_the_models(engine: sa.Engine, m33: ModuleType) -> None:
+def test_the_tables_match_the_models(engine: sa.Engine, m33: ModuleType, m35: ModuleType) -> None:
     run(engine, m33.upgrade)
+    run(engine, m35.upgrade)
     inspector = sa.inspect(engine)
     for model in MODELS:
         table = cast(sa.Table, model.__table__)
         built = {c["name"] for c in inspector.get_columns(table.name)}
         assert built == {c.name for c in table.columns}, table.name
+
+
+def test_0033_is_the_form_that_was_committed_before_the_review_columns(m33: ModuleType) -> None:
+    # 0033 never learns about the later columns: they belong to 0035
+    source = (VERSIONS / "0033_author_profiles.py").read_text()
+    assert "report_reason" not in source and "client_key" not in source
+    assert m33.down_revision == "0032_recording_sets_and_categories"
+
+
+def test_0035_is_the_single_head_after_0034(m35: ModuleType) -> None:
+    script = ScriptDirectory.from_config(Config(str(VERSIONS.parents[1] / "alembic.ini")))
+    revision = script.get_revision("0035_author_review_and_play_caps")
+    assert revision is not None
+    assert revision.down_revision == "0034_recording_extras"
+    assert m35.revision == "0035_author_review_and_play_caps"
+    assert script.get_heads() == ["0035_author_review_and_play_caps"]
+
+
+def _profile_row(engine: sa.Engine, slug: str, **values: object) -> None:
+    """A row as 0033 left it, written with plain SQL (the foreign key to the member is off)."""
+    from uuid import uuid4
+
+    columns: dict[str, object] = {
+        "id": uuid4().hex,
+        "member_id": uuid4().hex,
+        "slug": slug,
+        "display_name": slug,
+        "languages": "[]",
+        "links": "[]",
+        "created_at": "2026-01-01 00:00:00",
+        "updated_at": "2026-01-01 00:00:00",
+        **values,
+    }
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                f"INSERT INTO author_profiles ({', '.join(columns)}) "
+                f"VALUES ({', '.join(':' + c for c in columns)})"
+            ),
+            columns,
+        )
+
+
+def test_0035_moves_report_holds_to_their_own_column(
+    engine: sa.Engine, m33: ModuleType, m35: ModuleType
+) -> None:
+    run(engine, m33.upgrade)
+    _profile_row(engine, "reported-one", review_needed=True, review_reason="reported:impersonation")
+    _profile_row(engine, "named-one", review_needed=True, review_reason="protected_name")
+    _profile_row(engine, "clean-one", review_needed=False)
+    run(engine, m35.upgrade)
+    with engine.connect() as connection:
+        rows = {
+            r.slug: r
+            for r in connection.execute(
+                sa.text(
+                    "SELECT slug, review_needed, review_reason, report_reason FROM author_profiles"
+                )
+            )
+        }
+    assert rows["reported-one"].report_reason == "impersonation"
+    assert not rows["reported-one"].review_needed and rows["reported-one"].review_reason is None
+    assert rows["named-one"].review_reason == "protected_name" and rows["named-one"].review_needed
+    assert rows["named-one"].report_reason is None
+    assert rows["clean-one"].report_reason is None
+
+
+def test_0035_twice_and_after_create_all_is_harmless(
+    engine: sa.Engine, m33: ModuleType, m35: ModuleType
+) -> None:
+    run(engine, m33.upgrade)
+    run(engine, m35.upgrade)
+    run(engine, m35.upgrade)
+    inspector = sa.inspect(engine)
+    assert "report_reason" in {c["name"] for c in inspector.get_columns("author_profiles")}
+    assert {"client_key", "counts_listener"} <= {
+        c["name"] for c in inspector.get_columns("play_events")
+    }
+    # a database the app already built from the models has the columns before the revision runs
+    other = sa.create_engine("sqlite://", poolclass=sa.pool.StaticPool)
+    Base.metadata.create_all(
+        other,
+        tables=[cast(sa.Table, m.__table__) for m in (UserAccount, RecordingCollection, Recording)],
+    )
+    Base.metadata.create_all(other, tables=[cast(sa.Table, m.__table__) for m in MODELS])
+    run(other, m35.upgrade)
+    other.dispose()
+
+
+def test_0035_downgrade_puts_the_holds_back(
+    engine: sa.Engine, m33: ModuleType, m35: ModuleType
+) -> None:
+    run(engine, m33.upgrade)
+    run(engine, m35.upgrade)
+    _profile_row(engine, "held-one", report_reason="spam")
+    run(engine, m35.downgrade)
+    with engine.connect() as connection:
+        back = connection.execute(
+            sa.text(
+                "SELECT review_needed, review_reason FROM author_profiles WHERE slug = 'held-one'"
+            )
+        ).one()
+    assert back.review_needed and back.review_reason == "reported:spam"
+    inspector = sa.inspect(engine)
+    assert "report_reason" not in {c["name"] for c in inspector.get_columns("author_profiles")}
+    assert not {"client_key", "counts_listener"} & {
+        c["name"] for c in inspector.get_columns("play_events")
+    }
+    run(engine, m35.upgrade)  # and up again
 
 
 def test_downgrade_drops_only_the_new_tables(engine: sa.Engine, m33: ModuleType) -> None:

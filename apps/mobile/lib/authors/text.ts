@@ -9,7 +9,7 @@ export function say(t: TranslateFn, key: string, params?: Record<string, string 
   return (t as unknown as (k: string, p?: Record<string, string | number>) => string)(key, params)
 }
 
-const REVIEW_REASONS = new Set(["protected_name", "artist_claim", "look_alike_page", "look_alike_artist"])
+const REVIEW_REASONS = new Set(["protected_name", "staff_name", "artist_claim", "look_alike_page", "look_alike_artist"])
 
 /** The sentence key for why a page waits for the team (`review_reason` of the API; "reported:<why>" after reports). */
 export function reviewKey(reason: string | null | undefined): string {

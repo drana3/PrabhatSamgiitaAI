@@ -499,6 +499,7 @@ async def report_plays(
         who=who,
         owner_member_id=member.id if member else None,
         country=payload.region,
+        client=client_host(request),
         events=[
             stats.PlayIn(
                 recording_id=e.recording_id,
@@ -648,3 +649,22 @@ async def admin_lift_suspension(member_id: UUID, session: DatabaseSession, team:
     if not await service.lift_member_suspension(session, member_id):
         raise HTTPException(status_code=404, detail="No suspension for this member")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _register_route_words() -> None:
+    """Every literal segment right under /authors ("sitemap", "slug-check", "me", ...) can never be
+    an author's address, because `/authors/<slug>` would reach the route instead. Derived from the
+    router itself, so a route added later is covered without anybody remembering this list."""
+    prefix = router.prefix.rstrip("/") + "/"
+    words: set[str] = set()
+    for route in router.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith(prefix):
+            continue
+        first = path[len(prefix) :].split("/", 1)[0]
+        if first and not first.startswith("{"):
+            words.add(first)
+    service.rules.register_route_words(words)
+
+
+_register_route_words()

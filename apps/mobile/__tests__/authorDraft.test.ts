@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
-import { emptyDraft, hasErrors, toCreateInput, validateDraft, withName, withSlug } from "@/lib/authors/draft"
-import { errorKey, localSlugProblem, normalizeSlug, problemKey, suggestSlug } from "@/lib/authors/slug"
+import { emptyDraft, hasErrors, settleSlug, toCreateInput, validateDraft, withName, withSlug } from "@/lib/authors/draft"
+import { errorKey, localSlugProblem, normalizeSlug, problemKey, suggestSlug, typingSlug } from "@/lib/authors/slug"
 
 describe("slug rules on the phone", () => {
   it("makes a typed name an address", () => {
@@ -69,5 +69,38 @@ describe("the creation draft", () => {
     expect(input.country).toBe("Poland")
     expect(input.city).toBeNull()
     expect(input.publish).toBe(true)
+  })
+})
+
+describe("typing a hyphen in the address (QA-032)", () => {
+  /** What the field does with each keystroke: the new text replaces the old one, through `withSlug`. */
+  function type(keys: string[]): string {
+    let draft = emptyDraft()
+    let text = ""
+    for (const key of keys) {
+      text += key
+      draft = withSlug(draft, text)
+      text = draft.slug
+    }
+    return draft.slug
+  }
+
+  it("keeps a hyphen typed at the end, so priya + - + devi stays priya-devi", () => {
+    expect(typingSlug("priya-")).toBe("priya-")
+    expect(type([..."priya-devi"])).toBe("priya-devi")
+  })
+
+  it("still folds the rest while typing", () => {
+    expect(typingSlug("Priya  Dev")).toBe("priya-dev")
+    expect(typingSlug("-priya")).toBe("priya")
+    expect(typingSlug("a--b")).toBe("a-b")
+  })
+
+  it("settles to the sent form on blur and when it is sent", () => {
+    const typed = withSlug(emptyDraft(), "priya-")
+    expect(typed.slug).toBe("priya-")
+    expect(settleSlug(typed).slug).toBe("priya")
+    expect(toCreateInput({ ...typed, displayName: "Priya" }, false).slug).toBe("priya")
+    expect(validateDraft({ ...typed, displayName: "Priya" }).slug).toBeUndefined()
   })
 })

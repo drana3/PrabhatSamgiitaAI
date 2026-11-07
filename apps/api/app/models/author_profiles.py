@@ -276,6 +276,7 @@ class PlayEvent(Base):
     __table_args__ = (
         UniqueConstraint("recording_id", "listener_key", "day", name="uq_play_events_once_a_day"),
         Index("ix_play_events_day_recording", "day", "recording_id"),
+        Index("ix_play_events_client_day", "client_key", "day"),
     )
 
     id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
@@ -291,6 +292,14 @@ class PlayEvent(Base):
     country: Mapped[str | None] = mapped_column(String(2))
     listened_sec: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Signed-out listening only: a short keyed hash of the client address (never the address), so
+    # one client cannot make hundreds of "new listeners" with made-up device ids.
+    client_key: Mapped[str | None] = mapped_column(String(16))
+    # false: the play is counted, but this listener is not counted as a new listener (a client over
+    # its cap of new device ids). Listener numbers count only rows where this is true.
+    counts_listener: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
 
 
 class PlayDaily(Base):

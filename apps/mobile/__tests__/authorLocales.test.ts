@@ -54,7 +54,7 @@ const API_ERROR_CODES = [
 function dynamicKeys(): string[] {
   const keys: string[] = []
   for (const s of ["draft", "published", "review", "suspended"]) keys.push(`authors.status.${s}`)
-  for (const r of [null, "protected_name", "artist_claim", "look_alike_page", "look_alike_artist", "reported:spam", "unknown-code"]) keys.push(reviewKey(r))
+  for (const r of [null, "protected_name", "staff_name", "artist_claim", "look_alike_page", "look_alike_artist", "reported:spam", "unknown-code"]) keys.push(reviewKey(r))
   for (const n of ["counting_rule", "own_plays_excluded", "listener_estimate", "no_data_yet", "not_enough_data"]) keys.push(`authors.note.${n}`)
   for (const l of PROFILE_LANGUAGES) keys.push(`authors.language.${l}`)
   for (const k of LINK_KINDS) keys.push(`authors.link.${k}`)

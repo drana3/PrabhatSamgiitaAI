@@ -18,6 +18,22 @@ export function normalizeSlug(raw: string | null | undefined): string {
     .replace(/^-+|-+$/g, "")
 }
 
+/**
+ * The address as it is being typed: like `normalizeSlug`, but a hyphen at the end stays, so "priya" + "-" + "devi"
+ * gives "priya-devi" and not "priyadevi". The field settles to `normalizeSlug` on blur and when the form is sent.
+ */
+export function typingSlug(raw: string | null | undefined): string {
+  const folded = (raw ?? "")
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+  return folded
+    .replace(/[\s_.]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+/, "")
+}
+
 export type SlugProblem = "too_short" | "too_long" | "characters" | "needs_letter"
 
 /** The problems that need no server: length, characters, at least one letter. */
