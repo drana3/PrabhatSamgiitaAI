@@ -301,3 +301,70 @@ def test_the_author_name_with_a_stray_mark_is_cleaned_not_refused() -> None:
     assert ok["display_name"] == "Madhu Vrata"
     ok = author_profiles._clean_fields({"display_name": "\u0928\u093f\u0924\u094d\u092f\u093e"})
     assert ok["display_name"] == "\u0928\u093f\u0924\u094d\u092f\u093e"
+
+
+# --------------------------------------------------------------------------- QA-049: zalgo
+
+GRAVE, ACUTE = "\u0300", "\u0301"
+
+
+def test_a_zalgo_stack_of_200_marks_is_cut_to_4() -> None:
+    zalgo = "Z" + "".join(chr(0x0300 + i % 0x70) for i in range(200)) + "algo"
+    kept = invisible_text.strip_invisible(zalgo)
+    assert kept == "Z" + "".join(chr(0x0300 + i) for i in range(4)) + "algo"
+    assert kept.startswith("Z") and kept.endswith("algo")
+    assert len(kept) == 1 + invisible_text.MAX_MARKS_PER_BASE + 4
+    assert rules.clean_line(zalgo, 200) == kept
+    assert song_comments.clean_body(zalgo) == kept
+    assert extras_common.one_line(zalgo, 200) == kept
+    assert recording_collections.clean_set_text(zalgo, 200) == kept
+    assert video_links.clean_title(zalgo) == kept
+    assert recording_chords.clean_note(zalgo) == kept
+
+
+def test_the_cap_is_per_base_character_not_per_value() -> None:
+    text = ("a" + ACUTE * 10 + " ") * 5
+    assert invisible_text.strip_invisible(text) == ("a" + ACUTE * 4 + " ") * 5
+    assert invisible_text.strip_invisible("a" + GRAVE * 4) == "a" + GRAVE * 4
+    assert invisible_text.strip_invisible("a" + GRAVE * 5) == "a" + GRAVE * 4
+
+
+def test_the_cap_counts_marks_of_every_kind_and_variation_selectors() -> None:
+    assert invisible_text.strip_invisible("a\u0301\u0302\u0303\u0304\ufe0f\u20e3") == (
+        "a\u0301\u0302\u0303\u0304"
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # Arabic: consonant, shadda, fatha, dagger alef (3 marks on one base)
+        "\u0628\u0651\u064e\u0670",
+        # Arabic with four marks on a base (shadda, fatha, dagger alef, small high mark)
+        "\u0628\u0651\u064e\u0670\u06d6",
+        # Khmer: consonant, coeng + consonant, shifter, vowel sign, sign (each base takes few)
+        "\u1780\u17d2\u1798\u17c9\u17c1\u17c6",
+        "\u1780\u17b6\u17c6",
+        # Thai: consonant, vowel above, tone mark, thanthakhat
+        "\u0e01\u0e34\u0e48\u0e4c",
+        # Myanmar: consonant, medial ra, medial wa, vowel sign, tone
+        "\u1000\u103b\u103d\u1031\u1037",
+        # Devanagari: consonant with nukta, virama conjunct, matra, candrabindu
+        "\u0915\u093c\u094d\u0937\u093f\u0901",
+        # Vietnamese, decomposed: base, circumflex, dot below (and a horn)
+        "o\u031b\u0323\u0301",
+        "e\u0323\u0302",
+        # emoji: selector, skin tone (a base), joiner, selector
+        "\U0001f469\U0001f3fd\u200d\u2764\ufe0f\u200d\U0001f468\U0001f3fb",
+        "1\ufe0f\u20e3",
+        "\u2764\ufe0f",
+    ],
+)
+def test_legitimate_mark_stacks_are_never_cut(text: str) -> None:
+    assert invisible_text.strip_invisible(text) == text
+    assert rules.clean_line(text, 80) == text
+
+
+def test_a_long_run_of_legit_vowel_signs_across_many_letters_is_untouched() -> None:
+    text = "\u0928\u093f\u0924\u094d\u092f\u093e " * 40
+    assert invisible_text.strip_invisible(text) == text

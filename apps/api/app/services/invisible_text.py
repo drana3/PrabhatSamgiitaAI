@@ -19,7 +19,7 @@ black flag U+1F3F4, tags spelling exactly gbeng, gbsct or gbwls, and the cancel 
 hidden text that a person cannot see and a model later reads.
 
 A combining mark or variation selector with no base character before it is dropped too (a value
-made only of them is empty).
+made only of them is empty), and no base keeps more than 4 marks (zalgo text).
 
 Blank-looking characters (Hangul fillers, braille blank, combining grapheme joiner, Khmer inherent
 vowels) are dropped, so a value made only of them is empty.
@@ -34,6 +34,9 @@ from __future__ import annotations
 import unicodedata
 
 JOINERS = ("\u200c", "\u200d")
+# Most marks kept on one base character. Real writing needs up to 3 (Arabic shadda, vowel sign and
+# dagger alef; Vietnamese; Thai, Khmer and Myanmar vowel, tone and sign); more is zalgo text.
+MAX_MARKS_PER_BASE = 4
 BLACK_FLAG = "\U0001f3f4"
 TAG_FIRST, TAG_LAST_LETTER, TAG_CANCEL = 0xE0020, 0xE007E, "\U000e007f"
 # The only tag sequences kept: the flags of England, Scotland and Wales (ISO 3166-2 codes).
@@ -119,6 +122,7 @@ def strip_invisible(text: str | None) -> str:
     value = text or ""
     out: list[str] = []
     attached = False  # does a base character, with only marks since, end `out`?
+    marks = 0  # marks kept on that base so far
     index = 0
     while index < len(value):
         char = value[index]
@@ -127,6 +131,7 @@ def strip_invisible(text: str | None) -> str:
             if end is not None:
                 out.append(value[index:end])
                 attached = True
+                marks = 0
                 index = end
                 continue
         category = unicodedata.category(char)
@@ -134,14 +139,17 @@ def strip_invisible(text: str | None) -> str:
             if char in BLANK_AS_SPACE:
                 out.append(" ")
                 attached = False
+                marks = 0
         elif category == "Cf":
             if char in JOINERS and joiner_belongs(value, index):
                 out.append(char)  # neutral: the letters around it decide
         elif category[0] == "M":
-            if attached:
+            if attached and marks < MAX_MARKS_PER_BASE:
                 out.append(char)
+                marks += 1
         else:
             out.append(char)
             attached = _is_base(char)
+            marks = 0
         index += 1
     return "".join(out)
