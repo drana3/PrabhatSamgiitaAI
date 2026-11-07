@@ -5,6 +5,17 @@ from app.models.admin_workflow import (
 )
 from app.models.ai_usage import AiDailyUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
+from app.models.author_profiles import (
+    AuthorProfile,
+    AuthorProfilePhoto,
+    AuthorRecordingLink,
+    AuthorReport,
+    AuthorSlugHistory,
+    AuthorStatsSnapshot,
+    AuthorSuspension,
+    PlayDaily,
+    PlayEvent,
+)
 from app.models.base import Base
 from app.models.chunk import SongChunk
 from app.models.domain import (
@@ -62,6 +73,13 @@ from app.models.song_comments import SongComment, SongCommentReport
 __all__ = [
     "AiDailyUsage",
     "AuthorBlock",
+    "AuthorProfile",
+    "AuthorProfilePhoto",
+    "AuthorRecordingLink",
+    "AuthorReport",
+    "AuthorSlugHistory",
+    "AuthorStatsSnapshot",
+    "AuthorSuspension",
     "GoogleTranslateUsage",
     "AnalyticsDaily",
     "Base",
@@ -81,6 +99,8 @@ __all__ = [
     "Occasion",
     "PasswordResetToken",
     "PhoneVerificationCode",
+    "PlayDaily",
+    "PlayEvent",
     "QuizAttempt",
     "QuizCertification",
     "QuizEvent",

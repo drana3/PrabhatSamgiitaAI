@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.db import get_session
 from app.models import UserAccount, UserFavorite, UserPlaylist, UserPlaylistSong
 from app.schemas.member import (
@@ -28,6 +29,7 @@ from app.schemas.member import (
     QuizSubmitResponse,
     QuizSubmitWrite,
 )
+from app.services.author_profiles import erase_member as erase_author_data
 from app.services.member_phone import set_member_phone
 from app.services.members import (
     clear_member_chat_memory,
@@ -281,6 +283,8 @@ async def clear_chat_memory(request: Request, session: DatabaseSession) -> Respo
 @router.delete("/me", status_code=204)
 async def delete_member_data(request: Request, session: DatabaseSession) -> Response:
     member = await current_member(request, session)
+    # the author page (its address is held back for a while) and the member's raw listening rows go first
+    await erase_author_data(session, member, get_settings())
     await session.delete(member)
     await session.commit()
     return Response(status_code=204)

@@ -3,6 +3,9 @@ from fastapi import APIRouter
 from app.api.v1.admin import router as admin_router
 from app.api.v1.ai import router as ai_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.author_profiles import admin_router as author_profiles_admin_router
+from app.api.v1.author_profiles import plays_router as author_plays_router
+from app.api.v1.author_profiles import router as author_profiles_router
 from app.api.v1.discovery import router as discovery_router
 from app.api.v1.health import router as health_router
 from app.api.v1.inventory import router as inventory_router
@@ -48,3 +51,6 @@ router.include_router(recording_sets_admin_router)
 router.include_router(song_comments_router)
 router.include_router(song_chords_router)
 router.include_router(song_chords_admin_router)
+router.include_router(author_profiles_router)
+router.include_router(author_plays_router)
+router.include_router(author_profiles_admin_router)

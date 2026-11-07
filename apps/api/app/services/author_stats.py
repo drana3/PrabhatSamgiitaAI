@@ -1,0 +1,380 @@
+"""Listening statistics: what is counted, how listeners are hidden, how numbers are worked out.
+
+The rules (docs/author-profiles.md, "Statistics"):
+
+* A play counts after PLAY_MIN_SECONDS of real listening, or half of a short track (never under
+  PLAY_FLOOR_SECONDS). The phone checks it; the server checks it again against the recording's own
+  length.
+* One count per listener per recording per UTC day. The database enforces it (unique key).
+* A listener is never stored as an id. `listener_key` is a 24-bit slice of a keyed hash
+  (HMAC-SHA256 with
+  a server secret): about 500 people in the world share one key, so a stored key cannot point at a
+  person,
+  and without the secret nobody can even reproduce it. Distinct keys are counted and corrected for
+  collisions (`estimate_distinct`).
+* The listener's own plays of their own recordings are not counted.
+* Countries: only a coarse device region, and only shown for a country with at least
+  COUNTRY_MIN_LISTENERS
+  listeners, and only when the total is large enough that a small country cannot single anyone out.
+* Raw events are deleted after PLAY_EVENT_RETENTION_DAYS; daily counters stay (they hold no
+  listener data).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import math
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import Select, delete, func, select
+from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.author_profiles import PlayDaily, PlayEvent
+from app.models.recordings import Recording
+
+# ---- the knobs (one place each) --------------------------------------------------------------
+
+PLAY_MIN_SECONDS = 30
+PLAY_FLOOR_SECONDS = 10
+PLAY_SHORT_TRACK_FRACTION = 0.5
+# 24 bits of the keyed hash. Raise it for more exact counts, lower it for more anonymity.
+LISTENER_KEY_BITS = 24
+# 0 = one key per listener for ever. N > 0 = the salt changes every N days (1 = the daily rotation
+# Dada
+# proposed). Rotation makes "monthly listeners" count a regular listener once per salt period, so a
+# value above 0 means the monthly number is an upper bound. Default off, see the doc.
+LISTENER_SALT_ROTATION_DAYS = 0
+PLAY_EVENT_RETENTION_DAYS = 400  # about 13 months
+MAX_EVENTS_PER_BATCH = 50
+MAX_EVENT_AGE_DAYS = 7
+CLOCK_SKEW_MINUTES = 5
+DAILY_EVENT_CAP = 300  # counted plays per listener per day; more is a script, not a person
+COUNTRY_MIN_LISTENERS = 5
+COUNTRY_MIN_TOTAL = 20
+# Below this many counted plays the PUBLIC page shows "counting since ..." instead of numbers.
+MIN_PUBLIC_PLAYS = 5
+MONTH_DAYS = 30
+SNAPSHOT_TTL_SECONDS = 15 * 60
+PRUNE_EVERY_HOURS = 24
+
+_last_prune: datetime | None = None
+
+
+def now_utc() -> datetime:
+    return datetime.now(UTC)
+
+
+# ---- listener keys ---------------------------------------------------------------------------
+
+
+def listener_key(pepper: str, who: str, on: date | None = None) -> str:
+    """Hex of the first LISTENER_KEY_BITS bits of HMAC(pepper [+ salt period], who).
+
+    `who` is "m:<member id>" or "d:<device id>". Never stored; only the short key is.
+    """
+    salt = ""
+    if LISTENER_SALT_ROTATION_DAYS > 0 and on is not None:
+        salt = f"|{on.toordinal() // LISTENER_SALT_ROTATION_DAYS}"
+    digest = hmac.new((pepper + salt).encode(), who.encode(), hashlib.sha256).digest()
+    bits = int.from_bytes(digest[:8], "big") >> (64 - LISTENER_KEY_BITS)
+    return f"{bits:0{(LISTENER_KEY_BITS + 3) // 4}x}"
+
+
+def estimate_distinct(observed: int) -> int:
+    """Distinct listeners from distinct short keys. Two people sharing a key count once, so the raw
+    count
+    is a little low; linear counting (`-m ln(1 - d/m)`) puts it right. Exact for small numbers."""
+    if observed <= 0:
+        return 0
+    space = 2**LISTENER_KEY_BITS
+    if observed >= space:
+        return observed
+    return int(round(-space * math.log1p(-observed / space)))
+
+
+# ---- the counting rule -----------------------------------------------------------------------
+
+
+def play_threshold(duration_sec: int | None) -> int:
+    """Seconds of listening that make a play: 30, or half of a track shorter than a minute (>=
+    10)."""
+    if not duration_sec or duration_sec <= 0:
+        return PLAY_MIN_SECONDS
+    half = int(math.ceil(duration_sec * PLAY_SHORT_TRACK_FRACTION))
+    return max(PLAY_FLOOR_SECONDS, min(PLAY_MIN_SECONDS, half))
+
+
+def qualifies(listened_sec: int, duration_sec: int | None) -> bool:
+    return listened_sec >= play_threshold(duration_sec)
+
+
+def country_code(value: str | None) -> str | None:
+    code = (value or "").strip().upper()
+    return code if len(code) == 2 and code.isalpha() else None
+
+
+def visible_countries(counts: dict[str, int]) -> list[dict[str, Any]] | None:
+    """k-anonymity for countries: only those with enough listeners, and only when the whole is big
+    enough. None means "hidden" (the app says there is not enough data yet)."""
+    total = sum(counts.values())
+    if total < COUNTRY_MIN_TOTAL:
+        return None
+    shown = [
+        {"country": c, "listeners": n}
+        for c, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        if n >= COUNTRY_MIN_LISTENERS
+    ]
+    return shown or None
+
+
+# ---- the report of plays ---------------------------------------------------------------------
+
+
+@dataclass
+class PlayIn:
+    recording_id: UUID
+    played_at: datetime
+    listened_sec: int
+    duration_sec: int | None = None
+
+
+@dataclass
+class IngestResult:
+    accepted: int = 0
+    duplicates: int = 0
+    rejected: dict[str, int] = field(default_factory=dict)
+
+    def reject(self, why: str) -> None:
+        self.rejected[why] = self.rejected.get(why, 0) + 1
+
+
+def _insert(session: AsyncSession) -> Any:
+    name = session.get_bind().dialect.name
+    return postgresql.insert if name == "postgresql" else sqlite.insert
+
+
+async def ingest_plays(
+    session: AsyncSession,
+    *,
+    pepper: str,
+    who: str,
+    owner_member_id: UUID | None,
+    country: str | None,
+    events: list[PlayIn],
+    now: datetime | None = None,
+) -> IngestResult:
+    """Count a batch. Never raises for a bad event: it is rejected with a reason and the rest go
+    on."""
+    now = now or now_utc()
+    result = IngestResult()
+    insert = _insert(session)
+    cc = country_code(country)
+    oldest = now - timedelta(days=MAX_EVENT_AGE_DAYS)
+    newest = now + timedelta(minutes=CLOCK_SKEW_MINUTES)
+    ids = {e.recording_id for e in events}
+    recordings: dict[UUID, Recording] = {}
+    if ids:
+        rows = (await session.scalars(select(Recording).where(Recording.id.in_(ids)))).all()
+        recordings = {r.id: r for r in rows}
+    per_day: dict[date, int] = {}
+    for event in events[:MAX_EVENTS_PER_BATCH]:
+        recording = recordings.get(event.recording_id)
+        if recording is None or recording.status not in ("published", "flagged"):
+            result.reject("unknown")
+            continue
+        played = event.played_at if event.played_at.tzinfo else event.played_at.replace(tzinfo=UTC)
+        if played > newest:
+            result.reject("future")
+            continue
+        if played < oldest:
+            result.reject("stale")
+            continue
+        duration = recording.duration_sec or event.duration_sec
+        if not qualifies(event.listened_sec, duration):
+            result.reject("short")
+            continue
+        if owner_member_id is not None and recording.author_id == owner_member_id:
+            result.reject("own")
+            continue
+        day = played.astimezone(UTC).date()
+        key = listener_key(pepper, who, day)
+        if day not in per_day:
+            per_day[day] = int(
+                await session.scalar(
+                    select(func.count())
+                    .select_from(PlayEvent)
+                    .where(PlayEvent.listener_key == key, PlayEvent.day == day)
+                )
+                or 0
+            )
+        if per_day[day] >= DAILY_EVENT_CAP:
+            result.reject("limit")
+            continue
+        stmt = (
+            insert(PlayEvent)
+            .values(
+                recording_id=recording.id,
+                day=day,
+                listener_key=key,
+                country=cc,
+                listened_sec=min(event.listened_sec, 6 * 3600),
+                created_at=now,
+            )
+            .on_conflict_do_nothing(index_elements=["recording_id", "listener_key", "day"])
+        )
+        outcome = await session.execute(stmt)
+        if (outcome.rowcount or 0) == 0:  # type: ignore[attr-defined]
+            result.duplicates += 1
+            continue
+        per_day[day] += 1
+        counter = insert(PlayDaily).values(recording_id=recording.id, day=day, plays=1)
+        await session.execute(
+            counter.on_conflict_do_update(
+                index_elements=["recording_id", "day"],
+                set_={"plays": PlayDaily.plays + 1},
+            )
+        )
+        result.accepted += 1
+    for _ in events[MAX_EVENTS_PER_BATCH:]:
+        result.reject("batch_limit")
+    await session.commit()
+    return result
+
+
+async def erase_listener(session: AsyncSession, *, pepper: str, who_values: list[str]) -> int:
+    """Delete the raw events of one listener (the member asked). The counters are not personal data
+    and stay. Recomputes the key for every day it could have used when rotation is on."""
+    removed = 0
+    keys: set[str] = set()
+    today = now_utc().date()
+    days = (
+        [today - timedelta(days=i) for i in range(PLAY_EVENT_RETENTION_DAYS)]
+        if LISTENER_SALT_ROTATION_DAYS
+        else [today]
+    )
+    for who in who_values:
+        for day in days:
+            keys.add(listener_key(pepper, who, day))
+    if keys:
+        outcome = await session.execute(delete(PlayEvent).where(PlayEvent.listener_key.in_(keys)))
+        removed = int(outcome.rowcount or 0)  # type: ignore[attr-defined]
+        await session.commit()
+    return removed
+
+
+async def prune_play_events(
+    session: AsyncSession, *, now: datetime | None = None, force: bool = False
+) -> int:
+    """Delete raw events older than the retention window. Runs at most daily on its own."""
+    global _last_prune
+    now = now or now_utc()
+    if not force and _last_prune and now - _last_prune < timedelta(hours=PRUNE_EVERY_HOURS):
+        return 0
+    _last_prune = now
+    cutoff = now.date() - timedelta(days=PLAY_EVENT_RETENTION_DAYS)
+    outcome = await session.execute(delete(PlayEvent).where(PlayEvent.day < cutoff))
+    await session.commit()
+    return int(outcome.rowcount or 0)  # type: ignore[attr-defined]
+
+
+def reset_prune_clock() -> None:
+    global _last_prune
+    _last_prune = None
+
+
+# ---- the numbers of a set of recordings ------------------------------------------------------
+
+
+@dataclass
+class Numbers:
+    monthly_listeners: int = 0
+    total_plays: int = 0
+    plays_30d: int = 0
+
+
+async def stats_since(session: AsyncSession) -> date | None:
+    """The first day anything was counted: numbers start here, not at the first upload."""
+    value = await session.scalar(select(func.min(PlayDaily.day)))
+    return value
+
+
+async def numbers_for(session: AsyncSession, recording_ids: Select[Any], *, today: date) -> Numbers:
+    """`recording_ids` is a SELECT of recording ids (the recordings that belong to a profile)."""
+    start = today - timedelta(days=MONTH_DAYS - 1)
+    total = await session.scalar(
+        select(func.coalesce(func.sum(PlayDaily.plays), 0)).where(
+            PlayDaily.recording_id.in_(recording_ids)
+        )
+    )
+    month = await session.scalar(
+        select(func.coalesce(func.sum(PlayDaily.plays), 0)).where(
+            PlayDaily.recording_id.in_(recording_ids), PlayDaily.day >= start
+        )
+    )
+    distinct = await session.scalar(
+        select(func.count(func.distinct(PlayEvent.listener_key))).where(
+            PlayEvent.recording_id.in_(recording_ids), PlayEvent.day >= start
+        )
+    )
+    return Numbers(
+        monthly_listeners=estimate_distinct(int(distinct or 0)),
+        total_plays=int(total or 0),
+        plays_30d=int(month or 0),
+    )
+
+
+async def daily_series(
+    session: AsyncSession, recording_ids: Select[Any], *, today: date, days: int
+) -> list[dict[str, Any]]:
+    """Plays and distinct listeners for each of the last `days` days, zeros included."""
+    start = today - timedelta(days=days - 1)
+    plays = {
+        row.day: int(row.n)
+        for row in (
+            await session.execute(
+                select(PlayDaily.day, func.sum(PlayDaily.plays).label("n"))
+                .where(PlayDaily.recording_id.in_(recording_ids), PlayDaily.day >= start)
+                .group_by(PlayDaily.day)
+            )
+        ).all()
+    }
+    listeners = {
+        row.day: int(row.n)
+        for row in (
+            await session.execute(
+                select(PlayEvent.day, func.count(func.distinct(PlayEvent.listener_key)).label("n"))
+                .where(PlayEvent.recording_id.in_(recording_ids), PlayEvent.day >= start)
+                .group_by(PlayEvent.day)
+            )
+        ).all()
+    }
+    out = []
+    for i in range(days):
+        day = start + timedelta(days=i)
+        out.append(
+            {"day": day.isoformat(), "plays": plays.get(day, 0), "listeners": listeners.get(day, 0)}
+        )
+    return out
+
+
+async def country_counts(
+    session: AsyncSession, recording_ids: Select[Any], *, today: date
+) -> dict[str, int]:
+    start = today - timedelta(days=MONTH_DAYS - 1)
+    rows = (
+        await session.execute(
+            select(PlayEvent.country, func.count(func.distinct(PlayEvent.listener_key)))
+            .where(
+                PlayEvent.recording_id.in_(recording_ids),
+                PlayEvent.day >= start,
+                PlayEvent.country.is_not(None),
+            )
+            .group_by(PlayEvent.country)
+        )
+    ).all()
+    return {str(c): int(n) for c, n in rows}
