@@ -1,9 +1,11 @@
-/** Lazy RNTP load — RNTP v5 (New Architecture) is linked on both iOS and Android. */
+/** Lazy RNTP load — RNTP v5 (New Architecture) is linked on both iOS and Android, not on the web preview. */
+
+import { Platform } from "react-native"
 
 let playbackServiceRegistered = false
 
 export function isTrackPlayerLinked(): boolean {
-  return true
+  return Platform.OS !== "web"
 }
 
 export function ensurePlaybackServiceRegistered(): void {
