@@ -31,8 +31,8 @@ while something is loaded in the player (nothing loaded: no pill on any screen).
 | Learn | `/v2/learn` | Shown above the tab bar | Shown | A browsing tab. |
 | Search | `/search-v2` | Shown above the tab bar | Shown | A tab-like page: the bar stays under it, and results are played from it. |
 | Song page | `/song-v2`, `/song` | Shown above the bottom edge | Not shown | The page is about a song; the pill shows what is playing and opens the player. |
-| Songs lists and collections | `/songs-v2-collection`, `/songs-v2-index`, `/songs-v2`, `/collections-v2`, `/collections` | Shown above the bottom edge | Not shown | Browsing: the person plays one song after another. |
-| Library, saved and playlists | `/library-v2`, `/saved-v2`, `/playlist-v2`, `/playlist` | Shown above the bottom edge | Not shown | Browsing the person's own songs. |
+| Songs lists and collections | `/songs-v2-collection`, `/songs-v2-index`, `/songs-v2`, `/collections-v2`, `/collections`, `/browse-shelf` | Shown above the bottom edge | Not shown | Browsing: the person plays one song after another. |
+| Library, saved and playlists | `/library-v2`, `/saved-v2`, `/playlist-v2`, `/playlist`, `/listening-history` | Shown above the bottom edge | Not shown | Browsing the person's own songs. |
 | Kiirtan pages (list, artist, mix, event playlists, a recording) | `/kiirtan`, `/kirtan-artist`, `/kirtan-mix`, `/recording-set`, `/my-sets`, `/recording` | Shown above the bottom edge | Not shown | Browsing recordings; a recording's page (chords, videos, comments) scrolls clear of the pill. |
 | Learn pages (songs, words, quiz, stories, harmonium) | `/learn`, `/stories`, `/story-sheet`, `/quiz`, `/harmonium-v2` | Shown above the bottom edge | Not shown | Study with the song playing in the background. |
 | Festivals | `/festivals`, `/festival` | Shown above the bottom edge | Not shown | Browsing; songs of the festival can be played. |
