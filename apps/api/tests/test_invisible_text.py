@@ -4,9 +4,18 @@ words and emoji, and go everywhere else."""
 from __future__ import annotations
 
 import pytest
+from fastapi import HTTPException
 
+from app.services import (
+    author_profiles,
+    extras_common,
+    invisible_text,
+    recording_chords,
+    recording_collections,
+    song_comments,
+    video_links,
+)
 from app.services import author_rules as rules
-from app.services import invisible_text, recording_collections, song_comments
 
 ZWJ = "‍"
 ZWNJ = "‌"
@@ -75,3 +84,106 @@ def test_the_staff_and_look_alike_checks_still_ignore_joiners() -> None:
     # the Indic half-form itself is an ordinary name
     assert not rules.staff_hit(KSHA_DEVANAGARI)
     assert rules.name_key(KSHA_DEVANAGARI) == rules.name_key("क्ष")
+
+
+# --------------------------------------------------------------------------- QA-045: blank-looking
+
+BLANK_LOOKING = {
+    "hangul filler": "\u3164",
+    "hangul choseong filler": "\u115f",
+    "hangul jungseong filler": "\u1160",
+    "halfwidth hangul filler": "\uffa0",
+    "braille blank": "\u2800",
+    "combining grapheme joiner": "\u034f",
+    "mongolian vowel separator": "\u180e",
+    "khmer inherent vowel aq": "\u17b4",
+    "khmer inherent vowel aa": "\u17b5",
+}
+
+
+@pytest.mark.parametrize("char", BLANK_LOOKING.values(), ids=BLANK_LOOKING.keys())
+def test_blank_looking_characters_make_a_value_empty_on_every_surface(char: str) -> None:
+    blank = f"{char}{char} {char}"
+    assert invisible_text.strip_invisible(blank).strip() == ""
+    # author name, bio, place
+    assert rules.clean_line(blank, 80) == ""
+    assert rules.clean_paragraphs(blank, 80) == ""
+    with pytest.raises(author_profiles.AuthorError) as caught:
+        author_profiles._clean_fields({"display_name": blank})
+    assert caught.value.code == "name_too_short"
+    # song comment, recording comment, chord sheet and note, video title, playlist fields
+    assert song_comments.clean_body(blank) == ""
+    assert extras_common.one_line(blank, 80) == ""
+    with pytest.raises(HTTPException) as refused:  # a chord sheet with nothing in it is refused
+        recording_chords.clean_sheet(blank)
+    assert refused.value.status_code == 422
+    assert recording_chords.clean_note(blank) is None
+    assert video_links.clean_title(blank) is None
+    assert recording_collections.clean_set_text(blank, 80) == ""
+    assert recording_collections.clean_optional(blank, 80) is None
+
+
+@pytest.mark.parametrize("char", BLANK_LOOKING.values(), ids=BLANK_LOOKING.keys())
+def test_blank_looking_characters_are_stripped_at_the_edges_and_inside_words(char: str) -> None:
+    assert rules.clean_line(f"{char}Madhu Vrata{char}", 80) == "Madhu Vrata"
+    assert rules.clean_line(f"{char}{char}Madhu{char}", 80) == "Madhu"
+    assert song_comments.clean_body(f"{char} Hello {char}") == "Hello"
+    if char != "\u2800":  # the braille blank is a blank cell: it becomes a space between words
+        assert rules.clean_line(f"Mad{char}hu", 80) == "Madhu"
+    else:
+        assert rules.clean_line(f"Mad{char}hu", 80) == "Mad hu"
+
+
+def test_a_name_that_is_only_blank_looking_characters_is_refused_by_the_api_rule() -> None:
+    for name in ("\u3164\u3164", "\u2800\u2800\u2800", "\uffa0 \u1160 \u115f", "\u034f\u034f"):
+        with pytest.raises(author_profiles.AuthorError):
+            author_profiles._clean_fields({"display_name": name})
+    ok = author_profiles._clean_fields({"display_name": "\u3164Madhu Vrata\u3164"})
+    assert ok["display_name"] == "Madhu Vrata"
+
+
+def test_blank_looking_characters_still_cannot_hide_a_staff_name() -> None:
+    for text in ("Adm\u3164in", "Adm\u2800in", "Off\u034ficial", "\u115fSupport", "St\uffa0aff"):
+        assert rules.staff_hit(text), ascii(text)
+
+
+# --------------------------------------------------------------------------- QA-046: flag tags
+
+TAG_E, TAG_N, TAG_G = "\U000e0065", "\U000e006e", "\U000e0067"
+# waving black flag, tags "gbeng", cancel tag
+ENGLAND = "\U0001f3f4\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f"
+SCOTLAND = "\U0001f3f4\U000e0067\U000e0062\U000e0073\U000e0063\U000e0074\U000e007f"
+WALES = "\U0001f3f4\U000e0067\U000e0062\U000e0077\U000e006c\U000e0073\U000e007f"
+
+
+@pytest.mark.parametrize("flag", [ENGLAND, SCOTLAND, WALES], ids=["england", "scotland", "wales"])
+def test_the_flags_of_england_scotland_and_wales_keep_their_tag_sequence(flag: str) -> None:
+    assert invisible_text.strip_invisible(flag) == flag
+    assert invisible_text.strip_invisible(f"Hello {flag} there") == f"Hello {flag} there"
+    assert song_comments.clean_body(f"{flag}{flag}") == f"{flag}{flag}"
+    assert rules.clean_line(f"Madhu {flag}", 80) == f"Madhu {flag}"
+    assert recording_collections.clean_set_text(f"Kiirtan {flag}", 80) == f"Kiirtan {flag}"
+    assert extras_common.one_line(f"{flag}", 80) == flag
+
+
+@pytest.mark.parametrize(
+    ("raw", "clean"),
+    [
+        (f"a{TAG_E}{TAG_N}b", "ab"),  # tag characters on their own
+        (f"{TAG_G}{TAG_E}", ""),  # a hidden word made only of tags
+        ("a\U000e007fb", "ab"),  # a cancel tag alone
+        ("a\U000e0001b", "ab"),  # the deprecated language tag
+        (f"x\U0001f3f4{TAG_G}{TAG_E}", "x\U0001f3f4"),  # a flag whose tags never end: tags go
+        ("\U0001f3f4\U000e007f", "\U0001f3f4"),  # a flag and a cancel tag with no letters between
+        (f"a {TAG_G}{TAG_E}\U000e007f b", "a  b"),  # tags after a space, not after the flag
+        (f"{ENGLAND}{TAG_E}", ENGLAND),  # a stray tag after a good flag still goes
+        (f"a\U0001f3f4x{TAG_G}\U000e007f", "a\U0001f3f4x"),  # tags not right after the flag
+    ],
+)
+def test_tag_characters_elsewhere_are_stripped(raw: str, clean: str) -> None:
+    assert invisible_text.strip_invisible(raw) == clean
+
+
+def test_hidden_tag_text_cannot_hide_a_staff_name() -> None:
+    assert rules.staff_hit(f"Adm{TAG_E}in")
+    assert rules.staff_hit(f"{ENGLAND} Admin")
