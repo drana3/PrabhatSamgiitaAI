@@ -41,6 +41,7 @@ export const setsEn = {
   "set.files.over_one": "A playlist holds up to {max} recordings. {count} file was left out.",
   "set.files.over_other": "A playlist holds up to {max} recordings. {count} files were left out.",
   "set.files.none": "Choose at least one audio file.",
+  "set.files.empty": "No files chosen yet",
 
   "set.d.title": "Title of the event",
   "set.d.titlePlaceholder": "Winter retreat, closing satsang",
@@ -199,6 +200,7 @@ export const setsRu: Record<string, string> = {
   "set.files.over_many": "В плейлисте не больше {max} записей. {count} файлов не поместились.",
   "set.files.over_other": "В плейлисте не больше {max} записей. {count} файла не поместились.",
   "set.files.none": "Выберите хотя бы один аудиофайл.",
+  "set.files.empty": "Файлы ещё не выбраны",
 
   "set.d.title": "Название события",
   "set.d.titlePlaceholder": "Зимний ретрит, заключительный сатсанг",
@@ -359,6 +361,7 @@ export const setsEs: Record<keyof typeof setsEn, string> = {
   "set.files.over_one": "Una lista admite hasta {max} grabaciones. Se dejó fuera {count} archivo.",
   "set.files.over_other": "Una lista admite hasta {max} grabaciones. Se dejaron fuera {count} archivos.",
   "set.files.none": "Elige al menos un archivo de audio.",
+  "set.files.empty": "Todavía no hay archivos elegidos",
 
   "set.d.title": "Título del evento",
   "set.d.titlePlaceholder": "Retiro de invierno, satsang de cierre",

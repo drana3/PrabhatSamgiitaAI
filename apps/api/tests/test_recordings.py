@@ -511,7 +511,9 @@ async def test_an_upload_is_published_at_once_and_listed(world: World) -> None:
 
 
 async def test_bhajan_kind_type_and_filter(world: World) -> None:
-    ok = await world.publish("a", mp3(2), kind="bhajan", type="morning", title="Morning song")
+    ok = await world.publish(
+        "a", mp3(2), kind="bhajan", type="morning", title="Morning song", language="hi"
+    )
     assert ok.status_code == 201
     assert ok.json()["type"] == "morning"
     wrong_type = await world.publish("a", mp3(3), kind="kiirtan", type="morning", title="x")

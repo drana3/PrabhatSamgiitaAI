@@ -169,7 +169,7 @@ def library(tmp_path: Path) -> Library:
 
 async def test_dry_run_prints_the_plan_and_writes_nothing(world: World, library: Library) -> None:
     library.add("one.mp3", mp3(1), title="Song one")
-    library.add("two.wav", wav(2), title="Song two", category="bhajan")
+    library.add("two.wav", wav(2), title="Song two", category="bhajan", language="hi")
     importer, out = make_importer(world, library, execute=False)
 
     outcomes = await importer.run()  # type: ignore[attr-defined]
@@ -385,10 +385,14 @@ async def test_the_category_cell_and_the_default_decide_the_category(
     world: World, library: Library
 ) -> None:
     library.add("a.mp3", mp3(70), title="Plain")  # empty cell: the run's default
-    library.add("b.mp3", mp3(71), title="A bhajan", category="Bhajan")
-    library.add("c.mp3", mp3(72), title="A song", category="devotional song")  # old name
+    library.add("b.mp3", mp3(71), title="A bhajan", category="Bhajan", language="en")
+    library.add(
+        "c.mp3", mp3(72), title="A song", category="devotional song", language="bn"
+    )  # old name
     library.add("d.mp3", mp3(73), title="PS one", category="prabhat_samgiita", song="12")
-    importer, _ = make_importer(world, library, execute=True, kind="bhajan")
+    importer, _ = make_importer(
+        world, library, execute=True, kind="bhajan", language="sa"
+    )  # the default language fills "Plain"
 
     outcomes = await importer.run()  # type: ignore[attr-defined]
 
@@ -632,6 +636,24 @@ async def test_a_spiritual_song_row_needs_a_language_and_a_dance_row_needs_its_d
     assert rows["Dance, tandava"].dance == "tandava" and rows["Dance, tandava"].kind == "dance_song"
     assert rows["Other, named"].language == "other"
     assert rows["Other, named"].language_other == "Old Church Slavonic"
+
+
+async def test_a_bhajan_row_needs_a_language_and_the_old_bhajan_name_counts(
+    world: World, library: Library
+) -> None:
+    library.add("a.mp3", mp3(110), title="Bhajan, no language", category="bhajan")
+    library.add("b.mp3", mp3(111), title="Bhajan in Hindi", category="Bhajan", language="hi")
+    library.add("c.mp3", mp3(112), title="Old name, none", category="devotional song")
+    library.add("d.mp3", mp3(113), title="PS, none", category="prabhat_samgiita", song="5")
+    importer, out = make_importer(world, library, execute=True)
+
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+
+    assert statuses(outcomes) == {"imported": 2, "bad_row": 2}
+    assert out.getvalue().count("language of this song") == 2
+    async with world.sessions() as session:
+        rows = {r.title for r in (await session.scalars(select(Recording))).all()}
+    assert rows == {"Bhajan in Hindi", "PS, none"}
 
 
 async def test_command_line_defaults_fill_empty_language_and_dance_cells(

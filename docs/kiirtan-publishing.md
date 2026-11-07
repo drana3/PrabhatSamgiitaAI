@@ -133,13 +133,15 @@ tidies a database that ran the old draft, see the checklist).
   uploader picks the song number 1 to 5018 with the song picker (`ps_song_number`, required for that type and refused
   for the others). The recording is stored and listed in the library under that type, with the song number.
 - The uploader types the TITLE (required). Performer (required, prefilled from the profile name; stored in the
-  existing `author` column). Optional: `language` (an ISO code from the catalog, or `other` with a name; see the
-  language rule below; never asked for Kiirtan, which is always Baba Nam Kevalam), `credits` ("Words and
+  existing `author` column). `language` (an ISO code from the catalog, or `other` with a name; see the
+  language rule below: required for Bhajan and Spiritual song; never asked for Kiirtan, which is always Baba Nam Kevalam). Optional, `credits` ("Words and
   music by"; asked for Bhajan), `year` (1900 up to this year, not in the future), `notes` (up to
   500 characters). The duration is read from the file. Checks: "I am the author or I perform this" and the content rules.
 - Language rule: ONE table per side, `KIND_LANGUAGE_RULE` (phone `lib/kirtan/types.ts`, API `app/models/recordings.py`;
-  a test pins them, see below). Kiirtan: none (a sent `language` is ignored). Bhajan and Prabhat Samgiita: optional.
-  Spiritual song: REQUIRED. Dance song: optional (the dance is what is required).
+  a test pins them, see below). Kiirtan: none (a sent `language` is ignored). Bhajan and Spiritual song: REQUIRED.
+  Prabhat Samgiita: optional. Dance song: optional (the dance is what is required). The rule is for NEW uploads: a
+  Bhajan stored before it (no language, including the old `devotional_song` id, which still reads as Bhajan) stays valid
+  and listed. There is no endpoint that edits a recording yet, so no "Add language" prompt exists for old Bhajans.
 - Public listing: `GET /recordings?kind=&song_number=&sort=` filters by type (`kind=bhajan` includes old
   devotional-song rows), plus `language=` and `dance=` for the two new types. My uploads and the Kiirtan page show the
   type on every recording (a tag, and the chips All, Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance song).
@@ -155,7 +157,7 @@ Added with migration `0032_recording_sets_and_categories` (additive and idempote
   `lib/kirtan/types.ts`). Missing: a 422 with "Choose the dance: Tandava or Kaoshiki." on the API, an inline error and a blocked button on the form, a
   "Dance missing" line on a queue row, and the import script rejects the CSV row. A `dance` on another type is a 422.
   The Russian label for Kaoshiki ("Каушики") is not checked by a Russian speaker yet.
-- Spiritual song: the language is REQUIRED (a 422 with "Choose the language of this song."). "Other" needs its name (up to 80 characters)
+- Bhajan and Spiritual song: the language is REQUIRED (a 422 with "Choose the language of this song."; the form shows it above "More details" with the red Required marker). "Other" needs its name (up to 80 characters)
   for every type that has a language.
 - Languages: ISO 639 codes, one catalog of 49 (`app/services/recording_languages.py`, phone
   `lib/kirtan/languages.ts`), labels in en, ru and es (`locales/recordingLanguages.ts`), a searchable picker with

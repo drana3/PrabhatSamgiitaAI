@@ -35,8 +35,10 @@ describe("the language field", () => {
     expect(kindHasLanguage("dance_song")).toBe(true)
     expect(kindHasLanguage(undefined)).toBe(false) // an unknown kind is a Kiirtan
     expect(moreDetailsFor("kiirtan")).toEqual({ language: false, credits: false })
-    expect(moreDetailsFor("bhajan")).toEqual({ language: true, credits: true })
+    expect(moreDetailsFor("bhajan")).toEqual({ language: false, credits: true }) // its language is REQUIRED: asked above "More details"
     expect(moreDetailsFor("prabhat_samgiita")).toEqual({ language: true, credits: false })
+    expect(moreDetailsFor("dance_song")).toEqual({ language: true, credits: false })
+    expect(moreDetailsFor("spiritual_song")).toEqual({ language: false, credits: false })
   })
 
   it("is decided by ONE constant (flip it to hide the language for Prabhat Samgiita)", () => {

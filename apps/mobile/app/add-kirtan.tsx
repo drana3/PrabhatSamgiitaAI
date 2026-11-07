@@ -19,7 +19,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindHasDance, kindHasLanguage, kindLabel, normalizeKind } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, kindLabel, kindRequiresLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { effectiveFields, hasWork, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
@@ -391,7 +391,7 @@ export default function AddKirtanScreen() {
               </Reveal>
             ) : null}
 
-            {kind === "spiritual_song" ? (
+            {kindRequiresLanguage(kind) ? (
               <Reveal index={2}>
                 <LanguageField theme={theme} kind={kind} value={languageValue} onOpen={() => setLangFor("form")} invalid={!!languageError} errorText={languageError} disabled={locked} />
               </Reveal>
@@ -549,14 +549,14 @@ export default function AddKirtanScreen() {
           setProblem(null)
         }}
       />
-      <LanguagePicker visible={langFor !== null} value={pickerValue} allowClear={kind !== "spiritual_song"} onPick={pickLanguage} onClose={() => setLangFor(null)} />
+      <LanguagePicker visible={langFor !== null} value={pickerValue} allowClear={!kindRequiresLanguage(kind)} onPick={pickLanguage} onClose={() => setLangFor(null)} />
       <Toast message={actions.toast} theme={theme} />
     </KeyboardAvoidingView>
   )
 }
 
 /**
- * Language (Bhajan, Prabhat Samgiita and Dance song: optional; never Kiirtan), "words and music by" (Bhajan), year recorded and a short note.
+ * Language (Prabhat Samgiita and Dance song: optional; Bhajan and Spiritual song ask for it above as required; never Kiirtan), "words and music by" (Bhajan), year recorded and a short note.
  * All optional. Which fields a type has is lib/kirtan/uploadForm.ts moreDetailsFor.
  */
 function MoreDetails({ theme, kind, locked, yearInvalid, onOpenLanguage }: { theme: SongsTheme; kind: RecordingKind; locked: boolean; yearInvalid: boolean; onOpenLanguage: () => void }) {
@@ -566,8 +566,8 @@ function MoreDetails({ theme, kind, locked, yearInvalid, onOpenLanguage }: { the
   const has = moreDetailsFor(kind)
   return (
     <View style={styles.moreBody}>
-      {/* a Spiritual song asks for its language above, as a required field; the other kinds keep it optional here */}
-      {has.language && kind !== "spiritual_song" ? <LanguageField theme={theme} kind={kind} value={{ language: draft.language, languageOther: draft.languageOther }} onOpen={onOpenLanguage} disabled={locked} /> : null}
+      {/* a Bhajan and a Spiritual song ask for their language above, as a required field; the optional ones keep it here */}
+      {has.language ? <LanguageField theme={theme} kind={kind} value={{ language: draft.language, languageOther: draft.languageOther }} onOpen={onOpenLanguage} disabled={locked} /> : null}
       {has.credits ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.credits.label")}</Text>

@@ -32,6 +32,7 @@ from app.models.recordings import MemberNotice, Recording
 from app.schemas.recording_collections import SetDetail, SetOut, SetPatch, SetState
 from app.schemas.recordings import RecordingCreate, kind_field_problem
 from app.services import recordings as rec
+from app.services.song_comments import strip_invisible
 
 SET_DAILY_LIMIT_CODE = "set_daily_limit"
 SET_FULL_CODE = "set_full"
@@ -39,8 +40,15 @@ HOURLY_SET_UPLOADS = 120
 HOURLY_SET_UPLOADS_TEAM = 600
 
 
+def clean_set_text(value: str | None, limit: int) -> str:
+    """Text a person typed for a playlist (title, place, description): the characters that draw
+    nothing (zero-width, bidi overrides) are dropped first, then spaces are folded. The same helper
+    the comments use (`song_comments.strip_invisible`)."""
+    return rec.clean_text(strip_invisible(value or ""), limit)
+
+
 def clean_optional(value: str | None, limit: int) -> str | None:
-    return rec.clean_text(value, limit) or None
+    return clean_set_text(value, limit) or None
 
 
 # --------------------------------------------------------------------------- reading
@@ -373,7 +381,7 @@ async def apply_patch(
 ) -> None:
     sent = patch.model_fields_set
     if "title" in sent and patch.title is not None:
-        title = rec.clean_text(patch.title, 200)
+        title = clean_set_text(patch.title, 200)
         if not title:
             raise HTTPException(status_code=422, detail="Add a title.")
         collection.title = title

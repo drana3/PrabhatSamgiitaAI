@@ -10,6 +10,7 @@ come from test_recordings.py.
 from __future__ import annotations
 
 import os
+from uuid import UUID
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
 
@@ -42,7 +43,7 @@ from app.services.recording_languages import (
 def test_the_language_rule_of_every_category_is_in_one_table() -> None:
     assert KIND_LANGUAGE_RULE == {
         "kiirtan": "none",
-        "bhajan": "optional",
+        "bhajan": "required",
         "prabhat_samgiita": "optional",
         "spiritual_song": "required",
         "dance_song": "optional",
@@ -149,11 +150,13 @@ async def test_a_dance_belongs_to_the_dance_song_category_only(world: World) -> 
         assert r.status_code == 422, (kind, r.text)
 
 
-async def test_kiirtan_drops_a_language_bhajan_and_ps_keep_it_optional(world: World) -> None:
+async def test_kiirtan_drops_a_language_ps_keeps_it_optional_bhajan_needs_it(
+    world: World,
+) -> None:
     kiirtan = await world.publish("a", mp3(660), kind="kiirtan", language="sa", title="K")
     assert kiirtan.status_code == 201 and kiirtan.json()["language"] is None
-    bhajan = await world.publish("a", mp3(661), kind="bhajan", title="B")
-    assert bhajan.status_code == 201 and bhajan.json()["language"] is None
+    bhajan = await world.publish("a", mp3(661), kind="bhajan", title="B", language="hi")
+    assert bhajan.status_code == 201 and bhajan.json()["language"] == "hi"
     ps = await world.publish(
         "a", mp3(662), kind="prabhat_samgiita", ps_song_number=9, language="bn"
     )
@@ -215,3 +218,26 @@ async def test_the_database_enforces_the_same_rules(world: World) -> None:
             )
             with pytest.raises(IntegrityError):
                 await session.commit()
+
+
+async def test_a_new_bhajan_needs_a_language_and_an_old_one_stays_valid(world: World) -> None:
+    missing = await world.publish("a", mp3(690), kind="bhajan", title="No language")
+    assert missing.status_code == 422 and "language" in missing.text.lower()
+    other = await world.publish("a", mp3(691), kind="bhajan", language="other", title="Other")
+    assert other.status_code == 422  # "other" needs its name
+    fine = await world.publish("a", mp3(692), kind="bhajan", language="bn", title="Fine")
+    assert fine.status_code == 201
+    # a Bhajan stored before the rule (no language, even the legacy kind id) still reads fine
+    async with world.sessions() as session:
+        row = await session.get(Recording, UUID(fine.json()["id"]))
+        assert row is not None
+        row.kind = "devotional_song"
+        row.language = None
+        await session.commit()
+    shown = (await world.client.get("/api/v1/recordings", params={"kind": "bhajan"})).json()
+    assert [(i["kind"], i["language"]) for i in shown["items"]] == [("bhajan", None)]
+    # the other categories keep their rules: Prabhat Samgiita and dance song stay optional
+    ps = await world.publish("a", mp3(693), kind="prabhat_samgiita", ps_song_number=3)
+    assert ps.status_code == 201
+    dance = await world.publish("a", mp3(694), kind="dance_song", dance="tandava")
+    assert dance.status_code == 201

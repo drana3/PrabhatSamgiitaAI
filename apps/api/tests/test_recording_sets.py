@@ -526,3 +526,69 @@ async def test_the_set_is_in_the_database_with_positions(world: World) -> None:
         assert [r.position for r in rows] == [1, 2]
         assert {str(r.collection_id) for r in rows} == {made["id"]}
         assert await session.scalar(select(RecordingCollection)) is not None
+
+
+# ---------------------------------------------------------------- QA-036, QA-037, Bhajan language
+
+
+async def test_a_track_without_a_kind_but_with_a_language_inherits_a_spiritual_playlist(
+    world: World,
+) -> None:
+    """QA-037: the schema's kiirtan default used to drop the track's own language."""
+    made = await make_set(world, default_kind="spiritual_song")
+    own = await add_track(world, made["id"], 730, language="hi")
+    assert own.status_code == 201, own.text
+    assert own.json()["kind"] == "spiritual_song" and own.json()["language"] == "hi"
+    bhajans = await make_set(world, default_kind="bhajan")
+    bhajan = await add_track(world, bhajans["id"], 731, language="bn")
+    assert bhajan.status_code == 201 and bhajan.json()["language"] == "bn"
+    # still a Kiirtan playlist: a language the track sends is dropped, as for a plain upload
+    kiirtan = await make_set(world, default_kind="kiirtan")
+    plain = await add_track(world, kiirtan["id"], 732, language="hi")
+    assert plain.status_code == 201 and plain.json()["language"] is None
+
+
+async def test_a_bhajan_track_needs_a_language_from_itself_or_the_playlist(world: World) -> None:
+    made = await make_set(world, default_kind="bhajan")
+    missing = await add_track(world, made["id"], 740)
+    assert missing.status_code == 422 and "language" in missing.text.lower()
+    with_default = await make_set(world, default_kind="bhajan", default_language="sa")
+    ok = await add_track(world, with_default["id"], 741)
+    assert ok.status_code == 201 and ok.json()["language"] == "sa"
+
+
+async def test_a_playlist_title_and_place_lose_invisible_characters(world: World) -> None:
+    """QA-036: zero-width and bidi-override characters are dropped, like in comments."""
+    dirty_title = "Re​treat ‮in Kra⁦ków⁩﻿"
+    dirty_place = "‮Kraków‍,​ Poland"
+    made = await make_set(world, title=dirty_title, place=dirty_place, description="A​B")
+    assert made["title"] == "Retreat in Kraków"
+    assert made["place"] == "Kraków, Poland"
+    assert made["description"] == "AB"
+    renamed = await world.client.patch(
+        f"{SETS}/{made['id']}", headers=AS_A, json={"title": "N​e‮w", "place": "​​"}
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["title"] == "New" and renamed.json()["place"] is None
+    only_invisible = await world.client.post(SETS, headers=AS_A, json=set_body(title="​‮ ​"))
+    assert only_invisible.status_code == 422  # nothing visible is left: "Add a title."
+
+
+async def test_an_event_date_before_1900_is_refused(world: World) -> None:
+    for field in ("starts_on", "ends_on"):
+        body = set_body(starts_on="1850-01-01", ends_on=None)
+        if field == "ends_on":
+            body = set_body(ends_on="1850-01-01")
+        refused = await world.client.post(SETS, headers=AS_A, json=body)
+        assert refused.status_code == 422, (field, refused.text)
+    first_ok = await world.client.post(
+        SETS, headers=AS_A, json=set_body(starts_on="1900-01-01", ends_on=None)
+    )
+    assert first_ok.status_code in (200, 201), first_ok.text
+    made = await make_set(world)
+    patched = await world.client.patch(
+        f"{SETS}/{made['id']}", headers=AS_A, json={"starts_on": "1899-12-31"}
+    )
+    assert patched.status_code == 422
+    track = await add_track(world, made["id"], 750, recorded_on="1800-05-05")
+    assert track.status_code == 422

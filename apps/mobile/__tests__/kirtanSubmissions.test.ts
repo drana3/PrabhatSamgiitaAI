@@ -49,7 +49,8 @@ describe("validateSubmission", () => {
 
   it("asks for no type, and the author box is optional", () => {
     expect(validateSubmission({ ...input, byAuthor: false })).toBeNull()
-    expect(validateSubmission({ ...input, kind: "bhajan" })).toBeNull()
+    expect(validateSubmission({ ...input, kind: "bhajan" })).toBe("language") // a Bhajan names its language
+    expect(validateSubmission({ ...input, kind: "bhajan", language: "hi" })).toBeNull()
     expect(Object.keys(input)).not.toContain("type")
     expect(Object.keys(input)).not.toContain("confirmed")
   })

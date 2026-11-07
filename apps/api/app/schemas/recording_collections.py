@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.recordings import DANCES, KIND_LANGUAGE_RULE
-from app.schemas.recordings import Kind, RecordingOut
+from app.schemas.recordings import FIRST_YEAR, Kind, RecordingOut
 from app.services.recording_languages import OTHER, clean_language_other, normalize_language
 
 SetState = Literal["draft", "uploading", "published", "removed"]
@@ -17,8 +17,11 @@ AdminSetFilter = Literal["all", "active", "removed"]
 
 
 def _not_far_in_the_future(value: date | None) -> date | None:
+    """A day of an event: not after tomorrow, and not before the first year a recording may name."""
     if value is not None and value > datetime.now(UTC).date() + timedelta(days=1):
         raise ValueError("The date cannot be in the future.")
+    if value is not None and value.year < FIRST_YEAR:
+        raise ValueError(f"The date cannot be before {FIRST_YEAR}.")
     return value
 
 

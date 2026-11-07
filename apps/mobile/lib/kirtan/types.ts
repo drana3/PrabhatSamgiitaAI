@@ -20,12 +20,13 @@ export const LEGACY_KINDS: Readonly<Record<string, RecordingKind>> = { devotiona
 export type LanguageRule = "none" | "optional" | "required"
 /**
  * ONE table for the language rule of every kind (the API keeps the same table in `KIND_LANGUAGE_RULE`).
- * Kiirtan: none (always Baba Nam Kevalam). Bhajan and Prabhat Samgiita: optional. Spiritual song: REQUIRED.
+ * Kiirtan: none (always Baba Nam Kevalam). Bhajan and Spiritual song: REQUIRED (for new uploads; a Bhajan stored
+ * earlier without a language stays valid). Prabhat Samgiita: optional.
  * Dance song: language optional (the dance is what is required, see DANCES).
  */
 export const KIND_LANGUAGE_RULE: Readonly<Record<RecordingKind, LanguageRule>> = {
   kiirtan: "none",
-  bhajan: "optional",
+  bhajan: "required",
   prabhat_samgiita: "optional",
   spiritual_song: "required",
   dance_song: "optional",

@@ -48,11 +48,12 @@ STORED_KINDS = (*RECORDING_KINDS, LEGACY_KIND_DEVOTIONAL_SONG)
 # The language rule of each category, in ONE place (the phone keeps the same table in
 # lib/kirtan/types.ts LANGUAGE_RULE): "none" = never asked (a Kiirtan is always Baba Nam Kevalam, a
 # language sent with one is dropped), "optional" = asked, may stay empty, "required" = the API
-# answers 422 without it. `spiritual_song` is NOT the old `devotional_song`: that id stays a legacy
+# answers 422 without it (a NEW upload: a Bhajan stored before the rule, with no language, stays
+# valid and readable). `spiritual_song` is NOT the old `devotional_song`: that id stays a legacy
 # alias of Bhajan.
 KIND_LANGUAGE_RULE: dict[str, str] = {
     "kiirtan": "none",
-    "bhajan": "optional",
+    "bhajan": "required",
     "prabhat_samgiita": "optional",
     "spiritual_song": "required",
     "dance_song": "optional",

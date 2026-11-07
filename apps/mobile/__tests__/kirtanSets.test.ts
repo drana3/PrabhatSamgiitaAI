@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { setsEn, setsEs, setsRu } from "@/locales/recordingSets"
+
 import {
   addTracks,
   dayRange,
@@ -170,6 +172,23 @@ describe("language and dance of the tracks", () => {
     draft = { ...draft, defaultLanguageOther: "Santali" }
     expect(trackMissing(draft.tracks[0]!, draft)).toEqual([])
     expect(trackFields(draft.tracks[0]!, draft)).toMatchObject({ language: "other", languageOther: "Santali" })
+  })
+
+  it("a Bhajan set needs its language too; Prabhat Samgiita and Dance song do not", () => {
+    let draft = draftWith(["a.mp3", "b.mp3"], { defaultKind: "bhajan" })
+    expect(trackMissing(draft.tracks[0]!, draft)).toEqual(["language"])
+    expect(setCounts(draft).missing).toBe(2)
+    draft = setTrackFields(draft, draft.tracks[0]!.id, { language: "bn" })
+    expect(trackMissing(draft.tracks[0]!, draft)).toEqual([])
+    expect(trackMissing(draft.tracks[1]!, draft)).toEqual(["language"])
+    // the set's own language fills every track that has none
+    draft = { ...draft, defaultLanguage: "hi" }
+    expect(trackMissing(draft.tracks[1]!, draft)).toEqual([])
+    expect(trackFields(draft.tracks[1]!, draft)).toMatchObject({ kind: "bhajan", language: "hi" })
+    expect(trackFields(draft.tracks[0]!, draft)).toMatchObject({ language: "bn" })
+    const ps = draftWith(["a.mp3"], { defaultKind: "prabhat_samgiita" })
+    expect(trackMissing(ps.tracks[0]!, ps)).toEqual([])
+    expect(startBlock(draftWith(["a.mp3"], { defaultKind: "bhajan" }), NOW)).toBe("fields")
   })
 
   it("a Kiirtan sends no language even if the set carries one; a track of another type follows that type's rule", () => {
@@ -400,5 +419,14 @@ describe("views of a set", () => {
     const translate = (key: string, vars: Record<string, string | number>) => `${key}|${Object.entries(vars).map(([k, v]) => `${k}=${v}`).join(",")}`
     expect(setShareText({ title: "T", place: " Ranchi ", count: 4, when: "W" }, translate as never)).toBe("set.page.shareWithPlace|title=T,count=4,place=Ranchi,when=W")
     expect(setShareText({ title: "T", place: null, count: 4, when: "W" }, translate as never)).toBe("set.page.shareNoPlace|title=T,count=4,when=W")
+  })
+})
+
+describe("the files step (QA-039)", () => {
+  it("says something different in the empty box and on its button, so 'Choose files' is not shown twice", () => {
+    for (const [name, book] of Object.entries({ en: setsEn, ru: setsRu, es: setsEs }) as Array<[string, Record<string, string>]>) {
+      expect(book["set.files.empty"]?.trim(), name).toBeTruthy()
+      expect(book["set.files.empty"], name).not.toBe(book["set.files.choose"])
+    }
   })
 })

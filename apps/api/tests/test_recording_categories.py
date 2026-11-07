@@ -57,7 +57,10 @@ def test_there_are_five_categories() -> None:
 
 async def test_every_category_can_be_published(world: World) -> None:
     for number, kind in enumerate(("kiirtan", "bhajan")):
-        response = await world.publish("a", mp3(300 + number), kind=kind, title=f"Song {kind}")
+        extra = {"language": "bn"} if kind == "bhajan" else {}  # a Bhajan names its language
+        response = await world.publish(
+            "a", mp3(300 + number), kind=kind, title=f"Song {kind}", **extra
+        )
         assert response.status_code == 201, response.text
         assert response.json()["kind"] == kind
         assert response.json()["type"] == "other"
@@ -142,9 +145,11 @@ async def test_the_length_of_credits_and_notes_is_limited(world: World) -> None:
 
 async def test_the_list_is_filtered_by_category_and_by_song(world: World) -> None:
     await world.publish("a", mp3(390), kind="kiirtan", title="K one")
-    await world.publish("a", mp3(391), kind="bhajan", title="B one")
+    await world.publish("a", mp3(391), kind="bhajan", language="bn", title="B one")
     # a row stored before "Devotional song" was dropped: it shows as a Bhajan
-    legacy = (await world.publish("a", mp3(392), kind="bhajan", title="D one")).json()["id"]
+    legacy = (
+        await world.publish("a", mp3(392), kind="bhajan", language="bn", title="D one")
+    ).json()["id"]
     async with world.sessions() as session:
         row = await session.get(Recording, UUID(legacy))
         assert row is not None

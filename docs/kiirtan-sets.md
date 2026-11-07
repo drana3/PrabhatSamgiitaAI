@@ -21,7 +21,7 @@ Server (`apps/api`, migration `0032_recording_sets_and_categories`):
 - State is DERIVED, never stored: `removed` (the team took it down), `draft` (nothing live yet), `uploading` (the last
   file was not sent yet: `finished_at` empty and `tracks_expected` above the live count), `published`.
 - A track inherits kind, language and dance from the playlist only when it did not send its own; the category rules
-  are then checked on the result (a Spiritual song without a language, or a Dance song without a dance, is a 422 even
+  are then checked on the result (a Bhajan or a Spiritual song without a language, or a Dance song without a dance, is a 422 even
   inside a playlist).
 
 Phone (`apps/mobile`):
@@ -129,6 +129,11 @@ app, dry run by default.
 - Reordering while the run goes on: the position of a track is read from the list at the moment it is sent, and the
   final order is sent at the end, so a move made during the run is kept.
 - Removing the last failed track finishes the set.
+- Title, place and description lose zero-width and bidi-override characters (the same `strip_invisible` the comments
+  use); a title that has nothing visible left is "Add a title.".
+- A day of an event, and a track's own day, cannot be before 1900 (the floor of a recording's `year`) or after tomorrow.
+- A track that names no `kind` takes the playlist's, and keeps the language it sent: a Spiritual or Bhajan playlist
+  accepts `{language: "hi"}` without `kind`; in a Kiirtan playlist the language is still dropped.
 - Deleting a playlist that has a track the team already removed: the track is detached and stays removed.
 
 ## Limitations (honest)

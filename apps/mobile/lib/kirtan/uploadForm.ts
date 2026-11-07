@@ -1,11 +1,11 @@
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
-import { kindHasCredits, kindHasDance, kindHasLanguage, kindRequiresLanguage } from "@/lib/kirtan/kind"
+import { kindHasCredits, kindHasDance, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 
 /**
  * The rules of the add-recording form that depend on the type. Pure, so they are unit tested
  * (__tests__/uploadForm.test.ts) and the form, the queue store and the submission all use the same ones:
- *  - the sung LANGUAGE is asked for every kind but Kiirtan; it is REQUIRED for a Spiritual song (KIND_LANGUAGE_RULE);
+ *  - the sung LANGUAGE is asked for every kind but Kiirtan; it is REQUIRED for a Bhajan and a Spiritual song (KIND_LANGUAGE_RULE);
  *  - "Other" names its language in words (`languageOther`), and the name is required once "Other" is chosen;
  *  - a Dance song names its DANCE (Tandava or Kaoshiki), and must;
  *  - "words and music by" is asked for a Bhajan only;
@@ -33,9 +33,9 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
   return next
 }
 
-/** Which optional fields "More details" shows for a type. */
+/** Which optional fields "More details" shows for a type (a language that is REQUIRED sits above it, not in it). */
 export function moreDetailsFor(kind: RecordingKind): { language: boolean; credits: boolean } {
-  return { language: kindHasLanguage(kind), credits: kindHasCredits(kind) }
+  return { language: kindLanguageRule(kind) === "optional", credits: kindHasCredits(kind) }
 }
 
 /** The key of the one-line hint under the closed "More details" header, in the words of the type. */
@@ -57,7 +57,7 @@ export type KindFields = {
 
 /**
  * What is still missing for the kind to be sendable, in the order the form shows it (language first, then the dance).
- * A Spiritual song needs its language; every kind that has a language needs the name once "Other" is chosen; a Dance
+ * A Bhajan and a Spiritual song need their language; every kind that has a language needs the name once "Other" is chosen; a Dance
  * song needs its dance. The API refuses the same cases with a 422, so this is what the person is told first.
  */
 export function missingKindFields(fields: KindFields): MissingField[] {

@@ -123,7 +123,7 @@ async def create_set(
             return await _owner_out(session, existing)
     team = service.is_team_member(member, settings)
     await sets.ensure_can_start_set(session, member.id, settings, team=team)
-    title = service.clean_text(payload.title, 200)
+    title = sets.clean_set_text(payload.title, 200)
     if not title:
         raise HTTPException(status_code=422, detail="Add a title.")
     collection = RecordingCollection(
@@ -243,7 +243,7 @@ async def patch_track(
         raise HTTPException(status_code=404, detail="Recording not found")
     sent = payload.model_fields_set
     if "title" in sent and payload.title is not None:
-        title = service.clean_text(payload.title, 200)
+        title = sets.clean_set_text(payload.title, 200)
         if not title:
             raise HTTPException(status_code=422, detail="Add a title.")
         recording.title = title

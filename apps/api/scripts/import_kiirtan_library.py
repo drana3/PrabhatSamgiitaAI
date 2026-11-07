@@ -20,8 +20,8 @@ folder; when it is missing, the file whose name without extension equals the tit
     column), bhajan, prabhat_samgiita, spiritual_song or dance_song (an old devotional_song reads
     as bhajan). Empty means `--category`. A Kiirtan has no language: the cell is ignored for it.
   * `language`: an ISO code (bn, sa, hi, en, ru, ...) or the English name (Bengali, Hindi, ...);
-    `other` needs `language_name`. REQUIRED for spiritual_song (the cell, or `--language`).
-    Empty cells take `--language` / `--language-name`.
+    `other` needs `language_name`. REQUIRED for bhajan and spiritual_song (the cell, or
+    `--language`). Empty cells take `--language` / `--language-name`.
   * `dance`: tandava or kaoshiki. REQUIRED for dance_song (the cell, or `--dance`), not allowed
     for any other category.
   * `performer`: who sings; `credits`: "words and music by"; `year`: the year it was recorded

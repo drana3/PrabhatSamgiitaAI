@@ -103,7 +103,7 @@ export function kindLanguageRule(kind: RecordingKind | null | undefined): Langua
   return KIND_LANGUAGE_RULE[normalizeKind(kind)]
 }
 
-/** A Spiritual song cannot be sent without its language. */
+/** A Bhajan and a Spiritual song cannot be sent without their language. */
 export function kindRequiresLanguage(kind: RecordingKind | null | undefined): boolean {
   return kindLanguageRule(kind) === "required"
 }

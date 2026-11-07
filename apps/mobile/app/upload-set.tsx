@@ -17,7 +17,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindHasDance, kindHasLanguage, kindLabel } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, kindLabel, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { missingCounts, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
@@ -311,7 +311,7 @@ export default function UploadSetScreen() {
       <Text style={[styles.label, { color: theme.textHeading }]}>{t("set.files.title")}</Text>
       <Text style={[styles.hint, { color: theme.textBody }]}>{t("set.files.body")}</Text>
       <KPress accessibilityRole="button" accessibilityLabel={d.tracks.length ? t("set.files.more") : t("set.files.choose")} onPress={() => void choose()} pressedScale={0.98} style={[styles.drop, { backgroundColor: theme.card, borderColor: block ? amColors.danger : theme.line }]}>
-        <Text style={[styles.dropTitle, { color: theme.textHeading }]}>{d.tracks.length ? t("set.files.count", { count: d.tracks.length }) : t("set.files.choose")}</Text>
+        <Text style={[styles.dropTitle, { color: theme.textHeading }]}>{d.tracks.length ? t("set.files.count", { count: d.tracks.length }) : t("set.files.empty")}</Text>
         <View style={[styles.pill, { backgroundColor: theme.peach }]}>
           <Text style={[styles.pillText, { color: theme.accent }]}>{d.tracks.length ? t("set.files.more") : t("set.files.choose")}</Text>
         </View>
@@ -618,7 +618,7 @@ export default function UploadSetScreen() {
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
         {body()}
       </ScrollView>
-      <LanguagePicker visible={langFor !== null} value={pickerValue} allowClear={pickKind !== "spiritual_song"} onPick={onPickLanguage} onClose={() => setLangFor(null)} />
+      <LanguagePicker visible={langFor !== null} value={pickerValue} allowClear={!kindRequiresLanguage(pickKind)} onPick={onPickLanguage} onClose={() => setLangFor(null)} />
       <Toast message={actions.toast} theme={theme} />
     </KeyboardAvoidingView>
   )

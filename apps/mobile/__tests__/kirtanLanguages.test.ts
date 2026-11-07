@@ -80,9 +80,10 @@ describe("language codes", () => {
 })
 
 describe("what each kind needs", () => {
-  it("Kiirtan nothing; Bhajan and Prabhat Samgiita nothing; Spiritual song a language; Dance song a dance", () => {
+  it("Kiirtan nothing; Prabhat Samgiita nothing; Bhajan and Spiritual song a language; Dance song a dance", () => {
     expect(missingKindFields({ kind: "kiirtan", language: null, dance: null })).toEqual([])
-    expect(missingKindFields({ kind: "bhajan", language: null, dance: null })).toEqual([])
+    expect(missingKindFields({ kind: "bhajan", language: null, dance: null })).toEqual(["language"])
+    expect(missingKindFields({ kind: "bhajan", language: "bn", dance: null })).toEqual([])
     expect(missingKindFields({ kind: "prabhat_samgiita", language: null, dance: null })).toEqual([])
     expect(missingKindFields({ kind: "spiritual_song", language: null, dance: null })).toEqual(["language"])
     expect(missingKindFields({ kind: "dance_song", language: null, dance: null })).toEqual(["dance"])
@@ -97,7 +98,10 @@ describe("what each kind needs", () => {
 
   it("marks the required fields", () => {
     expect(isRequiredField("spiritual_song", "language")).toBe(true)
-    expect(isRequiredField("bhajan", "language")).toBe(false)
+    expect(isRequiredField("bhajan", "language")).toBe(true)
+    expect(isRequiredField("prabhat_samgiita", "language")).toBe(false)
+    expect(isRequiredField("dance_song", "language")).toBe(false)
+    expect(isRequiredField("kiirtan", "language")).toBe(false)
     expect(isRequiredField("dance_song", "dance")).toBe(true)
     expect(isRequiredField("spiritual_song", "dance")).toBe(false)
   })

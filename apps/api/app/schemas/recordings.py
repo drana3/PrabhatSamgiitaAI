@@ -49,8 +49,8 @@ def kind_field_problem(
 
     ONE place for the per-category rules, used by the schema (a plain upload) and by the set
     service (a track whose language or dance comes from its playlist). The rules:
-    spiritual song = language required; dance song = dance required (from DANCES), language
-    optional; Prabhat Samgiita = song number; Kiirtan = no language.
+    Bhajan and spiritual song = language required; dance song = dance required (from DANCES),
+    language optional; Prabhat Samgiita = song number, language optional; Kiirtan = no language.
     """
     if kind == "prabhat_samgiita" and ps_song_number is None:
         return "Choose the Prabhat Samgiita song this is a performance of."
@@ -101,8 +101,8 @@ class RecordingCreate(BaseModel):
     terms_accepted: bool
     terms_version: str = Field(min_length=1, max_length=32)
     # Language: an ISO code, "other" (then `language_other`), or one of the five old words.
-    # Required for a spiritual song, optional for Bhajan, Prabhat Samgiita and dance song, dropped
-    # for a Kiirtan.
+    # Required for a Bhajan and a spiritual song, optional for Prabhat Samgiita and dance song,
+    # dropped for a Kiirtan.
     language: str | None = Field(default=None, max_length=16)
     language_other: str | None = Field(default=None, max_length=200)
     # Required for a dance song (one of DANCES), refused for every other category.
@@ -140,6 +140,8 @@ class RecordingCreate(BaseModel):
     def _recorded_not_in_the_future(cls, value: date | None) -> date | None:
         if value is not None and value > datetime.now(UTC).date() + timedelta(days=1):
             raise ValueError("The date cannot be in the future.")
+        if value is not None and value.year < FIRST_YEAR:
+            raise ValueError(f"The date cannot be before {FIRST_YEAR}.")
         return value
 
     @field_validator("year")
@@ -153,7 +155,10 @@ class RecordingCreate(BaseModel):
     def _fields_match_the_category(self) -> Self:
         # A Kiirtan has no language field (it is always Baba Nam Kevalam): a language sent with
         # one is dropped, so a Kiirtan never carries one.
-        if KIND_LANGUAGE_RULE.get(self.kind) == "none":
+        # (Inside a playlist a track that did not name its kind takes the playlist's, so its
+        # language is kept until the service knows the kind.)
+        kind_unsaid = self.collection_id is not None and "kind" not in self.model_fields_set
+        if KIND_LANGUAGE_RULE.get(self.kind) == "none" and not kind_unsaid:
             self.language = None
         # The free-text name only goes with "other", and is cleaned before it is stored.
         self.language_other = (
