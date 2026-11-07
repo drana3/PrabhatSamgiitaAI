@@ -14,7 +14,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.recordings import RecordingOut
 
@@ -293,10 +293,18 @@ class OwnerStats(BaseModel):
 
 
 class PlayEventIn(BaseModel):
-    recording_id: UUID
+    # A recording, or a song of the Prabhat Samgiita catalogue (1..5018): exactly one of the two.
+    recording_id: UUID | None = None
+    song_number: int | None = Field(default=None, ge=1, le=5018)
     played_at: datetime
     listened_sec: int = Field(ge=0, le=86400)
     duration_sec: int | None = Field(default=None, ge=0, le=86400)
+
+    @model_validator(mode="after")
+    def _one_target(self) -> PlayEventIn:
+        if (self.recording_id is None) == (self.song_number is None):
+            raise ValueError("Send either recording_id or song_number")
+        return self
 
 
 class PlayBatchIn(BaseModel):

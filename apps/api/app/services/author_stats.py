@@ -37,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.author_profiles import PlayDaily, PlayEvent
 from app.models.recordings import Recording
+from app.models.song_plays import SongPlayEvent
 
 # ---- the knobs (one place each) --------------------------------------------------------------
 
@@ -381,6 +382,11 @@ async def erase_listener(session: AsyncSession, *, pepper: str, who_values: list
     if keys:
         outcome = await session.execute(delete(PlayEvent).where(PlayEvent.listener_key.in_(keys)))
         removed = int(outcome.rowcount or 0)  # type: ignore[attr-defined]
+        # the same listener's catalogue-song rows (services/song_plays.py) go too
+        songs = await session.execute(
+            delete(SongPlayEvent).where(SongPlayEvent.listener_key.in_(keys))
+        )
+        removed += int(songs.rowcount or 0)  # type: ignore[attr-defined]
         await session.commit()
     return removed
 
@@ -396,8 +402,9 @@ async def prune_play_events(
     _last_prune = now
     cutoff = now.date() - timedelta(days=PLAY_EVENT_RETENTION_DAYS)
     outcome = await session.execute(delete(PlayEvent).where(PlayEvent.day < cutoff))
+    songs = await session.execute(delete(SongPlayEvent).where(SongPlayEvent.day < cutoff))
     await session.commit()
-    return int(outcome.rowcount or 0)  # type: ignore[attr-defined]
+    return int(outcome.rowcount or 0) + int(songs.rowcount or 0)  # type: ignore[attr-defined]
 
 
 def reset_prune_clock() -> None:

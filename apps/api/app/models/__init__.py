@@ -76,6 +76,7 @@ from app.models.recordings import (
 )
 from app.models.sargam_capture import NotationCapture
 from app.models.song import Song
+from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordReport
 from app.models.song_comments import SongComment, SongCommentReport
 
@@ -129,6 +130,8 @@ __all__ = [
     "ReflectionQuote",
     "Season",
     "Song",
+    "SongPlayDaily",
+    "SongPlayEvent",
     "SongComment",
     "SongCommentReport",
     "SongChordProposal",

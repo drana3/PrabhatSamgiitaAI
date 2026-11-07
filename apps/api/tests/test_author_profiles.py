@@ -40,6 +40,7 @@ from app.models.author_profiles import (
 from app.models.base import Base
 from app.models.recording_collections import RecordingCollection
 from app.models.recordings import AuthorBlock, Recording
+from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.services import author_profiles as service
 from app.services import author_stats as stats
 from app.services.recordings import limiter
@@ -157,6 +158,8 @@ async def world() -> AsyncIterator[World]:
             AuthorReport,
             PlayEvent,
             PlayDaily,
+            SongPlayEvent,
+            SongPlayDaily,
             AuthorStatsSnapshot,
             AuthorSuspension,
         )

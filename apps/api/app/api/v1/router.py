@@ -29,6 +29,7 @@ from app.api.v1.song_chords import admin_router as song_chords_admin_router
 from app.api.v1.song_chords import router as song_chords_router
 from app.api.v1.song_comments import router as song_comments_router
 from app.api.v1.songs import router as songs_router
+from app.api.v1.top_played import router as top_played_router
 from app.api.v1.transliteration import router as transliteration_router
 from app.api.v1.video_links import router as video_links_router
 
@@ -64,3 +65,4 @@ router.include_router(recording_chords_router)
 router.include_router(video_links_router)
 router.include_router(search_menu_router)
 router.include_router(search_menu_admin_router)
+router.include_router(top_played_router)

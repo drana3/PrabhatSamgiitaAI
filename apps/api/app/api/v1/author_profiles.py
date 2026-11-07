@@ -56,6 +56,7 @@ from app.schemas.author_profiles import (
 )
 from app.services import author_profiles as service
 from app.services import author_stats as stats
+from app.services import song_plays as song_stats
 from app.services.members import require_member_identity, sync_member, try_member_identity
 from app.services.recordings import VISIBLE, is_team_member, limiter, recording_out
 
@@ -508,6 +509,15 @@ async def report_plays(
     limiter.hit(
         "plays-listener", who, limit=PLAY_BATCHES_PER_HOUR_PER_LISTENER, window_seconds=3600
     )
+    recording_events = [e for e in payload.events if e.recording_id is not None]
+    song_events = [e for e in payload.events if e.song_number is not None]
+    over_limit = 0
+    if song_events:
+        # one batch limit for both kinds: the first MAX_EVENTS_PER_BATCH events in the order sent
+        kept = payload.events[: stats.MAX_EVENTS_PER_BATCH]
+        over_limit = len(payload.events) - len(kept)
+        recording_events = [e for e in kept if e.recording_id is not None]
+        song_events = [e for e in kept if e.song_number is not None]
     result = await stats.ingest_plays(
         session,
         pepper=service.pepper(settings),
@@ -517,14 +527,35 @@ async def report_plays(
         client=client_host(request),
         events=[
             stats.PlayIn(
-                recording_id=e.recording_id,
+                recording_id=e.recording_id,  # type: ignore[arg-type]
                 played_at=e.played_at,
                 listened_sec=e.listened_sec,
                 duration_sec=e.duration_sec,
             )
-            for e in payload.events
+            for e in recording_events
         ],
     )
+    if song_events:
+        songs = await song_stats.ingest_song_plays(
+            session,
+            pepper=service.pepper(settings),
+            who=who,
+            client=client_host(request),
+            events=[
+                song_stats.SongPlayIn(
+                    song_number=e.song_number,  # type: ignore[arg-type]
+                    played_at=e.played_at,
+                    listened_sec=e.listened_sec,
+                )
+                for e in song_events
+            ],
+        )
+        result.accepted += songs.accepted
+        result.duplicates += songs.duplicates
+        for why, n in songs.rejected.items():
+            result.rejected[why] = result.rejected.get(why, 0) + n
+        if over_limit:
+            result.rejected["batch_limit"] = result.rejected.get("batch_limit", 0) + over_limit
     try:
         await stats.prune_play_events(session)
     except Exception:  # pruning must never fail a listener's request
