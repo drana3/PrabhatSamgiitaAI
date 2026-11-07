@@ -112,9 +112,9 @@ Reserved and protected words, bio and link validation, `rel="nofollow ugc noopen
 ### Review flags and verification
 
 Two rules close ways to lose or skip a review (security review, medium):
-- A review flag raised by reports (`reported:<reason>`) is cleared only by the team's approve. Unpublishing, publishing again and verifying leave it in place. Publishing again keeps the page public with the flag still set, the same as a reported page that was never touched. Only flags from the name checks (`protected_name`, `artist_claim`, `look_alike_page`, `look_alike_artist`) are cleared when the owner unpublishes or when the name check passes.
+- A report-driven hold has its own field, `report_reason` (the reason of the report that crossed the threshold), apart from the name-check fields `review_needed` and `review_reason`. Name checks, publishing, unpublishing, renaming and verifying never touch it, and it can never be overwritten by a name-check reason. Only the team's approve clears it. The owner and team views merge the two: the name-check reason is shown first, else `reported:<reason>`. A page with a report hold is not indexable and not in the sitemap, but stays public. Migration `0033_author_profiles` was amended (new column `report_reason`), since it is not deployed anywhere yet.
 - A verified artist claim exempts only the claim itself. Every publish still runs the protected-name check and both look-alike checks (`review_reason_for(..., skip_claim=profile.verified)`). Changing the display name, the address or the claimed name also removes the verification, because the team verified the old identity.
-- Tests: `test_unpublishing_and_publishing_keep_a_flag_raised_by_reports`, `test_unpublishing_still_clears_a_name_check_flag`, `test_a_verified_claim_does_not_skip_the_other_name_checks`, `test_renaming_or_moving_a_verified_page_removes_the_verification`.
+- Tests: `test_unpublishing_and_publishing_keep_a_flag_raised_by_reports`, `test_a_name_check_never_overwrites_a_report_hold`, `test_unpublishing_still_clears_a_name_check_flag`, `test_a_verified_claim_does_not_skip_the_other_name_checks`, `test_renaming_or_moving_a_verified_page_removes_the_verification`.
 
 ### Suspension follows the member (QA-031)
 

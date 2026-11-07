@@ -107,6 +107,10 @@ class AuthorProfile(Base, TimestampMixin):
         Boolean, default=False, server_default="false", index=True, nullable=False
     )
     review_reason: Mapped[str | None] = mapped_column(String(200))
+    # Raised by reports (the reason of the report that crossed the threshold). Separate from the
+    # name checks above on purpose: publishing, unpublishing, renaming and verifying never touch
+    # it. Only the team's approve clears it.
+    report_reason: Mapped[str | None] = mapped_column(String(40), index=True)
     # Set only by the team.
     verified: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False

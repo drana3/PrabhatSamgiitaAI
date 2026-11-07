@@ -952,7 +952,7 @@ async def test_an_impersonation_report_goes_to_the_team_at_once_and_the_page_sta
         f"{URL}/madhu-vrata/report", headers=AS["b"], json={"reason": "impersonation"}
     )
     profile = await world.profile("madhu-vrata")
-    assert profile.review_needed is True and profile.review_reason == "reported:impersonation"
+    assert profile.report_reason == "impersonation" and profile.review_needed is False
     assert profile.status == "published"
     queue = (await world.client.get("/api/v1/admin/authors?reported=true", headers=AS_TEAM)).json()
     assert queue["total"] == 1
@@ -966,10 +966,10 @@ async def test_three_different_reporters_put_a_page_in_front_of_the_team(world: 
         await world.client.post(
             f"{URL}/madhu-vrata/report", headers=AS[who], json={"reason": "spam"}
         )
-    assert (await world.profile("madhu-vrata")).review_needed is False
+    assert (await world.profile("madhu-vrata")).report_reason is None
     await world.client.post(f"{URL}/madhu-vrata/report", headers=AS_TEAM, json={"reason": "spam"})
     profile = await world.profile("madhu-vrata")
-    assert profile.review_needed is True and profile.review_reason == "reported:spam"
+    assert profile.report_reason == "spam"
 
 
 async def test_unpublishing_and_publishing_keep_a_flag_raised_by_reports(world: World) -> None:
@@ -988,10 +988,45 @@ async def test_unpublishing_and_publishing_keep_a_flag_raised_by_reports(world: 
     # verifying does not clear a report either; only approving does
     await world.client.post(f"/api/v1/admin/authors/{pid}/verify", headers=AS_TEAM)
     profile = await world.profile("madhu-vrata")
-    assert profile.review_needed is True and profile.review_reason == "reported:impersonation"
+    assert profile.report_reason == "impersonation"
     await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
     profile = await world.profile("madhu-vrata")
+    assert profile.report_reason is None
     assert profile.review_needed is False and profile.review_reason is None
+
+
+async def test_a_name_check_never_overwrites_a_report_hold(world: World) -> None:
+    made = await world.create()
+    pid = made.json()["id"]
+    await world.client.post(
+        f"{URL}/madhu-vrata/report", headers=AS["b"], json={"reason": "impersonation"}
+    )
+    # the owner renames the live page into a protected name: the page goes back to the team
+    renamed = await world.client.patch(
+        f"{URL}/me", headers=AS["a"], json={"display_name": "Prabhat Samgiita Team"}
+    )
+    assert renamed.json()["status"] == "draft"
+    assert renamed.json()["review_reason"] == "protected_name"
+    profile = await world.profile("madhu-vrata")
+    assert profile.review_reason == "protected_name"
+    assert profile.report_reason == "impersonation"
+    # a clean name later: the name-check flag goes, the report hold stays
+    fixed = await world.client.patch(
+        f"{URL}/me", headers=AS["a"], json={"display_name": "Madhu Vrata"}
+    )
+    assert fixed.status_code == 200
+    on = await world.client.post(f"{URL}/me/publish", headers=AS["a"])
+    assert on.json()["status"] == "published"
+    assert on.json()["review_reason"] == "reported:impersonation"
+    profile = await world.profile("madhu-vrata")
+    assert profile.review_needed is False and profile.report_reason == "impersonation"
+    # the team sees it in both lists and only approve clears it
+    queue = (
+        await world.client.get("/api/v1/admin/authors?needs_review=true", headers=AS_TEAM)
+    ).json()
+    assert queue["total"] == 1
+    await world.client.post(f"/api/v1/admin/authors/{pid}/approve", headers=AS_TEAM)
+    assert (await world.profile("madhu-vrata")).report_reason is None
 
 
 async def test_unpublishing_still_clears_a_name_check_flag(world: World) -> None:

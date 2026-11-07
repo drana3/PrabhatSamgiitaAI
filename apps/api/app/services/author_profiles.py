@@ -463,7 +463,22 @@ async def resolve_slug(session: AsyncSession, raw: str) -> Resolved:
 
 
 def is_indexable(profile: AuthorProfile, recordings_count: int) -> bool:
-    return profile.status == "published" and not profile.review_needed and recordings_count >= 1
+    return (
+        profile.status == "published"
+        and not profile.review_needed
+        and profile.report_reason is None
+        and recordings_count >= 1
+    )
+
+
+def effective_review(profile: AuthorProfile) -> tuple[bool, str | None]:
+    """What the owner and the team see: the name-check reason first, else the report reason as
+    `reported:<reason>`. The two are stored apart so one can never overwrite the other."""
+    if profile.review_needed:
+        return True, profile.review_reason
+    if profile.report_reason:
+        return True, f"reported:{profile.report_reason}"
+    return False, None
 
 
 def slug_change_wait_days(profile: AuthorProfile) -> int:
@@ -493,8 +508,8 @@ async def owner_out(session: AsyncSession, profile: AuthorProfile) -> AuthorProf
         links=list(profile.links or []),  # type: ignore[arg-type]
         claimed_name=profile.claimed_name,
         status=profile.status,  # type: ignore[arg-type]
-        review_needed=profile.review_needed,
-        review_reason=profile.review_reason,
+        review_needed=effective_review(profile)[0],
+        review_reason=effective_review(profile)[1],
         verified=profile.verified,
         suspended_reason=profile.suspended_reason if profile.status == "suspended" else None,
         include_uploads=profile.include_uploads,  # type: ignore[arg-type]
@@ -910,12 +925,6 @@ async def create_profile(
     return profile
 
 
-def _has_report_flag(profile: AuthorProfile) -> bool:
-    """A review flag raised by reports (`reported:<reason>`), not by the name checks. Only the team
-    clears it (approve); publishing, unpublishing and verifying must not wipe it."""
-    return bool(profile.review_needed and (profile.review_reason or "").startswith("reported:"))
-
-
 async def _publish(session: AsyncSession, profile: AuthorProfile) -> None:
     """Publish now, or park the page for the team when its name needs a look."""
     if profile.status == "suspended":
@@ -934,9 +943,8 @@ async def _publish(session: AsyncSession, profile: AuthorProfile) -> None:
         profile.review_reason = reason
         profile.status = "draft"
         return
-    if not _has_report_flag(profile):
-        profile.review_needed = False
-        profile.review_reason = None
+    profile.review_needed = False
+    profile.review_reason = None
     profile.status = "published"
     if profile.published_at is None:
         profile.published_at = now_utc()
@@ -953,9 +961,8 @@ async def unpublish_profile(session: AsyncSession, profile: AuthorProfile) -> Au
     if profile.status == "suspended":
         raise AuthorError("suspended", 403, "This page was suspended by the team")
     profile.status = "draft"
-    if not _has_report_flag(profile):
-        profile.review_needed = False
-        profile.review_reason = None
+    profile.review_needed = False
+    profile.review_reason = None
     await session.commit()
     return profile
 
@@ -1215,11 +1222,10 @@ async def report_profile(
         )
     )
     profile.reports_count = int(profile.reports_count or 0) + 1
-    if not profile.review_needed and (
+    if profile.report_reason is None and (
         reason in URGENT_REPORT_REASONS or profile.reports_count >= REPORT_REVIEW_THRESHOLD
     ):
-        profile.review_needed = True
-        profile.review_reason = f"reported:{reason}"
+        profile.report_reason = reason
     await session.commit()
     return True
 
@@ -1234,8 +1240,8 @@ def admin_out(profile: AuthorProfile, count: int) -> AdminAuthorOut:
         display_name=profile.display_name,
         claimed_name=profile.claimed_name,
         status=profile.status,  # type: ignore[arg-type]
-        review_needed=profile.review_needed,
-        review_reason=profile.review_reason,
+        review_needed=effective_review(profile)[0],
+        review_reason=effective_review(profile)[1],
         verified=profile.verified,
         reports_count=profile.reports_count,
         suspended_reason=profile.suspended_reason,
@@ -1259,7 +1265,10 @@ async def admin_list(
     if status:
         conditions.append(AuthorProfile.status == status)
     if needs_review is not None:
-        conditions.append(AuthorProfile.review_needed.is_(needs_review))
+        waiting = or_(
+            AuthorProfile.review_needed.is_(True), AuthorProfile.report_reason.is_not(None)
+        )
+        conditions.append(waiting if needs_review else ~waiting)
     if reported:
         conditions.append(AuthorProfile.reports_count > 0)
     if query and query.strip():
@@ -1280,6 +1289,7 @@ async def admin_list(
             .where(*conditions)
             .order_by(
                 AuthorProfile.review_needed.desc(),
+                AuthorProfile.report_reason.is_not(None).desc(),
                 AuthorProfile.reports_count.desc(),
                 AuthorProfile.created_at.desc(),
             )
@@ -1292,9 +1302,11 @@ async def admin_list(
 
 
 async def admin_approve(session: AsyncSession, profile: AuthorProfile, by: str) -> AuthorProfile:
-    """The team has looked: the name is fine. A page that was waiting goes public."""
+    """The team has looked: the name is fine and the reports are dealt with. A page that was
+    waiting goes public. The only place that clears a report-raised flag."""
     profile.review_needed = False
     profile.review_reason = None
+    profile.report_reason = None
     if profile.status == "draft":
         profile.status = "published"
         if profile.published_at is None:
@@ -1310,7 +1322,7 @@ async def admin_verify(
     profile.verified = verified
     profile.verified_at = now_utc() if verified else None
     profile.verified_by = by if verified else None
-    if verified and not _has_report_flag(profile):
+    if verified:  # clears the name-check flag only; a report flag stays until approve
         profile.review_needed = False
         profile.review_reason = None
     await session.commit()
@@ -1387,6 +1399,7 @@ async def sitemap_entries(session: AsyncSession) -> list[tuple[str, datetime]]:
             .where(
                 AuthorProfile.status == "published",
                 AuthorProfile.review_needed.is_(False),
+                AuthorProfile.report_reason.is_(None),
                 AuthorStatsSnapshot.recordings_count >= 1,
             )
             .order_by(AuthorProfile.slug)
