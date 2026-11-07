@@ -16,6 +16,7 @@ import {
   newlyRemoved,
   retrySubmission,
   withdrawSubmission,
+  withLanguage,
   type AddResult,
   type SubmissionInput,
 } from "@/lib/kirtan/submissions"
@@ -50,6 +51,8 @@ type KirtanState = {
   failed: (id: string, failure: UploadFailure) => void
   retry: (id: string) => void
   withdraw: (id: string) => void
+  /** the language was added to a recording that had none (its own id or its server id) */
+  languageAdded: (id: string, value: { language: string; languageOther?: string }) => void
   /** the server's list of the person's own uploads; a recording that was live and is now removed raises a notice */
   applyMine: (remote: readonly RemoteRecording[], now?: number) => void
   setCatalog: (remote: readonly RemoteRecording[]) => void
@@ -90,6 +93,9 @@ export const useKirtanStore = create<KirtanState>()(
       failed: (id, failure) => set({ submissions: markFailed(get().submissions, id, failure) }),
       retry: (id) => set({ submissions: retrySubmission(get().submissions, id) }),
       withdraw: (id) => set({ submissions: withdrawSubmission(get().submissions, id) }),
+      languageAdded: (id, value) => {
+        set({ submissions: withLanguage(get().submissions, id, value), catalog: withLanguage(get().catalog, id, value) })
+      },
       applyMine: (remote, now = Date.now()) => {
         const before = get().submissions
         const after = mergeRemoteMine(before, remote)

@@ -80,7 +80,7 @@ describe("language codes", () => {
 })
 
 describe("what each kind needs", () => {
-  it("Kiirtan nothing; Prabhat Samgiita nothing; Bhajan and Spiritual song a language; Dance song a dance", () => {
+  it("Kiirtan nothing; Prabhat Samgiita nothing; Bhajan and Spiritual song a language; Dance music a dance", () => {
     expect(missingKindFields({ kind: "kiirtan", language: null, dance: null })).toEqual([])
     expect(missingKindFields({ kind: "bhajan", language: null, dance: null })).toEqual(["language"])
     expect(missingKindFields({ kind: "bhajan", language: "bn", dance: null })).toEqual([])
@@ -130,7 +130,7 @@ describe("the queue: per-row validation and 'Apply to all rows'", () => {
     expect(missingCounts(rows, spiritual)).toEqual({ language: 2, dance: 0, rows: 2 })
   })
 
-  it("Dance songs miss their dance per row", () => {
+  it("Dance music miss their dance per row", () => {
     const rows = [row("a"), row("b", { dance: "tandava" })]
     expect(rowMissing(rows[0]!, dance)).toEqual(["dance"])
     expect(rowMissing(rows[1]!, dance)).toEqual([])
@@ -167,8 +167,8 @@ describe("filters of the Kiirtan screens", () => {
     { dance: undefined, language: undefined },
   ]
 
-  it("only Spiritual and Dance songs have sub-filters", () => {
-    expect(RECORDING_KINDS.filter((kind) => hasSubFilters(kind))).toEqual(["spiritual_song", "dance_song"])
+  it("only Spiritual song, Dance music and Baba's Audio have sub-filters", () => {
+    expect(RECORDING_KINDS.filter((kind) => hasSubFilters(kind))).toEqual(["spiritual_song", "dance_song", "baba_audio"])
     expect(hasSubFilters("all")).toBe(false)
   })
 

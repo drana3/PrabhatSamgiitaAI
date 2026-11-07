@@ -64,6 +64,8 @@ export async function runUpload(
       recordedOn: item.recordedOn ?? null,
       credits: item.credits,
       notes: item.notes,
+      place: item.place,
+      discourse: item.discourse,
       psSong: item.psSong ?? null,
       termsVersion: useContentRulesStore.getState().version ?? undefined,
       confirmDifferent: options.confirmDifferent,

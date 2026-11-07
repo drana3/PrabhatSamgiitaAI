@@ -1,9 +1,10 @@
-import { kindHasDance, kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
+import { isKiirtanStyle, OTHER_STYLE } from "@/lib/kirtan/styles"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
-import { DANCES, PS_SONG_COUNT, type DanceId, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
+import { BABA_AUTHOR, DANCES, PS_SONG_COUNT, type DanceId, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
 
 /**
  * Submissions: a person uploads an audio file of a Kiirtan or a Bhajan (the `kind`) and it is PUBLISHED AT ONCE.
@@ -42,7 +43,7 @@ export type SubmissionInput = {
   language?: RecordingLanguage | null
   /** the person's own name for the language, when `language` is "other" */
   languageOther?: string | null
-  /** Dance song only: Tandava or Kaoshiki */
+  /** Dance music only: Tandava or Kaoshiki */
   dance?: DanceId | null
   /** a playlist from an event this recording is a track of (a server id), and its place there */
   collectionId?: string | null
@@ -51,6 +52,9 @@ export type SubmissionInput = {
   recordedOn?: string | null
   /** words and music by, optional */
   credits?: string
+  /** Baba's Audio Discourses only: where it was given, and the name or number of the discourse (both optional) */
+  place?: string
+  discourse?: string
   /** a short note, optional */
   notes?: string
   /** Prabhat Samgiita only: the song this is a performance of (1 to 5018) */
@@ -83,7 +87,7 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   const problem = validateAudioFile({ name: input.fileName, size: input.fileSize ?? null, type: input.fileType })
   if (problem) return problem
   if (!input.title.trim()) return "title"
-  if (!input.author.trim()) return "author"
+  if (kindHasPerformer(input.kind) && !input.author.trim()) return "author"
   const missing = missingKindFields({ kind: normalizeKind(input.kind), language: input.language, languageOther: input.languageOther, dance: input.dance })
   if (missing.length) return missing[0]!
   if (normalizeKind(input.kind) === "prabhat_samgiita" && !isPsSongNumber(input.psSong)) return "song"
@@ -112,10 +116,10 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     id: `sub-${slug(input.title, kind)}-${now}`,
     kind,
     title: tidy(input.title),
-    author: tidy(input.author),
+    author: kindHasPerformer(kind) ? tidy(input.author) : BABA_AUTHOR,
     durationSec: null,
     type: DEFAULT_SUBMISSION_TYPE,
-    byAuthor: Boolean(input.byAuthor),
+    byAuthor: kindHasPerformer(kind) && Boolean(input.byAuthor),
     ...(input.year ? { year: input.year } : {}),
     ...(input.language && kindHasLanguage(kind) ? { language: input.language } : {}),
     ...(input.language === OTHER_LANGUAGE && kindHasLanguage(kind) && cleanLanguageOther(input.languageOther) ? { languageOther: cleanLanguageOther(input.languageOther)! } : {}),
@@ -123,6 +127,8 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(input.collectionId ? { collectionId: input.collectionId, ...(input.position ? { position: input.position } : {}) } : {}),
     ...(input.recordedOn ? { recordedOn: input.recordedOn } : {}),
     ...(tidy(input.credits ?? "") ? { credits: tidy(input.credits ?? "") } : {}),
+    ...(kindHasDiscourse(kind) && tidy(input.place ?? "") ? { place: tidy(input.place ?? "") } : {}),
+    ...(kindHasDiscourse(kind) && tidy(input.discourse ?? "") ? { discourse: tidy(input.discourse ?? "") } : {}),
     ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),
     ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),
     audioUrl: input.fileUri,
@@ -161,6 +167,12 @@ export function markPublished(list: readonly Kirtan[], id: string, remote: Remot
 /** The upload stopped. The person can try again from My uploads. */
 export function markFailed(list: readonly Kirtan[], id: string, failure: UploadFailure): Kirtan[] {
   return update(list, id, (k) => (k.status === "published" || k.status === "removed" ? k : { ...k, status: "failed", failure }))
+}
+
+/** The language was added to a recording that had none (by its id here or on the server); an existing language is never rewritten. */
+export function withLanguage(list: readonly Kirtan[], id: string, value: { language: string; languageOther?: string }): Kirtan[] {
+  const name = value.language === OTHER_LANGUAGE ? cleanLanguageOther(value.languageOther) : null
+  return list.map((k) => (k.language || (k.id !== id && k.serverId !== id) ? k : { ...k, language: value.language, ...(name ? { languageOther: name } : {}) }))
 }
 
 /** Try again: back to uploading, the old failure forgotten. */
@@ -223,6 +235,15 @@ function languageOf(remote: RemoteRecording, base?: Kirtan): Pick<Kirtan, "langu
   return { language: code, ...(other ? { languageOther: other } : {}) }
 }
 
+/** The Kiirtan style of a server row (Kiirtans only; "other" keeps the uploader's own name). */
+function styleOf(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kirtan, "style" | "styleOther"> {
+  if (kind !== "kiirtan") return {}
+  const id: string | null | undefined = remote.style ?? base?.style
+  if (!(isKiirtanStyle(id) || id === OTHER_STYLE)) return {}
+  const name = id === OTHER_STYLE ? (remote.style_other || base?.styleOther || "").trim() : ""
+  return { style: id, ...(name ? { styleOther: name } : {}) }
+}
+
 /** A server recording as the app's `Kirtan`. `base` keeps the phone's own id and time when the item is already here. */
 export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
   const removed = remote.status === "removed"
@@ -246,11 +267,14 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     authorId: remote.author_id,
     ...(remote.year ? { year: remote.year } : base?.year ? { year: base.year } : {}),
     ...languageOf(remote, base),
+    ...styleOf(remote, kind, base),
     ...(isDance(remote.dance) ? { dance: remote.dance } : base?.dance ? { dance: base.dance } : {}),
     ...(remote.collection_id ? { collectionId: remote.collection_id } : base?.collectionId ? { collectionId: base.collectionId } : {}),
     ...(remote.position ? { position: remote.position } : base?.position ? { position: base.position } : {}),
     ...(remote.recorded_on ? { recordedOn: remote.recorded_on } : base?.recordedOn ? { recordedOn: base.recordedOn } : {}),
     ...(remote.credits ? { credits: remote.credits } : base?.credits ? { credits: base.credits } : {}),
+    ...(remote.place ? { place: remote.place } : base?.place ? { place: base.place } : {}),
+    ...(remote.discourse ? { discourse: remote.discourse } : base?.discourse ? { discourse: base.discourse } : {}),
     ...(remote.notes ? { notes: remote.notes } : base?.notes ? { notes: base.notes } : {}),
     ...(isPsSongNumber(remote.ps_song_number) ? { psSong: remote.ps_song_number } : base?.psSong ? { psSong: base.psSong } : {}),
   }

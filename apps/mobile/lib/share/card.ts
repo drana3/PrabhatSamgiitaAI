@@ -43,7 +43,7 @@ export type CardSubject =
       type?: string | null
     }
 
-const RECORDING_KIND_NAMES: Record<string, string> = { bhajan: "Bhajan", devotional_song: "Bhajan", prabhat_samgiita: "Prabhat Samgiita", spiritual_song: "Spiritual song", dance_song: "Dance song" }
+const RECORDING_KIND_NAMES: Record<string, string> = { bhajan: "Bhajan", devotional_song: "Bhajan", prabhat_samgiita: "Prabhat Samgiita", spiritual_song: "Spiritual song", dance_song: "Dance music", baba_audio: "Baba's Audio Discourses" }
 
 function recordingKindName(kind: string | null | undefined): string {
   return RECORDING_KIND_NAMES[kind ?? ""] ?? "Kiirtan"

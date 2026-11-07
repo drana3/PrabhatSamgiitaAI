@@ -147,7 +147,7 @@ export function trackFields(track: SetTrack, draft: SetDraft) {
   }
 }
 
-/** What this track still needs (a Spiritual song needs its language, a Dance song its dance). */
+/** What this track still needs (a Spiritual song needs its language, a Dance music its dance). */
 export function trackMissing(track: SetTrack, draft: SetDraft): MissingField[] {
   const kind = trackKind(track, draft)
   return missingKindFields(effectiveFields(track, { ...setDefaults(draft), kind }))

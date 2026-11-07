@@ -35,7 +35,7 @@ export type UploadSource = {
   year?: number | null
   language?: string | null
   languageOther?: string | null
-  /** Dance song only */
+  /** Dance music only */
   dance?: string | null
   /** a track of a playlist from an event: its server id and place; the playlist's own allowance and defaults apply */
   collectionId?: string | null
@@ -43,6 +43,9 @@ export type UploadSource = {
   recordedOn?: string | null
   credits?: string
   notes?: string
+  /** Baba's Audio Discourses only */
+  place?: string
+  discourse?: string
   /** Prabhat Samgiita only: the number of the song */
   psSong?: number | null
   /** the version of the content rules the person accepted */
@@ -112,6 +115,8 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       recordedOn: source.recordedOn,
       credits: source.credits,
       notes: source.notes,
+      place: source.place,
+      discourse: source.discourse,
       psSong: source.psSong,
       confirmDifferent: Boolean(source.confirmDifferent),
     })

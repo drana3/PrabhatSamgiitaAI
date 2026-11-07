@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path } from "react-native-svg"
 
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
-import { DanceField, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
+import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
@@ -18,15 +18,16 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindHasDance, kindHasLanguage, kindLabel, kindRequiresLanguage, normalizeKind } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { effectiveFields, hasWork, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
 import { PS_SONG_COUNT, RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
-import { missingKindFields, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
+import { languageErrorKey, missingKindFields, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
@@ -80,6 +81,8 @@ export default function AddKirtanScreen() {
   const running = useUploadQueueStore((s) => s.running)
   const stopped = useUploadQueueStore((s) => s.stopped)
   const store = useUploadQueueStore.getState
+  // Upload with something missing jumps to the first empty required field and says which one (lib/forms/focusInvalid.ts)
+  const form = useFormFocus()
 
   const [agree, setAgree] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
@@ -88,6 +91,8 @@ export default function AddKirtanScreen() {
   const [langFor, setLangFor] = useState<LangTarget | null>(null)
   // after the first press of Upload: the fields that block it show their error
   const [tried, setTried] = useState(false)
+  // a problem that has no field of its own on screen is said under the button
+  const [loose, setLoose] = useState<string | null>(null)
   const inputRef = useRef<{ click: () => void } | null>(null)
   const titleHint = useRef(typeof params.title === "string" ? params.title : "")
   const alive = useRef(true)
@@ -114,6 +119,13 @@ export default function AddKirtanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn])
 
+  // typing, picking or adding a file takes the message away: it said what was missing
+  useEffect(() => {
+    form.clear()
+    setLoose(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, items])
+
   const locked = running
   const counts = queueCounts(items)
   const retryable = items.filter(isRetryable).length
@@ -128,7 +140,7 @@ export default function AddKirtanScreen() {
   const fieldError = (field: "language" | "languageName" | "dance"): string | null => {
     if (!tried) return null
     const blocks = items.length ? rowsIncomplete.some((row) => row.missing.includes(field)) : formMissing.includes(field)
-    return blocks && formMissing.includes(field) ? t(`ugc.form.error.${field}`) : null
+    return blocks && formMissing.includes(field) ? (t as (key: string) => string)(field === "language" ? languageErrorKey(kind) : `ugc.form.error.${field}`) : null
   }
   const languageError = fieldError("language") ?? fieldError("languageName")
   const danceError = fieldError("dance")
@@ -210,18 +222,42 @@ export default function AddKirtanScreen() {
 
   /* ------------------------------------------------------------------ starting */
 
+  /** The sentence for a problem code (the same words as under the field). */
+  const messageFor = (code: SubmissionError): string => {
+    if (code === "format" || code === "size") return fileProblemText(code)
+    if (code === "language") return (t as (key: string) => string)(languageErrorKey(kind))
+    return t(`ugc.form.error.${code}`)
+  }
+  /** Shows the problem and jumps to the field it is about: scrolls there, puts the cursor in it, says which one. */
+  const fail = (code: SubmissionError, row?: string) => {
+    setProblem({ form: code, row })
+    const key = row ? `row-${row}` : code === "author" ? "performer" : code === "languageName" ? "language" : code === "format" || code === "size" ? "file" : code
+    const message = messageFor(code)
+    const go = () =>
+      void form.focusFirst([key], { [key]: message }).then((went) => {
+        if (went === null) setLoose(message) // no field of its own on screen: say it under the button
+      })
+    // the year (and an optional language) live in "More details": open it first, then go
+    if (!form.has(key) && !moreOpen && (code === "year" || code === "language" || code === "languageName")) {
+      setMoreOpen(true)
+      setTimeout(go, 80)
+    } else go()
+  }
+
   const upload = async () => {
     if (running) return
     setProblem(null)
+    setLoose(null)
+    form.clear()
     setTried(true)
     const open = items.filter((item) => item.status === "waiting" || item.status === "limit")
     if (!open.length) {
-      if (!items.length) setProblem("nothing")
+      if (!items.length) fail("file")
       return
     }
     const first = open[0] as QueueItem
     const firstFields = effectiveFields(first, defaults)
-    const form = validateSubmission({
+    const problemCode = validateSubmission({
       language: firstFields.language,
       languageOther: firstFields.languageOther,
       dance: firstFields.dance,
@@ -239,27 +275,27 @@ export default function AddKirtanScreen() {
       fileType: first.type,
     })
     // "year" is typed text here: four digits or empty
-    if (form && form !== "year") {
-      setProblem({ form })
+    if (problemCode && problemCode !== "year") {
+      fail(problemCode)
       return
     }
     if (draft.year.trim() && yearOf(draft.year) == null) {
-      setProblem({ form: "year" })
+      fail("year")
       return
     }
-    if (form === "year") {
-      setProblem({ form })
+    if (problemCode === "year") {
+      fail("year")
       return
     }
     // every file needs its language and dance before anything goes up: nothing is sent half-ready
     const lacking = open.map((item) => ({ item, missing: rowMissing(item, defaults) })).find((entry) => entry.missing.length)
     if (lacking) {
-      setProblem({ form: lacking.missing[0]!, row: lacking.item.id })
+      fail(lacking.missing[0]!, lacking.item.id)
       return
     }
     const untitled = open.find((item) => !item.title.trim())
     if (untitled) {
-      setProblem({ form: "title", row: untitled.id })
+      fail("title", untitled.id)
       return
     }
     if (!rulesOk) useContentRulesStore.getState().accept()
@@ -275,16 +311,8 @@ export default function AddKirtanScreen() {
   }
 
   const formError = problem && typeof problem === "object" ? problem.form : null
-  const problemText =
-    problem === "picker"
-      ? t("ugc.add.pickFailed")
-      : problem === "nothing"
-        ? t("ugc.form.error.file")
-        : formError === "format" || formError === "size"
-          ? fileProblemText(formError)
-          : formError
-            ? t(`ugc.form.error.${formError}`)
-            : null
+  // a problem with a field is said under that field (form.error); only the ones with no field of their own are said here
+  const problemText = problem === "picker" ? t("ugc.add.pickFailed") : problem === "nothing" ? t("ugc.form.error.file") : loose
   const rowWithProblem = problem && typeof problem === "object" ? problem.row : undefined
   const left = leftForTomorrow(items)
   const settled = counts.total - counts.waiting - counts.uploading
@@ -296,7 +324,7 @@ export default function AddKirtanScreen() {
       {/* below the status bar and the island, in a row of its own (components/common/SheetTopBar) */}
       <SheetTopBar closeLabel={t("ugc.add.close")} onClose={close} />
 
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
+      <ScrollView ref={form.scrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
         {!signedIn ? (
           <SignInGate theme={theme} onSignIn={() => router.push(href("/signin"))} />
         ) : (
@@ -366,6 +394,7 @@ export default function AddKirtanScreen() {
 
             {kind === "prabhat_samgiita" ? (
               <Reveal index={2} style={styles.field}>
+                <View {...form.field("song")} style={styles.field}>
                 <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.song.label")}</Text>
                 <KPress
                   accessibilityRole="button"
@@ -381,26 +410,34 @@ export default function AddKirtanScreen() {
                     <Text style={[styles.pasteText, { color: theme.accent }]}>{draft.psSong ? t("ugc.add.change") : t("rec.song.choose")}</Text>
                   </View>
                 </KPress>
-                <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.song.hint")}</Text>
+                {form.error("song") ? <FieldError theme={theme} text={form.error("song")!} /> : <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.song.hint")}</Text>}
+                </View>
               </Reveal>
             ) : null}
 
             {kindHasDance(kind) ? (
               <Reveal index={2}>
+                <View {...form.field("dance")}>
                 <DanceField theme={theme} value={draft.dance} onChange={(dance) => store().setDraft({ dance })} invalid={!!danceError} errorText={danceError} disabled={locked} />
+                </View>
               </Reveal>
             ) : null}
 
             {kindRequiresLanguage(kind) ? (
               <Reveal index={2}>
-                <LanguageField theme={theme} kind={kind} value={languageValue} onOpen={() => setLangFor("form")} invalid={!!languageError} errorText={languageError} disabled={locked} />
+                <View {...form.field("language")}>
+                  <LanguageField theme={theme} kind={kind} value={languageValue} onOpen={() => setLangFor("form")} invalid={!!languageError} errorText={languageError ?? form.error("language")} disabled={locked} />
+                </View>
               </Reveal>
             ) : null}
 
+            {kindHasPerformer(kind) ? (
             <Reveal index={3} style={styles.field}>
+              <View {...form.field("performer")} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>{t("ugc.add.authorLabel")}</Text>
               <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: formError === "author" ? amColors.danger : theme.line }]}>
                 <TextInput
+                  ref={form.input("performer")}
                   value={draft.performer}
                   onChangeText={(text) => store().setDraft({ performer: text })}
                   editable={!locked}
@@ -411,10 +448,14 @@ export default function AddKirtanScreen() {
                   style={[styles.input, { color: theme.textHeading }]}
                 />
               </View>
+              {form.error("performer") ? <FieldError theme={theme} text={form.error("performer")!} /> : null}
               {items.length > 1 ? <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.shared.hint")}</Text> : null}
+              </View>
             </Reveal>
+            ) : null}
 
             <Reveal index={4} style={styles.field}>
+              <View {...form.field("file")} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.files.label")}</Text>
               <KPress
                 accessibilityRole="button"
@@ -447,7 +488,9 @@ export default function AddKirtanScreen() {
                     },
                   })
                 : null}
+              {form.error("file") ? <FieldError theme={theme} text={form.error("file")!} /> : null}
               <Text style={[styles.hint, { color: theme.textBody }]}>{t("ugc.add.fileHint", { mb: LIMIT_MB })}</Text>
+              </View>
             </Reveal>
 
             {items.length ? (
@@ -457,8 +500,8 @@ export default function AddKirtanScreen() {
                   <ApplyToAllCard theme={theme} kind={kind} missing={missing} tried={tried} locked={locked} onLanguage={() => setLangFor("all")} onDance={pickDanceForAll} />
                 ) : null}
                 {items.map((item, index) => (
+                  <View key={item.id} {...form.field(`row-${item.id}`)} style={styles.rowWrap}>
                   <QueueRow
-                    key={item.id}
                     theme={theme}
                     item={item}
                     position={index + 1}
@@ -474,6 +517,8 @@ export default function AddKirtanScreen() {
                     onSimilarNo={(id) => void store().decideSimilar(id, false)}
                     onPlaySimilar={(s: RemoteBrief) => listenTo({ id: s.id, title: s.title, author: s.author, audioUrl: s.audio_url, kind: s.kind })}
                   />
+                  {form.error(`row-${item.id}`) ? <FieldError theme={theme} text={form.error(`row-${item.id}`)!} /> : null}
+                  </View>
                 ))}
               </View>
             ) : null}
@@ -493,14 +538,17 @@ export default function AddKirtanScreen() {
                 </View>
                 <ChevronGlyph color={theme.textBody} open={moreOpen} />
               </KPress>
-              {moreOpen ? <MoreDetails theme={theme} kind={kind} locked={locked} yearInvalid={formError === "year"} onOpenLanguage={() => setLangFor("form")} /> : null}
+              {moreOpen ? <MoreDetails theme={theme} kind={kind} locked={locked} yearInvalid={formError === "year"} yearMessage={form.error("year")} languageMessage={form.error("language")} fieldProps={form.field} onOpenLanguage={() => setLangFor("form")} /> : null}
             </View>
 
-            <Check theme={theme} on={draft.byAuthor} label={t("ugc.add.byAuthor")} onToggle={() => !locked && store().setDraft({ byAuthor: !store().draft.byAuthor })} />
+            {kindHasPerformer(kind) ? <Check theme={theme} on={draft.byAuthor} label={t("ugc.add.byAuthor")} onToggle={() => !locked && store().setDraft({ byAuthor: !store().draft.byAuthor })} /> : null}
             {rulesOk ? (
               <Text style={[styles.hint, { color: theme.textBody }]}>{t("ugc.add.termsAgreed", { date: formatDate(rules.acceptedAt ?? "", "medium") })}</Text>
             ) : (
-              <Check theme={theme} on={agree} label={t("ugc.add.terms")} onToggle={() => setAgree((c) => !c)} invalid={formError === "terms"} />
+              <View {...form.field("terms")} style={styles.field}>
+                <Check theme={theme} on={agree} label={t("ugc.add.terms")} onToggle={() => setAgree((c) => !c)} invalid={formError === "terms"} />
+                {form.error("terms") ? <FieldError theme={theme} text={form.error("terms")!} /> : null}
+              </View>
             )}
             <KPress accessibilityRole="link" accessibilityLabel={t("ugc.add.readRules")} onPress={openRules} pressedScale={0.98} style={styles.linkRow}>
               <Text style={[styles.linkText, { color: theme.accent }]}>{t("ugc.add.readRules")}</Text>
@@ -556,10 +604,10 @@ export default function AddKirtanScreen() {
 }
 
 /**
- * Language (Prabhat Samgiita and Dance song: optional; Bhajan and Spiritual song ask for it above as required; never Kiirtan), "words and music by" (Bhajan), year recorded and a short note.
+ * Language (Prabhat Samgiita and Dance music: optional; Bhajan and Spiritual song ask for it above as required; never Kiirtan), "words and music by" (Bhajan), year recorded and a short note.
  * All optional. Which fields a type has is lib/kirtan/uploadForm.ts moreDetailsFor.
  */
-function MoreDetails({ theme, kind, locked, yearInvalid, onOpenLanguage }: { theme: SongsTheme; kind: RecordingKind; locked: boolean; yearInvalid: boolean; onOpenLanguage: () => void }) {
+function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMessage, fieldProps, onOpenLanguage }: { theme: SongsTheme; kind: RecordingKind; locked: boolean; yearInvalid: boolean; yearMessage: string | null; languageMessage: string | null; fieldProps: (key: string) => object; onOpenLanguage: () => void }) {
   const t = useT()
   const draft = useUploadQueueStore((s) => s.draft)
   const setDraft = useUploadQueueStore.getState().setDraft
@@ -567,7 +615,23 @@ function MoreDetails({ theme, kind, locked, yearInvalid, onOpenLanguage }: { the
   return (
     <View style={styles.moreBody}>
       {/* a Bhajan and a Spiritual song ask for their language above, as a required field; the optional ones keep it here */}
-      {has.language ? <LanguageField theme={theme} kind={kind} value={{ language: draft.language, languageOther: draft.languageOther }} onOpen={onOpenLanguage} disabled={locked} /> : null}
+      {has.language ? (
+        <View {...fieldProps("language")}>
+          <LanguageField theme={theme} kind={kind} value={{ language: draft.language, languageOther: draft.languageOther }} onOpen={onOpenLanguage} errorText={languageMessage} invalid={!!languageMessage} disabled={locked} />
+        </View>
+      ) : null}
+      {has.discourse ? (
+        <>
+          <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.place.label")}</Text>
+          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
+            <TextInput value={draft.place} onChangeText={(text) => setDraft({ place: text })} editable={!locked} placeholder={t("rec.place.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.place.label")} maxLength={200} style={[styles.input, { color: theme.textHeading }]} />
+          </View>
+          <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.discourse.label")}</Text>
+          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
+            <TextInput value={draft.discourse} onChangeText={(text) => setDraft({ discourse: text })} editable={!locked} placeholder={t("rec.discourse.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.discourse.label")} maxLength={200} style={[styles.input, { color: theme.textHeading }]} />
+          </View>
+        </>
+      ) : null}
       {has.credits ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.credits.label")}</Text>
@@ -576,9 +640,12 @@ function MoreDetails({ theme, kind, locked, yearInvalid, onOpenLanguage }: { the
           </View>
         </>
       ) : null}
-      <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.year.label")}</Text>
-      <View style={[styles.inputBox, styles.yearBox, { backgroundColor: theme.card, borderColor: yearInvalid ? amColors.danger : theme.line }]}>
-        <TextInput value={draft.year} onChangeText={(text) => setDraft({ year: text.replace(/[^0-9]/g, "").slice(0, 4) })} editable={!locked} placeholder={t("rec.year.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.year.label")} keyboardType="number-pad" maxLength={4} style={[styles.input, { color: theme.textHeading }]} />
+      <View {...fieldProps("year")} style={styles.moreBody}>
+        <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.year.label")}</Text>
+        <View style={[styles.inputBox, styles.yearBox, { backgroundColor: theme.card, borderColor: yearInvalid ? amColors.danger : theme.line }]}>
+          <TextInput value={draft.year} onChangeText={(text) => setDraft({ year: text.replace(/[^0-9]/g, "").slice(0, 4) })} editable={!locked} placeholder={t("rec.year.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.year.label")} keyboardType="number-pad" maxLength={4} style={[styles.input, { color: theme.textHeading }]} />
+        </View>
+        <FieldError theme={theme} text={yearMessage} />
       </View>
       <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.notes.label")}</Text>
       <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line, alignItems: "flex-start" }]}>
@@ -637,6 +704,7 @@ const styles = StyleSheet.create({
   queue: { gap: 10 },
   setEntry: { minHeight: 72, borderRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   setEntryTitle: { fontFamily: amFonts.display, fontSize: 19, lineHeight: 22, letterSpacing: -0.2, textTransform: "uppercase" },
+  rowWrap: { gap: 6 },
   moreHead: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10 },
   moreText: { flex: 1, minWidth: 0, gap: 2 },
   moreBody: { gap: 10, paddingTop: 4 },

@@ -1,4 +1,4 @@
-import { kindHasDance, kindHasLanguage } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
@@ -40,7 +40,10 @@ export type RemoteRecording = {
   /** an ISO code, `other` (then `language_other` names it) or an old word of the first form */
   language?: string | null
   language_other?: string | null
-  /** Dance songs: tandava or kaoshiki */
+  /** Kiirtan only: the Indian Kiirtan style id, or `other` (then `style_other` names it) */
+  style?: string | null
+  style_other?: string | null
+  /** Dance music: tandava or kaoshiki */
   dance?: string | null
   /** the playlist from an event this is a track of, and its place there */
   collection_id?: string | null
@@ -48,6 +51,9 @@ export type RemoteRecording = {
   recorded_on?: string | null
   credits?: string | null
   notes?: string | null
+  /** Baba's Audio Discourses: where it was given, and the name or number of the discourse */
+  place?: string | null
+  discourse?: string | null
   /** Prabhat Samgiita recordings: the number of the song (1 to 5018) */
   ps_song_number?: number | null
   /** owner only: the team removed this as a copy of that recording */
@@ -201,7 +207,7 @@ export type PublishPayload = {
   language?: string | null
   /** the person's own name for the language, sent only with `language: "other"` */
   languageOther?: string | null
-  /** required for the Dance song kind, refused for the others */
+  /** required for the Dance music kind, refused for the others */
   dance?: string | null
   /** a track of a playlist from an event, and its place there; kind, language and dance left out come from the playlist */
   collectionId?: string | null
@@ -209,6 +215,9 @@ export type PublishPayload = {
   recordedOn?: string | null
   credits?: string | null
   notes?: string | null
+  /** Baba's Audio Discourses only */
+  place?: string | null
+  discourse?: string | null
   /** required for the Prabhat Samgiita kind, refused for the others */
   psSong?: number | null
   durationSec?: number | null
@@ -234,9 +243,17 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),
     ...(payload.credits?.trim() ? { credits: payload.credits.trim() } : {}),
     ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
+    ...(payload.place?.trim() && kindHasDiscourse(payload.kind) ? { place: payload.place.trim() } : {}),
+    ...(payload.discourse?.trim() && kindHasDiscourse(payload.kind) ? { discourse: payload.discourse.trim() } : {}),
     ...(payload.psSong ? { ps_song_number: payload.psSong } : {}),
     ...(payload.durationSec ? { duration_sec: Math.max(1, Math.round(payload.durationSec)) } : {}),
   })
+}
+
+/** Adds the language to a recording stored without one. Its uploader or the team; the server only adds, it never rewrites. */
+export async function setRecordingLanguage(cfg: RemoteConfig, id: string, language: string, languageOther?: string): Promise<RemoteRecording> {
+  const name = cleanLanguageOther(languageOther)
+  return call<RemoteRecording>(cfg, "PATCH", `/${id}/language`, { language, ...(language === OTHER_LANGUAGE && name ? { language_other: name } : {}) })
 }
 
 /** The file reached the server but the author backed out: the stored file is deleted (an unpublished one only). */

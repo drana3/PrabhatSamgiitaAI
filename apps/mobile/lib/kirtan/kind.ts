@@ -1,9 +1,9 @@
 import { t } from "@/lib/i18n"
 import { artistForAuthor, type Artist } from "@/lib/kirtan/artists"
-import { BHAJAN_TYPES, DANCE_KINDS, KIND_LANGUAGE_RULE, KIRTAN_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type LanguageRule, type RecordingKind } from "@/lib/kirtan/types"
+import { BHAJAN_TYPES, DANCE_KINDS, DISCOURSE_KINDS, KIND_LANGUAGE_RULE, KIRTAN_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type LanguageRule, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * The five kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance song) and every visible word that
+ * The six kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio Discourses) and every visible word that
  * depends on the kind. One recordings system: the kind is a field, not a second system. Pure, no React, no stores.
  * Code identifiers and routes keep the `kirtan` spelling; only the strings below are shown to people.
  * Every word of a kind lives under keys named by the kind id (`kind.<id>`, `kt.head.<id>`, ...), so a new kind needs
@@ -103,14 +103,24 @@ export function kindLanguageRule(kind: RecordingKind | null | undefined): Langua
   return KIND_LANGUAGE_RULE[normalizeKind(kind)]
 }
 
-/** A Bhajan and a Spiritual song cannot be sent without their language. */
+/** A Bhajan, a Spiritual song and an audio discourse of Baba cannot be sent without their language. */
 export function kindRequiresLanguage(kind: RecordingKind | null | undefined): boolean {
   return kindLanguageRule(kind) === "required"
 }
 
-/** A Dance song names its dance (Tandava or Kaoshiki), and must. */
+/** A Dance music names its dance (Tandava or Kaoshiki), and must. */
 export function kindHasDance(kind: RecordingKind | null | undefined): boolean {
   return DANCE_KINDS.includes(normalizeKind(kind))
+}
+
+/** Baba's Audio Discourses name no performer (the speaker is Baba) and ask the optional place and discourse name or number instead. */
+export function kindHasDiscourse(kind: RecordingKind | null | undefined): boolean {
+  return DISCOURSE_KINDS.includes(normalizeKind(kind))
+}
+
+/** Every kind names a performer or group, except Baba's Audio Discourses. */
+export function kindHasPerformer(kind: RecordingKind | null | undefined): boolean {
+  return !kindHasDiscourse(kind)
 }
 
 /** The kinds without sub-types have the one type "other". */

@@ -6,8 +6,8 @@ import { RECORDING_KINDS, type DanceId, type KindFilter, type Kirtan, type Kirta
 import { t } from "@/lib/i18n"
 
 /**
- * The sticky chips of the Kiirtan tab. The first six are the KIND filter (All, Kiirtan, Bhajan,
- * Prabhat Samgiita, Spiritual song, Dance song) and narrow every shelf and list; Saved, Downloaded and My uploads are lists of their own (all kinds).
+ * The sticky chips of the Kiirtan tab. The first seven are the KIND filter (All, Kiirtan, Bhajan,
+ * Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio) and narrow every shelf and list; Saved, Downloaded and My uploads are lists of their own (all kinds).
  */
 export const KIRTAN_TAB_CHIPS = [
   { id: "all", get label() { return t("kt.chip.all") } },
@@ -16,6 +16,7 @@ export const KIRTAN_TAB_CHIPS = [
   { id: "prabhat_samgiita", get label() { return t("kind.prabhat_samgiita") } },
   { id: "spiritual_song", get label() { return t("kind.spiritual_song") } },
   { id: "dance_song", get label() { return t("kind.dance_song") } },
+  { id: "baba_audio", get label() { return t("kind.baba_audio") } },
   { id: "saved", get label() { return t("kt.chip.saved") } },
   { id: "downloaded", get label() { return t("kt.chip.downloaded") } },
   { id: "mine", get label() { return t("kt.chip.mine") } },
@@ -27,7 +28,7 @@ export function parseKirtanTabChip(value: string | string[] | undefined): Kirtan
   return KIRTAN_TAB_CHIPS.some((c) => c.id === raw) ? (raw as KirtanTabChip) : "all"
 }
 
-/** The kind a chip filters by: All and the five kinds say it; the list chips (Saved...) show every kind. */
+/** The kind a chip filters by: All and the six kinds say it; the list chips (Saved...) show every kind. */
 export function kindOfTabChip(chip: KirtanTabChip): KindFilter {
   return isRecordingKind(chip) ? chip : "all"
 }
@@ -114,13 +115,13 @@ export function bhajansForEveryHour<T extends Pick<Kirtan, "type" | "addedAt"> &
 
 /* ------------------------------------------------------------------ language and dance filters */
 
-/** The two sub-filters of the Spiritual song and Dance song chips: which dance, which language (null is any). */
+/** The two sub-filters of the Spiritual song and Dance music chips: which dance, which language (null is any). */
 export type KindSubFilter = { dance: DanceId | null; language: string | null }
 export const NO_SUB_FILTER: KindSubFilter = { dance: null, language: null }
 
-/** Do these kinds have sub-filters (languages for both; the dance for Dance songs only)? */
+/** Do these kinds have sub-filters (languages for all three; the dance for Dance music only)? */
 export function hasSubFilters(kind: KindFilter): boolean {
-  return kind === "spiritual_song" || kind === "dance_song"
+  return kind === "spiritual_song" || kind === "dance_song" || kind === "baba_audio"
 }
 
 export function isSubFilterOn(sub: KindSubFilter): boolean {

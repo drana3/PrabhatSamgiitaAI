@@ -1,18 +1,19 @@
 import { t } from "@/lib/i18n"
 /**
  * Devotional recordings, uploaded as audio files by their authors (and by the team). They are ONE recordings
- * system with five KINDS (`kind`, shown as "Type" in the add form): a Kiirtan is group chanting of Baba Nam Kevalam
+ * system with six KINDS (`kind`, shown as "Type" in the add form): a Kiirtan is group chanting of Baba Nam Kevalam
  * (the library has this one mantra only), a Bhajan is a devotional song, a Prabhat Samgiita recording is another
  * performance of one of the 5018 songs (`psSong` names it), a Spiritual song is any other song of the spiritual path
- * (its LANGUAGE is required) and a Dance song is music for Tandava or Kaoshiki (its DANCE is required).
+ * (its LANGUAGE is required), a Dance music is music for Tandava or Kaoshiki (its DANCE is required) and Baba's Audio
+ * Discourses are spoken talks of Baba (LANGUAGE required, no performer: the speaker is Baba; place and discourse name optional).
  * "Devotional song" was a kind once; a Bhajan already is one, so it is gone (old stored items and old server rows with
  * it read as a Bhajan: lib/kirtan/kind.ts normalizeKind). It is NOT the same as "Spiritual song".
  * All play in the same player as a Prabhat Samgiita song (lib/kirtan/track.ts). Pure types and constants, no React,
  * no I/O. Visible words for a kind come from lib/kirtan/kind.ts.
  */
 
-/** The five kinds of one recording. Old data without a kind is a Kiirtan. */
-export const RECORDING_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song"] as const
+/** The six kinds of one recording. Old data without a kind is a Kiirtan. */
+export const RECORDING_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"] as const
 export type RecordingKind = (typeof RECORDING_KINDS)[number]
 /** Kinds that were removed but may still sit in stored data or in old server rows, and the kind they now read as. */
 export const LEGACY_KINDS: Readonly<Record<string, RecordingKind>> = { devotional_song: "bhajan" }
@@ -22,7 +23,8 @@ export type LanguageRule = "none" | "optional" | "required"
  * ONE table for the language rule of every kind (the API keeps the same table in `KIND_LANGUAGE_RULE`).
  * Kiirtan: none (always Baba Nam Kevalam). Bhajan and Spiritual song: REQUIRED (for new uploads; a Bhajan stored
  * earlier without a language stays valid). Prabhat Samgiita: optional.
- * Dance song: language optional (the dance is what is required, see DANCES).
+ * Dance music: language optional (the dance is what is required, see DANCES).
+ * Baba's Audio Discourses: REQUIRED (a talk is given in a language).
  */
 export const KIND_LANGUAGE_RULE: Readonly<Record<RecordingKind, LanguageRule>> = {
   kiirtan: "none",
@@ -30,17 +32,22 @@ export const KIND_LANGUAGE_RULE: Readonly<Record<RecordingKind, LanguageRule>> =
   prabhat_samgiita: "optional",
   spiritual_song: "required",
   dance_song: "optional",
+  baba_audio: "required",
 }
 /** The kinds whose add form asks for the sung language (everything but Kiirtan). */
 export const LANGUAGE_KINDS: readonly RecordingKind[] = RECORDING_KINDS.filter((kind) => KIND_LANGUAGE_RULE[kind] !== "none")
 /**
- * The dances a Dance song names (REQUIRED for that kind). ONE list: to add a dance, add its id here, the same id in the
+ * The dances a Dance music names (REQUIRED for that kind). ONE list: to add a dance, add its id here, the same id in the
  * API (`DANCES` in app/models/recordings.py) and a `dance.<id>` label in the three dictionaries.
  */
 export const DANCES = ["tandava", "kaoshiki"] as const
 export type DanceId = (typeof DANCES)[number]
 /** The kinds that name a dance. */
 export const DANCE_KINDS: readonly RecordingKind[] = ["dance_song"]
+/** Baba's Audio Discourses: the speaker is always Baba, so no performer is asked and this name is stored (the API stores the same). */
+export const BABA_AUTHOR = "Shrii Shrii Anandamurti"
+/** The kinds that ask for the optional place and discourse name/number instead of a performer. */
+export const DISCOURSE_KINDS: readonly RecordingKind[] = ["baba_audio"]
 export type KindFilter = RecordingKind | "all"
 
 /** A language code of the catalog (lib/kirtan/languages.ts: ISO 639) or "other" (then `languageOther` names it). */
@@ -108,7 +115,7 @@ export type UploadFailure = { code: UploadFailureCode; message?: string; origina
 
 export type Kirtan = {
   id: string
-  /** One of the five kinds. Old stored items have none and count as "kiirtan" (see lib/kirtan/kind.ts). */
+  /** One of the six kinds. Old stored items have none and count as "kiirtan" (see lib/kirtan/kind.ts). */
   kind: RecordingKind
   title: string
   /** performer or group, as the author wrote it */
@@ -152,8 +159,16 @@ export type Kirtan = {
   language?: RecordingLanguage
   /** the uploader's own name for the language, when `language` is "other" */
   languageOther?: string
-  /** Dance songs: which dance (a DANCES id) */
+  /** Kiirtan only: the Indian Kiirtan style (a KIIRTAN_STYLES id or "other"), when named (lib/kirtan/styles.ts) */
+  style?: string
+  /** the uploader's own name for the style, when `style` is "other" */
+  styleOther?: string
+  /** Dance music: which dance (a DANCES id) */
   dance?: DanceId
+  /** Baba's Audio Discourses: where it was given (optional) */
+  place?: string
+  /** Baba's Audio Discourses: the name or number of the discourse (optional) */
+  discourse?: string
   /** the playlist from an event this recording belongs to (a server id) */
   collectionId?: string
   /** place in that playlist, 1 first */

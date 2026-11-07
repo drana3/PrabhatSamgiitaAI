@@ -148,7 +148,7 @@ export const setsEn = {
   "set.mine.signin": "Sign in to see your playlists.",
   "set.mine.row": "{title}, {status}",
 
-  // the Spiritual song and Dance song chips of the Kiirtan tab: filter by dance and by language
+  // the Spiritual song and Dance music chips of the Kiirtan tab: filter by dance and by language
   "kt.sub.allDances": "All dances",
   "kt.sub.anyLanguage": "Any language",
   "kt.sub.dance": "Dance",

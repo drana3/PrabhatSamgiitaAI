@@ -1,6 +1,6 @@
 # Recording extras: comments, chords and videos
 
-Every recording in the app (Kiirtan, Bhajan, Spiritual song, Dance song, Prabhat Samgiita recording) now has a page of its own, `/recording/<id>`. The page carries three things members can add to: **comments**, a **chord chart**, and **video links**. Video links also work on a Prabhat Samgiita song page, in its Recordings section. This note says what the data looks like, what the API does, what the limits are, how moderation works, why some choices were made, and what is **not** built or not checked.
+Every recording in the app (Kiirtan, Bhajan, Spiritual song, Dance music, Prabhat Samgiita recording) now has a page of its own, `/recording/<id>`. The page carries three things members can add to: **comments**, a **chord chart**, and **video links**. Video links also work on a Prabhat Samgiita song page, in its Recordings section. This note says what the data looks like, what the API does, what the limits are, how moderation works, why some choices were made, and what is **not** built or not checked.
 
 Code: API `apps/api/app/api/v1/recording_comments.py`, `recording_chords.py`, `video_links.py` (services in `app/services/`, models in `app/models/recording_extras.py`, migration `0034_recording_extras`, tests `tests/test_recording_comments.py`, `test_recording_chords.py`, `test_video_links.py` with the shared fixture `tests/extras_support.py`). App `app/recording/[id].tsx`, `app/recording-chords.tsx`, `components/recording-extras/`, `components/comments/`, `lib/recordingComments/`, `lib/recordingChords/`, `lib/recordingVideos/`, `lib/recordingExtras/`, `stores/recordingChordsPendingStore.ts`, words in `locales/recordingExtras.ts`.
 
@@ -153,7 +153,7 @@ A body is accepted when it holds chords AND is more than one lonely plain letter
 ## What is NOT built, and what was not checked
 
 Not built:
-- **A team review screen for pending recording chord sheets in the app.** The API has the queue and the approve/reject/restore endpoints and they are tested, but there is no screen yet. Until there is one, the team can use the API, and a team member's own sheets publish at once.
+- ~~A team review screen for pending recording chord sheets~~: done, see the review desk in `docs/comment-replies.md` (it also covers reported comments and video links).
 - **A team screen for reported comments and videos** in the app (API only, same reason).
 - **Chord timing**, word alignment, capo or strum fields, diagrams of finger shapes, or a count-in. A chart is text.
 - **Editing a published sheet in place.** To change a live chart, offer a new one and delete the old one.

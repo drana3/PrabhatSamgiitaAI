@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
+import { AddLanguagePrompt } from "@/components/kirtan/AddLanguagePrompt"
 import { KirtanRow, KirtanTag, StatusBadge } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
 import { amColors } from "@/constants/tokens/amColors"
@@ -45,6 +46,7 @@ export function UploadRow({ theme, kirtan: k, onOpen, onMore, onOpenArtist }: Ro
           </View>
         }
       />
+      <AddLanguagePrompt theme={theme} kirtan={k} variant="inline" />
       {k.status === "uploading" ? <Text style={[styles.note, { color: theme.textBody }]}>{t("ugc.mine.uploading")}</Text> : null}
       {failed ? (
         <View style={styles.failed}>

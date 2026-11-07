@@ -14,7 +14,8 @@ export const SOURCE_ALL_KIIRTANS = "All Kiirtans"
 export const SOURCE_ALL_BHAJANS = "All Bhajans"
 export const SOURCE_ALL_PS_RECORDINGS = "All Prabhat Samgiita recordings"
 export const SOURCE_ALL_SPIRITUAL_SONGS = "All Spiritual songs"
-export const SOURCE_ALL_DANCE_SONGS = "All Dance songs"
+export const SOURCE_ALL_DANCE_SONGS = "All Dance music"
+export const SOURCE_ALL_BABA_AUDIO = "All Baba's Audio Discourses"
 export const SOURCE_ALL_RECORDINGS = "All Kiirtans and Bhajans"
 export const SOURCE_EVERYTHING = "Everything"
 
@@ -28,7 +29,8 @@ const NOUNS: Record<KindFilter, string> = {
   bhajan: "Bhajans",
   prabhat_samgiita: "Prabhat Samgiita recordings",
   spiritual_song: "Spiritual songs",
-  dance_song: "Dance songs",
+  dance_song: "Dance music",
+  baba_audio: "Baba's Audio Discourses",
   all: "Kiirtans and Bhajans",
 }
 const ALL_NAMES: Record<KindFilter, string> = {
@@ -37,6 +39,7 @@ const ALL_NAMES: Record<KindFilter, string> = {
   prabhat_samgiita: SOURCE_ALL_PS_RECORDINGS,
   spiritual_song: SOURCE_ALL_SPIRITUAL_SONGS,
   dance_song: SOURCE_ALL_DANCE_SONGS,
+  baba_audio: SOURCE_ALL_BABA_AUDIO,
   all: SOURCE_ALL_RECORDINGS,
 }
 

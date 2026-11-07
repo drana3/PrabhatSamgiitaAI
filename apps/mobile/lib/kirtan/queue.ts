@@ -10,7 +10,7 @@ import type { DanceId, KirtanOriginal, RecordingKind, UploadFailure } from "@/li
  * the tests wire fakes).
  *
  * A row can carry its OWN language and dance (the form's choices apply to every row that has none): a Spiritual song
- * row without a language, or a Dance song row without a dance, is "missing" and the queue will not send it
+ * row without a language, or a Dance music row without a dance, is "missing" and the queue will not send it
  * (`rowMissing`, `applyToAll` fills them all at once).
  *
  * A row goes: waiting -> uploading -> one of

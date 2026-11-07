@@ -22,15 +22,18 @@ export const BHAJAN_OTHER_TONE: readonly [string, string] = [amColors.sage700, a
 /** Prabhat Samgiita recordings have no sub-types, so the kind has one gradient of its own. */
 export const PRABHAT_SAMGIITA_TONE: readonly [string, string] = [amColors.orange600, amColors.ink900]
 
-/** Spiritual songs and Dance songs have no sub-types either: one gradient each, apart from the other three kinds. */
+/** Spiritual songs, Dance music and Baba's Audio Discourses have no sub-types either: one gradient each, apart from the other kinds. */
 export const SPIRITUAL_SONG_TONE: readonly [string, string] = [amColors.olive700, amColors.sage800]
 export const DANCE_SONG_TONE: readonly [string, string] = [amColors.gold500, amColors.orange800]
+/** Baba's Audio Discourses: a quiet, deep tone of their own. */
+export const BABA_AUDIO_TONE: readonly [string, string] = [amColors.sage800, amColors.ink900]
 
 /** The gradient of a type. Give the kind so "other" Bhajans differ from "other" Kiirtans, and Prabhat Samgiita has its own. */
 export function kiirtanTone(type: string | null | undefined, kind?: string | null): readonly [string, string] {
   if (kind === "prabhat_samgiita") return PRABHAT_SAMGIITA_TONE
   if (kind === "spiritual_song") return SPIRITUAL_SONG_TONE
   if (kind === "dance_song") return DANCE_SONG_TONE
+  if (kind === "baba_audio") return BABA_AUDIO_TONE
   if (kind === "bhajan" && (type ?? "other") === "other") return BHAJAN_OTHER_TONE
   return KIIRTAN_TYPE_TONES[type ?? "other"] ?? KIIRTAN_TYPE_TONES.other
 }

@@ -76,7 +76,7 @@ export default function KiirtanTabScreen() {
   const live = useKirtanLive()
 
   const [chip, setChipRaw] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
-  // Spiritual song and Dance song can be narrowed by dance and by language; a new chip starts without it
+  // Spiritual song and Dance music can be narrowed by dance and by language; a new chip starts without it
   const [sub, setSub] = useState<KindSubFilter>(NO_SUB_FILTER)
   const setChip = (next: KirtanTabChip) => {
     setChipRaw(next)
@@ -160,7 +160,7 @@ export default function KiirtanTabScreen() {
     </>
   )
 
-  /** Dance (Dance songs only) and language chips under the heading: only languages that really occur are offered. */
+  /** Dance (Dance music only) and language chips under the heading: only languages that really occur are offered. */
   const subFilters = () =>
     hasSubFilters(kind) ? (
       <Reveal index={next()} style={styles.section}>

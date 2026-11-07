@@ -25,9 +25,12 @@ export type QueueDraft = {
   language: RecordingLanguage | null
   /** the person's own name for the language, when `language` is "other" */
   languageOther: string
-  /** Dance song: Tandava or Kaoshiki */
+  /** Dance music: Tandava or Kaoshiki */
   dance: DanceId | null
   credits: string
+  /** Baba's Audio Discourses: where, and the name or number of the discourse (both optional) */
+  place: string
+  discourse: string
   year: string
   notes: string
   /** Prabhat Samgiita: the song this is a performance of */
@@ -35,7 +38,7 @@ export type QueueDraft = {
   byAuthor: boolean
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", year: "", notes: "", psSong: null, byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, byAuthor: false }
 
 type QueueState = {
   items: QueueItem[]
@@ -111,6 +114,8 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       languageOther: kindHasLanguage(draft.kind) ? fields.languageOther : null,
       dance: fields.dance,
       credits: draft.credits,
+      place: draft.place,
+      discourse: draft.discourse,
       notes: draft.notes,
       psSong: draft.psSong?.number ?? null,
     }

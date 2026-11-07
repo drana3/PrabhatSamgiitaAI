@@ -255,7 +255,7 @@ describe("uploading", () => {
 })
 
 describe("language and dance of the whole set", () => {
-  it("apply to all gives every track the dance, so a Dance song set can go", async () => {
+  it("apply to all gives every track the dance, so a Dance music set can go", async () => {
     const { ports, calls } = fake({ tracks: [] })
     setSetPorts(ports)
     const id = ready("a.mp3", "b.mp3")

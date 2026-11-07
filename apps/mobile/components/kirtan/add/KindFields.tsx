@@ -79,7 +79,7 @@ export function LanguageField({ theme, kind, value, onOpen, invalid, errorText, 
   )
 }
 
-/** A Dance song's dance: Tandava or Kaoshiki, two large choices. Always required. */
+/** A Dance music's dance: Tandava or Kaoshiki, two large choices. Always required. */
 export function DanceField({ theme, value, onChange, invalid, errorText, disabled }: { theme: SongsTheme; value: DanceId | null; onChange: (dance: DanceId) => void; invalid?: boolean; errorText?: string | null; disabled?: boolean }) {
   const t = useT()
   return (

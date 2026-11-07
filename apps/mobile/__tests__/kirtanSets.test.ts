@@ -154,7 +154,7 @@ describe("tracks: add, order, edit", () => {
 })
 
 describe("language and dance of the tracks", () => {
-  it("a Dance song set needs its dance, per track, and a track's own dance wins", () => {
+  it("a Dance music set needs its dance, per track, and a track's own dance wins", () => {
     let draft = draftWith(["a.mp3", "b.mp3"], { defaultKind: "dance_song" })
     expect(draft.tracks.map((t) => trackMissing(t, draft))).toEqual([["dance"], ["dance"]])
     draft = { ...draft, defaultDance: "tandava" }
@@ -174,7 +174,7 @@ describe("language and dance of the tracks", () => {
     expect(trackFields(draft.tracks[0]!, draft)).toMatchObject({ language: "other", languageOther: "Santali" })
   })
 
-  it("a Bhajan set needs its language too; Prabhat Samgiita and Dance song do not", () => {
+  it("a Bhajan set needs its language too; Prabhat Samgiita and Dance music do not", () => {
     let draft = draftWith(["a.mp3", "b.mp3"], { defaultKind: "bhajan" })
     expect(trackMissing(draft.tracks[0]!, draft)).toEqual(["language"])
     expect(setCounts(draft).missing).toBe(2)
