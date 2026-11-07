@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import unicodedata
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
 
@@ -301,3 +303,94 @@ def test_the_skeleton_turns_look_alikes_into_latin() -> None:
 )
 def test_normalising_does_not_make_ordinary_names_staff(text: str) -> None:
     assert not rules.staff_hit(text), ascii(text)
+
+
+# --------------------------------------------------------------------------- QA-043: look-alikes
+
+# The small capitals of the alphabet, as the Unicode block has them (there is no x).
+SMALL_CAPITALS = {
+    "\u1d00": "a", "\u0299": "b", "\u1d04": "c", "\u1d05": "d", "\u1d07": "e",
+    "\ua730": "f", "\u0262": "g", "\u029c": "h", "\u026a": "i", "\u1d0a": "j",
+    "\u1d0b": "k", "\u029f": "l", "\u1d0d": "m", "\u0274": "n", "\u1d0f": "o",
+    "\u1d18": "p", "\u0280": "r", "\ua731": "s", "\u1d1b": "t", "\u1d1c": "u",
+    "\u1d20": "v", "\u1d21": "w", "\u028f": "y", "\u1d22": "z",
+}  # fmt: skip
+# Greek capitals that are drawn like a Latin letter, and the letter.
+GREEK_CAPITALS = {
+    "\u0391": "a", "\u0392": "b", "\u0395": "e", "\u0396": "z", "\u0397": "h",
+    "\u0399": "i", "\u039a": "k", "\u039c": "m", "\u039d": "n", "\u039f": "o",
+    "\u03a1": "p", "\u03a4": "t", "\u03a5": "y", "\u03a7": "x",
+}  # fmt: skip
+
+
+@pytest.mark.parametrize(("char", "plain"), SMALL_CAPITALS.items())
+def test_every_small_capital_folds_to_its_ascii_letter(char: str, plain: str) -> None:
+    assert rules.latin_skeleton(char) == plain, ascii(char)
+    assert unicodedata.name(char).endswith(f"SMALL CAPITAL {plain.upper()}")
+
+
+def test_the_small_capital_block_is_covered_by_name_not_by_a_hand_list() -> None:
+    found = [
+        chr(code)
+        for code in range(0x250, 0xA800)
+        if re.fullmatch(r"LATIN LETTER SMALL CAPITAL [A-Z]", unicodedata.name(chr(code), ""))
+    ]
+    assert set(SMALL_CAPITALS) <= set(found)
+    for char in found:
+        assert rules.latin_skeleton(char) == unicodedata.name(char)[-1].lower(), ascii(char)
+
+
+@pytest.mark.parametrize(("char", "plain"), GREEK_CAPITALS.items())
+def test_greek_capitals_that_look_like_latin_letters_fold_to_ascii(char: str, plain: str) -> None:
+    folded = rules.latin_skeleton(char)
+    assert folded.isascii() and len(folded) == 1, ascii(char)
+    assert folded == plain, ascii(char)
+
+
+def test_greek_nu_and_mu_fold_to_the_letter_they_look_like() -> None:
+    assert rules.latin_skeleton("\u039d") == "n"  # capital Nu is n, not v
+    assert rules.latin_skeleton("\u03bd") == "v"  # small nu is v
+    assert rules.latin_skeleton("\u039c") == "m"
+    assert rules.latin_skeleton("\u03bc") == "m"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "\u039coderator",  # Greek capital Mu
+        "\u039caitreya",
+        "Dada \u039caetreya",
+        "\u1d00dmin",  # Latin small capital A
+        "\u1d0doderator",  # Latin small capital M
+        "\u1d00\u1d05\u1d0d\u026a\u0274",  # small capitals only: "admin"
+        "\u1d1b\u1d07\u1d00\u1d0d",  # "team"
+        "\u039ffficial",  # Greek capital Omicron
+        "\U0001d400dmin",  # mathematical bold A
+        "\U0001d5a0dmin",  # mathematical sans-serif A
+        # monospace "official"
+        "\U0001d698\U0001d68f\U0001d68f\U0001d692\U0001d68c\U0001d692\U0001d68a\U0001d695",
+        "\U0001d6a8dmin",  # mathematical Greek capital Alpha
+    ],
+)
+def test_greek_mu_small_capitals_and_math_letters_do_not_get_past_the_staff_filter(
+    text: str,
+) -> None:
+    assert rules.staff_hit(text), ascii(text)
+
+
+def test_look_alikes_get_the_same_treatment_in_the_protected_name_checks() -> None:
+    assert rules.protected_hit("\u0391nandamurti")  # Greek Alpha
+    assert rules.protected_hit("\u1d00nandamurti")  # small capital A
+    assert rules.protected_hit("\u1d18rabhat Samgiita")  # small capital P
+    assert rules.protected_hit("\u0455ri\u0455ri")  # Cyrillic dze for s: "srisri"
+    assert rules.protected_name_hit("\u1d00nandamurti")
+    assert rules.protected_name_hit("\u0392aba")  # Greek Beta: "Baba"
+    assert rules.names_alike("\u039caitreya", "Maitreya")
+    assert rules.names_alike("\u1d00nanda \u1d0darga", "Ananda Marga")
+    assert rules.confusable_key("\u039coderator") == rules.confusable_key("Moderator")
+    assert not rules.protected_hit("madhu-vrata")
+
+
+def test_plain_cyrillic_names_still_compare_as_before() -> None:
+    assert rules.names_alike("\u041c\u0430\u0434\u0445\u0443", "\u041c\u0430\u0434\u0445\u0443")
+    assert not rules.names_alike("\u041c\u0430\u0434\u0445\u0443", "\u0420\u0430\u0434\u0445\u0430")

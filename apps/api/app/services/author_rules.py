@@ -122,8 +122,9 @@ def normalize_slug(raw: str | None) -> str:
 
 
 def name_key(text: str | None) -> str:
-    """A name without case, accents, spaces or punctuation, for comparing names."""
-    return re.sub(r"[^a-z0-9Ѐ-ӿऀ-ॿ]", "", ascii_or_keep(text or "").lower())
+    """A name without case, accents, spaces or punctuation, look-alike letters written as the Latin
+    letter they imitate, for comparing names."""
+    return re.sub(r"[^a-z0-9Ѐ-ӿऀ-ॿ]", "", ascii_or_keep(fold_lookalikes(text)).lower())
 
 
 def ascii_or_keep(text: str) -> str:
@@ -161,8 +162,8 @@ def names_alike(a: str | None, b: str | None) -> bool:
     if len(shorter) >= 6 and shorter in longer and len(shorter) / len(longer) >= 0.6:
         return True
     # the same words in another order ("Devi Priya" / "Priya Devi")
-    ta = sorted(re.findall(r"\w+", ascii_or_keep(a or "").lower()))
-    tb = sorted(re.findall(r"\w+", ascii_or_keep(b or "").lower()))
+    ta = sorted(re.findall(r"\w+", ascii_or_keep(fold_lookalikes(a)).lower()))
+    tb = sorted(re.findall(r"\w+", ascii_or_keep(fold_lookalikes(b)).lower()))
     if len(ta) > 1 and ta == tb:
         return True
     return SequenceMatcher(None, ka, kb).ratio() >= NAME_SIMILARITY
@@ -183,55 +184,91 @@ def slug_problem(slug: str) -> str | None:
     return None
 
 
-# Letters of other scripts that are drawn like a Latin one. Applied to lowercase text after NFKC.
-_LOOKALIKE = str.maketrans(
-    {
-        # Cyrillic
-        "\u0430": "a",
-        "\u0432": "b",
-        "\u0435": "e",
-        "\u0451": "e",
-        "\u043a": "k",
-        "\u043c": "m",
-        "\u043d": "h",
-        "\u043e": "o",
-        "\u0440": "p",
-        "\u0441": "c",
-        "\u0442": "t",
-        "\u0443": "y",
-        "\u0445": "x",
-        "\u0456": "i",
-        "\u0458": "j",
-        "\u0455": "s",
-        "\u0501": "d",
-        "\u04cf": "l",
-        "\u051b": "q",
-        "\u051d": "w",
-        "\u04bb": "h",
-        "\u0491": "r",
-        # Greek
-        "\u03b1": "a",
-        "\u03b2": "b",
-        "\u03b3": "y",
-        "\u03b5": "e",
-        "\u03b7": "n",
-        "\u03b9": "i",
-        "\u03ba": "k",
-        "\u03bd": "v",
-        "\u03bf": "o",
-        "\u03c1": "p",
-        "\u03c4": "t",
-        "\u03c5": "u",
-        "\u03c7": "x",
-        "\u03c9": "w",
-        # Latin letters with no ASCII decomposition
-        "\u0131": "i",
-        "\u0268": "i",
-        "\u0269": "i",
-        "\u0261": "g",
-        "\u0251": "a",
-    }
-)
+# Letters of other scripts that are drawn like a Latin one. The table is built from Unicode
+# character NAMES, not from a hand list of code points:
+#   - every "LATIN LETTER SMALL CAPITAL X" (the whole small-capital block, ᴀ ʙ ᴄ ... ᴢ) is x;
+#   - Greek and Cyrillic letters are looked up by name in the two small tables below.
+# Mathematical alphanumerics, fullwidth and other compatibility forms are folded by NFKD before
+# the table is used. Capitals are kept apart from small letters where they look different
+# (Greek capital Eta looks like H, small eta like n; capital Nu is n, small nu is v).
+_GREEK_LOOKS = {  # name: (capital, small); None where that case does not look like a Latin letter
+    "ALPHA": ("a", "a"),
+    "BETA": ("b", "b"),
+    "GAMMA": (None, "y"),
+    "EPSILON": ("e", "e"),
+    "ZETA": ("z", None),
+    "ETA": ("h", "n"),
+    "IOTA": ("i", "i"),
+    "KAPPA": ("k", "k"),
+    "MU": ("m", "m"),
+    "NU": ("n", "v"),
+    "OMICRON": ("o", "o"),
+    "RHO": ("p", "p"),
+    "TAU": ("t", "t"),
+    "UPSILON": ("y", "u"),
+    "CHI": ("x", "x"),
+    "OMEGA": (None, "w"),
+}
+_CYRILLIC_LOOKS = {  # name: latin, for the capital and the small letter alike
+    "A": "a",
+    "VE": "b",
+    "IE": "e",
+    "IO": "e",
+    "KA": "k",
+    "EM": "m",
+    "EN": "h",
+    "O": "o",
+    "ER": "p",
+    "ES": "c",
+    "TE": "t",
+    "U": "y",
+    "HA": "x",
+    "BYELORUSSIAN-UKRAINIAN I": "i",
+    "JE": "j",
+    "DZE": "s",
+    "KOMI DE": "d",
+    "PALOCHKA": "l",
+    "QA": "q",
+    "WE": "w",
+    "SHHA": "h",
+    "GHE WITH UPTURN": "r",
+}
+# Latin letters that NFKD leaves alone (no accent to take off).
+_LATIN_OTHER = {
+    "\u0131": "i",  # dotless i
+    "\u0268": "i",
+    "\u0269": "i",
+    "\u0261": "g",
+    "\u0251": "a",
+    "\u00f8": "o",
+    "\u0111": "d",
+    "\u0142": "l",
+    "\u0127": "h",
+    "\u0167": "t",
+}
+
+
+def _build_lookalikes() -> dict[str, str]:
+    table: dict[str, str] = dict(_LATIN_OTHER)
+    for name, (capital, small) in _GREEK_LOOKS.items():
+        for case, latin in (("CAPITAL", capital), ("SMALL", small)):
+            if latin:
+                table[unicodedata.lookup(f"GREEK {case} LETTER {name}")] = latin
+    for name, latin in _CYRILLIC_LOOKS.items():
+        for case in ("CAPITAL", "SMALL"):
+            try:
+                table[unicodedata.lookup(f"CYRILLIC {case} LETTER {name}")] = latin
+            except KeyError:  # a letter this Python's Unicode data does not have
+                continue
+    small_capital = re.compile(r"^LATIN LETTER SMALL CAPITAL ([A-Z])$")
+    for code in (*range(0x250, 0x2B0), *range(0x1D00, 0x1D80), *range(0xA720, 0xA800)):
+        found = small_capital.match(unicodedata.name(chr(code), ""))
+        if found:
+            table[chr(code)] = found.group(1).lower()
+    return table
+
+
+_LOOKALIKE = _build_lookalikes()
 # Characters with no width or no sound: they only split a word to slip past a filter.
 _INVISIBLE = re.compile(
     "[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b-\u200f"
@@ -242,13 +279,28 @@ _LEET = str.maketrans(
 )
 
 
-def latin_skeleton(text: str | None) -> str:
-    """Lowercase Latin text that looks like the input: invisible characters dropped, fullwidth and
-    styled letters made plain, Cyrillic and Greek look-alikes turned into the Latin letter they
-    imitate, accents removed. "\u0410dmin \u0422e\u0430m" -> "admin team"."""
+def fold_lookalikes(text: str | None) -> str:
+    """The text with invisible characters dropped, compatibility forms made plain (fullwidth,
+    mathematical, circled), and every letter that imitates a Latin one (Cyrillic, Greek, small
+    capitals) written as that Latin letter. Accents on those letters go too. Letters of other
+    scripts that imitate nothing (Devanagari, most of Cyrillic) are kept as they are."""
     plain = _INVISIBLE.sub("", _CONTROL.sub("", text or ""))
-    plain = unicodedata.normalize("NFKC", plain).lower().translate(_LOOKALIKE)
-    return ascii_fold(plain)
+    out: list[str] = []
+    for char in unicodedata.normalize("NFKD", plain):
+        latin = _LOOKALIKE.get(char)
+        if latin is not None:
+            out.append(latin)
+        elif unicodedata.combining(char) and out and ord(out[-1]) < 0x250:
+            continue  # an accent on a Latin letter
+        else:
+            out.append(char)
+    return unicodedata.normalize("NFC", "".join(out))
+
+
+def latin_skeleton(text: str | None) -> str:
+    """Lowercase ASCII text that looks like the input ("\u0410dmin \u0422e\u0430m" -> "admin team");
+    what cannot be read as a Latin letter is dropped."""
+    return ascii_fold(fold_lookalikes(text)).lower()
 
 
 def _staff_word_in(skeleton: str) -> bool:
