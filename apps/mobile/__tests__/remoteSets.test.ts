@@ -31,9 +31,9 @@ const BASE = "https://api.test/api/v1/recording-sets"
 describe("calls of the playlist API", () => {
   it("create sends the client's id, the details trimmed, and an empty text clears an optional field", async () => {
     const { cfg, calls } = server(() => json(200, SET))
-    await createSet(cfg, { id: "s1", title: "  Retreat ", startsOn: "2026-11-02", endsOn: "", place: "  ", description: "x", defaultKind: "dance_song", defaultDance: "tandava", tracksExpected: 12 })
+    await createSet(cfg, { id: "s1", title: "  Retreat ", eventYear: 2026, eventMonth: 11, place: "  ", defaultKind: "dance_song", defaultDance: "tandava", tracksExpected: 12 })
     expect(calls[0]).toMatchObject({ method: "POST", url: BASE })
-    expect(calls[0]!.body).toEqual({ id: "s1", title: "Retreat", starts_on: "2026-11-02", ends_on: null, place: null, description: "x", default_kind: "dance_song", default_dance: "tandava", tracks_expected: 12 })
+    expect(calls[0]!.body).toEqual({ id: "s1", title: "Retreat", event_year: 2026, event_month: 11, place: null, default_kind: "dance_song", default_dance: "tandava", tracks_expected: 12 })
   })
 
   it("patch sends only what changed", async () => {
@@ -75,7 +75,7 @@ describe("calls of the playlist API", () => {
 
   it("the server's refusals reach the caller with their code", async () => {
     const { cfg } = server(() => json(429, { detail: "too many" }, { "X-Error-Code": "set_start_limit" }))
-    await expect(createSet(cfg, { id: "s1", title: "T", startsOn: "2026-11-02", defaultKind: "kiirtan" })).rejects.toMatchObject({ status: 429, code: "set_start_limit" })
+    await expect(createSet(cfg, { id: "s1", title: "T", eventYear: 2026, defaultKind: "kiirtan" })).rejects.toMatchObject({ status: 429, code: "set_start_limit" })
     const full = server(() => json(409, { detail: { code: "set_full", message: "full" } }))
     await expect(attachTrack(full.cfg, "s1", "r1")).rejects.toBeInstanceOf(RemoteError)
     await expect(attachTrack(full.cfg, "s1", "r1")).rejects.toMatchObject({ status: 409, code: "set_full" })

@@ -70,6 +70,8 @@ type SetStoreState = {
   /** the same language and/or dance for every track that can still be sent */
   applyToAll: (id: string, patch: RowFieldsPatch) => void
   confirm: (id: string, confirmed: boolean) => void
+  /** the cover picture the person chose (a small local picture), or "" to take it away */
+  cover: (id: string, uri: string) => void
   retry: (id: string, trackId: string) => Promise<void>
   retryAll: (id: string) => Promise<void>
   decideSimilar: (id: string, trackId: string, different: boolean) => Promise<void>
@@ -131,6 +133,18 @@ export const useUploadSetStore = create<SetStoreState>()(
         }
       }
 
+      /** The cover goes up once, after the playlist exists; a failure never stops the tracks (it can be added later from the page). */
+      const sendCover = async (id: string) => {
+        const draft = draftOf(id)
+        if (!draft || !draft.created || !draft.coverUri || draft.coverState === "sent") return
+        try {
+          await ports.putCover(draft)
+          update(id, (d) => ({ ...d, coverState: "sent" }))
+        } catch {
+          update(id, (d) => ({ ...d, coverState: "failed" }))
+        }
+      }
+
       const run = async (id: string): Promise<StartBlock> => {
         const first = draftOf(id)
         if (!first || get().running) return null
@@ -148,6 +162,7 @@ export const useUploadSetStore = create<SetStoreState>()(
               return null
             }
           }
+          await sendCover(id)
           const stop = await runSet({
             draft: () => draftOf(id) as SetDraft,
             patch: (trackId, patch) => update(id, (d) => patchTrack(d, trackId, patch)),
@@ -182,6 +197,7 @@ export const useUploadSetStore = create<SetStoreState>()(
           set({ drafts: get().drafts.filter((d) => d.id !== id) })
         },
         details: (id, patch) => update(id, (d) => ({ ...d, ...patch, tracks: d.tracks })),
+        cover: (id, uri) => update(id, (d) => ({ ...d, coverUri: uri, coverState: uri ? "pending" : "none" })),
         addFiles: (id, files) => {
           const draft = draftOf(id)
           if (!draft) return { added: 0, skipped: 0, overLimit: 0 }
@@ -239,7 +255,10 @@ export const useUploadSetStore = create<SetStoreState>()(
     {
       name: "prabhat-upload-sets",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      // 2: a playlist draft now holds the approximate date (year and month) and a cover instead of first and last day.
+      // The drafts of version 1 were test uploads in the preview, so they go (docs/kiirtan-sets.md).
+      version: 2,
+      migrate: () => ({ drafts: [], archive: [] }),
       partialize: (state) => ({ drafts: state.drafts, archive: state.archive }),
       // the run never survives a restart: a track that was going goes back to waiting (lib/kirtan/sets.ts restoreDraft)
       merge: (persisted, current) => {

@@ -1,4 +1,4 @@
-import { callUrl, type RemoteConfig, type RemoteRecording } from "@/lib/kirtan/remote"
+import { callBytes, callUrl, type RemoteConfig, type RemoteRecording } from "@/lib/kirtan/remote"
 import type { RecordingKind } from "@/lib/kirtan/types"
 
 /**
@@ -15,8 +15,13 @@ export type RemoteSet = {
   title: string
   description: string | null
   place: string | null
+  /** what people give: the year of the event and, when known, the month */
+  event_year: number
+  event_month: number | null
+  /** the day it is filed under (the first of the month); an older field, kept for ordering */
   starts_on: string
   ends_on: string | null
+  /** a path on the API for a picture the member uploaded, or the team's https link; null when none */
   cover_url: string | null
   owner_id: string | null
   owner_name: string
@@ -41,11 +46,10 @@ export type RemoteSetList = { items: RemoteSet[]; total: number }
 export type SetCreatePayload = {
   id: string
   title: string
-  startsOn: string
-  endsOn?: string | null
+  eventYear: number
+  /** null: the month is not known */
+  eventMonth?: number | null
   place?: string | null
-  description?: string | null
-  coverUrl?: string | null
   defaultKind: RecordingKind
   defaultLanguage?: string | null
   defaultLanguageOther?: string | null
@@ -53,7 +57,7 @@ export type SetCreatePayload = {
   tracksExpected?: number
 }
 
-export type SetPatchPayload = Partial<Pick<SetCreatePayload, "title" | "startsOn" | "endsOn" | "place" | "description" | "coverUrl" | "defaultKind" | "tracksExpected">>
+export type SetPatchPayload = Partial<Pick<SetCreatePayload, "title" | "eventYear" | "eventMonth" | "place" | "defaultKind" | "tracksExpected">>
 
 function url(cfg: RemoteConfig, path = ""): string {
   return `${cfg.baseUrl.replace(/\/+$/, "")}/api/v1/recording-sets${path}`
@@ -65,11 +69,9 @@ function body(payload: SetPatchPayload | SetCreatePayload) {
   const text = (value: string | null | undefined) => (value == null ? undefined : value.trim() || null)
   if ("id" in payload && payload.id) out.id = payload.id
   if (payload.title !== undefined) out.title = payload.title.trim()
-  if (payload.startsOn !== undefined) out.starts_on = payload.startsOn
-  if (payload.endsOn !== undefined) out.ends_on = payload.endsOn || null
+  if (payload.eventYear !== undefined) out.event_year = payload.eventYear
+  if (payload.eventMonth !== undefined) out.event_month = payload.eventMonth
   if (payload.place !== undefined) out.place = text(payload.place)
-  if (payload.description !== undefined) out.description = text(payload.description)
-  if (payload.coverUrl !== undefined) out.cover_url = payload.coverUrl || null
   if (payload.defaultKind !== undefined) out.default_kind = payload.defaultKind
   if ("defaultLanguage" in payload && payload.defaultLanguage !== undefined) out.default_language = payload.defaultLanguage
   if ("defaultLanguageOther" in payload && payload.defaultLanguageOther !== undefined) out.default_language_other = text(payload.defaultLanguageOther)
@@ -81,6 +83,18 @@ function body(payload: SetPatchPayload | SetCreatePayload) {
 /** Starts the playlist. Sending the same `id` again returns the one that exists (the app was killed before the answer came). */
 export function createSet(cfg: RemoteConfig, payload: SetCreatePayload): Promise<RemoteSet> {
   return callUrl<RemoteSet>(cfg, "POST", url(cfg), body(payload))
+}
+
+/**
+ * The cover picture: the bytes of a small JPEG, PNG or WebP (at most 300 KB). The server cuts out any metadata and
+ * answers with the playlist, whose `cover_url` is the picture's address.
+ */
+export function putSetCover(cfg: RemoteConfig, id: string, bytes: Blob, contentType: string): Promise<RemoteSet> {
+  return callBytes<RemoteSet>(cfg, "PUT", url(cfg, `/${id}/cover`), bytes, contentType)
+}
+
+export function removeSetCover(cfg: RemoteConfig, id: string): Promise<RemoteSet> {
+  return callUrl<RemoteSet>(cfg, "DELETE", url(cfg, `/${id}/cover`))
 }
 
 export function patchSet(cfg: RemoteConfig, id: string, payload: SetPatchPayload): Promise<RemoteSet> {

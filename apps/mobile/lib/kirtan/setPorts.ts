@@ -1,11 +1,12 @@
 import { canUseServer, remoteConfig } from "@/lib/kirtan/api"
 import { failureFromError, RemoteError } from "@/lib/kirtan/remote"
-import { createSet, deleteSet, finishSet, patchSet, patchTrackOnServer, removeTrackFromSet, reorderSet } from "@/lib/kirtan/remoteSets"
+import { createSet, deleteSet, finishSet, patchSet, patchTrackOnServer, putSetCover, removeTrackFromSet, reorderSet } from "@/lib/kirtan/remoteSets"
 import type { RowOutcome } from "@/lib/kirtan/queue"
-import { trackDay, trackFields, type SetDraft, type SetTrack } from "@/lib/kirtan/sets"
+import { performerName, trackDay, trackFields, type SetDraft, type SetTrack } from "@/lib/kirtan/sets"
 import { uploadSubmission } from "@/lib/kirtan/upload"
 import type { UploadFailure } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { useAuthStore } from "@/stores/authStore"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
 import { useRecordingChordsPendingStore } from "@/stores/recordingChordsPendingStore"
 
@@ -22,6 +23,8 @@ export type SetPorts = {
   online: () => boolean
   /** starts the playlist on the server; the same id twice is the same playlist */
   create: (draft: SetDraft) => Promise<void>
+  /** sends the cover picture of the set; the set stays whole when this fails */
+  putCover: (draft: SetDraft) => Promise<void>
   /** sends one track at a place; never throws */
   uploadTrack: (draft: SetDraft, track: SetTrack, position: number) => Promise<TrackOutcome>
   /** the order of the live tracks */
@@ -46,17 +49,22 @@ const realPorts: SetPorts = {
     await createSet(remoteConfig(), {
       id: draft.id,
       title: draft.title,
-      startsOn: draft.startsOn,
-      endsOn: draft.endsOn || null,
+      eventYear: draft.eventYear as number,
+      eventMonth: draft.eventMonth,
       place: draft.place,
-      description: draft.description,
-      coverUrl: draft.coverUrl || null,
       defaultKind: draft.defaultKind,
       defaultLanguage: draft.defaultLanguage,
       defaultLanguageOther: draft.defaultLanguage === "other" ? draft.defaultLanguageOther : null,
       defaultDance: draft.defaultDance,
       tracksExpected: draft.tracks.length,
     })
+  },
+  async putCover(draft) {
+    if (MOCKUP_DATA || !draft.coverUri) return
+    // loaded only when a cover is sent: it needs the phone's image modules, which tests and the web preview do not carry
+    const { coverBlob } = await import("@/lib/kirtan/setCoverPick")
+    const { blob, type } = await coverBlob(draft.coverUri)
+    await putSetCover(remoteConfig(), draft.id, blob, type)
   },
   async uploadTrack(draft, track, position) {
     if (MOCKUP_DATA) {
@@ -71,7 +79,7 @@ const realPorts: SetPorts = {
       fileType: track.type,
       kind: fields.kind,
       title: track.title,
-      author: draft.performer,
+      author: performerName(draft, useAuthStore.getState().displayName ?? ""),
       byAuthor: false,
       language: fields.language,
       languageOther: fields.languageOther,

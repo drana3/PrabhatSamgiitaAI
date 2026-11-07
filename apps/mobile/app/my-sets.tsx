@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
 import { SheetTopBar } from "@/components/common/SheetTopBar"
@@ -9,8 +9,10 @@ import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { formatDate, useT } from "@/lib/i18n"
+import { apiBaseUrl } from "@/lib/client"
+import { useT } from "@/lib/i18n"
 import { canUseServer, remoteConfig } from "@/lib/kirtan/api"
+import { coverSrc } from "@/lib/kirtan/setCover"
 import { fetchMySets } from "@/lib/kirtan/remoteSets"
 import { mergeSummaries, summaryOfDraft, summaryOfRemote, whenLabel, type SetSummary } from "@/lib/kirtan/setView"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
@@ -32,6 +34,7 @@ export default function MySetsScreen() {
   const drafts = useUploadSetStore((s) => s.drafts)
   const archive = useUploadSetStore((s) => s.archive)
 
+  const monthName = (month: number) => (t as (key: string) => string)(`set.month.${month}`)
   const [server, setServer] = useState<SetSummary[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -100,11 +103,12 @@ export default function MySetsScreen() {
                   pressedScale={0.98}
                   style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}
                 >
+                  {coverSrc(item.coverUrl, apiBaseUrl) ? <Image source={{ uri: coverSrc(item.coverUrl, apiBaseUrl) ?? undefined }} accessibilityIgnoresInvertColors accessibilityLabel={t("set.d.coverA11y")} resizeMode="cover" style={[styles.cover, { backgroundColor: theme.inner }]} /> : null}
                   <View style={styles.cardTop}>
                     <View style={[styles.badge, { backgroundColor: item.state === "published" ? theme.peach : "transparent", borderColor: item.state === "published" ? theme.peach : theme.line }]}>
                       <Text style={[styles.badgeText, { color: item.state === "removed" ? theme.dangerText : theme.accent }]}>{t(`set.status.${item.state}`)}</Text>
                     </View>
-                    <Text style={[styles.hint, { color: theme.textBody }]}>{whenLabel(item, (day) => formatDate(day, "medium"), (from, to) => t("set.page.untilDay", { from, to }))}</Text>
+                    <Text style={[styles.hint, { color: theme.textBody }]}>{whenLabel(item, monthName)}</Text>
                   </View>
                   <Text style={[styles.cardTitle, { color: theme.textHeading }]} numberOfLines={2}>
                     {item.title || t("set.draft.untitled")}
@@ -130,6 +134,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 24, gap: 24, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   stack: { gap: 14 },
   h1: { fontFamily: amFonts.display, fontSize: 40, lineHeight: 42, letterSpacing: -0.8, textTransform: "uppercase" },
+  cover: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   body: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22 },
   send: { height: 56, borderRadius: 70, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },

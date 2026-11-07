@@ -4,7 +4,6 @@ import { setsEn, setsEs, setsRu } from "@/locales/recordingSets"
 
 import {
   addTracks,
-  dayRange,
   isFutureDay,
   liveOrder,
   moveTrack,
@@ -44,7 +43,7 @@ let counter = 0
 const newId = () => `t${(counter += 1)}`
 
 function draftWith(names: string[], patch: Partial<SetDraft> = {}): SetDraft {
-  const base: SetDraft = { ...newSetDraft("set-1", NOW), title: "Dhanbad retreat", performer: "Priya Devi", confirmed: true, ...patch }
+  const base: SetDraft = { ...newSetDraft("set-1", NOW), title: "Dhanbad retreat", eventYear: 2026, eventMonth: null, performer: "Priya Devi", confirmed: true, ...patch }
   return addTracks(base, names.map((name) => file(name)), newId, false).draft
 }
 
@@ -62,33 +61,23 @@ describe("dates", () => {
     expect(isFutureDay("2026-11-08", NOW)).toBe(false)
     expect(isFutureDay("2026-11-09", NOW)).toBe(true)
   })
-
-  it("the range of a one-day event is one day; a longer one is 'from to until'", () => {
-    const f = (day: string) => `<${day}>`
-    const to = (a: string, b: string) => `${a}..${b}`
-    expect(dayRange("2026-11-01", null, f, to)).toBe("<2026-11-01>")
-    expect(dayRange("2026-11-01", "2026-11-01", f, to)).toBe("<2026-11-01>")
-    expect(dayRange("2026-11-01", "2026-11-03", f, to)).toBe("<2026-11-01>..<2026-11-03>")
-    expect(dayRange("nonsense", "2026-11-03", f, to)).toBe("")
-  })
 })
 
 describe("details of the set", () => {
-  it("needs a title, a real start day, a performer; the first problem is named", () => {
+  it("needs a title and a year; the first problem is named; the performer, place and month are optional", () => {
     const empty = newSetDraft("x", NOW)
     expect(validateSetDetails(empty, NOW)).toBe("title")
-    expect(validateSetDetails({ ...empty, title: "A" }, NOW)).toBe("performer")
-    expect(validateSetDetails({ ...empty, title: "A", performer: "P" }, NOW)).toBeNull()
-    expect(validateSetDetails({ ...empty, title: "A", performer: "P", startsOn: "soon" }, NOW)).toBe("date")
-    expect(validateSetDetails({ ...empty, title: "A", performer: "P", startsOn: "2027-01-01" }, NOW)).toBe("dateFuture")
+    expect(validateSetDetails({ ...empty, title: "A" }, NOW)).toBe("year")
+    expect(validateSetDetails({ ...empty, title: "A", eventYear: 2026 }, NOW)).toBeNull()
+    expect(validateSetDetails({ ...empty, title: "A", eventYear: 2026, eventMonth: 3, performer: "", place: "" }, NOW)).toBeNull()
   })
 
-  it("the end day cannot come before the start or be in the future", () => {
-    const base = { ...newSetDraft("x", NOW), title: "A", performer: "P", startsOn: "2026-11-02" }
-    expect(validateSetDetails({ ...base, endsOn: "2026-11-01" }, NOW)).toBe("dateOrder")
-    expect(validateSetDetails({ ...base, endsOn: "2026-11-04" }, NOW)).toBeNull()
-    expect(validateSetDetails({ ...base, endsOn: "2027-02-01" }, NOW)).toBe("dateFuture")
-    expect(validateSetDetails({ ...base, endsOn: "tomorrow" }, NOW)).toBe("date")
+  it("a year or month ahead of today is the future", () => {
+    const base = { ...newSetDraft("x", NOW), title: "A" }
+    expect(validateSetDetails({ ...base, eventYear: 2027 }, NOW)).toBe("future")
+    expect(validateSetDetails({ ...base, eventYear: 2026, eventMonth: 12 }, NOW)).toBe("future")
+    expect(validateSetDetails({ ...base, eventYear: 2026, eventMonth: 11 }, NOW)).toBeNull()
+    expect(validateSetDetails({ ...base, eventYear: 1850 }, NOW)).toBe("year")
   })
 })
 
@@ -135,13 +124,13 @@ describe("tracks: add, order, edit", () => {
   })
 
   it("a track's own date follows the set again when cleared or invalid", () => {
-    let draft = draftWith(["a.mp3"], { startsOn: "2026-11-02" })
+    let draft = draftWith(["a.mp3"], { eventYear: 2026, eventMonth: 11 })
     const id = draft.tracks[0]!.id
-    expect(trackDay(draft.tracks[0]!, draft)).toBe("2026-11-02")
+    expect(trackDay(draft.tracks[0]!, draft)).toBe("2026-11-01")
     draft = setTrackDay(draft, id, "2026-11-03")
     expect(trackDay(draft.tracks[0]!, draft)).toBe("2026-11-03")
     draft = setTrackDay(draft, id, "garbage")
-    expect(trackDay(draft.tracks[0]!, draft)).toBe("2026-11-02")
+    expect(trackDay(draft.tracks[0]!, draft)).toBe("2026-11-01")
   })
 
   it("swapIds moves one place or refuses at the ends", () => {
@@ -385,18 +374,18 @@ describe("views of a set", () => {
   })
 
   it("the view of a draft keeps only live tracks, numbered in list order, with the set's date and performer", () => {
-    let draft = draftWith(["a.mp3", "b.mp3", "c.mp3"], { startsOn: "2026-11-02", defaultKind: "bhajan", defaultLanguage: "hi" })
+    let draft = draftWith(["a.mp3", "b.mp3", "c.mp3"], { eventYear: 2026, eventMonth: 11, defaultKind: "bhajan", defaultLanguage: "hi" })
     draft = patchTrack(draft, draft.tracks[0]!.id, { status: "done", recordingId: "r1" })
     draft = patchTrack(draft, draft.tracks[2]!.id, { status: "done", recordingId: "r3", recordedOn: "2026-11-04" })
     const view = viewOfDraft(draft, "Priya")
     expect(view.owner).toBe(true)
     expect(view.tracks.map((t) => [t.id, t.position, t.recordedOn, t.language, t.author])).toEqual([
-      ["r1", 1, "2026-11-02", "hi", "Priya Devi"],
+      ["r1", 1, "2026-11-01", "hi", "Priya Devi"],
       ["r3", 2, "2026-11-04", "hi", "Priya Devi"],
     ])
   })
 
-  const summary = (id: string, state: SetSummary["state"], startsOn: string, source: SetSummary["source"] = "server"): SetSummary => ({ id, title: id, place: null, startsOn, endsOn: null, state, count: 1, waiting: 0, source })
+  const summary = (id: string, state: SetSummary["state"], startsOn: string, source: SetSummary["source"] = "server"): SetSummary => ({ id, title: id, place: null, eventYear: Number(startsOn.slice(0, 4)), eventMonth: Number(startsOn.slice(5, 7)), coverUrl: null, state, count: 1, waiting: 0, source })
 
   it("unfinished sets come first, then the newest event", () => {
     const list = sortSummaries([summary("old", "published", "2026-01-01"), summary("new", "published", "2026-10-01"), summary("busy", "uploading", "2025-05-05")])
@@ -411,8 +400,10 @@ describe("views of a set", () => {
     ])
   })
 
-  it("when-label uses the given formatters", () => {
-    expect(whenLabel({ startsOn: "2026-11-01", endsOn: "2026-11-03" }, (d) => d.slice(5), (a, b) => `${a}-${b}`)).toBe("11-01-11-03")
+  it("when-label is the month and year, or just the year", () => {
+    const name = (m: number) => ["", "January", "February", "March"][m] ?? `m${m}`
+    expect(whenLabel({ eventYear: 2026, eventMonth: 3 }, name)).toBe("March 2026")
+    expect(whenLabel({ eventYear: 2026, eventMonth: null }, name)).toBe("2026")
   })
 
   it("the share text names the place when there is one", () => {

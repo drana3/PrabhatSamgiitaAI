@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Platform, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native"
+import { Alert, Image, Platform, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { SheetTopBar } from "@/components/common/SheetTopBar"
@@ -11,10 +11,15 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
-import { formatDate, useT } from "@/lib/i18n"
+import { apiBaseUrl } from "@/lib/client"
+import { useT } from "@/lib/i18n"
+import { EventDateField } from "@/components/kirtan/sets/EventDateField"
 import { canUseServer, remoteConfig } from "@/lib/kirtan/api"
 import { RemoteError } from "@/lib/kirtan/remote"
-import { deleteSet, fetchSet, patchSet, removeTrackFromSet, reorderSet, type RemoteSetDetail } from "@/lib/kirtan/remoteSets"
+import { deleteSet, fetchSet, patchSet, putSetCover, removeSetCover, removeTrackFromSet, reorderSet, type RemoteSetDetail } from "@/lib/kirtan/remoteSets"
+import { coverSrc } from "@/lib/kirtan/setCover"
+import { coverBlob, pickCover } from "@/lib/kirtan/setCoverPick"
+import { checkEventDate } from "@/lib/kirtan/setDate"
 import { setShareText, swapIds, type Job } from "@/lib/kirtan/setPage"
 import { viewOfDraft, viewOfRemote, whenLabel, type SetView } from "@/lib/kirtan/setView"
 import type { Kirtan } from "@/lib/kirtan/types"
@@ -49,6 +54,8 @@ export default function RecordingSetScreen() {
   const [load, setLoad] = useState<Load>({ kind: "loading" })
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState("")
+  const [editYear, setEditYear] = useState<number | null>(null)
+  const [editMonth, setEditMonth] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [asking, setAsking] = useState(false)
 
@@ -88,6 +95,7 @@ export default function RecordingSetScreen() {
   const mine = Boolean(view?.owner)
   const onServer = !MOCKUP_DATA && load.kind === "ready" && !active
   const canManage = mine && onServer && view?.state !== "removed"
+  const monthName = (month: number) => (t as (key: string) => string)(`set.month.${month}`)
   const close = () => (router.canGoBack() ? router.back() : router.replace(href("/kiirtan")))
 
   const play = (start?: number) => {
@@ -98,7 +106,7 @@ export default function RecordingSetScreen() {
 
   const share = async () => {
     if (!view) return
-    const when = whenLabel(view, (day) => formatDate(day, "medium"), (from, to) => t("set.page.untilDay", { from, to }))
+    const when = whenLabel(view, monthName)
     const message = setShareText({ title: view.title, place: view.place, count: view.count, when }, (key, vars) => loose(t)(key, vars))
     try {
       await Share.share({ message })
@@ -138,6 +146,38 @@ export default function RecordingSetScreen() {
       await patchSet(remoteConfig(), view.id, { title: next })
       setLoad((current) => (current.kind === "ready" ? { kind: "ready", detail: { ...current.detail, title: next } } : current))
     }, t("set.own.saved"))
+  }
+
+  const saveWhen = (year: number | null, month: number | null) => {
+    if (!view || year === null) return
+    void guarded(async () => {
+      const saved = await patchSet(remoteConfig(), view.id, { eventYear: year, eventMonth: month })
+      setLoad((current) => (current.kind === "ready" ? { kind: "ready", detail: { ...current.detail, event_year: saved.event_year, event_month: saved.event_month } } : current))
+      setEditYear(null)
+      setEditMonth(null)
+    }, t("set.own.saved"))
+  }
+
+  const changeCover = async () => {
+    if (!view || busy) return
+    const picked = await pickCover()
+    if (picked.status === "denied") return actions.flash(t("set.d.coverDenied"))
+    if (picked.status === "tooBig") return actions.flash(t("set.d.coverTooBig"))
+    if (picked.status === "error") return actions.flash(t("set.d.coverError"))
+    if (picked.status !== "ok") return
+    void guarded(async () => {
+      const { blob, type } = await coverBlob(picked.uri)
+      const saved = await putSetCover(remoteConfig(), view.id, blob, type)
+      setLoad((current) => (current.kind === "ready" ? { kind: "ready", detail: { ...current.detail, cover_url: saved.cover_url } } : current))
+    }, t("set.cover.saved"))
+  }
+
+  const dropCover = () => {
+    if (!view) return
+    void guarded(async () => {
+      await removeSetCover(remoteConfig(), view.id)
+      setLoad((current) => (current.kind === "ready" ? { kind: "ready", detail: { ...current.detail, cover_url: null } } : current))
+    }, t("set.cover.removed"))
   }
 
   const move = (index: number, step: -1 | 1) => {
@@ -193,10 +233,16 @@ export default function RecordingSetScreen() {
         </Reveal>
       )
     }
-    const when = whenLabel(view, (day) => formatDate(day, "medium"), (from, to) => t("set.page.untilDay", { from, to }))
+    const when = whenLabel(view, monthName)
+    const cover = coverSrc(view.coverUrl, apiBaseUrl)
+    const year = editYear ?? view.eventYear
+    const month = editYear === null && editMonth === null ? view.eventMonth : editMonth
+    const dateChanged = year !== view.eventYear || month !== view.eventMonth
+    const dateOk = year !== null && checkEventDate(year, month, new Date()) === null
     return (
       <>
         <Reveal index={0} style={styles.stack}>
+          {cover ? <Image source={{ uri: cover }} accessibilityIgnoresInvertColors accessibilityLabel={t("set.d.coverA11y")} resizeMode="cover" style={[styles.cover, { backgroundColor: theme.inner }]} /> : null}
           <Text style={[styles.over, { color: theme.accent }]}>{[t(`set.status.${view.state}`), when].filter(Boolean).join(" · ")}</Text>
           <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
             {view.title}
@@ -226,6 +272,26 @@ export default function RecordingSetScreen() {
             <View style={styles.pills}>
               <Pill label={t("set.own.save")} onPress={rename} primary disabled={busy || !title.trim() || title.trim() === view.title} />
               <Pill label={t("set.own.addTracks")} onPress={() => router.push(href(`/upload-set?set=${view.id}`))} />
+            </View>
+            <Text style={[styles.label, { color: theme.textHeading }]}>{t("set.own.when")}</Text>
+            <EventDateField
+              theme={theme}
+              year={year}
+              month={month}
+              onYear={(next) => {
+                setEditYear(next)
+                setEditMonth(editYear === null && editMonth === null ? view.eventMonth : editMonth)
+              }}
+              onMonth={(next) => {
+                setEditYear(year)
+                setEditMonth(next)
+              }}
+              disabled={busy}
+            />
+            <View style={styles.pills}>
+              <Pill label={t("set.own.saveWhen")} onPress={() => saveWhen(year, month)} primary disabled={busy || !dateChanged || !dateOk} />
+              <Pill label={cover ? t("set.cover.change") : t("set.cover.add")} onPress={changeCover} disabled={busy} />
+              {cover ? <Pill label={t("set.cover.remove")} onPress={dropCover} disabled={busy} /> : null}
             </View>
           </Reveal>
         ) : null}
@@ -321,6 +387,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 24, gap: 24, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   stack: { gap: 14 },
+  cover: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12 },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase" },
   h1: { fontFamily: amFonts.display, fontSize: 44, lineHeight: 46, letterSpacing: -0.9, textTransform: "uppercase" },
   meta: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22 },

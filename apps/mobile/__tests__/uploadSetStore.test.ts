@@ -47,6 +47,7 @@ function fake(script: Script) {
     reorder: async (_draft, ids) => {
       calls.reorder.push([...ids])
     },
+    putCover: async () => {},
     finish: async () => {
       calls.finish += 1
     },
@@ -56,7 +57,7 @@ function fake(script: Script) {
 
 function ready(...names: string[]) {
   const id = store().begin()
-  store().details(id, { title: "Dhanbad retreat", performer: "Priya Devi", confirmed: true })
+  store().details(id, { title: "Dhanbad retreat", eventYear: 2026, performer: "Priya Devi", confirmed: true })
   pick(id, ...names)
   return id
 }
@@ -105,13 +106,52 @@ describe("making a set", () => {
   })
 })
 
+describe("cover picture", () => {
+  it("waits for the playlist to exist, goes up once, and a failure never stops the tracks", async () => {
+    const { ports, calls } = fake({ tracks: [] })
+    const sent: string[] = []
+    ports.putCover = async (d) => {
+      sent.push(d.coverUri)
+    }
+    setSetPorts(ports)
+    const id = ready("a.mp3")
+    store().cover(id, "file:///cover.jpg")
+    expect(draft(id)).toMatchObject({ coverUri: "file:///cover.jpg", coverState: "pending" })
+    await store().upload(id)
+    expect(sent).toEqual(["file:///cover.jpg"])
+    expect(draft(id).coverState).toBe("sent")
+    expect(statuses(id)).toEqual(["done"])
+    expect(calls.finish).toBe(1)
+  })
+
+  it("a failed cover leaves the set whole and says failed", async () => {
+    const { ports } = fake({ tracks: [] })
+    ports.putCover = async () => {
+      throw new Error("offline")
+    }
+    setSetPorts(ports)
+    const id = ready("a.mp3")
+    store().cover(id, "file:///cover.jpg")
+    await store().upload(id)
+    expect(draft(id).coverState).toBe("failed")
+    expect(statuses(id)).toEqual(["done"])
+  })
+
+  it("taking the picture away clears it", () => {
+    const id = ready("a.mp3")
+    store().cover(id, "file:///cover.jpg")
+    store().cover(id, "")
+    expect(draft(id)).toMatchObject({ coverUri: "", coverState: "none" })
+  })
+})
+
 describe("uploading", () => {
   it("says why it did not start: details, rules, nothing to send, a missing field", async () => {
     const { ports, calls } = fake({ tracks: [] })
     setSetPorts(ports)
     const id = store().begin()
     expect(await store().upload(id)).toBe("details")
-    store().details(id, { title: "T", performer: "P" })
+    store().details(id, { title: "T", eventYear: 2026, performer: "P" })
     expect(await store().upload(id)).toBe("rules")
     store().confirm(id, true)
     expect(await store().upload(id)).toBe("nothing")

@@ -163,6 +163,18 @@ export async function callUrl<T>(cfg: RemoteConfig, method: string, url: string,
   return (await response.json()) as T
 }
 
+/** The same, with a picture (or other file) as the body instead of JSON. */
+export async function callBytes<T>(cfg: RemoteConfig, method: string, url: string, body: Blob, contentType: string): Promise<T> {
+  let response: Response
+  try {
+    response = await doFetch(cfg)(url, { method, headers: { Accept: "application/json", "Content-Type": contentType, ...cfg.headers() }, body })
+  } catch (error) {
+    throw new NetworkError(error instanceof Error ? error.message : undefined)
+  }
+  if (!response.ok) throw await readError(response)
+  return (await response.json()) as T
+}
+
 /* ------------------------------------------------------------------ upload */
 
 export async function requestUpload(

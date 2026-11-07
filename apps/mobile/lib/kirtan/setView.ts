@@ -1,6 +1,7 @@
 import type { RemoteSet, RemoteSetDetail, RemoteSetState } from "@/lib/kirtan/remoteSets"
 import { fromRemote } from "@/lib/kirtan/submissions"
-import { dayRange, parseDay, setCounts, setState, trackFields, trackDay, type SetDraft, type SetTrack } from "@/lib/kirtan/sets"
+import { eventLabel, firstDayOf } from "@/lib/kirtan/setDate"
+import { performerName, setCounts, setState, trackFields, trackDay, type SetDraft, type SetTrack } from "@/lib/kirtan/sets"
 import type { Kirtan } from "@/lib/kirtan/types"
 
 /**
@@ -13,8 +14,11 @@ export type SetSummary = {
   id: string
   title: string
   place: string | null
-  startsOn: string
-  endsOn: string | null
+  /** the approximate date: the year and, when known, the month */
+  eventYear: number | null
+  eventMonth: number | null
+  /** the cover: a path on the API, an https link, or a picture on this phone; null when none */
+  coverUrl: string | null
   state: RemoteSetState
   /** live tracks */
   count: number
@@ -33,22 +37,22 @@ export type SetView = SetSummary & {
 }
 
 export function summaryOfRemote(set: RemoteSet): SetSummary {
-  return { id: set.id, title: set.title, place: set.place, startsOn: set.starts_on, endsOn: set.ends_on, state: set.state, count: set.tracks_count, waiting: 0, source: "server" }
+  return { id: set.id, title: set.title, place: set.place, eventYear: set.event_year ?? null, eventMonth: set.event_month ?? null, coverUrl: set.cover_url, state: set.state, count: set.tracks_count, waiting: 0, source: "server" }
 }
 
 export function summaryOfDraft(draft: SetDraft): SetSummary {
   const counts = setCounts(draft)
-  return { id: draft.id, title: draft.title.trim(), place: draft.place.trim() || null, startsOn: draft.startsOn, endsOn: draft.endsOn || null, state: setState(draft), count: counts.live, waiting: counts.waiting + counts.limit + counts.failed + counts.similar, source: "phone" }
+  return { id: draft.id, title: draft.title.trim(), place: draft.place.trim() || null, eventYear: draft.eventYear, eventMonth: draft.eventMonth, coverUrl: draft.coverUri || null, state: setState(draft), count: counts.live, waiting: counts.waiting + counts.limit + counts.failed + counts.similar, source: "phone" }
 }
 
 /** A live track of a set kept on this phone, shaped like a library recording so the player can take it. */
-export function kirtanOfTrack(track: SetTrack, draft: SetDraft, position: number): Kirtan {
+export function kirtanOfTrack(track: SetTrack, draft: SetDraft, position: number, uploader = ""): Kirtan {
   const fields = trackFields(track, draft)
   return {
     id: track.recordingId ?? track.id,
     kind: fields.kind,
     title: track.title,
-    author: draft.performer,
+    author: performerName(draft, uploader),
     durationSec: null,
     type: "other",
     audioUrl: track.uri,
@@ -81,23 +85,23 @@ export function viewOfDraft(draft: SetDraft, ownerName: string): SetView {
   const live = draft.tracks.filter((track) => track.status === "done")
   return {
     ...summaryOfDraft(draft),
-    description: draft.description.trim() || null,
-    ownerName: ownerName || draft.performer,
+    description: null,
+    ownerName: ownerName || draft.performer.trim(),
     owner: true,
-    tracks: live.map((track, index) => kirtanOfTrack(track, draft, index + 1)),
+    tracks: live.map((track, index) => kirtanOfTrack(track, draft, index + 1, ownerName)),
     removedReason: null,
   }
 }
 
-/** "12 Nov 2026" or "12 Nov 2026 to 14 Nov 2026", in the app's language. */
-export function whenLabel(view: Pick<SetSummary, "startsOn" | "endsOn">, format: (day: string) => string, to: (from: string, until: string) => string): string {
-  return dayRange(view.startsOn, view.endsOn, format, to)
+/** "November 2026", or just "2026" when the month is not known, in the app's language (`monthName` gives the month word). */
+export function whenLabel(view: Pick<SetSummary, "eventYear" | "eventMonth">, monthName: (month: number) => string): string {
+  return eventLabel(view.eventYear, view.eventMonth, monthName)
 }
 
 /** Ordering for "My event playlists": what is not finished first (it needs the person), then the newest event first. */
 export function sortSummaries<T extends SetSummary>(list: readonly T[]): T[] {
   const rank = (item: T) => (item.state === "published" || item.state === "removed" ? 1 : 0)
-  return [...list].sort((a, b) => rank(a) - rank(b) || (parseDay(b.startsOn) ?? "").localeCompare(parseDay(a.startsOn) ?? ""))
+  return [...list].sort((a, b) => rank(a) - rank(b) || firstDayOf(b.eventYear, b.eventMonth).localeCompare(firstDayOf(a.eventYear, a.eventMonth)))
 }
 
 /** The server's list and the phone's own drafts as one list: a set on the phone wins for the same id (it is newer than the server's count). */

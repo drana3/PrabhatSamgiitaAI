@@ -2,6 +2,7 @@ import { addFiles, effectiveFields, patchItem, queueCounts, removeItem, requeue,
 import { kindHasDance, kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther } from "@/lib/kirtan/languages"
 import { missingKindFields, type MissingField } from "@/lib/kirtan/uploadForm"
+import { checkEventDate, firstDayOf } from "@/lib/kirtan/setDate"
 import type { DanceId, RecordingKind } from "@/lib/kirtan/types"
 
 /**
@@ -36,6 +37,8 @@ export const SET_LIMITS = {
 
 export type SetState = "draft" | "uploading" | "published"
 
+export type CoverState = "none" | "pending" | "sent" | "failed"
+
 /** One track of the set. Fields left `undefined` are inherited from the set. */
 export type SetTrack = QueueItem & {
   /** this track's own date (YYYY-MM-DD); the set's first day when empty */
@@ -50,15 +53,15 @@ export type SetTrack = QueueItem & {
 export type SetDraft = {
   id: string
   title: string
-  /** YYYY-MM-DD */
-  startsOn: string
-  /** YYYY-MM-DD; empty for a one-day event */
-  endsOn: string
+  /** the approximate date: the year (null until it is chosen) and, when it is known, the month (1 to 12) */
+  eventYear: number | null
+  eventMonth: number | null
   place: string
-  description: string
-  /** an https URL of a cover picture, when there is one (the cover upload is not built yet; see docs/kiirtan-sets.md) */
-  coverUrl: string
-  /** the performer: who sings these tracks (the same for the whole set; a track by someone else is a separate upload) */
+  /** the cover picture the person chose, small and without metadata (a file or data address on this phone); empty when none */
+  coverUri: string
+  /** where the cover is: not chosen, waiting to be sent, on the server, or the send failed (the playlist goes up anyway) */
+  coverState: CoverState
+  /** the performer or group; optional (empty: the uploader's own name is used) */
   performer: string
   /** the type, language and dance every track inherits unless it has its own */
   defaultKind: RecordingKind
@@ -75,7 +78,7 @@ export type SetDraft = {
   createdAt: string
 }
 
-export type SetDetailsError = "title" | "date" | "dateOrder" | "dateFuture" | "performer"
+export type SetDetailsError = "title" | "year" | "future"
 
 /* ------------------------------------------------------------------ dates */
 
@@ -107,11 +110,11 @@ export function newSetDraft(id: string, now: Date = new Date()): SetDraft {
   return {
     id,
     title: "",
-    startsOn: today(now),
-    endsOn: "",
+    eventYear: null,
+    eventMonth: null,
     place: "",
-    description: "",
-    coverUrl: "",
+    coverUri: "",
+    coverState: "none",
     performer: "",
     defaultKind: "kiirtan",
     defaultLanguage: null,
@@ -153,25 +156,28 @@ export function trackMissing(track: SetTrack, draft: SetDraft): MissingField[] {
   return missingKindFields(effectiveFields(track, { ...setDefaults(draft), kind }))
 }
 
-/** The date a track will carry: its own, else the first day of the set. */
-export function trackDay(track: SetTrack, draft: SetDraft): string {
-  return parseDay(track.recordedOn) ?? parseDay(draft.startsOn) ?? ""
+/** Who the tracks are by: the performer or group when one was written, else the person who uploads them. */
+export function performerName(draft: Pick<SetDraft, "performer">, uploader: string): string {
+  const named = draft.performer.trim()
+  if (named) return named
+  const me = uploader.trim()
+  return me && me !== "Guest" ? me : "Unknown"
 }
 
-/** The first thing wrong with the set's details, or null (the first step of the flow). */
+/** The day the set is filed under: the first of its month, or 1 January when the month is not known. */
+export function setDay(draft: Pick<SetDraft, "eventYear" | "eventMonth">): string {
+  return firstDayOf(draft.eventYear, draft.eventMonth)
+}
+
+/** The date a track will carry: its own, else the day the set is filed under. */
+export function trackDay(track: SetTrack, draft: SetDraft): string {
+  return parseDay(track.recordedOn) ?? parseDay(setDay(draft)) ?? ""
+}
+
+/** The first thing wrong with the set's details, or null: a title and a year. Place, month, performer and cover are optional. */
 export function validateSetDetails(draft: SetDraft, now: Date = new Date()): SetDetailsError | null {
   if (!draft.title.trim()) return "title"
-  const start = parseDay(draft.startsOn)
-  if (!start) return "date"
-  if (isFutureDay(start, now)) return "dateFuture"
-  if (draft.endsOn.trim()) {
-    const end = parseDay(draft.endsOn)
-    if (!end) return "date"
-    if (end < start) return "dateOrder"
-    if (isFutureDay(end, now)) return "dateFuture"
-  }
-  if (!draft.performer.trim()) return "performer"
-  return null
+  return checkEventDate(draft.eventYear, draft.eventMonth, now)
 }
 
 /** Tracks the set may still take. */
@@ -371,14 +377,7 @@ export function restoreDraft(draft: SetDraft): SetDraft {
     if (next.status === "waiting" && next.uri.startsWith("blob:")) next = { ...next, status: "failed", failure: { code: "gone" } }
     return next
   })
-  return { ...draft, tracks }
-}
-
-/** A short line for lists: the days of the event ("12 Nov 2026" or "12 to 14 Nov 2026"), in the given formatter. */
-export function dayRange(startsOn: string, endsOn: string | null | undefined, format: (day: string) => string, to: (from: string, until: string) => string): string {
-  const start = parseDay(startsOn)
-  if (!start) return ""
-  const end = parseDay(endsOn ?? "")
-  if (!end || end === start) return format(start)
-  return to(format(start), format(end))
+  // a cover picked in the browser is a blob address that does not survive a reload: choosing it again is one tap
+  const lostCover = draft.coverUri.startsWith("blob:")
+  return { ...draft, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
 }

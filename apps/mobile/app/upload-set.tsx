@@ -4,8 +4,10 @@ import * as DocumentPicker from "expo-document-picker"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
+import { DanceField, FieldError, LanguageField, LanguagePicker, RequiredMark, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar } from "@/components/kirtan/add/QueueRows"
+import { CoverField } from "@/components/kirtan/sets/CoverField"
+import { EventDateField } from "@/components/kirtan/sets/EventDateField"
 import { SetTrackRow, type SetTrackHandlers } from "@/components/kirtan/sets/SetTrackRow"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
@@ -17,14 +19,16 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindHasDance, kindHasLanguage, kindLabel, kindRequiresLanguage } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { missingCounts, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { isRulesAccepted, uploadErrorText } from "@/lib/kirtan/rules"
-import { SET_LIMITS, parseDay, setCounts, setDefaults, setProgress, setState, today, trackMissing, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
+import { SET_LIMITS, setCounts, setDay, setDefaults, setProgress, setState, trackMissing, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
+import { eventLabel } from "@/lib/kirtan/setDate"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
 import { RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
+import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
@@ -59,7 +63,6 @@ export default function UploadSetScreen() {
   const params = useLocalSearchParams<{ set?: string }>()
 
   const signedIn = useAuthStore((s) => s.mode === "signed_in") || MOCKUP_DATA
-  const displayName = useAuthStore((s) => s.displayName)
   const acceptedAt = useContentRulesStore((s) => s.acceptedAt)
   const acceptedVersion = useContentRulesStore((s) => s.version)
   const rulesOk = isRulesAccepted({ acceptedAt, version: acceptedVersion })
@@ -69,6 +72,7 @@ export default function UploadSetScreen() {
   const stopped = useUploadSetStore((s) => s.stopped)
   const error = useUploadSetStore((s) => s.error)
   const store = useUploadSetStore.getState
+  const form = useFormFocus()
 
   const [activeId, setActiveId] = useState<string | null>(typeof params.set === "string" ? params.set : null)
   const [step, setStep] = useState(0)
@@ -88,13 +92,11 @@ export default function UploadSetScreen() {
   const unfinished = drafts.filter((d) => d.tracks.length > 0 || d.title.trim())
   const choosing = signedIn && !draft && unfinished.length > 0 && !params.set
 
-  // No draft in hand and none to pick from: start one. The performer defaults to the person's own name.
+  // No draft in hand and none to pick from: start one.
   useEffect(() => {
     if (!signedIn || draft || choosing) return
     const id = store().begin(typeof params.set === "string" ? params.set : undefined)
     setActiveId(id)
-    const name = displayName && displayName !== "Guest" ? displayName : ""
-    if (name) store().details(id, { performer: name })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, draft, choosing])
 
@@ -178,7 +180,24 @@ export default function UploadSetScreen() {
     }
     if (step === 1) {
       setTried(true)
-      if (detailsError || defaultsMissing.length) return
+      form.clear()
+      // the first thing missing, in the order of the form: the title, the year, then what the recordings need
+      const messages: Record<string, string> = {
+        title: t("set.err.title"),
+        year: detailsError === "future" ? t("set.err.future") : t("set.err.year"),
+        dance: t("ugc.form.error.dance"),
+        language: defaultsMissing.includes("languageName") ? t("ugc.form.error.languageName") : t("ugc.form.error.language"),
+      }
+      const missingKeys = [
+        ...(detailsError === "title" ? ["title"] : []),
+        ...(detailsError === "year" || detailsError === "future" ? ["year"] : []),
+        ...(defaultsMissing.includes("dance") ? ["dance"] : []),
+        ...(defaultsMissing.includes("language") || defaultsMissing.includes("languageName") ? ["language"] : []),
+      ]
+      if (missingKeys.length) {
+        void form.focusFirst(missingKeys, messages)
+        return
+      }
       setStep(2)
       return
     }
@@ -293,10 +312,7 @@ export default function UploadSetScreen() {
         accessibilityRole="button"
         accessibilityLabel={t("set.draft.new")}
         onPress={() => {
-          const id = store().begin()
-          const name = displayName && displayName !== "Guest" ? displayName : ""
-          if (name) store().details(id, { performer: name })
-          setActiveId(id)
+          setActiveId(store().begin())
         }}
         pressedScale={0.98}
         style={[styles.secondary, { borderColor: theme.line, backgroundColor: theme.card }]}
@@ -336,52 +352,56 @@ export default function UploadSetScreen() {
     </Reveal>
   )
 
-  const textField = (label: string, value: string, onChange: (text: string) => void, options: { placeholder?: string; invalid?: string | null; multiline?: boolean; max?: number; keyboard?: "default" | "numbers-and-punctuation" } = {}) => (
-    <View style={styles.field}>
-      <Text style={[styles.label, { color: theme.textHeading }]}>{label}</Text>
-      <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: options.invalid ? amColors.danger : theme.line, alignItems: options.multiline ? "flex-start" : "center" }]}>
+  const textField = (key: string, label: string, value: string, onChange: (text: string) => void, options: { placeholder?: string; hint?: string; optional?: boolean; max?: number } = {}) => (
+    <View {...form.field(key)} style={styles.field}>
+      <View style={styles.labelRow}>
+        <Text style={[styles.label, { color: theme.textHeading }]}>{label}</Text>
+        <RequiredMark theme={theme} required={!options.optional} invalid={!!form.error(key)} />
+      </View>
+      <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: form.error(key) ? amColors.danger : theme.line }]}>
         <TextInput
+          ref={form.input(key)}
           value={value}
-          onChangeText={onChange}
+          onChangeText={(text) => {
+            if (form.error(key)) form.clear()
+            onChange(text)
+          }}
           editable={!locked}
           placeholder={options.placeholder}
           placeholderTextColor={theme.textMuted}
           accessibilityLabel={label}
           maxLength={options.max ?? 200}
-          multiline={options.multiline}
-          keyboardType={options.keyboard ?? "default"}
-          style={[styles.input, options.multiline && styles.multi, { color: theme.textHeading }]}
+          style={[styles.input, { color: theme.textHeading }]}
         />
       </View>
-      <FieldError theme={theme} text={options.invalid ?? null} />
+      {options.hint ? <Text style={[styles.hint, { color: theme.textBody }]}>{options.hint}</Text> : null}
+      <FieldError theme={theme} text={form.error(key)} />
     </View>
   )
 
-  const errorText = (code: SetDetailsError | null, only: SetDetailsError[]): string | null => (tried && code && only.includes(code) ? t(`set.err.${code}`) : null)
-
   const detailsStep = (d: SetDraft) => {
-    const dayChip = (label: string, day: string) => (
-      <KPress key={label} accessibilityRole="button" accessibilityLabel={label} onActivate={() => store().details(d.id, { startsOn: day })} pressedScale={0.95} style={[styles.chip, { backgroundColor: d.startsOn === day ? theme.ink900 : theme.card, borderColor: d.startsOn === day ? theme.ink900 : theme.line }]}>
-        <Text style={[styles.chipText, { color: d.startsOn === day ? theme.onInk : theme.textHeading }]}>{label}</Text>
-      </KPress>
-    )
-    const yesterday = new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10)
     const languageValue: LanguageValue = { language: d.defaultLanguage, languageOther: d.defaultLanguageOther }
     return (
       <Reveal index={1} style={styles.stack}>
-        {textField(t("set.d.title"), d.title, (text) => store().details(d.id, { title: text }), { placeholder: t("set.d.titlePlaceholder"), invalid: errorText(detailsError, ["title"]), max: 200 })}
-        <View style={styles.field}>
-          {textField(t("set.d.start"), d.startsOn, (text) => store().details(d.id, { startsOn: text }), { placeholder: t("set.d.date"), invalid: errorText(detailsError, ["date", "dateFuture"]), max: 10, keyboard: "numbers-and-punctuation" })}
-          <View style={styles.chips}>
-            {dayChip(t("set.d.today"), today())}
-            {dayChip(t("set.d.yesterday"), yesterday)}
-          </View>
+        {textField("title", t("set.d.title"), d.title, (text) => store().details(d.id, { title: text }), { placeholder: t("set.d.titlePlaceholder"), max: 200 })}
+        {textField("place", t("set.d.place"), d.place, (text) => store().details(d.id, { place: text }), { placeholder: t("set.d.placePlaceholder"), optional: true, max: 200 })}
+        <View {...form.field("year")}>
+          <EventDateField
+            theme={theme}
+            year={d.eventYear}
+            month={d.eventMonth}
+            onYear={(year) => {
+              form.clear()
+              store().details(d.id, { eventYear: year, ...(d.eventMonth && year === new Date().getUTCFullYear() && d.eventMonth > new Date().getUTCMonth() + 1 ? { eventMonth: null } : {}) })
+            }}
+            onMonth={(month) => store().details(d.id, { eventMonth: month })}
+            invalid={!!form.error("year")}
+            errorText={form.error("year")}
+            disabled={locked}
+          />
         </View>
-        {textField(t("set.d.end"), d.endsOn, (text) => store().details(d.id, { endsOn: text }), { placeholder: t("set.d.date"), invalid: errorText(detailsError, ["dateOrder"]), max: 10, keyboard: "numbers-and-punctuation" })}
-        {textField(t("set.d.place"), d.place, (text) => store().details(d.id, { place: text }), { placeholder: t("set.d.placePlaceholder"), max: 200 })}
-        {textField(t("set.d.performer"), d.performer, (text) => store().details(d.id, { performer: text }), { invalid: errorText(detailsError, ["performer"]), max: 80 })}
-        <Text style={[styles.hint, { color: theme.textBody, marginTop: -8 }]}>{t("set.d.performerHint")}</Text>
-        {textField(t("set.d.description"), d.description, (text) => store().details(d.id, { description: text }), { placeholder: t("set.d.descriptionPlaceholder"), multiline: true, max: 1000 })}
+        {kindHasPerformer(d.defaultKind) ? textField("performer", t("set.d.performer"), d.performer, (text) => store().details(d.id, { performer: text }), { hint: t("set.d.performerHint"), optional: true, max: 80 }) : null}
+        <CoverField theme={theme} uri={d.coverUri} state={d.coverState} disabled={locked} onChange={(uri) => store().cover(d.id, uri)} />
 
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("set.d.kind")}</Text>
@@ -410,17 +430,15 @@ export default function UploadSetScreen() {
           <Text style={[styles.hint, { color: theme.textBody }]}>{t("set.d.kindHint")}</Text>
         </View>
 
-        {kindHasDance(d.defaultKind) ? <DanceField theme={theme} value={d.defaultDance} onChange={(dance) => store().details(d.id, { defaultDance: dance })} invalid={tried && defaultsMissing.includes("dance")} errorText={tried && defaultsMissing.includes("dance") ? t("ugc.form.error.dance") : null} disabled={locked} /> : null}
+        {kindHasDance(d.defaultKind) ? (
+          <View {...form.field("dance")}>
+            <DanceField theme={theme} value={d.defaultDance} onChange={(dance) => { form.clear(); store().details(d.id, { defaultDance: dance }) }} invalid={!!form.error("dance")} errorText={form.error("dance")} disabled={locked} />
+          </View>
+        ) : null}
         {kindHasLanguage(d.defaultKind) ? (
-          <LanguageField
-            theme={theme}
-            kind={d.defaultKind}
-            value={languageValue}
-            onOpen={() => setLangFor("set")}
-            invalid={tried && (defaultsMissing.includes("language") || defaultsMissing.includes("languageName"))}
-            errorText={tried && defaultsMissing.includes("language") ? t("ugc.form.error.language") : tried && defaultsMissing.includes("languageName") ? t("ugc.form.error.languageName") : null}
-            disabled={locked}
-          />
+          <View {...form.field("language")}>
+            <LanguageField theme={theme} kind={d.defaultKind} value={languageValue} onOpen={() => setLangFor("set")} invalid={!!form.error("language")} errorText={form.error("language")} disabled={locked} />
+          </View>
         ) : null}
       </Reveal>
     )
@@ -488,7 +506,7 @@ export default function UploadSetScreen() {
             {d.tracks.map((track, index) => {
               const kind = trackKind(track, d)
               const fields = effectiveFields(track, { ...defaults, kind })
-              return <SetTrackRow key={track.id} theme={theme} track={track} position={index + 1} total={d.tracks.length} fields={{ ...fields, missing: trackMissing(track, d), tried: tried || sending }} firstDay={parseDay(d.startsOn) ?? ""} locked={locked || doneAll} handlers={handlers} />
+              return <SetTrackRow key={track.id} theme={theme} track={track} position={index + 1} total={d.tracks.length} fields={{ ...fields, missing: trackMissing(track, d), tried: tried || sending }} firstDay={setDay(d)} locked={locked || doneAll} handlers={handlers} />
             })}
           </View>
         ) : (
@@ -521,7 +539,7 @@ export default function UploadSetScreen() {
           <Text style={[styles.cardTitle, { color: theme.textHeading }]} numberOfLines={3}>
             {d.title.trim()}
           </Text>
-          <Text style={[styles.hint, { color: theme.textBody }]}>{[formatDate(d.startsOn, "medium"), d.place.trim(), t("set.files.count", { count: d.tracks.length })].filter(Boolean).join(" · ")}</Text>
+          <Text style={[styles.hint, { color: theme.textBody }]}>{[eventLabel(d.eventYear, d.eventMonth, (m) => (t as (key: string) => string)(`set.month.${m}`)), d.place.trim(), t("set.files.count", { count: d.tracks.length })].filter(Boolean).join(" · ")}</Text>
           <Text style={[styles.hint, { color: theme.textBody }]}>{[d.performer.trim(), kindLabel(d.defaultKind)].filter(Boolean).join(" · ")}</Text>
         </View>
 
@@ -615,7 +633,7 @@ export default function UploadSetScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={[styles.root, { backgroundColor: theme.page }]}>
       <SheetTopBar closeLabel={t("set.close")} onClose={close} />
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
+      <ScrollView ref={form.scrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}>
         {body()}
       </ScrollView>
       <LanguagePicker visible={langFor !== null} value={pickerValue} allowClear={!kindRequiresLanguage(pickKind)} onPick={onPickLanguage} onClose={() => setLangFor(null)} />
@@ -641,6 +659,7 @@ const styles = StyleSheet.create({
   dots: { flexDirection: "row", gap: 6, marginTop: 12 },
   dot: { height: 6, flex: 1, borderRadius: 3 },
   field: { gap: 10 },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   inputBox: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, flexDirection: "row" },
