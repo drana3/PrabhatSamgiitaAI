@@ -1,0 +1,72 @@
+name: Backup (manual until Dada switches it on)
+
+# Nothing runs by itself. To run it daily, remove the comment marks on the `schedule` lines below
+# AFTER the secrets exist and one manual run has worked. See docs/backups.md.
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: "What to back up"
+        type: choice
+        options: [database, files, both]
+        default: database
+      dry_run:
+        description: "Dry run (print the plan, change nothing)"
+        type: boolean
+        default: true
+  # schedule:
+  #   - cron: "30 20 * * *"   # 02:00 India time, every day
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+      BACKUP_REMOTE: ${{ secrets.BACKUP_REMOTE }}
+      BACKUP_RETENTION_DAYS: ${{ vars.BACKUP_RETENTION_DAYS || '35' }}
+      FILES_SOURCE: ${{ secrets.FILES_SOURCE }}
+      FILES_BACKUP: ${{ secrets.FILES_BACKUP }}
+      # rclone remotes are described by environment variables, so no config file holds a key:
+      #   RCLONE_CONFIG_BACKUP_TYPE=s3, RCLONE_CONFIG_BACKUP_PROVIDER=Cloudflare, ...
+      RCLONE_CONFIG_BACKUP_TYPE: s3
+      RCLONE_CONFIG_BACKUP_PROVIDER: ${{ vars.BACKUP_S3_PROVIDER || 'Cloudflare' }}
+      RCLONE_CONFIG_BACKUP_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+      RCLONE_CONFIG_BACKUP_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_BACKUP_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.RECORDING_S3_ENDPOINT }}
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.RECORDING_S3_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.RECORDING_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install age and rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y age rclone postgresql-client
+      - name: Database
+        if: ${{ inputs.what == 'database' || inputs.what == 'both' }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            infra/backup/pg_backup.sh --dry-run
+          else
+            infra/backup/pg_backup.sh
+          fi
+      - name: Files
+        if: ${{ inputs.what == 'files' || inputs.what == 'both' }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            infra/backup/files_backup.sh --dry-run
+          else
+            infra/backup/files_backup.sh
+          fi
