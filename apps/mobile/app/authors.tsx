@@ -116,6 +116,11 @@ export default function AuthorsScreen() {
           <Chip key={l} theme={theme} label={say(t, `authors.language.${l}`)} active={language === l} onPress={() => setLanguage(language === l ? undefined : l)} />
         ))}
       </ScrollView>
+      {state === "ready" || state === "more" ? (
+        <Text style={[styles.count, { color: theme.textMuted }]} accessibilityLiveRegion="polite">
+          {items.length ? t("authors.count.authors", { count: total }) : ""}
+        </Text>
+      ) : null}
       <View style={styles.pad}>
         <PillButton
           theme={theme}
@@ -176,5 +181,6 @@ const styles = StyleSheet.create({
   sorts: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE, flexWrap: "wrap" },
   filterLabel: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: SIDE, marginBottom: -6 },
   filters: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE },
+  count: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: SIDE, marginTop: -4 },
   sep: { height: 8 },
 })

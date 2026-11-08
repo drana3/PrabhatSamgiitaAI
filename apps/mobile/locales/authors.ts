@@ -19,6 +19,8 @@ export const authorsEn = {
   "authors.count.plays_other": "{count} plays",
   "authors.count.tracks_one": "{count} track",
   "authors.count.tracks_other": "{count} tracks",
+  "authors.count.authors_one": "{count} author",
+  "authors.count.authors_other": "{count} authors",
 
   "authors.cta.become": "Become an author",
   "authors.cta.mine": "Your author page",
@@ -167,8 +169,8 @@ export const authorsEn = {
   "authors.uploads.allBody": "Every recording you upload goes on the page. You can hide single ones.",
   "authors.uploads.chosen": "Only the ones I choose",
   "authors.uploads.chosenBody": "Nothing goes on the page unless you switch it on.",
-  "authors.form.showStats": "Show numbers to visitors",
-  "authors.form.showStatsBody": "Monthly listeners and plays, once there is enough listening to show them honestly.",
+  "authors.form.showStats": "Show my listening statistics on my public page",
+  "authors.form.showStatsBody": "Monthly listeners, plays and your most played recordings, once there is enough listening to show them honestly. Off: visitors see no numbers at all. You always see them on My page.",
 
   "authors.slug.checking": "Checking the link…",
   "authors.slug.available": "This link is free.",
@@ -304,6 +306,10 @@ export const authorsRu = {
   "authors.count.tracks_few": "{count} трека",
   "authors.count.tracks_many": "{count} треков",
   "authors.count.tracks_other": "{count} трека",
+  "authors.count.authors_one": "{count} автор",
+  "authors.count.authors_few": "{count} автора",
+  "authors.count.authors_many": "{count} авторов",
+  "authors.count.authors_other": "{count} автора",
 
   "authors.cta.become": "Стать автором",
   "authors.cta.mine": "Ваша страница автора",
@@ -452,8 +458,8 @@ export const authorsRu = {
   "authors.uploads.allBody": "Каждая загруженная запись попадает на страницу. Отдельные можно скрыть.",
   "authors.uploads.chosen": "Только выбранные мной",
   "authors.uploads.chosenBody": "На странице ничего нет, пока вы не включите запись.",
-  "authors.form.showStats": "Показывать числа посетителям",
-  "authors.form.showStatsBody": "Слушатели в месяц и прослушивания, когда их достаточно, чтобы показывать честно.",
+  "authors.form.showStats": "Показывать статистику прослушиваний на моей публичной странице",
+  "authors.form.showStatsBody": "Слушатели в месяц, прослушивания и самые популярные записи, когда их достаточно, чтобы показывать честно. Выключено: посетители не видят никаких чисел. Вы всегда видите их на своей странице.",
 
   "authors.slug.checking": "Проверяем ссылку…",
   "authors.slug.available": "Ссылка свободна.",
@@ -583,6 +589,8 @@ export const authorsEs = {
   "authors.count.plays_other": "{count} reproducciones",
   "authors.count.tracks_one": "{count} pista",
   "authors.count.tracks_other": "{count} pistas",
+  "authors.count.authors_one": "{count} autor",
+  "authors.count.authors_other": "{count} autores",
 
   "authors.cta.become": "Hazte autor",
   "authors.cta.mine": "Tu página de autor",
@@ -731,8 +739,8 @@ export const authorsEs = {
   "authors.uploads.allBody": "Cada grabación que subas va a la página. Puedes ocultar algunas.",
   "authors.uploads.chosen": "Solo las que yo elija",
   "authors.uploads.chosenBody": "Nada va a la página si no lo activas.",
-  "authors.form.showStats": "Mostrar cifras a los visitantes",
-  "authors.form.showStatsBody": "Oyentes al mes y reproducciones, cuando hay suficiente escucha para mostrarlas con honestidad.",
+  "authors.form.showStats": "Mostrar mis estadísticas de escucha en mi página pública",
+  "authors.form.showStatsBody": "Oyentes al mes, reproducciones y tus grabaciones más escuchadas, cuando hay suficiente escucha para mostrarlas con honestidad. Desactivado: los visitantes no ven ninguna cifra. Tú siempre las ves en Mi página.",
 
   "authors.slug.checking": "Comprobando el enlace…",
   "authors.slug.available": "Este enlace está libre.",
