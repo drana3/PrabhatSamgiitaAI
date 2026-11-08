@@ -31,6 +31,7 @@ from sqlalchemy.orm import aliased
 
 from app.models import MemberNotice, UserAccount
 from app.schemas.song_comments import CommentAuthor, ReplyTo
+from app.services.push import queue_reply_push
 from app.services.song_comments import AUTHOR_DELETED_BY, FALLBACK_NAME, display_name
 
 # A conversation holds at most this many live replies. The next one is refused (409).
@@ -245,6 +246,7 @@ async def add_reply_notice(
         },
     )
     session.add(notice)
+    queue_reply_push(session, notice, sender_id=comment.member_id)  # sent after the commit, if on
     return notice
 
 
