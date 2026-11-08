@@ -112,8 +112,12 @@ def public_out(
     viewer_id: UUID | None,
     team: bool,
     replaced_by: UUID | str | None = None,
+    credits: dict[UUID, ChordBasedOn] | None = None,
 ) -> ChordProposalOut:
-    """What every reader gets. `author` is filled only for a NAMED proposal."""
+    """What every reader gets. `author` is filled only for a NAMED proposal.
+
+    `credits` comes from `credit_map`: the "based on" credit is worked out when the chart is shown,
+    from the original as it is NOW. Without it no credit is shown (never a stored name)."""
     mine = viewer_id is not None and proposal.member_id == viewer_id
     shown = None
     if not proposal.is_anonymous and author is not None:
@@ -136,14 +140,7 @@ def public_out(
         # the reason is the author's and the team's business only
         rejected_reason=proposal.rejected_reason if (mine or team) else None,
         can_review=team,
-        based_on=(
-            ChordBasedOn(
-                id=str(proposal.based_on_id) if proposal.based_on_id else None,
-                name=proposal.based_on_name,
-            )
-            if proposal.based_on_id or proposal.based_on_name
-            else None
-        ),
+        based_on=(credits or {}).get(proposal.id),
         # what happened to a chart is the author's business
         archived=bool(mine and proposal.archived_at is not None),
         replaced_by=str(replaced_by) if (mine and replaced_by) else None,
@@ -151,8 +148,13 @@ def public_out(
     )
 
 
-def admin_out(proposal: SongChordProposal, author: UserAccount | None) -> AdminChordProposalOut:
-    base = public_out(proposal, author, viewer_id=None, team=True)
+def admin_out(
+    proposal: SongChordProposal,
+    author: UserAccount | None,
+    *,
+    credits: dict[UUID, ChordBasedOn] | None = None,
+) -> AdminChordProposalOut:
+    base = public_out(proposal, author, viewer_id=None, team=True, credits=credits)
     return AdminChordProposalOut(
         **base.model_dump(),
         author_id=str(proposal.member_id),
@@ -206,6 +208,39 @@ async def list_mine(
         )
     ).all()
     return [(p, a) for p, a in rows]
+
+
+async def credit_map(
+    session: AsyncSession, proposals: list[SongChordProposal]
+) -> dict[UUID, ChordBasedOn]:
+    """The "based on" credit of each chart that has one, worked out from the original NOW.
+
+    The name is never a stored snapshot: it is shown only while the original exists, is (or was)
+    live, is not anonymous and its author's account is there. An anonymous original gives the
+    credit without a name; an original that was deleted gives no credit at all.
+    """
+    wanted = {p.based_on_id for p in proposals if p.based_on_id is not None}
+    if not wanted:
+        return {}
+    rows = (
+        await session.execute(
+            select(SongChordProposal, UserAccount)
+            .join(UserAccount, UserAccount.id == SongChordProposal.member_id, isouter=True)
+            .where(SongChordProposal.id.in_(wanted))
+        )
+    ).all()
+    now: dict[UUID, ChordBasedOn] = {}
+    for original, author in rows:
+        named = author is not None and not original.is_anonymous and original.status == "published"
+        now[original.id] = ChordBasedOn(
+            id=str(original.id),
+            name=display_name(author) if named else None,  # type: ignore[arg-type]
+        )
+    return {
+        p.id: now[p.based_on_id]
+        for p in proposals
+        if p.based_on_id is not None and p.based_on_id in now
+    }
 
 
 async def replaced_by_map(session: AsyncSession, ids: list[UUID]) -> dict[UUID, UUID]:
@@ -307,11 +342,12 @@ async def _replaceable(
 
 async def _credit(
     session: AsyncSession, *, member_id: UUID, payload: ChordProposalCreate
-) -> tuple[UUID | None, str | None]:
-    """The credit for "Start from this chart": the original must be another member's published chart
-    of the same song. The name is null for an anonymous original. Anything else is ignored."""
+) -> UUID | None:
+    """The chart "Start from this chart" was made from: it must be another member's published chart
+    of the same song. Anything else is ignored. Only the id is kept; the name is worked out when
+    the chart is shown (`credit_map`), so it follows the original (anonymous later, deleted...)."""
     if payload.based_on_id is None:
-        return None, None
+        return None
     original = await session.get(SongChordProposal, payload.based_on_id)
     if (
         original is None
@@ -320,11 +356,8 @@ async def _credit(
         or original.archived_at is not None
         or original.song_id != payload.song_id
     ):
-        return None, None
-    if original.is_anonymous:
-        return original.id, None
-    author = await session.get(UserAccount, original.member_id)
-    return original.id, (display_name(author) if author is not None else None)
+        return None
+    return original.id
 
 
 async def _archive_replaced(session: AsyncSession, proposal: SongChordProposal) -> None:
@@ -359,7 +392,7 @@ async def create_proposal(
         )
     ).all()
     replaced = await _replaceable(session, member_id=member.id, payload=payload)
-    based_on_id, based_on_name = await _credit(session, member_id=member.id, payload=payload)
+    based_on_id = await _credit(session, member_id=member.id, payload=payload)
     wanted = _fingerprint(chart)
     for row in live:
         if (
@@ -410,7 +443,6 @@ async def create_proposal(
         reviewed_by="team" if team else None,
         replaces_id=replaced.id if replaced is not None else None,
         based_on_id=based_on_id,
-        based_on_name=based_on_name,
     )
     session.add(proposal)
     await session.flush()
@@ -550,7 +582,7 @@ async def delete_proposal(session: AsyncSession, proposal: SongChordProposal) ->
     await session.execute(
         update(SongChordProposal)
         .where(SongChordProposal.based_on_id == proposal.id)
-        .values(based_on_id=None)
+        .values(based_on_id=None, based_on_name=None)
     )
     for report in (
         await session.scalars(

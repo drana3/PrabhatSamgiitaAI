@@ -253,10 +253,10 @@ export function createMockBackend(options: { me: () => string; team?: () => bool
       const row = find(id)
       if (row.ownerKey !== "me") throw new MockFailure("forbidden")
       rows.splice(rows.indexOf(row), 1)
-      // charts that pointed at this one lose the link and keep everything else
+      // charts that pointed at this one lose the link (and the credit) and keep everything else
       for (const r of rows) {
         if (r.replaces === id) r.replaces = null
-        if (r.basedOn?.id === id) r.basedOn = { id: null, name: r.basedOn.name }
+        if (r.basedOn?.id === id) r.basedOn = null // the server shows no credit once the original is gone
       }
     },
     async report(id) {

@@ -87,6 +87,11 @@ async def _author(session: AsyncSession, proposal: SongChordProposal) -> UserAcc
     return await session.get(UserAccount, proposal.member_id)
 
 
+async def _admin_chart(session: AsyncSession, proposal: SongChordProposal) -> AdminChordProposalOut:
+    credits = await service.credit_map(session, [proposal])
+    return service.admin_out(proposal, await _author(session, proposal), credits=credits)
+
+
 # --------------------------------------------------------------------------- reading
 
 
@@ -107,8 +112,11 @@ async def list_for_song(
         instrument=instrument,
     )
     team = bool(member) and is_team_member(member, settings)  # type: ignore[arg-type]
+    credits = await service.credit_map(session, [p for p, _ in rows])
     items = [
-        service.public_out(p, a, viewer_id=member.id if member else None, team=team)
+        service.public_out(
+            p, a, viewer_id=member.id if member else None, team=team, credits=credits
+        )
         for p, a in rows
     ]
     # The answer depends on who asks (own pending charts): never share it between viewers.
@@ -122,8 +130,16 @@ async def my_proposals(session: DatabaseSession, member: Member) -> ChordProposa
     version replaced comes with `archived: true` and `replaced_by`."""
     rows = await service.list_mine(session, member.id)
     replaced = await service.replaced_by_map(session, [p.id for p, _ in rows if p.archived_at])
+    credits = await service.credit_map(session, [p for p, _ in rows])
     items = [
-        service.public_out(p, a, viewer_id=member.id, team=False, replaced_by=replaced.get(p.id))
+        service.public_out(
+            p,
+            a,
+            viewer_id=member.id,
+            team=False,
+            replaced_by=replaced.get(p.id),
+            credits=credits,
+        )
         for p, a in rows
     ]
     return ChordProposalList(items=items, total=len(items))
@@ -148,7 +164,8 @@ async def offer_chart(
         await session.rollback()
         logger.exception("Chord chart could not be stored")
         raise HTTPException(status_code=503, detail="Storage is temporarily unavailable") from exc
-    return service.public_out(proposal, member, viewer_id=member.id, team=team)
+    credits = await service.credit_map(session, [proposal])
+    return service.public_out(proposal, member, viewer_id=member.id, team=team, credits=credits)
 
 
 @router.put("/{proposal_id}", response_model=ChordProposalOut)
@@ -172,7 +189,8 @@ async def update_own(
         await session.rollback()
         logger.exception("Chord chart could not be updated")
         raise HTTPException(status_code=503, detail="Storage is temporarily unavailable") from exc
-    return service.public_out(proposal, member, viewer_id=member.id, team=team)
+    credits = await service.credit_map(session, [proposal])
+    return service.public_out(proposal, member, viewer_id=member.id, team=team, credits=credits)
 
 
 @router.delete("/{proposal_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -248,7 +266,9 @@ async def _queue(
     session: AsyncSession, which: str, limit: int, offset: int
 ) -> AdminChordProposalList:
     rows, total = await service.admin_queue(session, which=which, limit=limit, offset=offset)
-    return AdminChordProposalList(items=[service.admin_out(p, a) for p, a in rows], total=total)
+    credits = await service.credit_map(session, [p for p, _ in rows])
+    items = [service.admin_out(p, a, credits=credits) for p, a in rows]
+    return AdminChordProposalList(items=items, total=total)
 
 
 @router.get("/review/queue", response_model=AdminChordProposalList)
@@ -268,7 +288,7 @@ async def review_approve(
 ) -> AdminChordProposalOut:
     proposal = await get_proposal(session, proposal_id)
     await service.approve(session, proposal, by=service.display_name(team))
-    return service.admin_out(proposal, await _author(session, proposal))
+    return await _admin_chart(session, proposal)
 
 
 @router.post("/review/{proposal_id}/reject", response_model=AdminChordProposalOut)
@@ -277,7 +297,7 @@ async def review_reject(
 ) -> AdminChordProposalOut:
     proposal = await get_proposal(session, proposal_id)
     await service.reject(session, proposal, reason=payload.reason, by=service.display_name(team))
-    return service.admin_out(proposal, await _author(session, proposal))
+    return await _admin_chart(session, proposal)
 
 
 @router.post("/review/{proposal_id}/restore", response_model=AdminChordProposalOut)
@@ -286,7 +306,7 @@ async def review_restore(
 ) -> AdminChordProposalOut:
     proposal = await get_proposal(session, proposal_id)
     await service.restore(session, proposal, by=service.display_name(team))
-    return service.admin_out(proposal, await _author(session, proposal))
+    return await _admin_chart(session, proposal)
 
 
 # --------------------------------------------------------------------------- admin key
@@ -310,7 +330,7 @@ async def admin_approve(
 ) -> AdminChordProposalOut:
     proposal = await get_proposal(session, proposal_id)
     await service.approve(session, proposal, by=payload.reviewer or admin)
-    return service.admin_out(proposal, await _author(session, proposal))
+    return await _admin_chart(session, proposal)
 
 
 @admin_router.post("/{proposal_id}/reject", response_model=AdminChordProposalOut)
@@ -320,7 +340,7 @@ async def admin_reject(
     """Reject (or take down) a chart. The reason is required: the author receives it in a notice."""
     proposal = await get_proposal(session, proposal_id)
     await service.reject(session, proposal, reason=payload.reason, by=payload.reviewer or admin)
-    return service.admin_out(proposal, await _author(session, proposal))
+    return await _admin_chart(session, proposal)
 
 
 @admin_router.post("/{proposal_id}/restore", response_model=AdminChordProposalOut)
@@ -329,4 +349,4 @@ async def admin_restore(
 ) -> AdminChordProposalOut:
     proposal = await get_proposal(session, proposal_id)
     await service.restore(session, proposal, by=payload.reviewer or admin)
-    return service.admin_out(proposal, await _author(session, proposal))
+    return await _admin_chart(session, proposal)

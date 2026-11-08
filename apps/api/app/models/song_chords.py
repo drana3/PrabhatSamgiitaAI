@@ -110,8 +110,9 @@ class SongChordProposal(Base, TimestampMixin):
     # Set when a newer version took this chart's place. An archived chart is invisible to everybody
     # (the song page, the live-chart cap, the duplicate check); its author still sees the fact.
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # "Start from this chart": the chart whose chords were copied (somebody else's), and the name to
-    # credit, copied at that time. The name is null when the original was anonymous.
+    # "Start from this chart": the chart whose chords were copied (somebody else's). The credit name
+    # is worked out when the chart is shown, from the original as it is then (`credit_map`);
+    # `based_on_name` is no longer written or read, it only stays so the column is not dropped.
     based_on_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         ForeignKey("song_chord_proposals.id", ondelete="SET NULL"),

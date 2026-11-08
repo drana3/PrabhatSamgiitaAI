@@ -28,7 +28,7 @@ from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import ValidationError
-from sqlalchemy import Select, Table, select, update
+from sqlalchemy import Select, Table, delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -942,14 +942,68 @@ async def test_no_credit_for_ones_own_chart_a_waiting_chart_or_another_song(worl
         assert sent["based_on"] is None
 
 
-async def test_the_credit_survives_the_original_being_deleted_without_a_link(
-    world: World,
-) -> None:
+async def _credited_copy(world: World) -> tuple[dict[str, Any], dict[str, Any]]:
     original = await _live_chart(world, "a")
     copy = (await world.offer("b", base_key="C", capo=0, based_on_id=original["id"])).json()
+    await _approve(world, copy["id"])
+    return original, copy
+
+
+async def _credit_everywhere(world: World, copy_id: str) -> list[Any]:
+    """The `based_on` of the copy as the song page, the author's list and the team queue show it."""
+    page = next(i for i in (await world.listing("a")).json()["items"] if i["id"] == copy_id)
+    own = (await _mine(world, "b"))[copy_id]
+    queue = (await world.client.get("/api/v1/admin/song-chords?filter=all")).json()["items"]
+    admin = next(i for i in queue if i["id"] == copy_id)
+    return [page["based_on"], own["based_on"], admin["based_on"]]
+
+
+async def test_the_credit_name_follows_the_original_turning_anonymous(world: World) -> None:
+    original, copy = await _credited_copy(world)
+    assert (
+        await _credit_everywhere(world, copy["id"])
+        == [{"id": original["id"], "name": "Ananda"}] * 3
+    )
+    async with world.sessions() as session:
+        await session.execute(
+            update(SongChordProposal)
+            .where(SongChordProposal.id == UUID(original["id"]))
+            .values(is_anonymous=True)
+        )
+        await session.commit()
+    shown = await _credit_everywhere(world, copy["id"])
+    assert shown == [{"id": original["id"], "name": None}] * 3
+    assert "Ananda" not in json.dumps(shown)
+
+
+async def test_no_credit_name_once_the_original_is_deleted(world: World) -> None:
+    original, copy = await _credited_copy(world)
     await _delete(world, "a", original["id"])
-    after = (await _mine(world, "b"))[copy["id"]]
-    assert after["based_on"] == {"id": None, "name": "Ananda"}
+    shown = await _credit_everywhere(world, copy["id"])
+    assert shown == [None] * 3
+    assert "Ananda" not in json.dumps(shown)
+    # the stored snapshot is gone too, not only hidden
+    stored = await world.scalar(
+        select(SongChordProposal.based_on_name).where(SongChordProposal.id == UUID(copy["id"]))
+    )
+    assert stored is None
+
+
+async def test_no_credit_name_once_the_author_of_the_original_is_gone(world: World) -> None:
+    original, copy = await _credited_copy(world)
+    async with world.sessions() as session:
+        await session.execute(delete(UserAccount).where(UserAccount.id == MEMBER_A))
+        await session.commit()
+    shown = await _credit_everywhere(world, copy["id"])
+    assert all(item is None or item["name"] is None for item in shown)
+    assert "Ananda" not in json.dumps(shown)
+
+
+async def test_no_credit_name_when_the_original_is_taken_down(world: World) -> None:
+    original, copy = await _credited_copy(world)
+    await _reject(world, original["id"])
+    shown = await _credit_everywhere(world, copy["id"])
+    assert shown == [{"id": original["id"], "name": None}] * 3
 
 
 # --------------------------------------------------------------------------- migration 0031
