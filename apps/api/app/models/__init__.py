@@ -63,6 +63,7 @@ from app.models.member import (
 from app.models.notation import Notation
 from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
 from app.models.recording_extras import (
+from app.models.piano_sheets import PianoSheet, PianoSheetReport
     RecordingChordReport,
     RecordingChordSheet,
     RecordingComment,
@@ -134,6 +135,8 @@ __all__ = [
     "RecordingCollection",
     "RecordingCollectionCover",
     "SearchMenuPin",
+    "PianoSheet",
+    "PianoSheetReport",
     "RecordingReport",
     "RecordingSimilarConfirm",
     "ReflectionQuote",

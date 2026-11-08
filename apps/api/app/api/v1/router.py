@@ -18,6 +18,7 @@ from app.api.v1.members import router as members_router
 from app.api.v1.notation import router as notation_router
 from app.api.v1.push import router as push_router
 from app.api.v1.quiz_events import router as quiz_events_router
+from app.api.v1.piano_sheets import router as piano_sheets_router
 from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.recording_chords import router as recording_chords_router
 from app.api.v1.recording_comments import router as recording_comments_router
@@ -76,3 +77,4 @@ router.include_router(top_played_router)
 router.include_router(telemetry_router)
 router.include_router(telemetry_admin_router)
 router.include_router(push_router)
+router.include_router(piano_sheets_router)
