@@ -1,7 +1,8 @@
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
-import { ActivityIndicator, FlatList, Modal, Platform, StyleSheet, Text, TextInput, View } from "react-native"
-import { Check, X } from "lucide-react-native"
+import { ActivityIndicator, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native"
+import { Check } from "lucide-react-native"
 
+import { SheetModal } from "@/components/common/SheetModal"
 import { PICKER_INSET, PickerSearch } from "@/components/learn-v2/SongPicker"
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -69,41 +70,31 @@ export function PsSongChooser({ visible, selected, onPick, onClose }: { visible:
     )
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} transparent={false}>
-      <View style={[s.root, { backgroundColor: p.sand200 }]}>
-        <View style={s.header}>
-          <Text accessibilityRole="header" style={[s.heading, { color: p.ink800 }]} numberOfLines={2}>
-            {t("rec.song.chooserTitle")}
-          </Text>
-          <PressBox accessibilityRole="button" accessibilityLabel={t("ugc.add.close")} onPress={onClose} pressedScale={0.9} style={[s.close, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-            <X size={20} color={p.ink800} strokeWidth={2} />
-          </PressBox>
-        </View>
-        <View style={s.searchRow}>
-          <PickerSearch p={p} value={query} onChangeText={setQuery} inputRef={inputRef} />
-        </View>
-        <Text style={[s.count, { color: p.ink500 }]} accessibilityLiveRegion="polite">
-          {index.status === "ready" ? t("songs.count", { count: results.length }) : " "}
-        </Text>
-        <FlatList
-          data={results}
-          extraData={selected}
-          keyExtractor={(entry) => String(entry.number)}
-          renderItem={renderItem}
-          getItemLayout={(_data, i) => ({ length: PICKER_ROW_HEIGHT, offset: PICKER_ROW_HEIGHT * i, index: i })}
-          ListEmptyComponent={empty}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-          initialNumToRender={14}
-          maxToRenderPerBatch={14}
-          updateCellsBatchingPeriod={40}
-          windowSize={9}
-          removeClippedSubviews={Platform.OS === "android"}
-          style={s.list}
-        />
+    <SheetModal visible={visible} title={t("rec.song.chooserTitle")} closeLabel={t("ugc.add.close")} onClose={onClose}>
+      <View style={s.searchRow}>
+        <PickerSearch p={p} value={query} onChangeText={setQuery} inputRef={inputRef} />
       </View>
-    </Modal>
+      <Text style={[s.count, { color: p.ink500 }]} accessibilityLiveRegion="polite">
+        {index.status === "ready" ? t("songs.count", { count: results.length }) : " "}
+      </Text>
+      <FlatList
+        data={results}
+        extraData={selected}
+        keyExtractor={(entry) => String(entry.number)}
+        renderItem={renderItem}
+        getItemLayout={(_data, i) => ({ length: PICKER_ROW_HEIGHT, offset: PICKER_ROW_HEIGHT * i, index: i })}
+        ListEmptyComponent={empty}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={14}
+        maxToRenderPerBatch={14}
+        updateCellsBatchingPeriod={40}
+        windowSize={9}
+        removeClippedSubviews={Platform.OS === "android"}
+        style={s.list}
+      />
+    </SheetModal>
   )
 }
 
@@ -136,10 +127,6 @@ const SongRow = memo(function SongRow({ p, entry, chosen, onChoose }: { p: AmPro
 })
 
 const s = StyleSheet.create({
-  root: { flex: 1 },
-  header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: PICKER_INSET, paddingTop: 8 },
-  heading: { flex: 1, minWidth: 0, fontFamily: amFonts.display, fontSize: 26, lineHeight: 28, letterSpacing: -0.5, textTransform: "uppercase" },
-  close: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   searchRow: { height: 56, paddingHorizontal: PICKER_INSET, flexDirection: "row" },
   count: { paddingHorizontal: PICKER_INSET, height: 32, lineHeight: 32, fontFamily: amFonts.semi, fontSize: 13, fontVariant: ["tabular-nums"] },
   list: { flex: 1 },

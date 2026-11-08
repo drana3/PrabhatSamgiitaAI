@@ -27,6 +27,7 @@ import { Reveal } from "@/components/today/motion"
 import { amGap } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useSheetTop } from "@/hooks/useScreenTop"
 import { useAiConsentGate } from "@/hooks/useAiConsentGate"
 import { useAssistantChat } from "@/hooks/useAssistantChat"
 import { languagePillLabel } from "@/lib/assistantLanguage"
@@ -55,6 +56,8 @@ export default function AssistantScreen() {
   const t = useT()
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  // the assistant is a sheet on iOS: its top comes from the one rule (lib/screenTop.ts)
+  const sheetTop = useSheetTop()
   const theme = useAmTheme()
   const params = useLocalSearchParams<{ song?: string; q?: string }>()
   const chat = useAssistantChat({ songParam: songParam(params.song) })
@@ -157,7 +160,7 @@ export default function AssistantScreen() {
     : t("assistant.scope.all")
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.page, paddingTop: insets.top }]}>
+    <View style={[styles.root, { backgroundColor: theme.page, paddingTop: sheetTop }]}>
       <Stack.Screen
         options={{
           presentation: Platform.OS === "ios" ? "modal" : "card",

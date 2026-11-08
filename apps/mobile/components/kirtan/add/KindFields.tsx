@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { FlatList, Modal, Platform, StyleSheet, Text, TextInput, View } from "react-native"
-import { Check, X } from "lucide-react-native"
+import { FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native"
+import { Check } from "lucide-react-native"
 
+import { SheetModal } from "@/components/common/SheetModal"
 import { PICKER_INSET, PickerSearch } from "@/components/learn-v2/SongPicker"
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { KPress } from "@/components/kirtan/KPress"
@@ -166,75 +167,65 @@ export function LanguagePicker({ visible, value, allowClear, title, onPick, onCl
   )
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} transparent={false}>
-      <View style={[styles.root, { backgroundColor: p.sand200 }]}>
-        <View style={styles.header}>
-          <Text accessibilityRole="header" style={[styles.heading, { color: p.ink800 }]} numberOfLines={2}>
-            {naming ? t("rec.lang.otherLabel") : (title ?? t("rec.lang.title"))}
-          </Text>
-          <PressBox accessibilityRole="button" accessibilityLabel={t("ugc.add.close")} onPress={onClose} pressedScale={0.9} style={[styles.close, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-            <X size={20} color={p.ink800} strokeWidth={2} />
+    <SheetModal visible={visible} title={naming ? t("rec.lang.otherLabel") : (title ?? t("rec.lang.title"))} closeLabel={t("ugc.add.close")} onClose={onClose}>
+      {naming ? (
+        <View style={styles.nameBody}>
+          <View style={[styles.nameBox, { backgroundColor: p.white, borderColor: p.sand300 }]}>
+            <TextInput
+              value={otherName}
+              onChangeText={setOtherName}
+              autoFocus
+              maxLength={LANGUAGE_OTHER_MAX}
+              placeholder={t("rec.lang.otherPlaceholder")}
+              placeholderTextColor={p.ink500}
+              accessibilityLabel={t("rec.lang.otherLabel")}
+              returnKeyType="done"
+              onSubmitEditing={() => otherClean && onPick({ language: OTHER_LANGUAGE, languageOther: otherClean })}
+              style={[styles.nameInput, { color: p.ink800 }]}
+            />
+          </View>
+          <Text style={[styles.count, { color: p.ink500, paddingHorizontal: 0 }]}>{t("rec.lang.otherHint", { max: LANGUAGE_OTHER_MAX })}</Text>
+          <KPress
+            accessibilityRole="button"
+            accessibilityLabel={t("ugc.add.change")}
+            accessibilityState={{ disabled: !otherClean }}
+            onPress={() => otherClean && onPick({ language: OTHER_LANGUAGE, languageOther: otherClean })}
+            pressedScale={0.98}
+            style={[styles.done, { backgroundColor: amColors.orange700, opacity: otherClean ? 1 : 0.4 }]}
+          >
+            <Text style={styles.doneText}>{t("common.done")}</Text>
+          </KPress>
+          <PressBox accessibilityRole="button" accessibilityLabel={t("rec.lang.title")} onPress={() => setNaming(false)} pressedScale={0.97} style={styles.back}>
+            <Text style={[styles.rowText, { color: p.orange700 }]}>{t("rec.lang.title")}</Text>
           </PressBox>
         </View>
-        {naming ? (
-          <View style={styles.nameBody}>
-            <View style={[styles.nameBox, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-              <TextInput
-                value={otherName}
-                onChangeText={setOtherName}
-                autoFocus
-                maxLength={LANGUAGE_OTHER_MAX}
-                placeholder={t("rec.lang.otherPlaceholder")}
-                placeholderTextColor={p.ink500}
-                accessibilityLabel={t("rec.lang.otherLabel")}
-                returnKeyType="done"
-                onSubmitEditing={() => otherClean && onPick({ language: OTHER_LANGUAGE, languageOther: otherClean })}
-                style={[styles.nameInput, { color: p.ink800 }]}
-              />
-            </View>
-            <Text style={[styles.count, { color: p.ink500, paddingHorizontal: 0 }]}>{t("rec.lang.otherHint", { max: LANGUAGE_OTHER_MAX })}</Text>
-            <KPress
-              accessibilityRole="button"
-              accessibilityLabel={t("ugc.add.change")}
-              accessibilityState={{ disabled: !otherClean }}
-              onPress={() => otherClean && onPick({ language: OTHER_LANGUAGE, languageOther: otherClean })}
-              pressedScale={0.98}
-              style={[styles.done, { backgroundColor: amColors.orange700, opacity: otherClean ? 1 : 0.4 }]}
-            >
-              <Text style={styles.doneText}>{t("common.done")}</Text>
-            </KPress>
-            <PressBox accessibilityRole="button" accessibilityLabel={t("rec.lang.title")} onPress={() => setNaming(false)} pressedScale={0.97} style={styles.back}>
-              <Text style={[styles.rowText, { color: p.orange700 }]}>{t("rec.lang.title")}</Text>
-            </PressBox>
+      ) : (
+        <>
+          <View style={styles.searchRow}>
+            <PickerSearch p={p} value={query} onChangeText={setQuery} inputRef={searchRef} />
           </View>
-        ) : (
-          <>
-            <View style={styles.searchRow}>
-              <PickerSearch p={p} value={query} onChangeText={setQuery} inputRef={searchRef} />
-            </View>
-            <FlatList
-              data={results}
-              extraData={value.language}
-              keyExtractor={(choice) => choice.code}
-              renderItem={renderItem}
-              ListHeaderComponent={query ? null : header}
-              ListFooterComponent={footer}
-              ListEmptyComponent={
-                <View style={styles.state}>
-                  <Text style={[styles.stateText, { color: p.ink500 }]}>{t("rec.lang.noMatch", { query: query.trim() })}</Text>
-                </View>
-              }
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-              showsVerticalScrollIndicator={false}
-              initialNumToRender={16}
-              removeClippedSubviews={Platform.OS === "android"}
-              style={styles.list}
-            />
-          </>
-        )}
-      </View>
-    </Modal>
+          <FlatList
+            data={results}
+            extraData={value.language}
+            keyExtractor={(choice) => choice.code}
+            renderItem={renderItem}
+            ListHeaderComponent={query ? null : header}
+            ListFooterComponent={footer}
+            ListEmptyComponent={
+              <View style={styles.state}>
+                <Text style={[styles.stateText, { color: p.ink500 }]}>{t("rec.lang.noMatch", { query: query.trim() })}</Text>
+              </View>
+            }
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={16}
+            removeClippedSubviews={Platform.OS === "android"}
+            style={styles.list}
+          />
+        </>
+      )}
+    </SheetModal>
   )
 }
 
@@ -273,10 +264,6 @@ const styles = StyleSheet.create({
   chip: { minHeight: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   chipLarge: { minHeight: 56, borderRadius: 24 },
   chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
-  root: { flex: 1 },
-  header: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: PICKER_INSET, paddingTop: 8 },
-  heading: { flex: 1, minWidth: 0, fontFamily: amFonts.display, fontSize: 26, lineHeight: 28, letterSpacing: -0.5, textTransform: "uppercase" },
-  close: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   searchRow: { height: 56, paddingHorizontal: PICKER_INSET, flexDirection: "row", marginBottom: 8 },
   count: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   list: { flex: 1 },

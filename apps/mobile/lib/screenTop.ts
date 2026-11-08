@@ -43,6 +43,18 @@ export function sheetTopInset(insetTop: number, platform: string): number {
   return platform === "web" ? (insetTop > 0 ? insetTop : min) : Math.max(insetTop, min)
 }
 
+/** Minimum height of the title row of a full-screen picker sheet (components/common/SheetModal). */
+export const MODAL_HEADER_MIN_HEIGHT = 64
+
+/**
+ * Top padding of the title row of a sheet drawn by a React Native <Modal> (the pickers of the upload forms). The
+ * title and the close button always start below the status bar and the Dynamic Island, whichever way iOS presents the
+ * sheet. Same number as a sheet route's top (sheetTopInset), named for what it is used for.
+ */
+export function modalHeaderTop(insetTop: number, platform: string): number {
+  return sheetTopInset(insetTop, platform)
+}
+
 /** Height of the top row of a sheet: its padding, the close button and the gap. Content starts below it. */
 export function sheetBarHeight(top: number): number {
   return top + SHEET_CLOSE_SIZE + SHEET_BAR_GAP

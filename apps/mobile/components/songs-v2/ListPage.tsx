@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
-import { Platform, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
+import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
 import { useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useScreenTop } from "@/hooks/useScreenTop"
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 
 import {
@@ -69,9 +69,8 @@ export function SongsListPage({
   const router = useRouter()
   const theme = useSongsTheme()
   const sp = useSpTheme()
-  const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
-  const inset = Platform.OS === "web" ? 54 : insets.top
+  const inset = useScreenTop()
   const openedAt = useRevealClock()
   const bottomInset = useScrollBottomInset()
   const list = useSongsV2ListPage({ listId, listName: title, entries })

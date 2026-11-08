@@ -1,0 +1,69 @@
+# Layout rules: the top of a screen, and the space between blocks
+
+Two rules that were broken by hand more than once, so they are now one piece of code each and a test that fails when a
+screen goes around it. The code is in `apps/mobile/lib/screenTop.ts`, `apps/mobile/lib/layout.ts` and the components in
+`apps/mobile/components/common/` (`SheetModal.tsx`, `SheetTopBar.tsx`, `Layout.tsx`). The tests are
+`apps/mobile/__tests__/layoutRules.test.ts` (guards) and `safeAreaTop.test.ts` (the safe area with an iPhone's numbers).
+
+## Safe area
+
+The status bar, the camera cut-out and the Dynamic Island take the top of the display (59 dp on an iPhone 15 Pro,
+47 to 54 on older ones). Nothing the person has to read or press may sit there: not a title, not a close button.
+
+What went wrong. The song chooser ("Which song") and the language list of the upload forms are React Native `<Modal>`
+sheets. Their header was written by hand with `paddingTop: 8`, so on an iPhone with a Dynamic Island the title sat under
+the island and the close button under the battery. The route sheets (Upload, Add recording) had been fixed one by one
+earlier; the pickers were missed because there was no single place to fix.
+
+The rule, by kind of screen:
+
+| Screen | How its top is made |
+| --- | --- |
+| A page (pushed card, a tab) | `useScreenTop()`: the reported inset, else 54. |
+| A sheet that is a route (`presentation: "modal"`, "formSheet", "fullScreenModal": Upload, Add recording, Sign in, Content rules) | `<SheetTopBar>` (grabber and close button in a row of their own, below the island) or `useSheetTop()` for its own header. |
+| A sheet drawn with React Native's `<Modal>` that fills the screen (song chooser, language list, year list) | `<SheetModal>` (`components/common/SheetModal.tsx`). It measures the safe area inside the Modal (`ModalSafeArea`) and puts the title row below it (`ModalHeader`). Never `<Modal presentationStyle="pageSheet">` by hand. |
+| A bottom sheet or a dialog (`<Modal transparent>`, `transparentModal` routes) | It does not reach the top, so it needs no top padding. It must keep its own height below `windowHeight - top`. |
+
+The numbers come from one function, `sheetTopInset` / `screenTopInset` in `lib/screenTop.ts`: the real inset always wins,
+a fixed number is only the fallback where nothing is reported. Writing `Platform.OS === "web" ? 54 : insets.top` in a
+screen is wrong: in the browser preview the phone frame supplies 59.
+
+How it is checked. The guard test fails if (1) a non-transparent `<Modal>` appears outside `SheetModal`, (2) a route with
+a modal presentation does not use the shared top, (3) a screen hard-codes the browser top. The numbers are tested with
+an iPhone's inset (top 59) and a mocked `useSafeAreaInsets`. The web preview cannot show this (its insets are 0 unless
+the frame is on), so the check on a real device or the Simulator still has to be done by a person.
+
+Adding a screen: pick its row in the table; if it is a full-screen picker use `SheetModal`; if it is a route sheet put
+`<SheetTopBar>` first. Do not write a top padding.
+
+## Space between blocks
+
+What went wrong. Pages carried their own numbers. On the Kiirtan artist page "All recordings" sat close under the last
+song (a heading with its own padding), on the author page the Play button ran into the Demo tag when the author had no
+bio (the gap belonged to the bio, so no bio, no gap), the Shuffle and Share buttons and the cards below them were 10 to
+16 apart while the headings were 30 away.
+
+The rule:
+
+1. Every vertical gap between blocks is on the scale 4, 8, 12, 16, 24, 32, 48, 64, 96, 128 (`amSpace`, the design
+   system's 4 px grid). No 10, 14, 18, 20, 30.
+2. A heading and its block are one component, `<Section title>`. The air above the heading is always 32
+   (`SECTION_TOP`), the air under it 12 (`SECTION_GAP`). A section with no content still leaves the gap under the
+   heading, so a list that follows starts the same distance below it. `size="page"` is the 28 dp heading of the Kiirtan
+   pages, the default is the 22 dp shelf heading. `bleed` lets a row that scrolls sideways run edge to edge.
+3. Blocks that follow each other (buttons, cards, a header's groups) are in a `<BlockStack gap>`: the gap belongs to the
+   stack, not to a child, so a child that is missing (no bio, no Demo tag) cannot take its gap with it.
+4. Between two blocks the gap is never smaller than 8 (`MIN_BLOCK_GAP`). Lines of one text block may be 4 apart.
+5. The side padding of the author and library pages is 20 (`SCREEN_SIDE`).
+
+Screens already on it: the public author page (`AuthorShowcase`, `app/author/[slug].tsx`), "Your author page"
+(`my-author.tsx`, `ClaimsCard`), the Kiirtan artist page (`kirtan-artist.tsx`). The guard test lists them
+(`SPACING_FILES`); a page joins the list when it is converted.
+
+How it is checked. For the listed files the test fails if a vertical spacing value (`paddingTop`, `marginTop`,
+`paddingBottom`, `marginBottom`, `paddingVertical`, `marginVertical`, `gap`, `rowGap`) is not on the scale, if a
+`<BlockStack gap>` or `<Section top>` is off the scale or under 8, if the file does not use `Section`, or if it brings
+back the old `SectionTitle` heading.
+
+Adding a page: build it from `Section` and `BlockStack`, add the file to `SPACING_FILES`, and look at it at 390 px: no two
+blocks may touch.

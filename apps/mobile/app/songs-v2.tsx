@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, Platform, StyleSheet, Text, View } from "react-native"
+import { Alert, StyleSheet, Text, View } from "react-native"
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useScreenTop } from "@/hooks/useScreenTop"
 
 import { FilterSheet, RowMenuSheet, SortSheet } from "@/components/songs-v2/CatalogSheets"
 import { CollectionsShelf } from "@/components/songs-v2/CollectionsShelf"
@@ -51,9 +51,8 @@ function PsSongs() {
   const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
-  const insets = useSafeAreaInsets()
   // The phone-frame preview on the web draws the 54px status area of the board.
-  const inset = Platform.OS === "web" ? 54 : insets.top
+  const inset = useScreenTop()
   const params = useLocalSearchParams<{ chip?: string; segment?: string }>()
   const [chipId, setChipId] = useState<SongChipId>(parseSongChip(params.chip ?? params.segment))
 
