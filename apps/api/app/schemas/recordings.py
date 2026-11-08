@@ -19,9 +19,14 @@ from app.services.recording_info import (
     clean_info,
     has_non_latin_letters,
     info_problem,
+    keeps_by_author,
     normalize_performance,
     normalize_recording_type,
     normalize_tempo,
+)
+from app.services.recording_instruments import (
+    keeps_instrument,
+    normalize_instrument,
 )
 from app.services.recording_languages import (
     OTHER,
@@ -30,6 +35,7 @@ from app.services.recording_languages import (
 )
 from app.services.recording_practice import normalize_practice
 from app.services.recording_styles import clean_style_other, normalize_style
+from app.services.value_suggestions import INSTRUMENT, STYLE, clean_word, listed_code
 
 # The category of a recording. "kiirtan" is Baba Nam Kevalam (the only mantra of the library),
 # "prabhat_samgiita" is a performance of one Prabhat Samgiita song (`ps_song_number`),
@@ -108,6 +114,17 @@ class UploadTargetResponse(BaseModel):
     max_bytes: int
 
 
+def _custom_word(field: str, text: str | None, empty_message: str | None) -> tuple[str, str | None]:
+    """("other", word) for a new word, or (code, None) when the word is a listed value."""
+    if not (text or "").strip():
+        if empty_message is None:
+            return OTHER, None  # the style rule above already asks for the name
+        raise ValueError(empty_message)
+    word = clean_word(text)
+    code = listed_code(field, word)
+    return (code, None) if code else (OTHER, word)
+
+
 class RecordingCreate(BaseModel):
     key: str = Field(min_length=10, max_length=300)
     kind: Kind = "kiirtan"
@@ -128,7 +145,8 @@ class RecordingCreate(BaseModel):
     language_other: str | None = Field(default=None, max_length=200)
     # Required for a dance music (one of DANCES), refused for every other category.
     dance: str | None = Field(default=None, max_length=16)
-    # Optional, Kiirtan only: how it is sung (STYLES or "other" + `style_other`). Dropped for the others.
+    # REQUIRED for a Kiirtan: how it is sung (STYLES, or "other" + `style_other`). Dropped for the
+    # others.
     style: str | None = Field(default=None, max_length=16)
     style_other: str | None = Field(default=None, max_length=200)
     # Optional, Kiirtan only: "avarta" marks an Avarta Kiirtan (the special practice, sung facing
@@ -141,6 +159,11 @@ class RecordingCreate(BaseModel):
     # Optional: slow / medium / fast (Kiirtan, dance music); solo / group (Kiirtan, Bhajan).
     tempo: str | None = Field(default=None, max_length=8)
     performance: str | None = Field(default=None, max_length=8)
+    # The main (lead) instrument: a code of services/recording_instruments.py, or "other" with its
+    # name (`lead_instrument_other`, 2 to 40 characters; it goes to the team's suggestion queue).
+    # Optional; dropped for Baba's Audio Discourses.
+    lead_instrument: str | None = Field(default=None, max_length=32)
+    lead_instrument_other: str | None = Field(default=None, max_length=200)
     # Optional details ("More details" in the app).
     credits: str | None = Field(default=None, max_length=300)
     year: int | None = Field(default=None, ge=FIRST_YEAR)
@@ -202,6 +225,13 @@ class RecordingCreate(BaseModel):
             return normalize_performance(value)
         raise ValueError("Choose solo or group from the list.")
 
+    @field_validator("lead_instrument", mode="before")
+    @classmethod
+    def _lead_instrument_is_a_known_code(cls, value: object) -> str | None:
+        if value is None or isinstance(value, str):
+            return normalize_instrument(value)
+        raise ValueError("Choose the main instrument from the list.")
+
     @field_validator("dance", mode="before")
     @classmethod
     def _dance_in_lower_case(cls, value: object) -> object:
@@ -253,12 +283,27 @@ class RecordingCreate(BaseModel):
             self.recording_type, self.tempo, self.performance = clean_info(
                 self.kind, self.recording_type, self.tempo, self.performance
             )
-            problem = info_problem(self.kind, self.recording_type)
+            problem = info_problem(self.kind, self.recording_type, self.performance)
             if problem:
                 raise ValueError(problem)
+        # "I composed it myself": not for Prabhat Samgiita (one author) or Baba's discourses.
+        if not kind_unsaid:
+            self.by_author = keeps_by_author(self.kind, self.by_author)
         if self.kind not in KINDS_WITH_DISCOURSE and not kind_unsaid:
             self.place = None
             self.discourse = None
+        # The main instrument: a listed code, or "other" with a name of 2 to 40 characters. A name
+        # that IS a listed instrument ("Piano") becomes its code; the queue never sees it.
+        if not kind_unsaid and not keeps_instrument(self.kind):
+            self.lead_instrument = None
+        if self.lead_instrument == OTHER:
+            self.lead_instrument, self.lead_instrument_other = _custom_word(
+                INSTRUMENT, self.lead_instrument_other, "Write the name of the instrument."
+            )
+        else:
+            self.lead_instrument_other = None
+        if self.style == OTHER:
+            self.style, self.style_other = _custom_word(STYLE, self.style_other, None)
         # The performer is named by every single upload except an audio discourse of Baba.
         if self.collection_id is None and self.kind != "baba_audio" and not self.author.strip():
             raise ValueError("Add who performs it.")
@@ -371,6 +416,11 @@ class RecordingOut(BaseModel):
     recording_type: str | None = None
     tempo: str | None = None
     performance: str | None = None
+    # The main (lead) instrument: a listed code, or "other" (then the word, which only its author
+    # sees until the team accepts it; `lead_instrument_checked` says it was accepted).
+    lead_instrument: str | None = None
+    lead_instrument_other: str | None = None
+    lead_instrument_checked: bool = False
     # How loud the file is, measured on the server (integrated loudness in LUFS, true peak in
     # dBTP); the phone levels playback with them. Null until measured.
     loudness_lufs: float | None = Field(default=None, ge=-70.0, le=0.0)

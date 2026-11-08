@@ -49,6 +49,7 @@ def _body(**extra: object) -> dict[str, object]:
         "key": "recordings-some-member-file.mp3",
         "kind": "kiirtan",
         "recording_type": "studio",
+        "performance": "solo",
         "title": "Baba Nam Kevalam",
         "author": "Sample group",
         "by_author": True,

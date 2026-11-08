@@ -42,6 +42,8 @@ from app.models.recordings import (
     Recording,
     RecordingReport,
     RecordingSimilarConfirm,
+    ValueSuggestion,
+    ValueSuggestionUse,
 )
 from app.services import recording_fingerprint as fingerprints
 from app.services import recordings as service
@@ -351,6 +353,7 @@ class World:
             "kind": "kiirtan",
             "style": "bengali",
             "recording_type": "studio",
+            "performance": "solo",
             # A new number each time: the fake fpcalc gives every file the same length, so two
             # recordings with one title would (rightly) be offered to each other as a match.
             "title": f"Baba Nam Kevalam {next(TITLE_NUMBER)}",
@@ -371,6 +374,10 @@ class World:
     async def scalar(self, statement: Select[Any]) -> Any:
         async with self.sessions() as session:
             return await session.scalar(statement)
+
+    async def sessions_scalars(self, statement: Select[Any]) -> list[Any]:
+        async with self.sessions() as session:
+            return list((await session.scalars(statement)).all())
 
 
 def mp3(seed: int = 0, extra: bytes = b"") -> bytes:
@@ -412,6 +419,8 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
             RecordingSimilarConfirm,
             AuthorBlock,
             MemberNotice,
+            ValueSuggestion,
+            ValueSuggestionUse,
         )
     ]
     async with engine.begin() as conn:

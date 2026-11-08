@@ -12,10 +12,13 @@ See docs/kiirtan-recording-info.md.
 * `recording_type` (how it was recorded): `studio`, `live` (at a programme or a concert), `home`
   (at home, on a phone or a voice recorder) or `ai` (made by an AI tool). REQUIRED for a Kiirtan,
   optional for dance music, a Bhajan and a spiritual song. An AI recording is never hidden: the
-  value is stored, sent with the recording and shown to the listener. It is not accepted for a
-  Bhajan (a song to God, which the team does not take from an AI tool).
+  value is stored, sent with the recording and shown to the listener. Every kind that carries the
+  field accepts `ai`, a Bhajan too (Dada, 8 Nov 2026: the earlier ban on an AI Bhajan is gone).
 * `tempo`: `slow`, `medium`, `fast`. Optional, Kiirtan and dance music.
-* `performance`: `solo` or `group` (a group or a choir). Optional, Kiirtan and Bhajan.
+* `performance`: `solo` or `group` (a group or a choir). REQUIRED for a Kiirtan, optional for a
+  Bhajan.
+* `by_author` ("I composed this melody or song myself"): every kind except Prabhat Samgiita (it has
+  one author) and Baba's Audio Discourses. A kind that does not carry it drops it silently.
 
 A kind that does not carry a field drops it silently, the way a style does.
 """
@@ -35,9 +38,12 @@ PERFORMANCES: tuple[str, ...] = ("solo", "group")
 # Which categories carry which field. Names are the API's category ids (models/recordings.py).
 KINDS_WITH_RECORDING_TYPE: tuple[str, ...] = ("kiirtan", "dance_song", "bhajan", "spiritual_song")
 KINDS_NEEDING_RECORDING_TYPE: tuple[str, ...] = ("kiirtan",)
-KINDS_WITH_AI: tuple[str, ...] = ("kiirtan", "dance_song", "spiritual_song")
+KINDS_WITH_AI: tuple[str, ...] = KINDS_WITH_RECORDING_TYPE
 KINDS_WITH_TEMPO: tuple[str, ...] = ("kiirtan", "dance_song")
 KINDS_WITH_PERFORMANCE: tuple[str, ...] = ("kiirtan", "bhajan")
+KINDS_NEEDING_PERFORMANCE: tuple[str, ...] = ("kiirtan",)
+# "I composed this melody or song myself": not for Prabhat Samgiita (one author) or Baba's talks.
+KINDS_WITHOUT_BY_AUTHOR: tuple[str, ...] = ("prabhat_samgiita", "baba_audio")
 
 
 def _one_of(value: str | None, allowed: tuple[str, ...], message: str) -> str | None:
@@ -64,13 +70,22 @@ def normalize_performance(value: str | None) -> str | None:
     return _one_of(value, PERFORMANCES, "Choose solo or group from the list.")
 
 
-def info_problem(kind: str, recording_type: str | None) -> str | None:
+def info_problem(
+    kind: str, recording_type: str | None, performance: str | None = None
+) -> str | None:
     """What is missing or wrong for the category, as one sentence; None when fine."""
     if kind in KINDS_NEEDING_RECORDING_TYPE and not recording_type:
         return "Say how this Kiirtan was recorded."
     if recording_type == AI and kind in KINDS_WITH_RECORDING_TYPE and kind not in KINDS_WITH_AI:
         return "A recording made by AI is not accepted in this category."
+    if kind in KINDS_NEEDING_PERFORMANCE and not performance:
+        return "Say whether this Kiirtan is a solo or a group."
     return None
+
+
+def keeps_by_author(kind: str, by_author: bool) -> bool:
+    """The "I composed it myself" tick as this kind keeps it (never for Prabhat Samgiita)."""
+    return bool(by_author) and kind not in KINDS_WITHOUT_BY_AUTHOR
 
 
 def clean_info(

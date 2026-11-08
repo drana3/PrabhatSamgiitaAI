@@ -52,6 +52,7 @@ from app.schemas.recordings import (
     RecordingOut,
 )
 from app.services import recording_matches as matches
+from app.services import value_suggestions as words
 from app.services.admin_members import normalize_member_email, owner_admin_emails
 from app.services.invisible_text import strip_invisible
 from app.services.recording_fingerprint import (
@@ -62,7 +63,8 @@ from app.services.recording_fingerprint import (
     similar_matches,
     similarity,
 )
-from app.services.recording_info import clean_info
+from app.services.recording_info import clean_info, keeps_by_author
+from app.services.recording_instruments import keeps_instrument
 from app.services.recording_languages import OTHER
 from app.services.recording_loudness import Loudness, measure_loudness
 from app.services.recording_storage import (
@@ -202,6 +204,12 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         recording_type=recording.recording_type,
         tempo=recording.tempo,
         performance=recording.performance,
+        lead_instrument=recording.lead_instrument,
+        # the word an author wrote under "Add your own": theirs at once, everyone's once accepted
+        lead_instrument_other=(
+            recording.lead_instrument_other if owner or recording.lead_instrument_checked else None
+        ),
+        lead_instrument_checked=recording.lead_instrument_checked,
         loudness_lufs=recording.loudness_lufs,
         true_peak_db=recording.true_peak_db,
         collection_id=str(recording.collection_id) if recording.collection_id else None,
@@ -570,6 +578,47 @@ async def inspect_stored_file(
         )
 
 
+async def _custom_values(
+    session: AsyncSession, member_id: UUID, payload: RecordingCreate, *, team: bool
+) -> tuple[str | None, str | None, str | None, str | None, list[words.Resolved]]:
+    """The style and main instrument as they will be stored, and the words for the team's queue.
+
+    A word the team merged is swapped for its listed value; a word they rejected is refused (422);
+    a NEW word counts against the three a week (429). Nothing is written here.
+    """
+    style, style_other = payload.style, payload.style_other
+    lead, lead_other = payload.lead_instrument, payload.lead_instrument_other
+    custom: list[words.Resolved] = []
+    asked = []
+    if payload.kind == "kiirtan" and style == OTHER:
+        asked.append((words.STYLE, style_other))
+    if keeps_instrument(payload.kind) and lead == OTHER:
+        asked.append((words.INSTRUMENT, lead_other))
+    fresh = 0
+    for field, text in asked:
+        try:
+            resolved = await words.resolve_word(session, field, text)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        words.refuse_rejected(resolved)
+        if resolved.kind in ("listed", "merged"):
+            if field == words.STYLE:
+                style, style_other = resolved.code, None
+            else:
+                lead, lead_other = resolved.code, None
+            continue
+        if resolved.kind == "new":
+            fresh += 1
+        # the word as the queue spells it ("dilruba" is stored as the first "Dilruba")
+        if field == words.STYLE:
+            style_other = resolved.label
+        else:
+            lead_other = resolved.label
+        custom.append(resolved)
+    await words.ensure_allowance(session, member_id, fresh, team=team)
+    return style, style_other, lead, lead_other, custom
+
+
 async def create_recording(
     session: AsyncSession,
     *,
@@ -619,6 +668,12 @@ async def create_recording(
         payload = sets.with_set_defaults(payload, collection)
     else:
         await ensure_daily_allowance(session, member_id, settings, team=team)
+
+    # A word written under "Add your own" (a style, a main instrument): looked up and counted
+    # before the file is touched, so a refused word leaves the upload exactly as it was.
+    style, style_other, lead, lead_other, custom = await _custom_values(
+        session, member_id, payload, team=team
+    )
 
     info = await inspect_stored_file(storage, payload.key, settings)
     existing = await exact_duplicate(session, info.sha256)
@@ -684,7 +739,7 @@ async def create_recording(
         author=performer,
         added_by=member_name,
         author_id=member_id,
-        by_author=payload.by_author and payload.kind != "baba_audio",
+        by_author=keeps_by_author(payload.kind, payload.by_author),
         status="published",
         duration_sec=payload.duration_sec or info.duration_sec,
         audio_key=payload.key,
@@ -703,12 +758,14 @@ async def create_recording(
         year=payload.year,
         language=payload.language,  # None for a Kiirtan (the schema drops it)
         language_other=payload.language_other,
-        style=payload.style if payload.kind == "kiirtan" else None,
-        style_other=payload.style_other if payload.kind == "kiirtan" else None,
+        style=style if payload.kind == "kiirtan" else None,
+        style_other=style_other if payload.kind == "kiirtan" else None,
         practice=payload.practice if payload.kind == "kiirtan" else None,
         recording_type=kept[0],
         tempo=kept[1],
         performance=kept[2],
+        lead_instrument=lead if keeps_instrument(payload.kind) else None,
+        lead_instrument_other=lead_other if keeps_instrument(payload.kind) else None,
         dance=payload.dance if payload.kind in KINDS_WITH_DANCE else None,
         place=clean_line(payload.place, 200) if payload.kind in KINDS_WITH_DISCOURSE else None,
         discourse=(
@@ -721,8 +778,17 @@ async def create_recording(
         notes=clean_text(payload.notes, 500) or None,
         ps_song_number=payload.ps_song_number if payload.kind == "prabhat_samgiita" else None,
     )
+    # A word the team accepted earlier is already public.
+    recording.lead_instrument_checked = any(
+        r.kind == "accepted" and r.field == words.INSTRUMENT for r in custom
+    )
     session.add(recording)
     try:
+        await session.flush()
+        for resolved in custom:
+            await words.register_use(
+                session, resolved, member_id=member_id, recording_id=recording.id
+            )
         await session.commit()
     except IntegrityError:
         # Two uploads of the same bytes at the same moment: the unique index let the other one win.

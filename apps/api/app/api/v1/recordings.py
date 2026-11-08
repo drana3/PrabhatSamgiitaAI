@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1 import value_suggestions
 from app.config import Settings, get_settings
 from app.core.db import get_session
 from app.core.security import require_admin
@@ -68,6 +69,9 @@ from app.services.recording_storage import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/recordings", tags=["recordings"])
+# The team's queue of words authors added ("Add your own"): included first, so `/value-options`
+# is not read as a recording id.
+router.include_router(value_suggestions.router)
 admin_router = APIRouter(prefix="/admin/recordings", tags=["admin"])
 
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]

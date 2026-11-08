@@ -20,6 +20,10 @@ folder; when it is missing, the file whose name without extension equals the tit
     column), bhajan, prabhat_samgiita, spiritual_song, dance_song or baba_audio (Baba's Audio
     Discourses: the speaker is Baba, the performer cell is ignored; an old devotional_song reads
     as bhajan). Empty means `--category`. A Kiirtan has no language: the cell is ignored for it.
+  * `style`: how a Kiirtan is sung (bengali, hindi, brajabuli, dhrupad, folk or other; `other`
+    needs `style_name`). REQUIRED for every Kiirtan (Dada, 8 Nov 2026): a Kiirtan row with no style
+    in the cell and no `--style` is NOT imported (it is reported as `bad_row`). The cell is ignored
+    for the other categories.
   * `language`: an ISO code (bn, sa, hi, en, ru, ...) or the English name (Bengali, Hindi, ...);
     `other` needs `language_name`. REQUIRED for bhajan, spiritual_song and baba_audio (the cell, or
     `--language`). Empty cells take `--language` / `--language-name`.
@@ -123,6 +127,11 @@ from app.services.recording_storage import (  # noqa: E402
     new_key,
     sniff_audio,
 )
+from app.services.recording_styles import (  # noqa: E402
+    STYLES,
+    clean_style_other,
+    normalize_style,
+)
 from app.services.recordings import VISIBLE, clean_text, validate_type  # noqa: E402
 
 # The folder part of imported storage keys: there is no member behind a bulk-loaded recording.
@@ -150,6 +159,8 @@ REPORT_FIELDS = [
     "language",
     "language_name",
     "dance",
+    "style",
+    "style_name",
     "credits",
     "year",
     "song",
@@ -180,6 +191,8 @@ class Row:
     credits: str = ""
     song: int | None = None  # the Prabhat Samgiita song number
     type: str = "other"
+    style: str | None = None  # Kiirtan only: a STYLES id or "other" (required for a Kiirtan)
+    style_name: str | None = None  # the name, when the style is "other"
 
 
 def _read_table(path: Path) -> list[dict[str, str]]:
@@ -222,11 +235,14 @@ def load_rows(
     default_language: str | None = None,
     default_language_name: str | None = None,
     default_dance: str | None = None,
+    default_style: str | None = None,
+    default_style_name: str | None = None,
 ) -> tuple[list[Row], list[dict[str, str]]]:
     """The rows of the table, and the report lines of rows that cannot be used.
 
     `table` None: every audio file of the folder is a row (the folder-as-a-playlist mode).
-    The defaults fill the language and dance cells that are empty.
+    The defaults fill the language, dance and style cells that are empty. A Kiirtan row that still
+    has no style is a bad row: the style is mandatory, so such a file is not imported.
     """
     by_stem = {p.stem.lower(): p.name for p in folder.iterdir() if p.is_file()}
     rows: list[Row] = []
@@ -276,6 +292,27 @@ def load_rows(
             language_name = None
         if not dance and effective in KINDS_WITH_DANCE:
             dance = default_dance
+        style_text = (raw.get("style") or "").strip()
+        style_name = clean_style_other(raw.get("style_name") or raw.get("style_other"))
+        style: str | None = None
+        if style_text:
+            try:
+                style = normalize_style(style_text)
+            except ValueError:
+                complaint = complaint or (
+                    f"style must be one of {', '.join(STYLES)} or other (with style_name)"
+                )
+        else:
+            style = default_style
+            style_name = style_name or default_style_name
+        if effective != "kiirtan":
+            style, style_name = None, None  # only a Kiirtan has a style: the cell is ignored
+        elif not complaint and not style:
+            complaint = "a Kiirtan needs a style (a style cell, or --style)"
+        elif not complaint and style == OTHER and not style_name:
+            complaint = "style other needs style_name"
+        elif style != OTHER:
+            style_name = None
         if not title or not name:
             complaint = "a title and a file are required"
         elif category and category not in RECORDING_KINDS:
@@ -319,6 +356,8 @@ def load_rows(
                 language=language,
                 language_name=language_name,
                 dance=dance if effective in KINDS_WITH_DANCE else None,
+                style=style,
+                style_name=style_name,
                 recorded_on=recorded_on,
                 credits=clean_text(raw.get("credits"), 300),
                 song=song if effective == "prabhat_samgiita" else None,
@@ -419,6 +458,8 @@ class Config:
     language: str | None = None
     language_name: str | None = None
     dance: str | None = None
+    style: str | None = None  # a Kiirtan's style for rows whose style cell is empty
+    style_name: str | None = None
     # a folder imported as a playlist from an event (docs/kiirtan-sets.md)
     set_title: str | None = None
     set_date: date | None = None
@@ -533,6 +574,8 @@ class Importer:
             default_language=normalize_language(config.language) if config.language else None,
             default_language_name=config.language_name,
             default_dance=config.dance,
+            default_style=normalize_style(config.style) if config.style else None,
+            default_style_name=clean_style_other(config.style_name),
         )
         self.positions = {row.file: number for number, row in enumerate(rows, start=1)}
         for problem in problems:
@@ -781,6 +824,8 @@ class Importer:
                     language=row.language if category in KINDS_WITH_LANGUAGE else None,
                     language_other=row.language_name if row.language == OTHER else None,
                     dance=row.dance if category in KINDS_WITH_DANCE else None,
+                    style=row.style if category == "kiirtan" else None,
+                    style_other=row.style_name if category == "kiirtan" else None,
                     recorded_on=row.recorded_on,
                     collection_id=self.collection_id,
                     position=self.positions.get(row.file) if self.collection_id else None,
@@ -849,6 +894,8 @@ class Importer:
                         "language": row.language or "" if row else "",
                         "language_name": row.language_name or "" if row else "",
                         "dance": row.dance or "" if row else "",
+                        "style": row.style or "" if row else "",
+                        "style_name": row.style_name or "" if row else "",
                         "recorded_on": row.recorded_on or "" if row else "",
                         "credits": row.credits if row else "",
                         "year": row.year if row and row.year else "",
@@ -919,6 +966,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dance", choices=list(DANCES), help="dance for dance_song rows whose cell is empty"
     )
+    parser.add_argument(
+        "--style",
+        help=(
+            "the style of every Kiirtan row whose style cell is empty "
+            f"({', '.join(STYLES)} or other). A Kiirtan with no style is not imported."
+        ),
+    )
+    parser.add_argument("--style-name", help="the style's name when --style is other")
     parser.add_argument("--set-title", help="import the folder as ONE playlist with this title")
     parser.add_argument("--set-date", type=date.fromisoformat, help="approximate date of the event, YYYY-MM-DD (the playlist shows only its year and month)")
     parser.add_argument("--set-end-date", type=date.fromisoformat, help="last day, YYYY-MM-DD (kept for old data, not shown)")
@@ -963,6 +1018,8 @@ def config_from(args: argparse.Namespace, *, fpcalc: str, max_bytes: int) -> Con
         language=args.language,
         language_name=args.language_name,
         dance=args.dance,
+        style=args.style,
+        style_name=args.style_name,
         set_title=args.set_title,
         set_date=args.set_date,
         set_end_date=args.set_end_date,

@@ -77,6 +77,8 @@ class Library:
         dance: str = "",
         language_name: str = "",
         date: str = "",
+        style: str = "",
+        style_name: str = "",
     ) -> None:
         (self.folder / name).write_bytes(data)
         self.rows.append(
@@ -92,11 +94,16 @@ class Library:
                 "dance": dance,
                 "language_name": language_name,
                 "date": date,
+                "style": style,
+                "style_name": style_name,
             }
         )
 
     def write_table(self) -> None:
-        header = "file,title,performer,category,language,credits,year,song,dance,language_name,date"
+        header = (
+            "file,title,performer,category,language,credits,year,song,dance,language_name,date,"
+            "style,style_name"
+        )
         lines = [header]
         for row in self.rows:
             cells = [row.get(name, "") for name in header.split(",")]
@@ -123,6 +130,8 @@ def make_importer(
         "limit": limit,
         "normalise": normalise,
         "fpcalc": world.settings.recording_fpcalc_path,
+        # a Kiirtan needs a style: the run's default, unless a test says otherwise
+        "style": "bengali",
         "state_path": library.table.with_suffix(".state.json"),
         "report_path": library.table.with_suffix(".report.csv"),
     }
@@ -330,7 +339,7 @@ async def test_near_duplicates_go_to_the_report_and_are_not_imported(
     report = library.table.with_suffix(".report.csv").read_text(encoding="utf-8")
     lines = report.strip().splitlines()
     assert lines[0].startswith(
-        "file,title,category,performer,language,language_name,dance,credits,year,song"
+        "file,title,category,performer,language,language_name,dance,style,style_name,credits,year,song"
     )
     near = next(line for line in lines if "near_duplicate" in line)
     assert "alt.mp3" in near and "Already here" in near and "1.000" in near
@@ -749,3 +758,53 @@ def test_titles_from_file_names() -> None:
     assert script.title_from_file_name("12. Dance.wav") == "Dance"
     assert script.title_from_file_name("Plain.m4a") == "Plain"
     assert script.title_from_file_name("2025.mp3") == "2025"
+
+
+async def test_a_kiirtan_row_without_a_style_is_not_imported(
+    world: World, library: Library
+) -> None:
+    library.add("a.mp3", mp3(200), title="No style anywhere")
+    library.add("b.mp3", mp3(201), title="Own style", style="hindi")
+    importer, _ = make_importer(world, library, execute=True, style=None)
+
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+
+    assert statuses(outcomes) == {"imported": 1, "bad_row": 1}
+    bad = [o for o in outcomes if o.status == "bad_row"][0]
+    assert "needs a style" in bad.detail
+    async with world.sessions() as session:
+        rows = (await session.scalars(select(Recording))).all()
+    assert [(r.title, r.style) for r in rows] == [("Own style", "hindi")]
+
+
+async def test_the_style_cell_beats_the_command_line_default_and_other_needs_a_name(
+    world: World, library: Library
+) -> None:
+    library.add("a.mp3", mp3(210), title="Cell wins", style="folk")
+    library.add("b.mp3", mp3(211), title="Default", style="")
+    library.add("c.mp3", mp3(212), title="Other named", style="other", style_name="Kirtan of Puri")
+    library.add("d.mp3", mp3(213), title="Other unnamed", style="other")
+    library.add("e.mp3", mp3(214), title="Not a style", style="jazz")
+    importer, _ = make_importer(world, library, execute=True, style="dhrupad")
+
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+
+    assert statuses(outcomes) == {"imported": 3, "bad_row": 2}
+    async with world.sessions() as session:
+        rows = {r.title: r for r in (await session.scalars(select(Recording))).all()}
+    assert rows["Cell wins"].style == "folk"
+    assert rows["Default"].style == "dhrupad"
+    assert rows["Other named"].style == "other"
+    assert rows["Other named"].style_other == "Kirtan of Puri"
+
+
+async def test_only_a_kiirtan_keeps_a_style(world: World, library: Library) -> None:
+    library.add("a.mp3", mp3(220), title="A bhajan", category="bhajan", language="bn", style="folk")
+    importer, _ = make_importer(world, library, execute=True)
+
+    outcomes = await importer.run()  # type: ignore[attr-defined]
+
+    assert statuses(outcomes) == {"imported": 1}
+    async with world.sessions() as session:
+        row = (await session.scalars(select(Recording))).one()
+    assert row.style is None and row.style_other is None

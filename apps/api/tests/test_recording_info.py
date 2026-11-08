@@ -63,10 +63,17 @@ async def test_a_kiirtan_needs_a_recording_type_and_says_so(world: World) -> Non
     assert (body["recording_type"], body["tempo"], body["performance"]) == ("live", "fast", "group")
 
 
-async def test_tempo_and_performance_are_optional_for_a_kiirtan(world: World) -> None:
-    done = await world.publish("a", mp3(2010), tempo=None, performance=None)
+async def test_tempo_is_optional_but_solo_or_group_is_required_for_a_kiirtan(
+    world: World,
+) -> None:
+    done = await world.publish("a", mp3(2010), tempo=None, performance="group")
     assert done.status_code == 201
-    assert done.json()["tempo"] is None and done.json()["performance"] is None
+    assert done.json()["tempo"] is None and done.json()["performance"] == "group"
+    for seed, value in ((2011, None), (2012, "")):
+        missing = await world.publish("a", mp3(seed), performance=value)
+        assert missing.status_code == 422 and "solo or a group" in missing.text
+    wrong = await world.publish("a", mp3(2013), performance="duet")
+    assert wrong.status_code == 422
 
 
 async def test_an_ai_kiirtan_is_stored_and_shown_as_ai(world: World) -> None:
@@ -117,11 +124,15 @@ async def test_each_category_keeps_only_the_fields_it_carries(world: World) -> N
     assert ps.json()["recording_type"] is None  # not carried by this category
 
 
-async def test_a_recording_made_by_ai_is_refused_in_a_bhajan_not_dropped(world: World) -> None:
-    refused = await world.publish(
+async def test_a_bhajan_made_by_ai_is_accepted_and_shown_as_ai(world: World) -> None:
+    # Dada, 8 Nov 2026: the earlier ban on an AI Bhajan is gone.
+    made = await world.publish(
         "a", mp3(2040), kind="bhajan", language="hi", style=None, recording_type="ai"
     )
-    assert refused.status_code == 422 and "AI" in refused.text
+    assert made.status_code == 201, made.text
+    assert made.json()["recording_type"] == "ai"
+    got = (await world.client.get(f"/api/v1/recordings/{made.json()['id']}")).json()
+    assert got["recording_type"] == "ai"
     spiritual = await world.publish(
         "a", mp3(2041), kind="spiritual_song", language="en", style=None, recording_type="ai"
     )
@@ -173,9 +184,9 @@ def test_the_schema_accepts_a_kiirtan_with_the_three_fields_cleaned() -> None:
         style="bengali",
         recording_type=" Home ",
         tempo=" FAST ",
-        performance="",
+        performance=" Solo",
     )
-    assert (made.recording_type, made.tempo, made.performance) == ("home", "fast", None)
+    assert (made.recording_type, made.tempo, made.performance) == ("home", "fast", "solo")
 
 
 # --------------------------------------------------------------------------- migration 0046
@@ -204,3 +215,48 @@ def test_0046_is_the_one_head_and_adds_three_nullable_columns_twice_safely(
     run(engine, m46.downgrade)
     assert "tempo" not in {c["name"] for c in sa.inspect(engine).get_columns("recordings")}
     run(engine, m46.upgrade)
+
+
+# --------------------------------------------------------------------------- "I am the author"
+
+
+async def test_the_author_tick_is_kept_by_every_kind_except_prabhat_samgiita(
+    world: World,
+) -> None:
+    kiirtan = await world.publish("a", mp3(2100), by_author=True)
+    bhajan = await world.publish(
+        "a", mp3(2101), kind="bhajan", language="hi", style=None, by_author=True
+    )
+    spiritual = await world.publish(
+        "a", mp3(2102), kind="spiritual_song", language="en", style=None, by_author=True
+    )
+    dance = await world.publish(
+        "a", mp3(2103), kind="dance_song", dance="tandava", style=None, by_author=True
+    )
+    for made in (kiirtan, bhajan, spiritual, dance):
+        assert made.status_code == 201, made.text
+        assert made.json()["by_author"] is True
+    ps = await world.publish(
+        "a", mp3(2104), kind="prabhat_samgiita", ps_song_number=9, style=None, by_author=True
+    )
+    # Prabhat Samgiita has one author: the tick is not accepted, it is dropped (not an error, so
+    # an older app that still sends it keeps working).
+    assert ps.status_code == 201, ps.text
+    assert ps.json()["by_author"] is False
+    stored = (await world.client.get(f"/api/v1/recordings/{ps.json()['id']}")).json()
+    assert stored["by_author"] is False
+
+
+async def test_a_playlist_track_of_prabhat_samgiita_never_keeps_the_author_tick(
+    world: World,
+) -> None:
+    item = (
+        await world.client.post(
+            SETS, headers=AS_A, json={"title": "PS evening", "default_kind": "prabhat_samgiita"}
+        )
+    ).json()
+    track = await add_track(
+        world, item["id"], 2110, kind="prabhat_samgiita", ps_song_number=12, by_author=True
+    )
+    assert track.status_code == 201, track.text
+    assert track.json()["by_author"] is False

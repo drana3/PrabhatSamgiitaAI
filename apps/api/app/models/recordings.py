@@ -219,7 +219,7 @@ class Recording(Base, TimestampMixin):
     language: Mapped[str | None] = mapped_column(String(16))
     # What the uploader called the language when they chose "other" (only then).
     language_other: Mapped[str | None] = mapped_column(String(80))
-    # How a Kiirtan is sung (one of services/recording_styles.py STYLES, or "other"); null for everything else.
+    # How a Kiirtan is sung (services/recording_styles.py STYLES, or "other"); null otherwise.
     style: Mapped[str | None] = mapped_column(String(16))
     # What the uploader called the style when they chose "other" (only then).
     style_other: Mapped[str | None] = mapped_column(String(80))
@@ -231,6 +231,14 @@ class Recording(Base, TimestampMixin):
     # slow / medium / fast (Kiirtan, dance music), and solo / group (Kiirtan, Bhajan). Optional.
     tempo: Mapped[str | None] = mapped_column(String(8))
     performance: Mapped[str | None] = mapped_column(String(8))
+    # The main (lead) instrument (services/recording_instruments.py): a listed code, "other" or
+    # null. With "other", `lead_instrument_other` is the word the author wrote; it is shown to the
+    # author at once and to everyone only once the team accepted it (`lead_instrument_checked`).
+    lead_instrument: Mapped[str | None] = mapped_column(String(32), index=True)
+    lead_instrument_other: Mapped[str | None] = mapped_column(String(80))
+    lead_instrument_checked: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
     # Baba's Audio Discourses only: where it was given, and the name or number of the discourse.
     place: Mapped[str | None] = mapped_column(String(200))
     discourse: Mapped[str | None] = mapped_column(String(200))
@@ -350,3 +358,76 @@ class MemberNotice(Base, TimestampMixin):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(PortableJSON, default=dict, nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+SUGGESTION_FIELDS = ("instrument", "style")
+SUGGESTION_STATUSES = ("pending", "accepted", "merged", "rejected")
+
+
+class ValueSuggestion(Base, TimestampMixin):
+    """A word an author wrote under "Add your own" (an instrument or a style), waiting for the team.
+
+    One row per field and normalized word (services/value_suggestions.py): "Harmonium", "harmonium "
+    and "HARMONIUM" are one row, with a counter of recordings and of people. The team accepts the
+    word (it becomes visible to everyone and can be picked in the form), merges it into a listed
+    value (the recordings take that value) or rejects it (the recordings lose the word).
+    """
+
+    __tablename__ = "value_suggestions"
+    __table_args__ = (
+        UniqueConstraint("field", "key", name="uq_value_suggestions_word"),
+        CheckConstraint("field IN ('instrument', 'style')", name="ck_value_suggestions_field"),
+        CheckConstraint(
+            "status IN ('pending', 'accepted', 'merged', 'rejected')",
+            name="ck_value_suggestions_status",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    field: Mapped[str] = mapped_column(String(16), nullable=False)
+    # The word without case, spaces, marks and accents: the identity of the row.
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    # The word as it was first written (the team may fix it when accepting).
+    label: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), default="pending", nullable=False, index=True)
+    # A listed value this word is at least 85% like ("harmonyum", harmonium): a hint for the team.
+    similar_to: Mapped[str | None] = mapped_column(String(32))
+    # The listed value the team merged it into.
+    merged_into: Mapped[str | None] = mapped_column(String(32))
+    # Who wrote it first: the weekly limit of new words counts these rows.
+    first_user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    recordings_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    people_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    decided_by: Mapped[str | None] = mapped_column(String(255))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ValueSuggestionUse(Base, TimestampMixin):
+    """One recording that used a suggested word."""
+
+    __tablename__ = "value_suggestion_uses"
+    __table_args__ = (
+        UniqueConstraint("suggestion_id", "recording_id", name="uq_value_suggestion_uses_once"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    suggestion_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("value_suggestions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    recording_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
+    )
