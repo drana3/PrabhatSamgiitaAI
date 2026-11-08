@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 
@@ -81,6 +81,15 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
   const comments = useComments<RecordingComment, string>(apiId, recordingCommentsBackend, recordingCommentFailure)
   const [viewing, setViewing] = useState(false)
   const [adding, setAdding] = useState(false)
+  // "somebody replied to your comment" opens this page with `?comment=`: the comments are the end of the page, so go there
+  const { comment: openedFromReply } = useLocalSearchParams<{ comment?: string | string[] }>()
+  const focus = typeof openedFromReply === "string" && openedFromReply ? openedFromReply : null
+  const scroller = useRef<ScrollView>(null)
+  useEffect(() => {
+    if (!focus) return
+    const timers = [setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 700), setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 1800)]
+    return () => timers.forEach(clearTimeout)
+  }, [focus])
 
   // coming back from the "Add chords" screen shows the new chart (the first focus is the load the hook already did)
   const first = useRef(true)
@@ -95,7 +104,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
   return (
     <View style={[styles.root, { backgroundColor: theme.page }]}>
       <SheetTopBar closeLabel={tr("recChords.close")} onClose={onClose} />
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
+      <ScrollView ref={scroller} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}>
         <Reveal index={0} style={styles.head}>
           <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
             {recording.title}
@@ -117,7 +126,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
           <VideosSection t={t} videos={videos} onAdd={() => setAdding(true)} onFlash={actions.flash} />
         </Reveal>
         <Reveal index={3}>
-          <CommentsView t={t} comments={comments} words="recordingComments" testID="recording-comments" />
+          <CommentsView t={t} comments={comments} words="recordingComments" testID="recording-comments" focus={focus} />
         </Reveal>
       </ScrollView>
       {/* the sheets sit over the whole page, not inside the scrolling list */}

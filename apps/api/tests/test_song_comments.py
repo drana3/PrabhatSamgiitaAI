@@ -34,7 +34,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.v1 import song_comments as api
 from app.config import Settings, get_settings
 from app.core.db import get_session
-from app.models import Base, UserAccount
+from app.models import Base, MemberNotice, UserAccount
 from app.models.song_comments import SongComment, SongCommentReport
 from app.services import song_comments as service
 
@@ -94,7 +94,8 @@ async def world() -> AsyncIterator[World]:
     engine = create_async_engine(
         "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
-    tables = [cast(Table, m.__table__) for m in (UserAccount, SongComment, SongCommentReport)]
+    models = (UserAccount, SongComment, SongCommentReport, MemberNotice)
+    tables = [cast(Table, m.__table__) for m in models]
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
     sessions = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -681,3 +682,21 @@ def test_the_migration_leaves_tables_that_create_all_made_alone() -> None:
     run(engine, migration.upgrade)
     assert sa.inspect(engine).has_table("song_comment_reports")
     engine.dispose()
+
+
+async def test_a_song_reply_tells_the_author_anonymous_says_someone(world: World) -> None:
+    first = (await world.post("a", body="Top words here")).json()
+    await world.post("b", body="A named reply", parent=first["id"])
+    await world.post("b", body="A hidden reply", parent=first["id"], anonymous=True)
+    await world.post("a", body="Answering myself", parent=first["id"])
+    async with world.sessions() as session:
+        query = select(MemberNotice).order_by(MemberNotice.created_at)
+        found = (await session.scalars(query)).all()
+    notices = [n for n in found if n.kind == "comment_reply"]
+    assert [n.body for n in notices] == [
+        "Bhakti replied to your comment.",
+        "Someone replied to your comment.",
+    ]
+    assert all(n.recording_id is None and n.payload["song_id"] == 19 for n in notices)
+    assert all(n.payload["parent_id"] == first["id"] for n in notices)
+    assert notices[1].payload["from_name"] is None

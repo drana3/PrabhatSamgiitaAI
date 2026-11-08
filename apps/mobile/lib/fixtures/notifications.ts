@@ -1,5 +1,5 @@
 import type { AppNotification } from "@/lib/notifications"
-import { announcementNotification, uploadDecisionNotification } from "@/lib/notifications/serverKinds"
+import { announcementNotification, replyNotification, uploadDecisionNotification } from "@/lib/notifications/serverKinds"
 import type { SongPick } from "@/lib/notifications/schedule"
 
 /**
@@ -33,7 +33,14 @@ export function inboxFixtures(now: number): AppNotification[] {
       target: "/songs-v2-collection?id=festival&title=Festivals",
       firedAt: at(now, 4, 9, 0),
     }),
-  ]
+    // replies to the member's comments: three under one comment fold into one row, one stands alone
+    ...[
+      { id: "r1", from: "Bhakti", hour: 9, minute: 5 },
+      { id: "r2", from: null, hour: 10, minute: 20 },
+      { id: "r3", from: "Karuna", hour: 11, minute: 45 },
+    ].map((r) => replyNotification({ noticeId: r.id, from: r.from, songNumber: 3, parentId: "mock-3-1", firedAt: at(now, 1, r.hour, r.minute) })),
+    replyNotification({ noticeId: "r4", from: "Madhu", songNumber: 7, parentId: "mock-7-1", firedAt: at(now, 2, 18, 30) }),
+  ].filter((n): n is AppNotification => n !== null)
   return all.filter((n) => n.firedAt <= now && n.firedAt > now - 30 * DAY)
 }
 

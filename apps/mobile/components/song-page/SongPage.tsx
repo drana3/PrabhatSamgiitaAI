@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { StyleSheet, View, type LayoutChangeEvent } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import Animated, { useAnimatedRef, useSharedValue } from "react-native-reanimated"
@@ -73,6 +73,15 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const heroH = useRef(0)
   const [heroHeight, setHeroHeight] = useState(0)
   const scrollRef = useAnimatedRef<Animated.ScrollView>()
+  // "somebody replied to your comment" opens this page with `?comment=`: the comments are the end of the page, so go there
+  const { comment: openedFromReply } = useLocalSearchParams<{ comment?: string | string[] }>()
+  useEffect(() => {
+    if (typeof openedFromReply !== "string" || !openedFromReply) return
+    const toEnd = () => (scrollRef.current as unknown as { scrollToEnd?: (o: { animated: boolean }) => void } | null)?.scrollToEnd?.({ animated: true })
+    const timers = [setTimeout(toEnd, 700), setTimeout(toEnd, 1800)]
+    return () => timers.forEach(clearTimeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openedFromReply])
   // the page's scroll, read on the UI thread by the pinned text block; and the pinned block's own remote (jump to a panel)
   const scrollY = useSharedValue(0)
   const touch = useSharedValue(0)

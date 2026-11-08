@@ -34,6 +34,7 @@ import { useNotificationHealthStore } from "@/stores/notificationHealthStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { href } from "@/utils/href"
+import { ReplyNoticeSync } from "@/components/notifications/ReplyNoticeSync"
 import { useLanguage } from "@/lib/i18n"
 
 const DAY_MS = 86_400_000
@@ -258,5 +259,6 @@ export function NotificationsHost() {
     return () => clearTimeout(timer)
   }, [booted, openTarget])
 
-  return null
+  // replies to the member's comments come from the server's notices
+  return <ReplyNoticeSync />
 }

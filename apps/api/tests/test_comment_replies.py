@@ -292,3 +292,60 @@ async def test_the_team_reviews_keeps_and_restores_and_only_the_team(world: Worl
     assert (await world.call("GET", f"{URL}/review", "team")).json()["items"] == []
     assert (await world.call("POST", f"{URL}/{uuid4()}/keep", "team")).status_code == 404
     assert str(MEMBER_A) not in json.dumps((await items(world, None))["items"])
+
+
+# --------------------------------------------------------------------------- notice to the author
+
+
+async def reply_notices(world: World) -> list:
+    from app.models import MemberNotice
+
+    return [n for n in await world.rows(MemberNotice) if n.kind == threads.REPLY_NOTICE_KIND]
+
+
+async def test_a_reply_tells_the_author_of_the_answered_comment(world: World) -> None:
+    first = await top(world, who="a")
+    made = (await reply(world, first["id"], "b", "Thank you for sharing.")).json()
+    (notice,) = await reply_notices(world)
+    assert notice.user_id == MEMBER_A and notice.read_at is None
+    assert notice.recording_id == REC
+    assert notice.body == "Bhakti replied to your comment."
+    assert notice.payload["parent_id"] == first["id"]
+    assert notice.payload["comment_id"] == made["id"]
+    assert notice.payload["recording_id"] == str(REC)
+    assert notice.payload["from_name"] == "Bhakti"
+
+
+async def test_a_reply_to_a_reply_tells_the_author_of_that_reply(world: World) -> None:
+    first = await top(world, who="a")
+    second = (await reply(world, first["id"], "b", "First reply here.")).json()
+    await reply(world, second["id"], "a", "Answering the reply.")
+    notices = await reply_notices(world)
+    assert [n.user_id for n in notices] == [MEMBER_A, MEMBER_B]
+    # the thread to open is still the top comment
+    assert notices[1].payload["parent_id"] == first["id"]
+
+
+async def test_nobody_is_told_about_their_own_reply_or_a_plain_comment(world: World) -> None:
+    first = await top(world, who="a")
+    assert await reply_notices(world) == []  # a top-level comment tells nobody
+    await reply(world, first["id"], "a", "Adding to my own story.")
+    assert await reply_notices(world) == []
+
+
+async def test_an_anonymous_reply_is_announced_as_someone_and_never_named(world: World) -> None:
+    first = await top(world, who="a")
+    await reply(world, first["id"], "b", "A shy reply here.", anonymous=True)
+    (notice,) = await reply_notices(world)
+    assert notice.body == "Someone replied to your comment."
+    assert notice.payload["from_name"] is None
+    raw = json.dumps([notice.body, notice.title, notice.payload])
+    for secret in (str(MEMBER_B), MEMBER_B.hex, "Bhakti", "bhakti@example.org"):
+        assert secret not in raw
+
+
+async def test_a_refused_reply_or_a_deleted_comment_makes_no_notice(world: World) -> None:
+    first = await top(world, who="a")
+    await world.call("DELETE", f"{URL}/{first['id']}", "a")
+    assert (await reply(world, first["id"], "b", "Too late for this.")).status_code == 404
+    assert await reply_notices(world) == []

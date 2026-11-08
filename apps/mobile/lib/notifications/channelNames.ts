@@ -19,11 +19,12 @@ export function remindersChannelName(language: Language): string {
  * placeholder). Out of the message dictionaries for the same reason as above: read outside React.
  * `reminders` is the channel the app has always had.
  */
-const NAMES: Record<"reminders" | "festivals" | "team" | "notices", Record<Language, string>> = {
+const NAMES: Record<"reminders" | "festivals" | "team" | "notices" | "replies", Record<Language, string>> = {
   reminders: CHANNEL_NAMES,
   festivals: { en: "Festivals", ru: "Праздники", es: "Festividades" },
   team: { en: "From the team", ru: "От команды", es: "Del equipo" },
   notices: { en: "About your uploads", ru: "О ваших загрузках", es: "Sobre tus subidas" },
+  replies: { en: "Replies to you", ru: "Ответы вам", es: "Respuestas para ti" },
 }
 
 const GROUP_NAMES: Record<"reminders" | "messages", Record<Language, string>> = {

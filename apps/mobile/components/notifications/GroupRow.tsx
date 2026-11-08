@@ -7,6 +7,7 @@ import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 import { timeLabel, type AppNotification } from "@/lib/notifications"
+import { kindMeta } from "@/lib/notifications/kinds"
 import { useT } from "@/lib/i18n"
 
 /**
@@ -57,7 +58,7 @@ export function GroupRow({
             {unread > 0 ? <View style={[s.dot, { backgroundColor: p.orange500 }]} /> : null}
           </View>
           <Text style={[s.body, { color: p.ink500 }]} numberOfLines={1}>
-            {t("notif.inbox.group.count", { count: items.length })}
+            {t(kindMeta(newest.kind).groupCount === "replies" ? "songComments.notice.group" : "notif.inbox.group.count", { count: items.length })}
             {" · "}
             {newest.text}
           </Text>

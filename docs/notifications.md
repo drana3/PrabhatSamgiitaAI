@@ -19,12 +19,13 @@ One table in the code says what each kind is: `lib/notifications/kinds.ts` (`KIN
 | `story` | a new story | server (fixture in the preview; no trigger yet) | "New story" / "The story behind PS 1 is ready to read." | `/story-sheet/<slug>` | `team` | 30 days |
 | `live` | a live Kiirtan broadcast starts; not a setting, not scheduled on the phone | server only | "Starts in 15 minutes." | `/kiirtan-live?id=<id>` | `team` | 2 days |
 | `announcement` | a message from the team | server (no trigger yet) | "From the team" + the message | `/v2/today` or the given route | `team` | 30 days |
+| `reply` | somebody replied to a comment the person wrote (song or recording comments) | server notice `comment_reply`, asked for when the app opens or comes to the front (`lib/comments/replyNotices.ts`); copy in `lib/notifications/serverKinds.ts`; fixtures in the preview | "New reply" + "{name} replied to your comment." ("Someone" for an anonymous reply) | `/song-v2/ps-N?comment=<id>` or `/recording/<id>?comment=<id>`: the page with that comment's replies open | `replies` | 30 days |
 | `upload` | the team removed a Kiirtan or Bhajan the person uploaded (a published one needs no notice: the author sees it live) | built in `stores/kirtanStore.ts` from the server's "my uploads" list; copy in `lib/notifications/serverKinds.ts` | "Kiirtan removed" + the reason in the team's words | `/v2/kiirtan` | `notices` | 90 days (180 while unread) |
 
 Planned, not built (each is one entry in the registry, section 13):
 
 - Chord proposal result (approved / not approved, with the reviewer's words): important tier, account-bound, `notices` channel, opens the song page.
-- Reply to your comment on a song: needs a server push and a per-kind switch in settings. No server trigger exists.
+- A native push for a reply to your comment: needs a server push (phase 2). The notice itself is built (kind `reply`, `apps/mobile/docs/comment-replies.md`): it fills the centre; several replies to one comment fold into "N replies to your comment".
 - "Your Kiirtan is live": deliberately not sent. The author sees it published at once (`docs/kiirtan-publishing.md`).
 
 The copy is short, sentence case, no exclamation marks, verb first where there is an action.
@@ -147,6 +148,7 @@ Android channels (named in the app language, `lib/notifications/channelNames.ts`
 | `festivals` | Festivals | Reminders | default | festival |
 | `team` | From the team | Messages | default | story, live, announcement, unknown kinds |
 | `notices` | About your uploads | Messages | high | upload, chord results |
+| `replies` | Replies to you | Messages | default | reply |
 
 `reminders` is the original id (its name and the person's own choices are kept). A person mutes a class in system settings, so a kind that should be mutable alone has its own channel. Android never lets an app raise a channel's importance after it was created; a new channel is the only way, which is why the loud one is separate from the start.
 
@@ -193,7 +195,7 @@ device_tokens(user_id, token, platform, locale, tz)
 
 - `audience`: `all`, a group, or one user id. `payload` is the title and text per locale. `target` is an app route, the same routes the local kinds use.
 - A job every minute picks what is due, resolves the audience to device tokens and sends through Expo push (APNs and FCM), idempotent by notification id and token.
-- The push payload carries `channelId` (one of the four above), `categoryId` (`ps.<kind>`), `data {id, kind, target}`, and `interruptionLevel` as the kind's registry entry says. Without `channelId` Android puts the push in "Miscellaneous". (A default channel in `app.json` needs a new native build: not done.)
+- The push payload carries `channelId` (one of the channels above), `categoryId` (`ps.<kind>`), `data {id, kind, target}`, and `interruptionLevel` as the kind's registry entry says. Without `channelId` Android puts the push in "Miscellaneous". (A default channel in `app.json` needs a new native build: not done.)
 - The app lists items from the server (not expired, minus reads) and merges them into the centre by id with `useNotificationsStore.getState().receive(items, now)`; the registry decides how long each is kept. Read state syncs through the read endpoints.
 - `device_tokens` is written only after the person has allowed notifications. Sign-out deletes the row. Server-side expiry equals the registry's keep time, so a notice never outlives what the phone would keep.
 

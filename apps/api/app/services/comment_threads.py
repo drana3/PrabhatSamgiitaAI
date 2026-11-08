@@ -29,13 +29,17 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.models import UserAccount
+from app.models import MemberNotice, UserAccount
 from app.schemas.song_comments import CommentAuthor, ReplyTo
 from app.services.song_comments import AUTHOR_DELETED_BY, FALLBACK_NAME, display_name
 
 # A conversation holds at most this many live replies. The next one is refused (409).
 THREAD_MAX_REPLIES = 50
 THREAD_FULL_CODE = "comment_thread_full"
+
+# The notice a member gets when somebody answers their comment (docs/comment-replies.md).
+REPLY_NOTICE_KIND = "comment_reply"
+ANONYMOUS_REPLIER = "Someone"
 
 Row = tuple[Any, UserAccount | None]
 
@@ -199,6 +203,51 @@ def reply_to_of(comment: Any, answered: dict[UUID, Row]) -> ReplyTo | None:
     return ReplyTo(name=display_name(author))
 
 
+async def add_reply_notice(
+    session: AsyncSession,
+    model: Any,
+    comment: Any,
+    replier: UserAccount,
+    *,
+    target: dict[str, Any],
+    recording_id: UUID | None = None,
+) -> MemberNotice | None:
+    """Tell the author of the comment that was answered. Added to the session, committed with the
+    reply.
+
+    The one who is told is the author of the comment the reply answers (the top-level comment, or
+    the reply it answers). Nobody is told about an answer to themselves, or about a comment that is
+    gone. An anonymous reply never carries its author's name: the notice says "Someone". The text
+    is the default English; the phone writes its own words from the payload."""
+    if comment.parent_id is None:
+        return None
+    addressed = await session.get(model, comment.reply_to_id or comment.parent_id)
+    if (
+        addressed is None
+        or addressed.status != "published"
+        or addressed.member_id == comment.member_id
+    ):
+        return None
+    name = None if comment.is_anonymous else display_name(replier)
+    await session.flush()  # the reply's id is needed for the payload
+    notice = MemberNotice(
+        user_id=addressed.member_id,
+        kind=REPLY_NOTICE_KIND,
+        recording_id=recording_id,
+        title="New reply",
+        body=f"{name or ANONYMOUS_REPLIER} replied to your comment.",
+        payload={
+            **target,
+            "parent_id": str(comment.parent_id),
+            "comment_id": str(comment.id),
+            "answered_id": str(addressed.id),
+            "from_name": name,
+        },
+    )
+    session.add(notice)
+    return notice
+
+
 def render(
     out_cls: type[Any],
     comment: Any,
@@ -246,10 +295,13 @@ def render(
 
 
 __all__ = [
+    "ANONYMOUS_REPLIER",
     "FALLBACK_NAME",
+    "REPLY_NOTICE_KIND",
     "THREAD_FULL_CODE",
     "THREAD_MAX_REPLIES",
     "ThreadPage",
+    "add_reply_notice",
     "is_tombstone",
     "list_threads",
     "page_for_new",

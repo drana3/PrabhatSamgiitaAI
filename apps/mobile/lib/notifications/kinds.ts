@@ -17,10 +17,10 @@ export type KindTier = "reminder" | "important"
 export type KindSource = "local" | "server"
 
 /** The Android channels (users mute them one by one in system settings). */
-export type ChannelId = "reminders" | "festivals" | "team" | "notices"
+export type ChannelId = "reminders" | "festivals" | "team" | "notices" | "replies"
 
 /** The glyph on the row's tile: a name the notifications screen maps to an icon. */
-export type KindIcon = "newspaper" | "party" | "repeat" | "book" | "flame" | "radio" | "music" | "megaphone" | "bell" | "check"
+export type KindIcon = "newspaper" | "party" | "repeat" | "book" | "flame" | "radio" | "music" | "megaphone" | "bell" | "check" | "reply"
 
 /** The colours of the tile: names the notifications screen maps to the theme's colours. */
 export type KindTone = "song" | "gold" | "action" | "sage" | "sageDeep" | "sand" | "warn"
@@ -45,6 +45,8 @@ export type KindMeta = {
   tone: KindTone
   /** an app route to open when the item's own target no longer exists */
   fallback: string
+  /** the words of a group row ("3 replies to your comment"); the plain "N reminders" when not set */
+  groupCount?: "replies"
 }
 
 const REMINDER_DAYS = 14
@@ -57,6 +59,7 @@ export const KIND_META = {
   story: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: false, accountBound: false, channel: "team", ios: "active", icon: "book", tone: "sage", fallback: "/v2/today" },
   live: { source: "server", tier: "reminder", keepDays: 2, priority: 0, groupable: false, accountBound: false, channel: "team", ios: "active", icon: "radio", tone: "sageDeep", fallback: "/v2/kiirtan" },
   announcement: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: false, accountBound: false, channel: "team", ios: "active", icon: "megaphone", tone: "sand", fallback: "/v2/today" },
+  reply: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: true, accountBound: true, channel: "replies", ios: "active", icon: "reply", tone: "sage", fallback: "/v2/songs", groupCount: "replies" },
   upload: { source: "server", tier: "important", keepDays: 90, unreadKeepDays: 180, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "active", icon: "music", tone: "warn", fallback: "/v2/kiirtan" },
 } as const satisfies Record<string, KindMeta>
 
@@ -111,6 +114,7 @@ export const CHANNELS: Record<ChannelId, ChannelMeta> = {
   festivals: { id: "festivals", importance: "default", group: "reminders" },
   team: { id: "team", importance: "default", group: "messages" },
   notices: { id: "notices", importance: "high", group: "messages" },
+  replies: { id: "replies", importance: "default", group: "messages" },
 }
 
 export const CHANNEL_GROUPS = ["reminders", "messages"] as const

@@ -31,6 +31,8 @@ export type AppNotification = {
   firedAt: number
   /** a song number whose cover the row shows */
   coverNumber?: number
+  /** items of a kind that groups by conversation (replies) carry the conversation's id: the centre folds them by it instead of by day */
+  group?: string
 }
 
 /*

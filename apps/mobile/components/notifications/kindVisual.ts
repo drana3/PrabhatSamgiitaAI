@@ -1,4 +1,4 @@
-import { BadgeCheck, Bell, BookOpen, Flame, Megaphone, Music, Newspaper, PartyPopper, Radio, Repeat2 } from "lucide-react-native"
+import { BadgeCheck, Bell, BookOpen, Flame, Megaphone, MessageCircle, Music, Newspaper, PartyPopper, Radio, Repeat2 } from "lucide-react-native"
 
 import type { AmProto } from "@/constants/tokens/amToday"
 import { kindMeta, type KindIcon, type KindTone } from "@/lib/notifications/kinds"
@@ -18,6 +18,7 @@ const ICONS: Record<KindIcon, typeof Bell> = {
   megaphone: Megaphone,
   bell: Bell,
   check: BadgeCheck,
+  reply: MessageCircle,
 }
 
 export function kindIcon(kind: string): typeof Bell {

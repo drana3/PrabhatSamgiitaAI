@@ -2971,7 +2971,14 @@
     "top.retry": false,
     "top.more": false,
     "top.more.failed": false,
-    "top.loading": false
+    "top.loading": false,
+    "songComments.notice.title": false,
+    "songComments.notice.text": false,
+    "songComments.notice.textAnonymous": false,
+    "songComments.notice.group_one": false,
+    "songComments.notice.group_few": false,
+    "songComments.notice.group_many": false,
+    "songComments.notice.group_other": false
   },
   "es": {
     "unit.kb": false,
@@ -5763,6 +5770,11 @@
     "top.retry": false,
     "top.more": false,
     "top.more.failed": false,
-    "top.loading": false
+    "top.loading": false,
+    "songComments.notice.title": false,
+    "songComments.notice.text": false,
+    "songComments.notice.textAnonymous": false,
+    "songComments.notice.group_one": false,
+    "songComments.notice.group_other": false
   }
 }

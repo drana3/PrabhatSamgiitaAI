@@ -1,3 +1,5 @@
+import { useLocalSearchParams } from "expo-router"
+
 import { CommentsView } from "@/components/comments/CommentsView"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { commentableSong } from "@/lib/songComments/rules"
@@ -18,9 +20,13 @@ export function CommentsSection({ t, model }: { t: SpTheme; model: SongPageModel
 
 function SongComments({ t, songNumber }: { t: SpTheme; songNumber: number }) {
   const comments = useSongComments(songNumber)
+  // a tap on "somebody replied to your comment" opens the page with that comment's replies open
+  const { comment } = useLocalSearchParams<{ comment?: string | string[] }>()
+  const focus = typeof comment === "string" ? comment : null
   return (
     <CommentsView
       t={t}
+      focus={focus}
       comments={comments}
       testID="song-comments"
       words="songComments"

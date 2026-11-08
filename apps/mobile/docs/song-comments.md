@@ -1,9 +1,11 @@
 # Song comments
 
 A block at the end of the song page (`components/song-page/Comments.tsx`, after "About this song"): "If you have a
-story, an inspiration or a realization about this song, you can share it here", a text field, a **Share anonymously**
-checkbox (off by default) and the members' comments, newest first. Guests read the list and see a sign-in prompt
-instead of the field.
+story, an inspiration or a realization about this song, you can share it here", a text field with **Post** in the
+bottom bar of its box, and, under the box and outside it, one small line: the **Share anonymously** checkbox (off by
+default) with "Posted with your name: X" beside it (or "Shown as Anonymous"); then the members' comments, newest first.
+Guests read the list and see a sign-in prompt instead of the field. Replies and the notice to the author of an answered
+comment: `comment-replies.md`.
 
 ## API (`apps/api`)
 

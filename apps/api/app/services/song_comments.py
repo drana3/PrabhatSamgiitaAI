@@ -228,6 +228,10 @@ async def create_comment(
         reply_to_id=reply_to_id,
     )
     session.add(comment)
+    if top_id is not None:
+        await threads.add_reply_notice(
+            session, SongComment, comment, member, target={"song_id": song_id}
+        )
     await session.commit()
     await session.refresh(comment)
     return comment

@@ -14,6 +14,11 @@ export type InboxRow =
   | { type: "item"; id: string; item: AppNotification }
   | { type: "group"; id: string; kind: AppNotification["kind"]; /** newest first */ items: AppNotification[] }
 
+/** The bucket of an item: by conversation when it names one, otherwise by local day. */
+function bucketKey(item: AppNotification): string {
+  return `${item.kind}|${item.group ?? dayKey(item.firedAt)}`
+}
+
 function dayKey(ms: number): string {
   const d = new Date(ms)
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
@@ -24,13 +29,13 @@ export function rowsOf(items: readonly AppNotification[]): InboxRow[] {
   const buckets = new Map<string, AppNotification[]>()
   for (const item of items) {
     if (!kindMeta(item.kind).groupable) continue
-    const key = `${item.kind}|${dayKey(item.firedAt)}`
+    const key = bucketKey(item)
     buckets.set(key, [...(buckets.get(key) ?? []), item])
   }
   const out: InboxRow[] = []
   const placed = new Set<string>()
   for (const item of items) {
-    const key = `${item.kind}|${dayKey(item.firedAt)}`
+    const key = bucketKey(item)
     const bucket = buckets.get(key)
     if (bucket && bucket.length >= GROUP_MIN) {
       if (placed.has(key)) continue

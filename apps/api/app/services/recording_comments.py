@@ -157,6 +157,15 @@ async def create_comment(
         reply_to_id=reply_to_id,
     )
     session.add(comment)
+    if top_id is not None:
+        await threads.add_reply_notice(
+            session,
+            RecordingComment,
+            comment,
+            member,
+            target={"recording_id": str(recording_id)},
+            recording_id=recording_id,
+        )
     await session.commit()
     await session.refresh(comment)
     return comment

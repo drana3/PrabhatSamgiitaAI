@@ -50,7 +50,20 @@ export type CommentsWords = "songComments" | "recordingComments"
  * the field. Every state is said honestly: loading, no comments yet, no connection, a server error. Rules and wording:
  * lib/songComments, locales/songComments.ts (and locales/recordingExtras.ts for the few words of a recording).
  */
-export function CommentsView<T extends CommentBase>({ t, comments, words, testID }: { t: SpTheme; comments: CommentsController<T>; words: CommentsWords; testID: string }) {
+export function CommentsView<T extends CommentBase>({
+  t,
+  comments,
+  words,
+  testID,
+  focus,
+}: {
+  t: SpTheme
+  comments: CommentsController<T>
+  words: CommentsWords
+  testID: string
+  /** the id of a top-level comment whose replies start open (a tap on "somebody replied to your comment") */
+  focus?: string | null
+}) {
   const tr = useT()
   const router = useRouter()
   const mode = useAuthStore((s) => s.mode)
@@ -96,7 +109,7 @@ export function CommentsView<T extends CommentBase>({ t, comments, words, testID
         ) : null}
         {state.status === "ready" && state.items.length === 0 ? <Text style={[styles.empty, { color: t.ink500 }]}>{tr(`${words}.empty`)}</Text> : null}
         {state.items.map((comment, index) => (
-          <CommentRow key={comment.id} t={t} comment={comment} first={index === 0} comments={comments as CommentsController<CommentBase>} writer={writer} />
+          <CommentRow key={comment.id} t={t} comment={comment} first={index === 0} comments={comments as CommentsController<CommentBase>} writer={writer} focus={focus} />
         ))}
         {state.status === "ready" && state.hasMore ? (
           <Button
@@ -116,8 +129,9 @@ export function CommentsView<T extends CommentBase>({ t, comments, words, testID
 export type ReplyFor = { id: string; name: string | null }
 
 /**
- * One box: the field on top, one bar below it with the "Share anonymously" toggle, the small line that says who the
- * comment will be posted as, and Post. The same box is the reply composer (with Cancel) when `replyFor` is given.
+ * One box: the field on top and a bar below it with Post. Under the box, outside it, one small line: the "Share
+ * anonymously" toggle and who the comment will be posted as. The same is the reply composer (with Cancel) when
+ * `replyFor` is given.
  */
 function Composer({ t, name, post, replyFor, onPosted, onCancel }: { t: SpTheme; name: string; post: PostFn; replyFor?: ReplyFor; onPosted?: () => void; onCancel?: () => void }) {
   const tr = useT()
@@ -180,32 +194,31 @@ function Composer({ t, name, post, replyFor, onPosted, onCancel }: { t: SpTheme;
           </Text>
         ) : null}
         <View style={styles.bar}>
-          <View style={styles.barWho}>
-            <SpPress
-              onPress={() => setAnonymous((on) => !on)}
-              accessibilityRole="checkbox"
-              accessibilityLabel={tr("songComments.anonymous.a11y")}
-              accessibilityState={{ checked: anonymous }}
-              pressedScale={0.99}
-              hitSlop={{ top: 8, bottom: 8, right: 8 }}
-              style={styles.toggle}
-            >
-              <View style={[styles.tick, { borderColor: t.ink900, backgroundColor: anonymous ? t.ink900 : t.white }]}>
-                {anonymous ? <SpIcon name="check" size={14} color={t.onInk} strokeWidth={2.5} /> : null}
-              </View>
-              <Text style={[styles.toggleLabel, { color: t.ink900 }]} numberOfLines={1}>
-                {tr("songComments.anonymous.label")}
-              </Text>
-            </SpPress>
-            <Text style={[styles.hint, { color: t.ink500 }]} numberOfLines={1}>
-              {anonymous ? tr("songComments.as.anonymous") : name ? tr("songComments.as.named", { name }) : tr("songComments.as.namedNoName")}
-            </Text>
-          </View>
-          <View style={styles.barButtons}>
-            {onCancel ? <Button t={t} size="compact" variant="quiet" label={tr("songComments.reply.cancel")} onPress={onCancel} disabled={busy} /> : null}
-            <Button t={t} size="compact" label={busy ? tr("songComments.posting") : tr("songComments.post")} onPress={() => void submit()} disabled={!ready} busy={busy} />
-          </View>
+          {onCancel ? <Button t={t} size="compact" variant="quiet" label={tr("songComments.reply.cancel")} onPress={onCancel} disabled={busy} /> : null}
+          <Button t={t} size="compact" label={busy ? tr("songComments.posting") : tr("songComments.post")} onPress={() => void submit()} disabled={!ready} busy={busy} />
         </View>
+      </View>
+      {/* Outside the box: the choice of a name belongs to the person, not to the field. A small line under it. */}
+      <View style={styles.under}>
+        <SpPress
+          onPress={() => setAnonymous((on) => !on)}
+          accessibilityRole="checkbox"
+          accessibilityLabel={tr("songComments.anonymous.a11y")}
+          accessibilityState={{ checked: anonymous }}
+          pressedScale={0.99}
+          hitSlop={{ top: 8, bottom: 8, right: 8 }}
+          style={styles.toggle}
+        >
+          <View style={[styles.tick, { borderColor: t.ink900, backgroundColor: anonymous ? t.ink900 : t.white }]}>
+            {anonymous ? <SpIcon name="check" size={14} color={t.onInk} strokeWidth={2.5} /> : null}
+          </View>
+          <Text style={[styles.toggleLabel, { color: t.ink900 }]} numberOfLines={1}>
+            {tr("songComments.anonymous.label")}
+          </Text>
+        </SpPress>
+        <Text style={[styles.hint, { color: t.ink500 }]} numberOfLines={1}>
+          {anonymous ? tr("songComments.as.anonymous") : name ? tr("songComments.as.named", { name }) : tr("songComments.as.namedNoName")}
+        </Text>
       </View>
       {anonymous ? <Text style={[styles.team, { color: t.ink500 }]}>{tr("songComments.as.team")}</Text> : null}
 
@@ -239,6 +252,7 @@ function CommentRow({
   writer,
   reply = false,
   onReplied,
+  focus,
 }: {
   t: SpTheme
   comment: CommentBase
@@ -247,6 +261,7 @@ function CommentRow({
   writer: { name: string } | null
   reply?: boolean
   onReplied?: () => void
+  focus?: string | null
 }) {
   const tr = useT()
   const [panel, setPanel] = useState<Panel>(null)
@@ -255,7 +270,7 @@ function CommentRow({
   const [note, setNote] = useState<string | null>(null)
   const [problem, setProblem] = useState<CommentFailure | null>(null)
   const [replying, setReplying] = useState(false)
-  const [open, setOpen] = useState(false) // the replies of a top-level comment start collapsed
+  const [open, setOpen] = useState(Boolean(focus) && focus === comment.id) // the replies of a top-level comment start collapsed, unless a notice led here
   const name = comment.author?.name ?? tr("songComments.anonymous")
   const mineOrTeam = comment.mine || comment.canRemove
   const replies = comment.replies ?? []
@@ -510,13 +525,12 @@ const styles = StyleSheet.create({
   box2: { borderRadius: R_FIELD, overflow: "hidden" },
   field: { minHeight: 44, maxHeight: 160, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, fontFamily: amFonts.regular, fontSize: 16, lineHeight: 24, textAlignVertical: "top" },
   counter: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, textAlign: "right", paddingHorizontal: 14 },
-  bar: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, paddingLeft: 14, paddingRight: 8, paddingBottom: 8 },
-  barWho: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minWidth: 0 },
-  barButtons: { flexDirection: "row", alignItems: "center", gap: 8, marginLeft: "auto" },
+  bar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 8, paddingHorizontal: 8, paddingBottom: 8 },
+  under: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 2, paddingTop: 8 },
   toggle: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 24, alignSelf: "flex-start" },
   tick: { width: 20, height: 20, borderWidth: 2, borderRadius: R_BOX - 2, alignItems: "center", justifyContent: "center" },
   toggleLabel: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 20, flexShrink: 1 },
-  hint: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, paddingLeft: 28 },
+  hint: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, flexShrink: 1 },
   as: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   team: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, paddingTop: 4 },
   message: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20, paddingTop: 4 },
