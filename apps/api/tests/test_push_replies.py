@@ -257,7 +257,8 @@ async def test_a_reply_wakes_the_phone_with_the_name_and_no_text(world: World, e
     assert message["title"] == "New reply"
     assert message["body"] == "Bhakti replied to your comment."
     assert message["channelId"] == "replies"
-    assert message["data"]["kind"] == "comment_reply"
+    assert message["data"]["kind"] == "reply" and message["data"]["id"].startswith("reply:")
+    assert message["data"]["target"] == f"/recording/{REC}?comment={parent}"
     assert message["data"]["parent_id"] == parent and message["data"]["recording_id"] == str(REC)
     assert SECRET not in json.dumps(expo.calls)  # the text of a comment never leaves
     assert "Authorization" not in {k.title() for k in expo.sends[0]["headers"]}
@@ -446,3 +447,14 @@ def test_the_message_has_no_room_for_a_comment_text() -> None:
     assert cleaned == "Bhakti Secret"
     assert push._clean_name(None) is None and push._clean_name("   ") is None
     assert len(push._clean_name("x" * 100) or "") == push.NAME_MAX
+
+
+def test_the_tap_route_only_takes_ids_of_the_expected_shape() -> None:
+    assert push.app_route({"parent_id": "abc-1", "song_id": "7"}) == "/song-v2/ps-7?comment=abc-1"
+    assert (
+        push.app_route({"parent_id": "abc-1", "recording_id": "r1"})
+        == "/recording/r1?comment=abc-1"
+    )
+    assert push.app_route({"parent_id": "a/../b", "recording_id": "r1"}) == "/notifications"
+    assert push.app_route({"parent_id": "p", "recording_id": "../x"}) == "/notifications"
+    assert push.app_route({"parent_id": "p"}) == "/notifications"

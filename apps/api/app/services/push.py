@@ -247,6 +247,25 @@ async def drain() -> None:
 # --------------------------------------------------------------------------- the message
 
 
+_SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def app_route(ids: dict[str, str]) -> str:
+    """The screen a tap opens: the song page or the recording page with the replies open (the same
+    routes as the phone's `replyTarget`). Only ids of the expected shape go into a route."""
+    parent = ids.get("parent_id", "")
+    if not _SAFE_ID.match(parent):
+        return "/notifications"
+    query = f"?comment={parent}"
+    song = ids.get("song_id", "")
+    if song.isdigit() and int(song) >= 1:
+        return f"/song-v2/ps-{int(song)}{query}"
+    recording = ids.get("recording_id", "")
+    if _SAFE_ID.match(recording):
+        return f"/recording/{recording}{query}"
+    return "/notifications"
+
+
 def build_message(job: ReplyPush, device: PushDevice) -> dict[str, Any]:
     language = clean_language(device.language)
     body = (
@@ -262,7 +281,15 @@ def build_message(job: ReplyPush, device: PushDevice) -> dict[str, Any]:
         "channelId": "replies",
         "priority": "default",
         "ttl": 86_400,
-        "data": {"kind": "comment_reply", "notice_id": str(job.notice_id), **job.ids},
+        # what the phone's tap handler reads (`kind`, `id`, `target`: lib/notifications/native.ts):
+        # the same inbox id and route the notice gets in the bell, so a tap opens the conversation
+        "data": {
+            "kind": "reply",
+            "id": f"reply:{job.notice_id}",
+            "target": app_route(job.ids),
+            "notice_id": str(job.notice_id),
+            **job.ids,
+        },
     }
 
 
