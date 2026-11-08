@@ -88,6 +88,7 @@ from app.models.song_plays import SongPlayDaily, SongPlayEvent
 __all__ = [
     "AppEvent",
     "FeatureFlag",
+from app.models.song_translations import SongTranslation
     "AiDailyUsage",
     "AuthorAlias",
     "AuthorBlock",
@@ -153,6 +154,7 @@ __all__ = [
     "SongIngestionSubmission",
     "SongOccasionLink",
     "SongSeasonLink",
+    "SongTranslation",
     "SongThemeLink",
     "SiteAnnouncement",
     "Theme",
