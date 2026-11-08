@@ -48,6 +48,23 @@ export const pronunciationEn = {
   "pron.sources": "Sources",
   "pron.sources.body": "Sarkarverse (the Roman key), Wikipedia and Wiktionary. Every rule names its sources in the documentation of the app.",
 
+  // ---- the cheat-sheet
+  "pron.cs.you": "You see",
+  "pron.cs.sounds": "It sounds like",
+  "pron.cs.voice": "The sounds are a computer voice, close but not exact.",
+  "pron.cs.group.vowel": "Vowels",
+  "pron.cs.group.consonant": "Consonants",
+  "pron.cs.group.nasal": "Nose sounds",
+  "pron.cs.group.sibilant": "S and sh sounds",
+  "pron.cs.group.special": "Special signs",
+  "pron.cs.group.general": "Good to know",
+  "pron.cs.group.a11y": "{group}: {count} rules",
+  "pron.cs.inSong": "{count} in this song",
+  "pron.cs.row.a11y": "{symbols}: show details",
+  "pron.cs.checking": "being checked",
+  "pron.cs.hear": "Words to hear",
+  "pron.cs.footer": "A native speaker is still checking {count} of the {total} rules. They say “being checked”.",
+
   // ---- Bengali: the basics
   "pron.bn.g.roman.text":
     "The Roman text spells the Bengali letters, not the sounds. So i and ii sound the same, u and ú sound the same, and sh, ś and s are usually the same sound too.",
@@ -266,6 +283,23 @@ export const pronunciationRu: Readonly<Record<string, string>> = {
   "pron.sources": "Источники",
   "pron.sources.body": "Sarkarverse (латинский ключ), Википедия и Викисловарь. Каждое правило называет свои источники в документации приложения.",
 
+  // ---- the cheat-sheet
+  "pron.cs.you": "Вы видите",
+  "pron.cs.sounds": "Звучит как",
+  "pron.cs.voice": "Звуки — компьютерный голос: близко, но не точно.",
+  "pron.cs.group.vowel": "Гласные",
+  "pron.cs.group.consonant": "Согласные",
+  "pron.cs.group.nasal": "Носовые звуки",
+  "pron.cs.group.sibilant": "Звуки с и ш",
+  "pron.cs.group.special": "Особые знаки",
+  "pron.cs.group.general": "Полезно знать",
+  "pron.cs.group.a11y": "{group}: правил {count}",
+  "pron.cs.inSong": "{count} в этой песне",
+  "pron.cs.row.a11y": "{symbols}: показать подробности",
+  "pron.cs.checking": "проверяется",
+  "pron.cs.hear": "Слова для прослушивания",
+  "pron.cs.footer": "Носитель языка ещё проверяет {count} правил из {total}. Они помечены словом «проверяется».",
+
   // ---- бенгальский: основное
   "pron.bn.g.roman.text":
     "Латиница передаёт буквы бенгальского письма, а не звуки. Поэтому i и ii звучат одинаково, u и ú тоже, а sh, ś и s обычно дают один и тот же звук.",
@@ -483,6 +517,23 @@ export const pronunciationEs: Record<keyof typeof pronunciationEn, string> = {
   "pron.error": "Este dispositivo no pudo reproducir el sonido.",
   "pron.sources": "Fuentes",
   "pron.sources.body": "Sarkarverse (la clave en letras latinas), Wikipedia y Wikcionario. Cada regla nombra sus fuentes en la documentación de la app.",
+
+  // ---- the cheat-sheet
+  "pron.cs.you": "Lo que ves",
+  "pron.cs.sounds": "Suena como",
+  "pron.cs.voice": "Los sonidos son de una voz de ordenador: cercanos, pero no exactos.",
+  "pron.cs.group.vowel": "Vocales",
+  "pron.cs.group.consonant": "Consonantes",
+  "pron.cs.group.nasal": "Sonidos nasales",
+  "pron.cs.group.sibilant": "Sonidos s y sh",
+  "pron.cs.group.special": "Signos especiales",
+  "pron.cs.group.general": "Conviene saber",
+  "pron.cs.group.a11y": "{group}: {count} reglas",
+  "pron.cs.inSong": "{count} en esta canción",
+  "pron.cs.row.a11y": "{symbols}: ver detalles",
+  "pron.cs.checking": "en revisión",
+  "pron.cs.hear": "Palabras para escuchar",
+  "pron.cs.footer": "Un hablante nativo todavía revisa {count} de las {total} reglas. Llevan la marca «en revisión».",
 
   // ---- bengalí: lo básico
   "pron.bn.g.roman.text":

@@ -1,19 +1,22 @@
 # How to pronounce: the pronunciation memo
 
-Every song page has a memo "How to pronounce": a bottom sheet with the pronunciation rules of the Roman letters of the song's language, and a sound to tap for every example word. It opens from the "Aa" text options (last row of the popover) and from the About area at the end of the page. Nothing plays by itself.
+Every song page has a "How to pronounce" cheat-sheet: a bottom sheet with the pronunciation rules of the Roman letters of the song's language, and a sound to tap for every example word. It opens from the "Aa" text options (last row of the popover) and from the About area at the end of the page. Nothing plays by itself.
 
 Status: **no native speaker has checked any rule or any sound yet.** Every rule carries `verified: false`. The sounds are a computer voice. The sheet says so. This page lists what is sourced, what is a reading of ours, and what a native speaker must confirm.
 
 ## What is in the sheet
 
-1. The language switch (Bengali | Sanskrit). The sheet opens in the language the song seems to be in (see "Which language"); the other one is one tap away, so a wrong guess is never hidden.
-2. A short note on the sounds: computer voice, approximate; the Sanskrit sounds are read by a Hindi voice; no native speaker has checked the memo.
-3. **The basics** (general rules of the language: what the Roman text spells, the inherent a, long and short vowels, stress, aspirates, final a ...).
-4. **Letters in this song**: the rules whose symbols occur in this song's Roman text, in the order of the rule list.
-5. **All letters**: all the other rules.
-6. **Sources**.
+The sheet is a **cheat-sheet**, built to be read by a child: on the left "You see" (the Roman letters), on the right "It sounds like" (the closest sound in the reader's language), and a speaker button to hear a real word of the lyrics. Nothing in it is new: every line is a `pron.<rule id>.like` or `pron.<rule id>.text` string of `locales/pronunciation.ts`, and the audio is the existing clips.
 
-Each rule shows: its Roman symbols (large), the letters of the script and the IPA, one plain sentence, the closest sound in the reader's language ("Close to: ..."), a "Needs a native-speaker check" mark where that applies, and one or more example words with a play button. An example word is a real word of the lyrics; the song number is shown.
+1. The language switch (Bengali | Sanskrit). The sheet opens in the language the song seems to be in (see "Which language"); the other one is one tap away, so a wrong guess is never hidden. A song with both languages gets one extra line that says so.
+2. One quiet line: the sounds are a computer voice, close but not exact (Sanskrit adds the Hindi-voice note).
+3. **Six groups**, the data's own groups, in this order: Vowels, Consonants, Nose sounds, S and sh sounds, Special signs, Good to know (the general rules of the language: what the Roman text spells, the inherent a, final a, aspirates, stress ...). Each group is a card with a header that opens it; the vowels are open, the others open with a tap. A header says how many of its letters occur in this song.
+4. Inside a group the letters **that occur in this song come first and are shaded**; the rest follow in the order of the rule list.
+5. A **row** shows at most four letters, one line (the "close to" line, or the first sentence of the rule when it has none) and a speaker for the rule's first example word. Tap the row to open it: the script letters, the IPA, the whole rule and every example word with its song number.
+6. A rule that a native speaker has still to confirm (`status: "needs-native-check"`) says "being checked" in small grey type on its row, and "Needs a native-speaker check" when the row is open. A footer says how many rules are still being checked. Nothing is hidden.
+7. The sources, in small type.
+
+`lib/pronunciation/cheatSheet.ts` is pure (no text, no React): it cuts the rules of `memo.ts` into the six groups, puts the song's letters first and picks the letters and the word for each row. `__tests__/pronunciationCheatSheet.test.ts` checks it. The old long memo (basics, letters in this song, all letters, one block per rule) is gone from the sheet; `buildMemo` stays because the cheat-sheet is built on it.
 
 ## Files
 
@@ -26,7 +29,8 @@ Each rule shows: its Roman symbols (large), the letters of the script and the IP
 | `data/pronunciation/songLanguages.ts` | Songs whose language was checked by hand |
 | `data/pronunciation/audioIndex.ts` | GENERATED: audio id to clip (never edit by hand) |
 | `lib/pronunciation/symbols.ts` | Reads a song's Roman text into symbols (tokens) |
-| `lib/pronunciation/memo.ts` | Orders the memo: basics, symbols of this song, the rest |
+| `lib/pronunciation/memo.ts` | Splits the rules of one language: basics, symbols of this song, the rest |
+| `lib/pronunciation/cheatSheet.ts` | Cuts them into the six groups of the cheat-sheet (pure) |
 | `lib/pronunciation/songLanguage.ts` | Which language a song gets |
 | `lib/pronunciation/audio.ts` | Plays a clip (expo-av) |
 | `components/song-page/Pronunciation.tsx` | The sheet and the row that opens it |
