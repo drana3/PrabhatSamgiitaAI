@@ -22,7 +22,7 @@ export function VideoEmbed({ embed, title, width, height, radius }: { embed: Emb
         javaScriptEnabled
         domStorageEnabled
         setSupportMultipleWindows={false}
-        onShouldStartLoadWithRequest={(request) => embedMayLoad(embed.provider, request.url || "") || request.url === YOUTUBE_EMBED_REFERER}
+        onShouldStartLoadWithRequest={(request) => embedMayLoad(embed.provider, request.url || "", request.isTopFrame !== false) || request.url === YOUTUBE_EMBED_REFERER}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         allowsFullscreenVideo

@@ -43,7 +43,7 @@ describe("watching a link inside the app", () => {
 
   it("lets the player load only its own embed and media hosts, never a watch page or another site", () => {
     expect(embedMayLoad("youtube", "https://www.youtube.com/embed/dQw4w9WgXcQ?playsinline=1")).toBe(true)
-    expect(embedMayLoad("youtube", "https://rr1---sn.googlevideo.com/videoplayback")).toBe(true)
+    expect(embedMayLoad("youtube", "https://rr1---sn.googlevideo.com/videoplayback", false)).toBe(true)
     expect(embedMayLoad("youtube", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")).toBe(false)
     expect(embedMayLoad("youtube", "https://example.com/")).toBe(false)
     expect(embedMayLoad("vimeo", "https://player.vimeo.com/video/76979871")).toBe(true)
@@ -51,6 +51,51 @@ describe("watching a link inside the app", () => {
     expect(embedMayLoad("archive", "https://archive.org/embed/some-id")).toBe(true)
     expect(embedMayLoad("archive", "https://archive.org/details/some-id")).toBe(false)
     expect(embedMayLoad("archive", "about:blank")).toBe(true)
+  })
+
+  it("is not fooled by look-alike hosts, user names, other schemes or ports", () => {
+    // a host that merely CONTAINS or STARTS WITH the allowed name
+    expect(embedMayLoad("youtube", "https://evil-googlevideo.com/videoplayback", false)).toBe(false)
+    expect(embedMayLoad("youtube", "https://googlevideo.com.evil.com/x", false)).toBe(false)
+    expect(embedMayLoad("youtube", "https://youtube.com.evil.com/embed/dQw4w9WgXcQ")).toBe(false)
+    expect(embedMayLoad("youtube", "https://evilyoutube.com/embed/dQw4w9WgXcQ")).toBe(false)
+    expect(embedMayLoad("vimeo", "https://evil-vimeocdn.com/x", false)).toBe(false)
+    expect(embedMayLoad("vimeo", "https://player.vimeo.com.evil.com/video/1")).toBe(false)
+    expect(embedMayLoad("archive", "https://archive.org.evil.com/embed/x")).toBe(false)
+    expect(embedMayLoad("archive", "https://evil-us.archive.org.example/x", false)).toBe(false)
+    // user name tricks: the host is what comes after the @
+    expect(embedMayLoad("youtube", "https://www.youtube.com@evil.com/embed/dQw4w9WgXcQ")).toBe(false)
+    expect(embedMayLoad("youtube", "https://www.youtube.com:pw@www.youtube.com/embed/dQw4w9WgXcQ")).toBe(false)
+    expect(embedMayLoad("vimeo", "https://player.vimeo.com@evil.com/video/1")).toBe(false)
+    // not https, odd ports, things that do not parse
+    expect(embedMayLoad("youtube", "http://www.youtube.com/embed/dQw4w9WgXcQ")).toBe(false)
+    expect(embedMayLoad("youtube", "https://www.youtube.com:8443/embed/dQw4w9WgXcQ")).toBe(false)
+    expect(embedMayLoad("youtube", "javascript:alert(1)")).toBe(false)
+    expect(embedMayLoad("youtube", "//evil.com/embed/x")).toBe(false)
+    expect(embedMayLoad("youtube", "not a url")).toBe(false)
+  })
+
+  it("allows data: and blob: only inside the page's own frames, never as the main frame", () => {
+    expect(embedMayLoad("youtube", "data:text/html,<script>alert(1)</script>")).toBe(false)
+    expect(embedMayLoad("youtube", "data:text/html,<script>alert(1)</script>", true)).toBe(false)
+    expect(embedMayLoad("youtube", "blob:https://www.youtube.com/abc", true)).toBe(false)
+    expect(embedMayLoad("youtube", "about:srcdoc", true)).toBe(false)
+    expect(embedMayLoad("youtube", "data:text/html,x", false)).toBe(true)
+    expect(embedMayLoad("youtube", "blob:https://www.youtube.com/abc", false)).toBe(true)
+    expect(embedMayLoad("youtube", "about:blank", true)).toBe(true)
+  })
+
+  it("keeps the CDN and media hosts out of the main frame, and download links out of the archive rule", () => {
+    expect(embedMayLoad("youtube", "https://rr1---sn.googlevideo.com/videoplayback")).toBe(false)
+    expect(embedMayLoad("youtube", "https://i.ytimg.com/vi/x/hqdefault.jpg")).toBe(false)
+    expect(embedMayLoad("youtube", "https://www.google.com/recaptcha/api2/anchor")).toBe(false)
+    expect(embedMayLoad("youtube", "https://www.google.com/recaptcha/api2/anchor", false)).toBe(true)
+    expect(embedMayLoad("vimeo", "https://x.akamaized.net/a")).toBe(false)
+    expect(embedMayLoad("vimeo", "https://i.vimeocdn.com/video/1.jpg")).toBe(false)
+    expect(embedMayLoad("archive", "https://archive.org/download/some-id/file.mp4")).toBe(false)
+    expect(embedMayLoad("archive", "https://archive.org/download/some-id/file.mp4", false)).toBe(false)
+    expect(embedMayLoad("archive", "https://ia800000.us.archive.org/1/items/x/file.mp4")).toBe(false)
+    expect(embedMayLoad("archive", "https://ia800000.us.archive.org/1/items/x/file.mp4", false)).toBe(true)
   })
 })
 

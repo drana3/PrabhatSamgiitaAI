@@ -29,17 +29,59 @@ export function videoEmbed(video: Pick<VideoLink, "provider" | "url" | "linkStat
   }
 }
 
-/** Where a player may take the view: its own embed and the media hosts it needs, never a watch page or another site. */
-const ALLOWED: Record<VideoProvider, RegExp> = {
-  youtube: /^https:\/\/(?:www\.)?youtube(?:-nocookie)?\.com\/embed\/|^https:\/\/[^/]*(?:googlevideo\.com|ytimg\.com|gstatic\.com)\/|^https:\/\/www\.google\.com\/recaptcha\//i,
-  vimeo: /^https:\/\/(?:player\.vimeo\.com|[^/]*(?:vimeocdn\.com|akamaized\.net))\//i,
-  archive: /^https:\/\/(?:www\.)?archive\.org\/(?:embed|download|stream)\/|^https:\/\/[^/]*\.us\.archive\.org\//i,
+type Rule = { hosts: readonly string[]; paths: readonly string[] }
+
+/**
+ * Where a player may take the view, per provider. The address is PARSED (never matched as text, which `evil-googlevideo.com`,
+ * `youtube.com.evil.com` and `https://youtube.com@evil.com/` all get past): https only, no user name or password, and the host
+ * is compared whole (`host === d`, or `host` ends with `.d` for the media domains that have many subdomains).
+ *  - `top`: the main frame of the web view. Only the site's own embed page; no media hosts, no CDN, never a watch page.
+ *  - `frames`: frames inside the embed page (the player's own iframes). The player's media and script hosts, and the
+ *    site's own embed pages.
+ * `exact` hosts are compared whole; `suffix` domains also match their subdomains.
+ */
+const ALLOWED: Record<VideoProvider, { top: Rule; frames: Rule & { suffix: readonly string[] } }> = {
+  youtube: {
+    top: { hosts: ["youtube.com", "www.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com"], paths: ["/embed/"] },
+    frames: {
+      hosts: ["youtube.com", "www.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com", "www.google.com"],
+      paths: ["/embed/", "/recaptcha/"],
+      suffix: ["googlevideo.com", "ytimg.com", "gstatic.com"],
+    },
+  },
+  vimeo: {
+    top: { hosts: ["player.vimeo.com"], paths: ["/video/"] },
+    frames: { hosts: ["player.vimeo.com"], paths: ["/"], suffix: ["vimeocdn.com", "akamaized.net"] },
+  },
+  archive: {
+    top: { hosts: ["archive.org", "www.archive.org"], paths: ["/embed/", "/stream/"] },
+    frames: { hosts: ["archive.org", "www.archive.org"], paths: ["/embed/", "/stream/"], suffix: ["us.archive.org"] },
+  },
 }
 
-/** True when the embed page may load this address (an in-page navigation or a sub-resource). */
-export function embedMayLoad(provider: VideoProvider, url: string): boolean {
-  if (!url || url.startsWith("about:") || url.startsWith("data:") || url.startsWith("blob:")) return true
-  return ALLOWED[provider].test(url)
+const underSuffix = (host: string, domain: string) => host === domain || host.endsWith(`.${domain}`)
+
+/**
+ * True when the embed page may load this address. `isTopFrame` is the web view's own flag for the request: the main frame
+ * (default, the stricter side) or a frame inside the page. In the main frame only the site's own embed and `about:blank` pass;
+ * `data:` and `blob:` (and `about:srcdoc`) are for frames inside the page only.
+ */
+export function embedMayLoad(provider: VideoProvider, url: string, isTopFrame = true): boolean {
+  if (!url || url === "about:blank") return true
+  if (url === "about:srcdoc" || /^(?:data|blob):/i.test(url)) return !isTopFrame
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) return false
+  if (parsed.port && parsed.port !== "443") return false
+  const host = parsed.hostname.toLowerCase().replace(/\.$/, "")
+  const rule = ALLOWED[provider]
+  if (isTopFrame) return rule.top.hosts.includes(host) && rule.top.paths.some((path) => parsed.pathname.startsWith(path))
+  if (rule.frames.hosts.includes(host) && rule.frames.paths.some((path) => parsed.pathname.startsWith(path))) return true
+  return rule.frames.suffix.some((domain) => underSuffix(host, domain))
 }
 
 /** What a row can do: watch inside the app, or only open on the site. */
