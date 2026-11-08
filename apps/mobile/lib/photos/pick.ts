@@ -6,6 +6,7 @@ import type { PhotoCategory, PhotoMood, PhotoPeople, StockPhotoMeta } from "@/li
  *   long moods, where a cool, quiet picture fits.
  * - People: photos with `close` or `children` are never picked unless the caller opts in with `allowPeople`
  *   (Stories, About). Calm moods (night, long, morning) prefer `none` or `far` even then.
+ * - Baba: a photo with `subject: "baba"` is never picked (his photographs are shown only by BabaPhoto, never under text).
  * - Resolution: `lowRes` photos (long side under 1000 px) are picked only for `size: "small"` (small covers,
  *   thumbnails), never for a full-bleed hero.
  */
@@ -21,7 +22,7 @@ export type PickOptions = {
   size?: "small" | "large"
 }
 
-type Pickable = Pick<StockPhotoMeta, "tone" | "moods"> & Partial<Pick<StockPhotoMeta, "people" | "lowRes">>
+type Pickable = Pick<StockPhotoMeta, "tone" | "moods"> & Partial<Pick<StockPhotoMeta, "people" | "lowRes" | "subject">>
 
 /** FNV-1a, 32 bit: stable across runs and devices, so one mix always gets the same photo. */
 export function hashSeed(seed: string): number {
@@ -40,7 +41,7 @@ export function hashSeed(seed: string): number {
 export function pickPool<T extends Pickable>(list: readonly T[], mood?: PhotoMood, opts: PickOptions = {}): T[] {
   const allowPeople = opts.allowPeople === true
   const allowLow = opts.size === "small"
-  let eligible = list.filter((p) => (allowPeople || PEOPLE_OK.includes(p.people ?? "none")) && (allowLow || !p.lowRes))
+  let eligible = list.filter((p) => p.subject !== "baba" && (allowPeople || PEOPLE_OK.includes(p.people ?? "none")) && (allowLow || !p.lowRes))
   if (allowPeople && mood !== undefined && CALM_MOODS.includes(mood)) {
     const quiet = eligible.filter((p) => PEOPLE_OK.includes(p.people ?? "none"))
     if (quiet.length > 0) eligible = quiet

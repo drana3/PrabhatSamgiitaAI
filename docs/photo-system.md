@@ -31,6 +31,8 @@ Ratios are targets for the layout; use `contentPosition` from the focal point (s
 | Welcome and Sign in | first impression | full bleed 9:19.5 | cover (portrait or crop of a wide one) | 0.35 to 0.75 vertical gradient | wordmark and buttons only; the same photo for everyone (fixed id, not random) |
 | Notifications (optional, later) | rich image on a daily reminder | 2:1, under 300 KB | derived thumb | none | none, the OS draws the text |
 
+None of the rows above shows a photo of Baba: he is shown only clean, by BabaPhoto, with text below or beside (section 2.5). In the Today hero row the photo is now a clean picture of Baba with the date, title and play button underneath.
+
 General rules for text over a photo: always a scrim (colour from the photo's `tint`, not pure black); check WCAG AA (4.5:1) against the brightest pixel row in the safe zone; never put text in the focal zone; chips and badges on photos are neutral dark glass with white text whatever the photo; in Light and Dark theme the photo is the same, only the surface under the fade changes; `accessibilityIgnoresInvertColors` on every photo.
 
 ## 2. Choosing a photo
@@ -64,6 +66,17 @@ General rules for text over a photo: always a scrim (colour from the photo's `ti
 - Children: never on hero, welcome, covers or share images; stories about schools may use them only with written consent in the catalogue record (`consent` field), and the organisation's permission for photos does not by itself cover children or identifiable adults.
 - Calm moods (night, long, morning) prefer `none` even when people are allowed (already in `pick.ts`).
 - A photo with a visible religious portrait or altar is never cropped to the portrait alone.
+
+### 2.5 Baba photos: shown clean, never under text
+
+Photographs of Shrii Shrii Anandamurti (Baba) follow one rule: **nothing is drawn over them**. No title, date, chip, tag, badge or button, no scrim or gradient, no frosted card laid over the lower part, no reduced opacity, and never a crop that runs through the face. Text goes below or beside the picture.
+
+- Only `components/common/BabaPhoto` draws them. It takes no children, draws no scrim, and renders the caption under the frame. The pictures are bound in `lib/photos/baba.ts` (`today`, `quote`); the face box and the anchor of each are in `lib/photos/babaData.ts`, and `cropFits(photo, ratio)` checks that a frame ratio keeps the whole face (BabaPhoto warns in dev when it does not).
+- Where a block puts text over a photo (player header, Today and Learn covers, Discover tiles, shelf strips, welcome and greeting backgrounds), it uses stock photos or a plain tinted background instead, never Baba. The six prototype cover ids (`lake garland portrait lotus seated guitar`) stay, but `garland`, `portrait`, `seated` and `guitar` are now sunrise, mist, forest and dunes (`assets/home/cover-*.jpg`). The player picks `photoForSeed("player-<number>", mood)`. `brandAssets.dawn` is the lake-and-sky crop (`dawn-clean.webp`).
+- A stock photo may be tagged `subject: "baba"` in the metadata; `pickPool` never returns such a photo. The catalogue holds none today, and a test keeps it that way.
+- The lock-screen artwork (`lib/playback/rntpCatalogPlayer.ts`, `player-baba.jpg`) is drawn by the operating system, which puts the title beside the artwork, not on it. It is the one allowed use outside BabaPhoto.
+- `__tests__/babaPhoto.test.ts` is the guard: a source file other than `baba.ts` that names a file showing Baba fails the test (`BABA_ASSET_FILES` lists every such file in `assets/`, including unused ones; add a new one there); `BabaPhoto` must stay free of gradients, frost and opacity; no screen passes children to it; every `ratio` a screen asks for must keep the face.
+- To show a new photo of Baba: add the file, its geometry in `babaData.ts` and its name to `BABA_ASSET_FILES`, bind it in `baba.ts`, and place it with `BabaPhoto`, text below.
 
 ## 3. Photo metadata (JSON schema)
 

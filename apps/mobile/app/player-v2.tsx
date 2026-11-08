@@ -71,7 +71,7 @@ import {
 } from "@/lib/songPage/lyricLanguages"
 import { gapText, playerGlossRows, playerSampleKey } from "@/lib/songPage/honest"
 import { artistForAuthor } from "@/lib/kirtan/artists"
-import { moodForText } from "@/lib/photos/catalog"
+import { moodForText, photoForSeed } from "@/lib/photos/catalog"
 import { ensureKirtansRegistered, kirtanById, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
 import { openReportSheet } from "@/stores/safetySheetStore"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
@@ -143,9 +143,6 @@ import { openSaveSheet } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
 
 type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "source" | "playlist" | "actions" | "share" | "about"
-
-/** The photograph of Shrii Shrii Anandamurti used by the design (public/mockup/img/c21a6e97...jpg). */
-const PLAYER_PHOTO = require("../assets/player-baba.jpg")
 
 /**
  * Player (prototype PLAYER, Main.dc.html). Dark forest ground in both themes, the
@@ -247,6 +244,9 @@ export default function PlayerV2Screen() {
     transform: [{ translateY: reduce ? 0 : (1 - swap.value) * 14 }],
   }))
   const photoStyle = useAnimatedStyle(() => ({ opacity: photoShown.value }))
+  // The title and header sit over this picture, so it is a stock photo (no people), never one of Baba:
+  // his photographs are only shown clean, by BabaPhoto. One song, one photo.
+  const heroPhoto = useMemo(() => photoForSeed(`player-${song?.number ?? 0}`, moodForText(song?.title ?? "")), [song?.number, song?.title])
 
   // Drag down to collapse: 1:1 with the finger, the release carries its velocity into a spring.
   const dragY = useSharedValue(0)
@@ -726,11 +726,11 @@ export default function PlayerV2Screen() {
       <Animated.View style={[styles.flex, dragStyle, { backgroundColor: playerColors.ground }]}>
       <Animated.View pointerEvents="none" style={[styles.photo, photoStyle]}>
         <Image
-          source={PLAYER_PHOTO}
+          source={heroPhoto.cover}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
-          contentPosition="top"
-          accessibilityLabel="Shrii Shrii Anandamurti"
+          contentPosition="center"
+          accessibilityIgnoresInvertColors
         />
         <LinearGradient
           colors={[playerColors.fadeTop, playerColors.fadeMid, playerColors.ground]}

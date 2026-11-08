@@ -48,6 +48,8 @@ export type StockPhotoMeta = {
   tone: PhotoTone
   moods: readonly PhotoMood[]
   people: PhotoPeople
+  /** "baba": a photograph of Baba. Never picked for covers or backgrounds (see lib/photos/pick.ts), only shown by BabaPhoto. */
+  subject?: "baba"
   /** real pixel size of the cover file (never upscaled) */
   width: number
   height: number

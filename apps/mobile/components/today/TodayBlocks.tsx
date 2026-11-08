@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react"
-import { Platform, StyleSheet, Text, View, ScrollView, type TextStyle } from "react-native"
+import { StyleSheet, Text, View, ScrollView, type TextStyle } from "react-native"
 import { Search } from "lucide-react-native"
+import { BabaPhoto } from "@/components/common/BabaPhoto"
 import { Frost } from "@/components/common/Frost"
 import { Image } from "expo-image"
 
@@ -149,25 +150,18 @@ type HeroProps = P & {
   playing: boolean
 }
 
-/** `.hpanel` photograph with a glass tag, and `.herocard`, a frosted card that overlaps its bottom 60dp. */
+/**
+ * `.hpanel` photograph and `.herocard`. Baba's photograph is a clean picture: the tag and the card sit under it,
+ * never over it (the prototype's glass tag and the overlapping card were taken off the photo).
+ */
 export function TodayHeroPanel({ p, tag, meta, title, onOpen, onListen, playing }: HeroProps) {
   const t = useT()
   const ink = useSet(p) === "4"
   return (
     <View>
-      <View style={[s.panel, { backgroundColor: p.sage900 }]}>
-        <Image
-          source={todayAssets.hero}
-          style={[StyleSheet.absoluteFill, ink && Platform.OS === "web" ? ({ filter: "saturate(0.7) contrast(1.05)" } as object) : null]}
-          contentFit="cover"
-          contentPosition={{ top: 0, left: "50%" }}
-          accessibilityLabel="Shrii Shrii Anandamurti"
-        />
-        <View style={[s.heroTag, { borderColor: p.glassEdge }]}>
-          <Frost intensity={40} tint={p.dark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: p.glassStrong }]} />
-          <Text style={[overStyle, { color: p.orange700 }]}>{tag}</Text>
-        </View>
+      <BabaPhoto id="today" ratio={1.2} radius={30} style={s.panel} />
+      <View style={[s.heroTag, { borderColor: p.sand300, backgroundColor: p.white }]}>
+        <Text style={[overStyle, { color: p.orange700 }]}>{tag}</Text>
       </View>
 
       <View
@@ -602,25 +596,19 @@ const s = StyleSheet.create({
   note: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20.25, maxWidth: 256 },
   /** the prototype's empty note still takes its 8dp gap */
   noteGap: { height: 0 },
-  panel: {
-    marginHorizontal: amProto.gutter,
-    height: amProto.hero,
-    borderRadius: 30,
-    overflow: "hidden",
-  },
+  panel: { marginHorizontal: amProto.gutter },
   heroTag: {
-    position: "absolute",
-    left: 14,
-    top: 14,
+    alignSelf: "flex-start",
+    marginTop: 12,
+    marginLeft: amProto.gutter,
     height: 30,
     paddingHorizontal: 14,
     borderRadius: 70,
     borderWidth: 1,
-    overflow: "hidden",
     justifyContent: "center",
   },
   heroCard: {
-    marginTop: -amProto.heroOverlap,
+    marginTop: 10,
     marginHorizontal: 22,
     borderRadius: 24,
     borderWidth: 1,

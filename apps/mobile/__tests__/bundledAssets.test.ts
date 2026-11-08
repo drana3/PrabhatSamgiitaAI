@@ -16,8 +16,9 @@ describe("bundled image weight", () => {
   })
 
   it("the large hero pictures are WebP", () => {
-    const source = readFileSync(path.join(root, "constants/brand.ts"), "utf8")
-    expect(source).toContain("dawn-hero.webp")
-    expect(source).toContain("guru-quote.webp")
+    const brand = readFileSync(path.join(root, "constants/brand.ts"), "utf8")
+    const baba = readFileSync(path.join(root, "lib/photos/baba.ts"), "utf8")
+    expect(brand).toContain("dawn-clean.webp")
+    expect(baba).toContain("guru-quote.webp")
   })
 })

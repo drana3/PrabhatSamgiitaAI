@@ -2,6 +2,5 @@
 export const todayAssets = {
   /** sun mark, 240 x 289; the header shows it 36dp high */
   logo: require("../assets/today-logo.png"),
-  /** hero photograph, 900 x 1184 */
-  hero: require("../assets/today-hero.jpg"),
+  // the hero photograph (Baba) is lib/photos/baba.ts "today", shown by components/common/BabaPhoto
 } as const
