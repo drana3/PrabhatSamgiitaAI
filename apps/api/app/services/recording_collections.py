@@ -23,6 +23,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -125,9 +126,12 @@ def set_out(collection: RecordingCollection, visible: int, *, owner: bool = Fals
         title=collection.title,
         description=collection.description,
         place=collection.place,
-        event_year=collection.event_year or collection.starts_on.year,
+        event_year=collection.event_year
+        or (collection.starts_on.year if collection.starts_on else None),
         event_month=(
-            collection.event_month if collection.event_year else collection.starts_on.month
+            collection.event_month
+            if collection.event_year
+            else (collection.starts_on.month if collection.starts_on else None)
         ),
         starts_on=collection.starts_on,
         ends_on=collection.ends_on,
@@ -199,7 +203,10 @@ async def list_sets(
         await session.scalars(
             select(RecordingCollection)
             .where(*conditions)
-            .order_by(RecordingCollection.starts_on.desc(), RecordingCollection.created_at.desc())
+            .order_by(
+                RecordingCollection.starts_on.desc().nulls_last(),
+                RecordingCollection.created_at.desc(),
+            )
             .limit(limit)
             .offset(offset)
         )
@@ -365,7 +372,13 @@ def with_set_defaults(payload: RecordingCreate, collection: RecordingCollection)
         merged["language_other"] = collection.default_language_other
     if payload.dance is None and merged["kind"] == "dance_song":
         merged["dance"] = collection.default_dance
-    result = RecordingCreate.model_validate(merged)
+    try:
+        result = RecordingCreate.model_validate(merged)
+    except ValidationError as exc:
+        # e.g. a Kiirtan track without its style: say it the way the single upload does
+        first = exc.errors()[0] if exc.errors() else {}
+        message = str(first.get("msg", "This track is not complete.")).removeprefix("Value error, ")
+        raise HTTPException(status_code=422, detail=message) from exc
     problem = kind_field_problem(
         result.kind,
         language=result.language,
@@ -402,14 +415,22 @@ async def apply_patch(
         collection.description = clean_optional(patch.description, 1000)
     if "place" in sent:
         collection.place = clean_optional(patch.place, 200)
-    if "event_year" in sent and patch.event_year is not None:
+    if "event_year" in sent and patch.event_year is None and "starts_on" not in sent:
+        # the person took the date away: only the title is required
+        collection.event_year = collection.event_month = None
+        collection.starts_on = collection.ends_on = None
+    elif "event_year" in sent and patch.event_year is not None:
         year = patch.event_year
         month = patch.event_month if "event_month" in sent else collection.event_month
         collection.event_year, collection.event_month = year, month
         collection.starts_on = first_day(year, month)
         collection.ends_on = None
     elif "event_month" in sent:
-        year = collection.event_year or collection.starts_on.year
+        year = collection.event_year or (
+            collection.starts_on.year if collection.starts_on else None
+        )
+        if year is None:
+            raise HTTPException(status_code=422, detail="Choose the year first.")
         collection.event_year, collection.event_month = year, patch.event_month
         collection.starts_on = first_day(year, patch.event_month)
         collection.ends_on = None
@@ -425,7 +446,7 @@ async def apply_patch(
         collection.event_year, collection.event_month = patch.starts_on.year, patch.starts_on.month
     elif "ends_on" in sent:
         ends = patch.ends_on
-        if ends is not None and ends < collection.starts_on:
+        if ends is not None and collection.starts_on is not None and ends < collection.starts_on:
             raise HTTPException(
                 status_code=422, detail="The last day cannot be before the first day."
             )

@@ -39,6 +39,7 @@ from app.schemas.recordings import (
     Kind,
     LanguageSet,
     NoticeOut,
+    PracticeSet,
     RecordingCreate,
     RecordingList,
     RecordingOut,
@@ -436,6 +437,24 @@ async def add_language(
         settings=settings,
         language=payload.language,
         language_other=payload.language_other,
+    )
+    return service.recording_out(updated, owner=True)
+
+
+@router.patch("/{recording_id}/practice", response_model=RecordingOut)
+async def change_practice(
+    recording_id: UUID,
+    payload: PracticeSet,
+    session: DatabaseSession,
+    member: Member,
+    settings: AppSettings,
+) -> RecordingOut:
+    """Marks a Kiirtan as an Avarta Kiirtan (`practice: "avarta"`) or clears it (`null`).
+    Its uploader or the team."""
+    service.limiter.hit("practice", str(member.id), limit=60, window_seconds=3600)
+    recording = await get_recording(session, recording_id)
+    updated = await service.set_practice(
+        session, recording=recording, member=member, settings=settings, practice=payload.practice
     )
     return service.recording_out(updated, owner=True)
 

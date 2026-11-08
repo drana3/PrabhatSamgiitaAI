@@ -91,8 +91,11 @@ class _SetFields(BaseModel):
         elif self.starts_on is not None:
             self.event_year, self.event_month = self.starts_on.year, self.starts_on.month
         else:
-            raise ValueError("Choose the year of the event.")
-        if self.ends_on is not None and self.ends_on < self.starts_on:
+            # the date is optional: only the title is required
+            self.event_month = None
+        if self.starts_on is None:
+            self.ends_on = None
+        elif self.ends_on is not None and self.ends_on < self.starts_on:
             raise ValueError("The last day cannot be before the first day.")
         if KIND_LANGUAGE_RULE.get(self.default_kind) == "none":
             self.default_language = None
@@ -173,9 +176,9 @@ class SetOut(BaseModel):
     title: str
     description: str | None
     place: str | None
-    event_year: int
+    event_year: int | None = None
     event_month: int | None
-    starts_on: date
+    starts_on: date | None = None
     ends_on: date | None
     # The picture the member uploaded (a path on this API), or the team's link; null if none.
     cover_url: str | None

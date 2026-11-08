@@ -216,6 +216,8 @@ class Recording(Base, TimestampMixin):
     style: Mapped[str | None] = mapped_column(String(16))
     # What the uploader called the style when they chose "other" (only then).
     style_other: Mapped[str | None] = mapped_column(String(80))
+    # The practice a Kiirtan is for (services/recording_practice.py): "avarta", or null (the usual).
+    practice: Mapped[str | None] = mapped_column(String(16))
     # Baba's Audio Discourses only: where it was given, and the name or number of the discourse.
     place: Mapped[str | None] = mapped_column(String(200))
     discourse: Mapped[str | None] = mapped_column(String(200))

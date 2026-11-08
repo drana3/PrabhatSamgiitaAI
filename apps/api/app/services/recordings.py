@@ -193,6 +193,7 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         language_other=recording.language_other,
         style=recording.style,
         style_other=recording.style_other,
+        practice=recording.practice,
         collection_id=str(recording.collection_id) if recording.collection_id else None,
         position=recording.position,
         recorded_on=recording.recorded_on,
@@ -258,6 +259,29 @@ async def set_missing_language(
         raise HTTPException(status_code=409, detail="This recording already has a language.")
     recording.language = language
     recording.language_other = language_other if language == OTHER else None
+    await session.commit()
+    await session.refresh(recording)
+    return recording
+
+
+async def set_practice(
+    session: AsyncSession,
+    *,
+    recording: Recording,
+    member: UserAccount,
+    settings: Settings,
+    practice: str | None,
+) -> Recording:
+    """Marks a Kiirtan as an Avarta Kiirtan, or clears the mark. Only its uploader or the team,
+    only a Kiirtan, and not a removed one."""
+    owner = recording.author_id is not None and recording.author_id == member.id
+    if not (owner or is_team_member(member, settings)):
+        raise HTTPException(status_code=403, detail="Only the person who uploaded it can do this.")
+    if recording.status == "removed":
+        raise HTTPException(status_code=409, detail="This recording was removed.")
+    if public_kind(recording.kind) != "kiirtan":
+        raise HTTPException(status_code=422, detail="Only a Kiirtan can be an Avarta Kiirtan.")
+    recording.practice = practice
     await session.commit()
     await session.refresh(recording)
     return recording
@@ -600,6 +624,7 @@ async def create_recording(
         language_other=payload.language_other,
         style=payload.style if payload.kind == "kiirtan" else None,
         style_other=payload.style_other if payload.kind == "kiirtan" else None,
+        practice=payload.practice if payload.kind == "kiirtan" else None,
         dance=payload.dance if payload.kind in KINDS_WITH_DANCE else None,
         place=clean_line(payload.place, 200) if payload.kind in KINDS_WITH_DISCOURSE else None,
         discourse=(

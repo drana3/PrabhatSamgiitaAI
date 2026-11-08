@@ -145,8 +145,6 @@ async def create_set(
                 raise HTTPException(status_code=409, detail="This playlist id is taken.")
             response.status_code = status.HTTP_200_OK
             return await _owner_out(session, existing)
-    if payload.starts_on is None or payload.event_year is None:
-        raise HTTPException(status_code=422, detail="Choose the year of the event.")
     team = service.is_team_member(member, settings)
     await sets.ensure_can_start_set(session, member.id, settings, team=team)
     title = sets.clean_set_text(payload.title, 200)

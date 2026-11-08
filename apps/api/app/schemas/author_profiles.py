@@ -126,7 +126,7 @@ class CollectionBrief(BaseModel):
     id: str
     title: str
     place: str | None = None
-    starts_on: date
+    starts_on: date | None = None
     ends_on: date | None = None
     cover_url: str | None = None
     tracks_count: int

@@ -127,7 +127,6 @@ async def test_year_and_month_are_checked(world: World) -> None:
         {"event_year": YEAR + 1},
         {"event_year": 2020, "event_month": 0},
         {"event_year": 2020, "event_month": 13},
-        {},
     ):
         response = await world.client.post(SETS, headers=AS_A, json=body | extra)
         assert response.status_code == 422, extra

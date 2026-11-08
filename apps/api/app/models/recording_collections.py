@@ -54,11 +54,12 @@ class RecordingCollection(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(String(1000))
     place: Mapped[str | None] = mapped_column(String(200))
     # The day of the event, or its first day; `ends_on` is the last day of a range.
-    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    starts_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     ends_on: Mapped[date | None] = mapped_column(Date)
-    # The approximate date people give: a year and, when they know it, a month. `starts_on` is
-    # always filled from them (the first of the month, or 1 January), so ordering and the old
-    # clients keep working; `ends_on` is no longer asked for and stays for old rows.
+    # The approximate date people give: a year and, when they know it, a month. Both are optional
+    # now. `starts_on` is filled from them when there is a year (the first of the month, or
+    # 1 January), so ordering and the old clients keep working; with no year it stays empty;
+    # `ends_on` is no longer asked for and stays for old rows.
     event_year: Mapped[int | None] = mapped_column(Integer)
     event_month: Mapped[int | None] = mapped_column(Integer)
     # An https link to a cover picture the team set by hand. A picture the member uploads lives in

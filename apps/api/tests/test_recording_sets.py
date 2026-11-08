@@ -109,9 +109,11 @@ async def test_a_set_needs_a_member_a_title_and_sane_dates(world: World) -> None
     ).status_code == 422
     backwards = set_body(starts_on="2025-05-10", ends_on="2025-05-01")
     assert (await world.client.post(SETS, headers=AS_A, json=backwards)).status_code == 422
+    # the date is optional now: only the title is required
     no_date = set_body()
     del no_date["starts_on"]
-    assert (await world.client.post(SETS, headers=AS_A, json=no_date)).status_code == 422
+    made = await world.client.post(SETS, headers=AS_A, json=no_date)
+    assert made.status_code == 201 and made.json()["event_year"] is None
 
 
 async def test_set_defaults_follow_the_category_rules(world: World) -> None:

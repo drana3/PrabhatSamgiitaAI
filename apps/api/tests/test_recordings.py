@@ -347,6 +347,7 @@ class World:
         base: dict[str, object] = {
             "key": key,
             "kind": "kiirtan",
+            "style": "bengali",
             "title": "Baba Nam Kevalam",
             "author": "Sample group",
             "by_author": True,

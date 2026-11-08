@@ -19,6 +19,7 @@ from app.services.recording_languages import (
     clean_language_other,
     normalize_language,
 )
+from app.services.recording_practice import normalize_practice
 from app.services.recording_styles import clean_style_other, normalize_style
 
 # The category of a recording. "kiirtan" is Baba Nam Kevalam (the only mantra of the library),
@@ -121,6 +122,9 @@ class RecordingCreate(BaseModel):
     # Optional, Kiirtan only: how it is sung (STYLES or "other" + `style_other`). Dropped for the others.
     style: str | None = Field(default=None, max_length=16)
     style_other: str | None = Field(default=None, max_length=200)
+    # Optional, Kiirtan only: "avarta" marks an Avarta Kiirtan (the special practice, sung facing
+    # six directions in turn). Dropped for the others. See services/recording_practice.py.
+    practice: str | None = Field(default=None, max_length=16)
     # Optional details ("More details" in the app).
     credits: str | None = Field(default=None, max_length=300)
     year: int | None = Field(default=None, ge=FIRST_YEAR)
@@ -153,6 +157,13 @@ class RecordingCreate(BaseModel):
         if value is None or isinstance(value, str):
             return normalize_style(value)
         raise ValueError("Choose a style from the list.")
+
+    @field_validator("practice", mode="before")
+    @classmethod
+    def _practice_is_a_known_id(cls, value: object) -> str | None:
+        if value is None or isinstance(value, str):
+            return normalize_practice(value)
+        raise ValueError("Choose a practice from the list.")
 
     @field_validator("dance", mode="before")
     @classmethod
@@ -190,6 +201,12 @@ class RecordingCreate(BaseModel):
         self.style_other = clean_style_other(self.style_other) if self.style == OTHER else None
         if self.style == OTHER and not self.style_other:
             raise ValueError("Write the name of the style.")
+        # A Kiirtan must say how it is sung ("other" and its name count). A playlist track takes
+        # the playlist's kind, so the service checks it once the kind is known.
+        if self.kind == "kiirtan" and not kind_unsaid and not self.style:
+            raise ValueError("Choose the style of the Kiirtan.")
+        if self.kind != "kiirtan" and not kind_unsaid:
+            self.practice = None
         if self.kind not in KINDS_WITH_DISCOURSE and not kind_unsaid:
             self.place = None
             self.discourse = None
@@ -213,6 +230,19 @@ class RecordingCreate(BaseModel):
             if problem:
                 raise ValueError(problem)
         return self
+
+
+class PracticeSet(BaseModel):
+    """`PATCH /recordings/{id}/practice`: mark a Kiirtan as an Avarta Kiirtan, or clear it."""
+
+    practice: str | None = None
+
+    @field_validator("practice", mode="before")
+    @classmethod
+    def _known_practice(cls, value: object) -> str | None:
+        if value is None or isinstance(value, str):
+            return normalize_practice(value)
+        raise ValueError("Choose a practice from the list.")
 
 
 class LanguageSet(BaseModel):
@@ -282,6 +312,8 @@ class RecordingOut(BaseModel):
     # Kiirtan only: how it is sung (a STYLES id or "other" + `style_other`).
     style: str | None = None
     style_other: str | None = None
+    # Kiirtan only: "avarta" for an Avarta Kiirtan, else null.
+    practice: str | None = None
     # Playlist from an event: its id, the place in it, the day this track was recorded.
     collection_id: str | None = None
     position: int | None = None

@@ -82,8 +82,8 @@ async def test_a_kiirtan_keeps_its_style_and_the_others_drop_it(world: World) ->
     other = await world.publish("a", mp3(7002), kind="kiirtan", style="other", style_other="Baul")
     assert other.json()["style"] == "other"
     assert other.json()["style_other"] == "Baul"
-    plain = await world.publish("a", mp3(7003), kind="kiirtan")
-    assert plain.json()["style"] is None
+    plain = await world.publish("a", mp3(7003), kind="kiirtan", style=None)
+    assert plain.status_code == 422  # a Kiirtan must say how it is sung
     bhajan = await world.publish("a", mp3(7004), kind="bhajan", language="bn", style="folk")
     assert bhajan.status_code == 201, bhajan.text
     assert bhajan.json()["style"] is None

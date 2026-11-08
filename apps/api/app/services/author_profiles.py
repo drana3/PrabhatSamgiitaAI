@@ -799,7 +799,7 @@ async def collections_of(session: AsyncSession, profile: AuthorProfile) -> list[
                 RecordingCollection.owner_id == profile.member_id,
                 RecordingCollection.status == "active",
             )
-            .order_by(RecordingCollection.starts_on.desc())
+            .order_by(RecordingCollection.starts_on.desc().nulls_last())
         )
     ).all()
     if not sets:
