@@ -218,6 +218,12 @@ class Recording(Base, TimestampMixin):
     style_other: Mapped[str | None] = mapped_column(String(80))
     # The practice a Kiirtan is for (services/recording_practice.py): "avarta", or null (the usual).
     practice: Mapped[str | None] = mapped_column(String(16))
+    # How it was recorded (services/recording_info.py): studio, live, home or ai. Required for a
+    # new Kiirtan; null for older rows and for the categories that do not carry it.
+    recording_type: Mapped[str | None] = mapped_column(String(16))
+    # slow / medium / fast (Kiirtan, dance music), and solo / group (Kiirtan, Bhajan). Optional.
+    tempo: Mapped[str | None] = mapped_column(String(8))
+    performance: Mapped[str | None] = mapped_column(String(8))
     # Baba's Audio Discourses only: where it was given, and the name or number of the discourse.
     place: Mapped[str | None] = mapped_column(String(200))
     discourse: Mapped[str | None] = mapped_column(String(200))

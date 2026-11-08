@@ -51,6 +51,7 @@ from app.schemas.recordings import (
     RecordingCreate,
     RecordingOut,
 )
+from app.services import recording_matches as matches
 from app.services.admin_members import normalize_member_email, owner_admin_emails
 from app.services.invisible_text import strip_invisible
 from app.services.recording_fingerprint import (
@@ -61,6 +62,7 @@ from app.services.recording_fingerprint import (
     similar_matches,
     similarity,
 )
+from app.services.recording_info import clean_info
 from app.services.recording_languages import OTHER
 from app.services.recording_storage import (
     RecordingStorage,
@@ -155,13 +157,15 @@ limiter = RateLimiter()
 # --------------------------------------------------------------------------- views
 
 
-def _brief(recording: Recording) -> RecordingBrief:
+def _brief(recording: Recording, reasons: Sequence[str] = ()) -> RecordingBrief:
     return RecordingBrief(
         id=str(recording.id),
         kind=recording.kind,  # type: ignore[arg-type]
         title=recording.title,
         author=recording.author,
         audio_url=recording.audio_url,
+        duration_sec=recording.duration_sec,
+        reasons=list(reasons),
     )
 
 
@@ -194,6 +198,9 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         style=recording.style,
         style_other=recording.style_other,
         practice=recording.practice,
+        recording_type=recording.recording_type,
+        tempo=recording.tempo,
+        performance=recording.performance,
         collection_id=str(recording.collection_id) if recording.collection_id else None,
         position=recording.position,
         recorded_on=recording.recorded_on,
@@ -361,6 +368,55 @@ async def similar_recordings(
         if row is not None:
             found.append((row, score))
     return found
+
+
+async def library_matches(
+    session: AsyncSession,
+    *,
+    title: str,
+    duration_sec: int | None,
+    sound: Sequence[tuple[Recording, float]],
+    sha256: str | None,
+    viewer_id: UUID | None,
+    limit: int = 3,
+) -> list[tuple[Recording, set[str]]]:
+    """The live recordings that match a new one, with the layers that matched, best first.
+
+    `sound` is what the fingerprint found (empty when `fpcalc` is not installed). A recording the
+    viewer cannot see is never offered: removed or under review ones (only `VISIBLE` statuses are
+    read) and those of an author the viewer blocked. Pairs the uploader already called "different"
+    are left out, the same as for the sound check.
+    """
+    found: dict[UUID, tuple[Recording, set[str]]] = {}
+    for row, _ in sound:
+        found[row.id] = (row, {matches.SOUND})
+    wanted = title_key(title)
+    if wanted and duration_sec:
+        low, high = matches.duration_window(duration_sec)
+        rows = (
+            await session.scalars(
+                select(Recording).where(
+                    Recording.status.in_(VISIBLE),
+                    Recording.duration_sec.is_not(None),
+                    Recording.duration_sec.between(low, high),
+                )
+            )
+        ).all()
+        for row in rows:
+            if matches.titles_close(wanted, title_key(row.title)):
+                entry = found.setdefault(row.id, (row, set()))
+                entry[1].update({matches.TITLE, matches.DURATION})
+    blocked = set(await blocked_author_ids(session, viewer_id))
+    skip = await confirmed_pairs(session, sha256) if sha256 else set()
+    ranked = [
+        (row, why)
+        for row, why in found.values()
+        if matches.is_offered(why)
+        and row.id not in skip
+        and (row.author_id is None or row.author_id not in blocked)
+    ]
+    ranked.sort(key=lambda pair: (-len(pair[1]), pair[0].title))
+    return ranked[:limit]
 
 
 async def confirmed_pairs(session: AsyncSession, sha256: str) -> set[UUID]:
@@ -574,12 +630,23 @@ async def create_recording(
             )
             raise HTTPException(status_code=409, detail=detail.model_dump())
         similar = await similar_recordings(session, info.fingerprint, sha256=info.sha256)
+    # The three layers together (services/recording_matches.py): sound, and title with duration.
+    matches = await library_matches(
+        session,
+        title=title,
+        duration_sec=payload.duration_sec or info.duration_sec,
+        sound=similar,
+        sha256=info.sha256,
+        viewer_id=member_id,
+    )
+    similar = [(row, 0.0) for row, _ in matches]
+    reasons = {row.id: why for row, why in matches}
     confirmed = payload.confirm_different or payload.confirm_similar
     if similar and not confirmed:
         detail = DuplicateDetail(
             code="similar_recording",
             message="Sounds like a recording already in the library. Is yours different?",
-            similar=[_brief(row) for row, _ in similar],
+            similar=[_brief(row, sorted(reasons[row.id])) for row, _ in similar],
         )
         raise HTTPException(status_code=409, detail=detail.model_dump())
     if similar and confirmed:
@@ -599,6 +666,7 @@ async def create_recording(
             and visible + 1 >= collection.tracks_expected
         ):
             collection.finished_at = moment
+    kept = clean_info(payload.kind, payload.recording_type, payload.tempo, payload.performance)
     recording = Recording(
         kind=payload.kind,
         type=validate_type(payload.kind, payload.type),
@@ -625,6 +693,9 @@ async def create_recording(
         style=payload.style if payload.kind == "kiirtan" else None,
         style_other=payload.style_other if payload.kind == "kiirtan" else None,
         practice=payload.practice if payload.kind == "kiirtan" else None,
+        recording_type=kept[0],
+        tempo=kept[1],
+        performance=kept[2],
         dance=payload.dance if payload.kind in KINDS_WITH_DANCE else None,
         place=clean_line(payload.place, 200) if payload.kind in KINDS_WITH_DISCOURSE else None,
         discourse=(

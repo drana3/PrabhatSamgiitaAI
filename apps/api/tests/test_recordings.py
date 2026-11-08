@@ -6,6 +6,7 @@ behaviour (JSONB, the migration against a real server) is not covered here.
 
 from __future__ import annotations
 
+import itertools
 import os
 import stat
 import time
@@ -301,6 +302,7 @@ def test_the_migration_follows_the_last_one_and_registers_the_tables() -> None:
 
 # --------------------------------------------------------------------------- API on SQLite
 
+TITLE_NUMBER = itertools.count(1)
 MEMBER_A = UUID("00000000-0000-0000-0000-00000000000a")
 MEMBER_B = UUID("00000000-0000-0000-0000-00000000000b")
 
@@ -348,7 +350,10 @@ class World:
             "key": key,
             "kind": "kiirtan",
             "style": "bengali",
-            "title": "Baba Nam Kevalam",
+            "recording_type": "studio",
+            # A new number each time: the fake fpcalc gives every file the same length, so two
+            # recordings with one title would (rightly) be offered to each other as a match.
+            "title": f"Baba Nam Kevalam {next(TITLE_NUMBER)}",
             "author": "Sample group",
             "by_author": True,
             "terms_accepted": True,

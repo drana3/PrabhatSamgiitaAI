@@ -66,7 +66,8 @@ async def add_track(
     path = info["url"].split("://", 1)[1].split("/", 1)[1]
     put = await world.client.put("/" + path, content=data, headers=info["headers"])
     assert put.status_code == 204, put.text
-    body = world.body(info["key"], title=f"Track {seed}", collection_id=set_id, **overrides)
+    overrides.setdefault("title", f"Track {seed}")
+    body = world.body(info["key"], collection_id=set_id, **overrides)
     if "kind" not in overrides:
         del body["kind"]  # the track says nothing: it takes the set's kind
     return await world.client.post("/api/v1/recordings", headers={"X-Test-Member": who}, json=body)

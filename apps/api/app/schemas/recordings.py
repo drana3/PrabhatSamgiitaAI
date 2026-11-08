@@ -14,6 +14,15 @@ from app.models.recordings import (
     PS_SONG_COUNT,
     public_kind,
 )
+from app.services.recording_info import (
+    TITLE_IN_ENGLISH,
+    clean_info,
+    has_non_latin_letters,
+    info_problem,
+    normalize_performance,
+    normalize_recording_type,
+    normalize_tempo,
+)
 from app.services.recording_languages import (
     OTHER,
     clean_language_other,
@@ -125,6 +134,13 @@ class RecordingCreate(BaseModel):
     # Optional, Kiirtan only: "avarta" marks an Avarta Kiirtan (the special practice, sung facing
     # six directions in turn). Dropped for the others. See services/recording_practice.py.
     practice: str | None = Field(default=None, max_length=16)
+    # How it was recorded: studio, live, home or ai (services/recording_info.py). REQUIRED for a
+    # Kiirtan, optional for dance music, a Bhajan and a spiritual song, dropped for the others.
+    # An AI recording is stored and shown as such, never hidden.
+    recording_type: str | None = Field(default=None, max_length=16)
+    # Optional: slow / medium / fast (Kiirtan, dance music); solo / group (Kiirtan, Bhajan).
+    tempo: str | None = Field(default=None, max_length=8)
+    performance: str | None = Field(default=None, max_length=8)
     # Optional details ("More details" in the app).
     credits: str | None = Field(default=None, max_length=300)
     year: int | None = Field(default=None, ge=FIRST_YEAR)
@@ -164,6 +180,27 @@ class RecordingCreate(BaseModel):
         if value is None or isinstance(value, str):
             return normalize_practice(value)
         raise ValueError("Choose a practice from the list.")
+
+    @field_validator("recording_type", mode="before")
+    @classmethod
+    def _recording_type_is_a_known_id(cls, value: object) -> str | None:
+        if value is None or isinstance(value, str):
+            return normalize_recording_type(value)
+        raise ValueError("Choose how this was recorded from the list.")
+
+    @field_validator("tempo", mode="before")
+    @classmethod
+    def _tempo_is_a_known_id(cls, value: object) -> str | None:
+        if value is None or isinstance(value, str):
+            return normalize_tempo(value)
+        raise ValueError("Choose a tempo from the list.")
+
+    @field_validator("performance", mode="before")
+    @classmethod
+    def _performance_is_a_known_id(cls, value: object) -> str | None:
+        if value is None or isinstance(value, str):
+            return normalize_performance(value)
+        raise ValueError("Choose solo or group from the list.")
 
     @field_validator("dance", mode="before")
     @classmethod
@@ -207,6 +244,18 @@ class RecordingCreate(BaseModel):
             raise ValueError("Choose the style of the Kiirtan.")
         if self.kind != "kiirtan" and not kind_unsaid:
             self.practice = None
+        # How it was recorded, the tempo and solo/group: each category keeps the ones it carries.
+        # A Kiirtan must say how it was recorded; an AI recording is refused where it is not taken
+        # (it is never quietly turned into an ordinary one).
+        if self.kind == "kiirtan" and not kind_unsaid and has_non_latin_letters(self.title):
+            raise ValueError(TITLE_IN_ENGLISH)
+        if not kind_unsaid:
+            self.recording_type, self.tempo, self.performance = clean_info(
+                self.kind, self.recording_type, self.tempo, self.performance
+            )
+            problem = info_problem(self.kind, self.recording_type)
+            if problem:
+                raise ValueError(problem)
         if self.kind not in KINDS_WITH_DISCOURSE and not kind_unsaid:
             self.place = None
             self.discourse = None
@@ -278,6 +327,10 @@ class RecordingBrief(BaseModel):
     title: str
     author: str
     audio_url: str
+    # For the question "is this the song you want to upload?": how long it is, and which layers of
+    # the check matched (title, duration, sound; services/recording_matches.py). Empty elsewhere.
+    duration_sec: int | None = None
+    reasons: list[str] = Field(default_factory=list)
 
     _kind_read = field_validator("kind", mode="before")(_legacy_kind_is_a_bhajan)
 
@@ -314,6 +367,10 @@ class RecordingOut(BaseModel):
     style_other: str | None = None
     # Kiirtan only: "avarta" for an Avarta Kiirtan, else null.
     practice: str | None = None
+    # How it was recorded (studio, live, home, ai), the tempo and solo/group; null when not said.
+    recording_type: str | None = None
+    tempo: str | None = None
+    performance: str | None = None
     # Playlist from an event: its id, the place in it, the day this track was recorded.
     collection_id: str | None = None
     position: int | None = None
