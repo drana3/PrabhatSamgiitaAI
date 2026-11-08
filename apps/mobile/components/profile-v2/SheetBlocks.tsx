@@ -97,7 +97,7 @@ type SetRowProps = P &
 export function SetRow({ p, label, value, chevron, danger, onPress, right, icon, last }: SetRowProps) {
   const labelText = (
     <Text
-      style={[s.setLabel, { color: danger ? p.danger : p.ink800, fontFamily: danger ? amFonts.semi : amFonts.medium }]}
+      style={[s.setLabel, { color: danger ? p.dangerText : p.ink800, fontFamily: danger ? amFonts.semi : amFonts.medium }]}
       numberOfLines={2}
     >
       {label}
