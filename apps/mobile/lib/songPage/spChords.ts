@@ -177,9 +177,34 @@ export function swaraRow(sa: string): Array<{ s: string; n: string }> {
   return SP_SWARAS.map((s, i) => ({ s, n: SP_NOTES[mod12(base + MAJOR[i])] }))
 }
 
-/** A chord shown on the harmonium: moved from the chart's key to the chosen Sa. */
+const SHARP_ROOTS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const
+const FLAT_ROOTS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"] as const
+/** Major keys with sharps (G D A E B F#) and with flats (F Bb Eb Ab Db Gb), as pitch classes. */
+const SHARP_KEY_PITCHES = new Set([7, 2, 9, 4, 11, 6])
+const FLAT_KEY_PITCHES = new Set([5, 10, 3, 8])
+
+/** How a harmonium chart is spelled once it stands in Sa `key`: sharps in a sharp key, flats in a flat one, the song page's own names otherwise. */
+function harmoniumNames(key: string): readonly string[] {
+  const pitch = keyPitch(key)
+  const flatWritten = /^[A-G][b♭]/.test(key.trim())
+  if (flatWritten || FLAT_KEY_PITCHES.has(pitch)) return FLAT_ROOTS
+  if (SHARP_KEY_PITCHES.has(pitch)) return SHARP_ROOTS
+  return SP_NOTES
+}
+
+/**
+ * A chord shown on the harmonium: moved from the chart's key to the chosen Sa. The pitch is plain arithmetic; the NAME
+ * follows the key a musician would write it in: in Sa = E the chord is G#m, never Abm, and in Sa = Bb it is Eb, never D#.
+ * With no move (the reader's Sa is the author's) the chord comes back exactly as the author typed it.
+ */
 export function harmoniumChord(chord: string, baseKey: string | undefined, key: string): string {
-  return spTranspose(chord, mod12(keyPitch(key) - keyPitch(baseKey ?? "C")))
+  const shift = mod12(keyPitch(key) - keyPitch(baseKey ?? "C"))
+  if (shift === 0) return chord
+  const parsed = parseChord(chord)
+  if (!parsed) return chord
+  const names = harmoniumNames(key)
+  const bass = parsed.bass == null ? "" : `/${names[mod12(parsed.bass + shift)]}`
+  return `${names[mod12(parsed.root + shift)]}${parsed.suffix}${bass}`
 }
 
 /** The swara printed under a word (prototype placeholder rhythm: `(line * 3 + word) % 7`). */
