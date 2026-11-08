@@ -4,7 +4,8 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import { clampCapo, stepHarmoniumKey } from "@/lib/songPage/chords"
 import type { ChordInstrument, ChordMode } from "@/lib/songPage/chordChart"
-import { DEFAULT_SONG_PAGE_SETTINGS, normalizeSettings, type SongPageSettings, type TextSize } from "@/lib/songPage/settings"
+import { DEFAULT_SONG_PAGE_SETTINGS, normalizeSettings, type LineTranslation, type SongPageSettings, type TextSize } from "@/lib/songPage/settings"
+import type { TranslationKind } from "@/lib/songTranslations/types"
 import type { ScriptChoice } from "@/lib/songPage/scripts"
 import { FOLLOW_APP, migrateSongPageLanguages, normalizeLyricChoice } from "@/lib/songPage/lyricLanguages"
 import { getActiveLanguage } from "@/lib/i18n/core"
@@ -17,16 +18,16 @@ type SongPageState = SongPageSettings & {
   setScript: (script: ScriptChoice) => void
   toggleTranslation: (code: string) => void
   setPrimaryTranslation: (code: string) => void
-  /** Replace the chosen translation languages (under each line and the Meaning section). */
+  /** Replace the chosen languages of the central idea. */
   setTranslations: (codes: string[]) => void
   /** The language of the word meanings on the Words card. Separate from the translations on purpose. */
   setWordLanguage: (code: string) => void
   /** Text size of the lyrics (0 small, 1 medium, 2 large), kept on the device. */
   setTextSize: (size: TextSize) => void
-  /** The translation under the lyrics, on or off. */
-  setTranslationOn: (on: boolean) => void
-  /** The reading strip of the Lyrics tab: compact (false) or open (true), kept on the device. */
-  setStripExpanded: (open: boolean) => void
+  /** The translation under each lyric line: off, literal or poetic. Kept on the device. */
+  setLineTranslation: (mode: LineTranslation) => void
+  /** The kind the Translation page opens on (official, poetic, literal). Kept on the device. */
+  setTranslationKind: (kind: TranslationKind) => void
   setChordsOn: (on: boolean) => void
   setInstrument: (instrument: ChordInstrument) => void
   setCapo: (capo: number) => void
@@ -53,8 +54,8 @@ export const useSongPageStore = create<SongPageState>()(
       setTranslations: (codes) => set({ translations: normalizeStoredTranslations(codes, MAX_TRANSLATIONS) }),
       setWordLanguage: (code) => set({ wordLanguage: normalizeLyricChoice(code) === "off" ? FOLLOW_APP : normalizeLyricChoice(code) }),
       setTextSize: (textSize) => set({ textSize }),
-      setTranslationOn: (translationOn) => set({ translationOn }),
-      setStripExpanded: (stripExpanded) => set({ stripExpanded }),
+      setLineTranslation: (lineTranslation) => set({ lineTranslation }),
+      setTranslationKind: (translationKind) => set({ translationKind }),
       setChordsOn: (chordsOn) => set({ chordsOn }),
       setInstrument: (instrument) => set({ instrument }),
       setCapo: (capo) => set({ capo: clampCapo(capo) }),
@@ -65,15 +66,15 @@ export const useSongPageStore = create<SongPageState>()(
     {
       name: "prabhat-song-page-v2",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted) => migrateSongPageLanguages(persisted) as SongPageState,
       partialize: (s) => ({
         script: s.script,
         translations: s.translations,
         wordLanguage: s.wordLanguage,
         textSize: s.textSize,
-        translationOn: s.translationOn,
-        stripExpanded: s.stripExpanded,
+        lineTranslation: s.lineTranslation,
+        translationKind: s.translationKind,
         chordsOn: s.chordsOn,
         instrument: s.instrument,
         capo: s.capo,

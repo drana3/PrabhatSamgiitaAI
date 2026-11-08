@@ -6,6 +6,7 @@ import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
+import { lyricLanguage } from "@/lib/songPage/lyricLanguages"
 import { buildWordGrid, type GridLine, type GridWord, type WordGrid } from "@/lib/songPage/blockTabs"
 import { splitWords } from "@/lib/songPage/chordChart"
 import { requestKey } from "@/lib/songPage/honest"
@@ -13,11 +14,11 @@ import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
 
 import { lineFont } from "./lineFont"
 import type { PageUi } from "./state"
-import { DemoTag } from "./ui"
+import { DemoTag, Segmented, type SegItem } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
 /**
- * THE WORD BY WORD TAB (board 4, variant 1: interlinear). The words of the song as text: each word over its
+ * THE WORD BY WORD PAGE (board 4, variant 1: interlinear). The words of the song as text: each word over its
  * meaning, wrapping from line to line like a printed interlinear. Tapping a word lights the same word everywhere
  * in the song and says how often it is sung. Meanings come only from real word data; with none, the real words
  * are still there with their real counts, and the tab says so plainly (never an invented meaning).
@@ -120,12 +121,26 @@ function GridRow({ t, tr, row, model, ui, lit }: { t: SpTheme; tr: PageT; row: G
   )
 }
 
+/** The language of the word meanings: only the languages this song really has, English, Russian and Spanish first. One language needs no choice. */
+function LanguageChoice({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
+  const codes = model.wordLanguages
+  if (codes.length < 2) return null
+  const items: Array<SegItem<string>> = codes.map((code) => ({ id: code, label: lyricLanguage(code)?.native ?? code.toUpperCase() }))
+  const value = codes.includes(model.wordLanguage) ? model.wordLanguage : (codes[0] as string)
+  return (
+    <View style={styles.language}>
+      <Segmented t={t} items={items} value={value} onChange={model.setWordLanguage} label={tr("songPage.words.language")} role="radio" fit />
+    </View>
+  )
+}
+
 export function WordByWordBody({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
   const tr = usePageT()
   const grid = useMemo(() => buildWordGrid(model.structure, splitWords), [model.structure])
   if (!grid.lines.length) return null
   return (
     <View>
+      <LanguageChoice t={t} tr={tr} model={model} />
       {model.glosses ? (model.demo ? <DemoTag t={t} /> : null) : <EmptyBar t={t} tr={tr} model={model} ui={ui} />}
       <InfoCard t={t} tr={tr} model={model} ui={ui} grid={grid} />
       <View>
@@ -138,6 +153,7 @@ export function WordByWordBody({ t, model, ui }: { t: SpTheme; model: SongPageMo
 }
 
 const styles = StyleSheet.create({
+  language: { paddingHorizontal: 20, paddingBottom: 14, alignItems: "flex-start" },
   empty: { marginHorizontal: 20, marginBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderWidth: 1.5, borderStyle: "dashed", borderRadius: 18, paddingLeft: 16, paddingRight: 4, minHeight: 52 },
   emptyText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22, paddingVertical: 12 },
   requestHit: { minHeight: 44, minWidth: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },

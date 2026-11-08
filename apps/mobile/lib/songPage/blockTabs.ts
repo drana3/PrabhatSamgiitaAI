@@ -1,38 +1,19 @@
 import type { LyricStructure } from "./lyricStructure"
-import type { PageSection, TabSection } from "./pageSections"
 
 /**
- * The one text block of the song page has three tabs: the lyrics, the commentary (central idea and explanation)
- * and the word-by-word view. Pure rules, no React: which tab a strip or menu jump opens, which strip tab is lit
- * while the block is on screen, and what the word-by-word grid shows.
+ * The one text block of the song page has three pages: the lyrics, the translation (with its commentary) and the
+ * word-by-word view. Pure rules, no React: the pages, and what the word-by-word grid shows.
  */
-export type BlockTab = "lyrics" | "commentary" | "words"
+export type BlockTab = "lyrics" | "translation" | "words"
 
-export const BLOCK_TABS: readonly BlockTab[] = ["lyrics", "commentary", "words"]
+export const BLOCK_TABS: readonly BlockTab[] = ["lyrics", "translation", "words"]
 
-/** The section id that stands for the commentary tab. The id stays "meaning" (strip, menu, anchors); only the label changed. */
-export const COMMENTARY_SECTION: TabSection = "meaning"
-
-/** Sections that have their own place in the scroll: Commentary lives inside the Lyrics block, so it has none. */
-export function scrollSections<T extends PageSection>(sections: readonly T[]): T[] {
-  return sections.filter((id) => id !== COMMENTARY_SECTION)
+export function blockTabAt(index: number): BlockTab {
+  return BLOCK_TABS[Math.max(0, Math.min(BLOCK_TABS.length - 1, Math.round(index)))] as BlockTab
 }
 
-/** The section whose place a jump scrolls to: the commentary tab is part of the Lyrics block. */
-export function anchorOf(id: PageSection): PageSection {
-  return id === COMMENTARY_SECTION ? "lyrics" : id
-}
-
-/** The tab a jump to `id` leaves the block on. Jumping to Commentary opens it; Lyrics leaves Word by word as it is. */
-export function blockTabAfterJump(id: PageSection, current: BlockTab): BlockTab {
-  if (id === COMMENTARY_SECTION) return "commentary"
-  if (id === "lyrics") return current === "commentary" ? "lyrics" : current
-  return current
-}
-
-/** The strip tab to light: while the reader is in the text block, the commentary tab lights Commentary. */
-export function stripActive(active: TabSection, tab: BlockTab): TabSection {
-  return active === "lyrics" && tab === "commentary" ? COMMENTARY_SECTION : active
+export function blockIndexOf(tab: BlockTab): number {
+  return Math.max(0, BLOCK_TABS.indexOf(tab))
 }
 
 /** A word as it is drawn: the marks at its start and end (comma, danda, quotes) are left off, the letters stay. */

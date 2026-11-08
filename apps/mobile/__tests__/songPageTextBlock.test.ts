@@ -1,19 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  anchorOf,
-  blockTabAfterJump,
-  buildWordGrid,
-  scrollSections,
-  stripActive,
-  wordKey,
-  wordLabel,
-} from "@/lib/songPage/blockTabs"
+import { BLOCK_TABS, blockIndexOf, blockTabAt, buildWordGrid, wordKey, wordLabel } from "@/lib/songPage/blockTabs"
 import { splitWords } from "@/lib/songPage/chordChart"
 import { parseLyricStructure } from "@/lib/songPage/lyricStructure"
-import { lyricsLayout, menuSections, sectionTops, visibleTabs, type SongFacts } from "@/lib/songPage/pageSections"
+import { menuSections, visibleTabs, type SongFacts } from "@/lib/songPage/pageSections"
 import { translatePage } from "@/lib/songPage/pageCopy"
 import { DEFAULT_SONG_PAGE_SETTINGS, normalizeSettings } from "@/lib/songPage/settings"
+import { wordLanguagesOf } from "@/lib/songPage/wordLanguages"
 import { songPageEn, songPageEs, songPageRu } from "@/locales/songPage"
 
 const facts = (over: Partial<SongFacts> = {}): SongFacts => ({
@@ -29,34 +22,41 @@ const facts = (over: Partial<SongFacts> = {}): SongFacts => ({
   ...over,
 })
 
-describe("the text block: Commentary is a tab of the Lyrics block, not a place of its own", () => {
-  it("the strip and the menu still list Commentary (id meaning), the scroll has no place for it", () => {
-    expect(visibleTabs(facts())).toEqual(["lyrics", "meaning", "recordings", "chords"])
-    expect(menuSections(facts())).toEqual(["lyrics", "meaning", "recordings", "chords", "about"])
-    expect(scrollSections(menuSections(facts()))).toEqual(["lyrics", "recordings", "chords", "about"])
+describe("the text block: three pages, and no Commentary tab", () => {
+  it("the pages are Lyrics, Translation and Word by word, in that order", () => {
+    expect([...BLOCK_TABS]).toEqual(["lyrics", "translation", "words"])
+    expect(BLOCK_TABS.map(blockIndexOf)).toEqual([0, 1, 2])
+    expect([0, 1, 2].map(blockTabAt)).toEqual(["lyrics", "translation", "words"])
   })
 
-  it("a jump to Commentary lands on the top of the text block", () => {
-    expect(anchorOf("meaning")).toBe("lyrics")
-    expect(anchorOf("chords")).toBe("chords")
-    const tops = sectionTops(scrollSections(menuSections(facts())), { lyrics: 500, recordings: 200, chords: 300 }, 400)
-    expect(tops[anchorOf("meaning")]).toBe(400)
-    expect(tops[anchorOf("recordings")]).toBe(900)
+  it("an index outside the pages (a spring that overshot) lands on the first or last page", () => {
+    expect(blockTabAt(-1)).toBe("lyrics")
+    expect(blockTabAt(2.6)).toBe("words")
+    expect(blockTabAt(9)).toBe("words")
   })
 
-  it("Commentary opens its tab; Lyrics leaves Word by word as it is; other sections leave the tab alone", () => {
-    expect(blockTabAfterJump("meaning", "lyrics")).toBe("commentary")
-    expect(blockTabAfterJump("meaning", "words")).toBe("commentary")
-    expect(blockTabAfterJump("lyrics", "commentary")).toBe("lyrics")
-    expect(blockTabAfterJump("lyrics", "words")).toBe("words")
-    expect(blockTabAfterJump("chords", "commentary")).toBe("commentary")
+  it("the strip and the menu have no Commentary; the menu ends with Song information", () => {
+    expect(visibleTabs(facts())).toEqual(["lyrics", "recordings", "chords"])
+    expect(menuSections(facts())).toEqual(["lyrics", "recordings", "chords", "about"])
+    expect(visibleTabs(facts())).not.toContain("meaning" as never)
+  })
+})
+
+describe("the word-by-word languages", () => {
+  const glosses = (byLanguage: Record<string, Record<string, string>>) => ({ byLanguage })
+
+  it("lists only the languages that have meanings, English, Russian and Spanish first", () => {
+    expect(wordLanguagesOf(glosses({ es: { "0:0": "amigo" }, en: { "0:0": "friend" }, ru: { "0:0": "друг" } }))).toEqual(["en", "ru", "es"])
+    expect(wordLanguagesOf(glosses({ ru: { "0:0": "друг" }, en: {}, es: {} }))).toEqual(["ru"])
   })
 
-  it("the strip lights Commentary only while the block is in view on its Commentary tab", () => {
-    expect(stripActive("lyrics", "commentary")).toBe("meaning")
-    expect(stripActive("lyrics", "lyrics")).toBe("lyrics")
-    expect(stripActive("lyrics", "words")).toBe("lyrics")
-    expect(stripActive("chords", "commentary")).toBe("chords")
+  it("a new language appears when the data has it, after the three", () => {
+    expect(wordLanguagesOf(glosses({ hi: { "0:0": "मित्र" }, en: { "0:0": "friend" } }))).toEqual(["en", "hi"])
+  })
+
+  it("has none without word meanings", () => {
+    expect(wordLanguagesOf(null)).toEqual([])
+    expect(wordLanguagesOf(glosses({}))).toEqual([])
   })
 })
 
@@ -101,33 +101,50 @@ describe("the word-by-word grid", () => {
   })
 })
 
-describe("the translation switch of the text options", () => {
-  it("off, the lyrics stand alone; on, the layout is the one the data allows", () => {
-    expect(lyricsLayout(facts()).kind).toBe("pairs")
-    expect(lyricsLayout(facts(), true).kind).toBe("pairs")
-    expect(lyricsLayout(facts(), false).kind).toBe("plain")
-    expect(lyricsLayout(facts({ hasLyrics: false }), false).kind).toBe("empty")
+describe("the reading settings kept on the device", () => {
+  it("defaults: no translation under the lines, Official on the Translation page, medium text", () => {
+    expect(DEFAULT_SONG_PAGE_SETTINGS.lineTranslation).toBe("off")
+    expect(DEFAULT_SONG_PAGE_SETTINGS.translationKind).toBe("official")
+    expect(DEFAULT_SONG_PAGE_SETTINGS.textSize).toBe(1)
   })
 
-  it("is kept with the settings: on and medium by default, damaged values fall back", () => {
-    expect(DEFAULT_SONG_PAGE_SETTINGS.translationOn).toBe(true)
-    expect(DEFAULT_SONG_PAGE_SETTINGS.textSize).toBe(1)
-    expect(normalizeSettings({ translationOn: false, textSize: 2 })).toMatchObject({ translationOn: false, textSize: 2 })
-    expect(normalizeSettings({ translationOn: "no" as never, textSize: 7 as never })).toMatchObject({ translationOn: true, textSize: 1 })
-    expect(normalizeSettings({ textSize: 0 }).textSize).toBe(0)
+  it("keeps what the reader chose", () => {
+    expect(normalizeSettings({ lineTranslation: "literal", translationKind: "poetic", wordLanguage: "ru", textSize: 2 })).toMatchObject({
+      lineTranslation: "literal",
+      translationKind: "poetic",
+      wordLanguage: "ru",
+      textSize: 2,
+    })
+    expect(normalizeSettings({ lineTranslation: "poetic" }).lineTranslation).toBe("poetic")
+  })
+
+  it("damaged or old values fall back to the defaults (Official is never a line setting)", () => {
+    expect(normalizeSettings({ lineTranslation: "official" as never, translationKind: "machine" as never, textSize: 7 as never })).toMatchObject({
+      lineTranslation: "off",
+      translationKind: "official",
+      textSize: 1,
+    })
+    // the old on/off switch is gone: a stored `translationOn` changes nothing
+    expect(normalizeSettings({ translationOn: true } as never).lineTranslation).toBe("off")
   })
 })
 
-describe("Meaning is Commentary wherever the reader sees it", () => {
+describe("song page strings", () => {
   const visible = (dict: Readonly<Record<string, string>>) => Object.entries(dict).filter(([key]) => !key.includes("a11y")).map(([, value]) => value)
 
-  it("names the tab, the menu row and the header in en, ru and es", () => {
-    expect(translatePage("en", "songPage.tab.meaning")).toBe("Commentary")
-    expect(translatePage("ru", "songPage.tab.meaning")).toBe("Комментарий")
-    expect(translatePage("es", "songPage.tab.meaning")).toBe("Comentario")
-    expect(translatePage("en", "songPage.meaning.in", { language: "Russian" })).toBe("Commentary in Russian")
-    expect(translatePage("ru", "songPage.meaning.in", { language: "Русский" })).toBe("Комментарий на языке: Русский")
-    expect(translatePage("es", "songPage.meaning.in", { language: "Ruso" })).toBe("Comentario en Ruso")
+  it("names the Translation page, its kinds and the Song information section in en, ru and es", () => {
+    expect(translatePage("en", "songPage.block.translation")).toBe("Translation")
+    expect(translatePage("ru", "songPage.block.translation")).toBe("Перевод")
+    expect(translatePage("es", "songPage.block.translation")).toBe("Traducción")
+    expect(translatePage("en", "songPage.translation.official")).toBe("Official")
+    expect(translatePage("en", "songPage.tab.about")).toBe("Song information")
+    expect(translatePage("en", "songPage.translation.commentary")).toBe("Commentary")
+  })
+
+  it("has every new Translation string in all three languages", () => {
+    const keys = Object.keys(songPageEn).filter((key) => key.startsWith("songPage.translation.") || key === "songPage.block.translation" || key === "songPage.words.language" || key === "songPage.options.translation.off" || key === "songPage.lyrics.underline.whole")
+    expect(keys.length).toBeGreaterThanOrEqual(12)
+    for (const lang of ["en", "ru", "es"] as const) for (const key of keys) expect(translatePage(lang, key as never), `${lang}:${key}`).not.toBe(key)
   })
 
   it("leaves no visible \"Meaning\" (or Смысл, Significado) in the song page strings", () => {
@@ -138,7 +155,7 @@ describe("Meaning is Commentary wherever the reader sees it", () => {
 
   it("has the empty states and the word-grid lines in all three languages", () => {
     for (const lang of ["en", "ru", "es"] as const) {
-      for (const key of ["songPage.commentary.empty", "songPage.commentary.plain.none", "songPage.words.none", "songPage.words.tap", "songPage.options.button", "songPage.block.a11y"] as const) {
+      for (const key of ["songPage.commentary.plain", "songPage.words.none", "songPage.words.tap", "songPage.options.button", "songPage.block.a11y"] as const) {
         expect(translatePage(lang, key)).not.toBe(key)
       }
       expect(translatePage(lang, "songPage.words.times", { count: 3 })).toContain("3×")

@@ -1,93 +1,61 @@
-import { useCallback, useEffect, useMemo, useState, type MutableRefObject } from "react"
+import { useCallback, useEffect, useState, type MutableRefObject } from "react"
 import { StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent } from "react-native"
 import { GestureDetector } from "react-native-gesture-handler"
-import Animated, { FadeIn, type AnimatedRef, type SharedValue } from "react-native-reanimated"
-import { LinearGradient } from "expo-linear-gradient"
+import Animated, { FadeIn } from "react-native-reanimated"
 
 import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
-import { BLOCK_TABS, type BlockTab } from "@/lib/songPage/blockTabs"
-import { DOT_STEP, LYRICS_FOOT, PANELS_HEAD, PANEL_COUNT, PANEL_FOOT, PANEL_TOP, buildFrame, panelIndexOf, panelTab } from "@/lib/songPage/blockPanels"
+import { BLOCK_TABS, blockIndexOf, blockTabAt, type BlockTab } from "@/lib/songPage/blockTabs"
+import { DOT_STEP, PAGE_COUNT } from "@/lib/songPage/pager"
 import { usePageT } from "@/lib/songPage/pageCopy"
 
-import { CommentaryBody } from "./Commentary"
 import { LyricsBody } from "./LyricsBody"
 import { PronunciationChip } from "./Pronunciation"
-import { useReadingStore } from "./readingState"
 import type { PageUi } from "./state"
 import { TextOptionsButton } from "./TextOptions"
+import { TranslationBody } from "./TranslationBody"
 import type { SongPageModel } from "./useSongPageModel"
-import { usePanelMotion, type PanelController } from "./usePanelMotion"
+import { usePager, type PagerController } from "./usePager"
 import { WordByWordBody } from "./WordByWord"
 
-const TAB_LABEL: Record<BlockTab, "songPage.tab.lyrics" | "songPage.tab.meaning" | "songPage.lyrics.view.words"> = {
+const TAB_LABEL: Record<BlockTab, "songPage.tab.lyrics" | "songPage.block.translation" | "songPage.lyrics.view.words"> = {
   lyrics: "songPage.tab.lyrics",
-  commentary: "songPage.tab.meaning",
+  translation: "songPage.block.translation",
   words: "songPage.lyrics.view.words",
 }
 
-/** The row of page dots under the Aa row. */
+/** The header: the label row and, under it, the row of page dots. */
+const HEAD_ROW = 48
 const DOTS_H = 28
-/** The bottom room the stage leaves under itself (the mini-player is added by the bottom inset). */
-const STAGE_FOOT = 8
+/** The air above a page's first line and under its last. */
+const PAGE_TOP = 10
+const PAGE_FOOT = 28
 
 /**
- * Section 1 of the page: ONE block with three panels side by side, Lyrics | Commentary | Word by word, and no visible
- * tab switcher (board 6, variant 5). The header holds the one-word name of the panel, its place ("1/3"), the small
- * "Aa" button (the text options popover) and the page dots. The panels sit in a PINNED STAGE: when the block reaches
- * the bars the stage holds still, and the page's scroll moves the panels (see lib/songPage/blockPanels.ts and
- * usePanelMotion.ts). A sideways swipe, a dot, or the section strip changes the panel too. The panels' bodies are the
- * tab components as before: LyricsBody (swappable, see its file), CommentaryBody, WordByWordBody.
+ * Section 1 of the page: ONE block of three pages side by side, Lyrics | Translation | Word by word. The header holds
+ * the one-word name of the page, its place ("1/3"), the small "Aa" button (the text options popover) and the page
+ * dots. The block is part of the page: it scrolls with it like any other section, whatever its height. A finger moving
+ * sideways turns the pages (the sideways drag is one to one, the throw lands on the next page); a finger moving up or
+ * down scrolls the page, on any of the three pages (see usePager.ts and lib/songPage/pager.ts). A dot also turns the
+ * page. The pages' bodies are LyricsBody, TranslationBody and WordByWordBody.
  */
-export function TextBlock({
-  t,
-  model,
-  ui,
-  blockTop,
-  topInset,
-  motion,
-  scrollRef,
-  controller,
-}: {
-  t: SpTheme
-  model: SongPageModel
-  ui: PageUi
-  /** page y of the block's top, and the bars it pins under */
-  blockTop: number
-  topInset: number
-  motion: { scrollY: SharedValue<number>; touch: SharedValue<number> }
-  scrollRef: AnimatedRef<Animated.ScrollView>
-  controller: MutableRefObject<PanelController | null>
-}) {
+export function TextBlock({ t, model, ui, controller }: { t: SpTheme; model: SongPageModel; ui: PageUi; controller: MutableRefObject<PagerController | null> }) {
   const tr = usePageT()
-  const reading = useReadingStore()
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions()
-  const bottomInset = useScrollBottomInset(0)
+  const { width: windowWidth } = useWindowDimensions()
   const [width, setWidth] = useState(windowWidth)
   const [heights, setHeights] = useState<number[]>(() => BLOCK_TABS.map(() => 0))
-  const index = panelIndexOf(ui.blockTab)
-
-  const frame = useMemo(
-    () => buildFrame({ width, contents: heights, available: windowHeight - topInset - bottomInset - STAGE_FOOT }),
-    [width, heights, windowHeight, topInset, bottomInset],
-  )
+  const index = blockIndexOf(ui.blockTab)
   const { setBlockTab } = ui
-  const onPanel = useCallback((i: number) => setBlockTab(panelTab(i)), [setBlockTab])
-  const onReading = useCallback((y: number) => reading?.setScroll(y), [reading])
-  const m = usePanelMotion({ scrollY: motion.scrollY, touch: motion.touch, scrollRef, blockTop, topInset, frame, onPanel, onReading })
-  const { goTo } = m
+  const onPage = useCallback((i: number) => setBlockTab(blockTabAt(i)), [setBlockTab])
+  const pager = usePager({ width, heights, onPage })
+  const { goTo } = pager
   useEffect(() => {
     controller.current = { goTo }
     return () => {
       controller.current = null
     }
   }, [controller, goTo])
-  // where the lyrics begin inside the block: under the stage's header
-  useEffect(() => {
-    reading?.setBodyY(PANELS_HEAD + PANEL_TOP)
-  }, [reading])
 
   const measure = (i: number) => (event: LayoutChangeEvent) => {
     const h = Math.round(event.nativeEvent.layout.height)
@@ -97,87 +65,75 @@ export function TextBlock({
   const current = labels[index] ?? ""
 
   return (
-    <View style={{ height: frame.stage + frame.distance }}>
-      <Animated.View
-        style={[styles.stage, { height: frame.stage, backgroundColor: t.sand200 }, m.stageStyle]}
-        onLayout={(event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width))}
-      >
-        <View style={styles.head}>
-          <View style={styles.headRow}>
-            <Animated.View key={ui.blockTab} entering={FadeIn.duration(150)} style={styles.name} accessibilityRole="header">
-              <Text style={[styles.nameText, { color: t.ink900 }]} numberOfLines={1}>
-                {current}
-              </Text>
-              <Text style={[styles.place, { color: t.ink500 }]}>{`${index + 1}/${PANEL_COUNT}`}</Text>
-            </Animated.View>
-            <View style={styles.tools}>
-              {BLOCK_TABS[index] === "lyrics" ? <PronunciationChip t={t} ui={ui} /> : null}
-              <TextOptionsButton t={t} ui={ui} />
-            </View>
-          </View>
-          <View accessibilityRole="tablist" accessibilityLabel={tr("songPage.block.a11y")} style={styles.dots}>
-            <View style={styles.dotTrack}>
-              {labels.map((label, i) => (
-                <SpPress
-                  key={BLOCK_TABS[i]}
-                  onPress={() => (i !== index ? goTo(i) : undefined)}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`${label}, ${i + 1}/${PANEL_COUNT}`}
-                  accessibilityState={{ selected: i === index }}
-                  pressedScale={0.9}
-                  hitSlop={{ top: 8, bottom: 8 }}
-                  style={[styles.slot, { left: i * DOT_STEP }]}
-                >
-                  <View style={[styles.dot, { backgroundColor: t.sand400 }]} />
-                </SpPress>
-              ))}
-              <Animated.View pointerEvents="none" style={[styles.mark, { backgroundColor: t.action }, m.markStyle]} />
-            </View>
+    <View>
+      <View style={styles.head}>
+        <View style={styles.headRow}>
+          <Animated.View key={ui.blockTab} entering={FadeIn.duration(150)} style={styles.name} accessibilityRole="header">
+            <Text style={[styles.nameText, { color: t.ink900 }]} numberOfLines={1}>
+              {current}
+            </Text>
+            <Text style={[styles.place, { color: t.ink500 }]}>{`${index + 1}/${PAGE_COUNT}`}</Text>
+          </Animated.View>
+          <View style={styles.tools}>
+            {BLOCK_TABS[index] === "lyrics" ? <PronunciationChip t={t} ui={ui} /> : null}
+            <TextOptionsButton t={t} ui={ui} />
           </View>
         </View>
-        <GestureDetector gesture={m.gesture}>
-          <View style={{ height: frame.view, overflow: "hidden" }}>
-            <Animated.View style={[styles.row, { width: width * PANEL_COUNT, height: frame.view }, m.rowStyle]}>
-              {BLOCK_TABS.map((id, i) => (
-                <View
-                  key={id}
-                  style={{ width, height: frame.view, overflow: "hidden" }}
-                  accessibilityElementsHidden={i !== index}
-                  importantForAccessibility={i === index ? "auto" : "no-hide-descendants"}
-                >
-                  <Animated.View style={[styles.content, m.readStyle[i]]}>
-                    <View onLayout={measure(i)} style={{ paddingTop: PANEL_TOP, paddingBottom: id === "lyrics" ? LYRICS_FOOT : PANEL_FOOT }}>
-                      {id === "lyrics" ? <LyricsBody t={t} model={model} ui={ui} /> : id === "commentary" ? <CommentaryBody t={t} model={model} /> : <WordByWordBody t={t} model={model} ui={ui} />}
-                    </View>
-                  </Animated.View>
-                </View>
-              ))}
-            </Animated.View>
+        <View accessibilityRole="tablist" accessibilityLabel={tr("songPage.block.a11y")} style={styles.dots}>
+          <View style={styles.dotTrack}>
+            {labels.map((label, i) => (
+              <SpPress
+                key={BLOCK_TABS[i]}
+                onPress={() => (i !== index ? goTo(i) : undefined)}
+                accessibilityRole="tab"
+                accessibilityLabel={`${label}, ${i + 1}/${PAGE_COUNT}`}
+                accessibilityState={{ selected: i === index }}
+                pressedScale={0.9}
+                hitSlop={{ top: 8, bottom: 8 }}
+                style={[styles.slot, { left: i * DOT_STEP }]}
+              >
+                <View style={[styles.dot, { backgroundColor: t.sand400 }]} />
+              </SpPress>
+            ))}
+            <Animated.View pointerEvents="none" style={[styles.mark, { backgroundColor: t.action }, pager.markStyle]} />
           </View>
-        </GestureDetector>
-        {/* the text runs on under the header and under the stage's bottom edge: a soft end instead of a cut line */}
-        <LinearGradient pointerEvents="none" colors={[t.sand200, `${t.sand200}00`]} style={styles.fadeTop} />
-        <LinearGradient pointerEvents="none" colors={[`${t.sand200}00`, t.sand200]} style={styles.fade} />
-      </Animated.View>
+        </View>
+      </View>
+      {/* `pan-y` keeps the vertical scroll with the browser; only a clear sideways drag reaches the pager */}
+      <GestureDetector gesture={pager.gesture} touchAction="pan-y">
+        <Animated.View style={[styles.window, pager.windowStyle]} onLayout={(event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width))}>
+          <Animated.View style={[styles.row, { width: width * PAGE_COUNT }, pager.rowStyle]}>
+            {BLOCK_TABS.map((id, i) => (
+              <View
+                key={id}
+                onLayout={measure(i)}
+                style={[styles.page, { width, paddingTop: PAGE_TOP, paddingBottom: PAGE_FOOT }]}
+                accessibilityElementsHidden={i !== index}
+                importantForAccessibility={i === index ? "auto" : "no-hide-descendants"}
+              >
+                {id === "lyrics" ? <LyricsBody t={t} model={model} ui={ui} /> : id === "translation" ? <TranslationBody t={t} model={model} ui={ui} /> : <WordByWordBody t={t} model={model} ui={ui} />}
+              </View>
+            ))}
+          </Animated.View>
+        </Animated.View>
+      </GestureDetector>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  stage: { overflow: "hidden", zIndex: 1 },
-  head: { height: PANELS_HEAD, paddingHorizontal: 20 },
-  headRow: { height: PANELS_HEAD - DOTS_H, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  head: { paddingHorizontal: 20 },
+  headRow: { height: HEAD_ROW, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   tools: { flexDirection: "row", alignItems: "center", gap: 8 },
   name: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },
   nameText: { fontFamily: amFonts.bold, fontSize: 20, lineHeight: 26 },
   place: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   dots: { height: DOTS_H, alignItems: "center", justifyContent: "center" },
-  dotTrack: { width: DOT_STEP * PANEL_COUNT, height: DOTS_H },
+  dotTrack: { width: DOT_STEP * PAGE_COUNT, height: DOTS_H },
   slot: { position: "absolute", top: 0, width: DOT_STEP, height: DOTS_H, alignItems: "center", justifyContent: "center" },
   dot: { width: 6, height: 6, borderRadius: 3 },
   mark: { position: "absolute", left: (DOT_STEP - 18) / 2, top: (DOTS_H - 6) / 2, width: 18, height: 6, borderRadius: 3 },
-  fadeTop: { position: "absolute", left: 0, right: 0, top: PANELS_HEAD, height: PANEL_TOP + 6 },
-  fade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 32 },
-  row: { position: "absolute", top: 0, left: 0, flexDirection: "row" },
-  content: { position: "absolute", top: 0, left: 0, right: 0 },
+  window: { overflow: "hidden" },
+  row: { flexDirection: "row", alignItems: "flex-start" },
+  page: { overflow: "hidden" },
 })

@@ -4,6 +4,7 @@ import { HARMONIUM_KEYS } from "./chords"
 import type { ScriptChoice } from "./scripts"
 import { FOLLOW_APP, normalizeLyricChoice, normalizeStoredTranslations } from "./lyricLanguages"
 import { MAX_TRANSLATIONS } from "./translations"
+import { TRANSLATION_KINDS, type TranslationKind } from "@/lib/songTranslations/types"
 
 /**
  * Reading and playing settings of the song page. The spec stores them per user
@@ -12,11 +13,14 @@ import { MAX_TRANSLATIONS } from "./translations"
  */
 export type TextSize = 0 | 1 | 2
 
+/** The translation under each lyric line: off (the default), or a literal or a poetic text. Official is a whole text, not a line setting. */
+export type LineTranslation = "off" | "literal" | "poetic"
+
 export type SongPageSettings = {
   script: ScriptChoice
   /**
-   * Languages under each line and in the Meaning section (up to two). Empty means nobody chose yet:
-   * follow the language of the app (see effectiveTranslations in lyricLanguages.ts).
+   * Languages of the central idea (up to two). Empty means nobody chose yet: follow the language of the app
+   * (see effectiveTranslations in lyricLanguages.ts).
    */
   translations: string[]
   /**
@@ -26,10 +30,10 @@ export type SongPageSettings = {
   wordLanguage: string
   /** text size of the lyrics: 0 small, 1 medium, 2 large */
   textSize: TextSize
-  /** the translation under the lyrics: on or off (the language is `translations`) */
-  translationOn: boolean
-  /** the reading strip of the Lyrics tab: false = compact (a peek of two lines), true = the whole stanza open */
-  stripExpanded: boolean
+  /** the translation under each lyric line: "off" until the reader asks for one */
+  lineTranslation: LineTranslation
+  /** the kind the Translation page opens on when the song has it (official, poetic, literal) */
+  translationKind: TranslationKind
   chordsOn: boolean
   instrument: ChordInstrument
   capo: number
@@ -42,8 +46,8 @@ export const DEFAULT_SONG_PAGE_SETTINGS: SongPageSettings = {
   translations: [],
   wordLanguage: FOLLOW_APP,
   textSize: 1,
-  translationOn: true,
-  stripExpanded: false,
+  lineTranslation: "off",
+  translationKind: "official",
   chordsOn: false,
   instrument: "guitar",
   capo: 0,
@@ -65,8 +69,8 @@ export function normalizeSettings(input: Partial<SongPageSettings> | null | unde
     // a word language is one language (or "auto"); "off" is a player-only value
     wordLanguage: raw.wordLanguage === "off" ? FOLLOW_APP : normalizeLyricChoice(raw.wordLanguage),
     textSize: raw.textSize === 0 || raw.textSize === 2 ? raw.textSize : d.textSize,
-    translationOn: typeof raw.translationOn === "boolean" ? raw.translationOn : d.translationOn,
-    stripExpanded: typeof raw.stripExpanded === "boolean" ? raw.stripExpanded : d.stripExpanded,
+    lineTranslation: raw.lineTranslation === "literal" || raw.lineTranslation === "poetic" ? raw.lineTranslation : d.lineTranslation,
+    translationKind: (TRANSLATION_KINDS as readonly string[]).includes(raw.translationKind ?? "") ? (raw.translationKind as TranslationKind) : d.translationKind,
     chordsOn: typeof raw.chordsOn === "boolean" ? raw.chordsOn : d.chordsOn,
     instrument: raw.instrument === "harmonium" ? "harmonium" : "guitar",
     capo: clampCapo(typeof raw.capo === "number" ? raw.capo : d.capo),

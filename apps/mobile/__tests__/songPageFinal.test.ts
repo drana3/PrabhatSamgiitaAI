@@ -7,7 +7,7 @@ import { aboutRows, parseCompositionDate, WORDS_AND_MUSIC } from "@/lib/songPage
 import { alignLines, meaningLines, standsAlone } from "@/lib/songPage/alignLines"
 import { foldLine, indentOf, markerTimes, parseLyricStructure, repeatsOf, splitStanzas } from "@/lib/songPage/lyricStructure"
 import { meaningSourceFor, officialEnglishMeaning, storedMeaningRaw } from "@/lib/songPage/meaningInfo"
-import { STRIP_HEIGHT, activeSectionAt, jumpOffset, lyricsLayout, menuSections, sectionTops, visibleTabs, type SongFacts } from "@/lib/songPage/pageSections"
+import { STRIP_HEIGHT, activeSectionAt, jumpOffset, menuSections, sectionTops, visibleTabs, type SongFacts } from "@/lib/songPage/pageSections"
 import { translatePage } from "@/lib/songPage/pageCopy"
 import { buildLyricSources, toSentenceCase } from "@/lib/songPage/scripts"
 import { songPageEn, songPageEs, songPageRu } from "@/locales/songPage"
@@ -280,24 +280,24 @@ const facts = (over: Partial<SongFacts> = {}): SongFacts => ({
 const pairsFacts = { kind: "pairs", pairs: [{ line: "a", meaning: "b" }] } as const
 
 describe("which sections the page has", () => {
-  it("a bare song has Lyrics, Meaning, Recordings and Chords, in that order", () => {
-    expect(visibleTabs(facts())).toEqual(["lyrics", "meaning", "recordings", "chords"])
+  it("a bare song has Lyrics, Recordings and Chords, in that order, and no Commentary tab", () => {
+    expect(visibleTabs(facts())).toEqual(["lyrics", "recordings", "chords"])
   })
 
   it("Recordings, Video and Story are there only when the song has them", () => {
-    expect(visibleTabs(facts({ hasRecordings: false }))).toEqual(["lyrics", "meaning", "chords"])
-    expect(visibleTabs(facts({ hasVideo: true }))).toEqual(["lyrics", "meaning", "recordings", "chords", "video"])
-    expect(visibleTabs(facts({ hasStory: true }))).toEqual(["lyrics", "meaning", "recordings", "chords", "story"])
-    expect(visibleTabs(facts({ hasVideo: true, hasStory: true }))).toEqual(["lyrics", "meaning", "recordings", "chords", "video", "story"])
+    expect(visibleTabs(facts({ hasRecordings: false }))).toEqual(["lyrics", "chords"])
+    expect(visibleTabs(facts({ hasVideo: true }))).toEqual(["lyrics", "recordings", "chords", "video"])
+    expect(visibleTabs(facts({ hasStory: true }))).toEqual(["lyrics", "recordings", "chords", "story"])
+    expect(visibleTabs(facts({ hasVideo: true, hasStory: true }))).toEqual(["lyrics", "recordings", "chords", "video", "story"])
   })
 
-  it("Lyrics, Meaning and Chords always keep their place, so they can say honestly that they are empty", () => {
-    expect(visibleTabs(facts({ hasLyrics: false, hasMeaning: false, hasRecordings: false }))).toEqual(["lyrics", "meaning", "chords"])
+  it("Lyrics and Chords always keep their place, so they can say honestly that they are empty", () => {
+    expect(visibleTabs(facts({ hasLyrics: false, hasMeaning: false, hasRecordings: false }))).toEqual(["lyrics", "chords"])
   })
 
-  it("the Menu lists the same sections and About this song last, and nothing else", () => {
-    expect(menuSections(facts())).toEqual(["lyrics", "meaning", "recordings", "chords", "about"])
-    expect(menuSections(facts({ hasVideo: true, hasStory: true }))).toEqual(["lyrics", "meaning", "recordings", "chords", "video", "story", "about"])
+  it("the Menu lists the same sections and Song information last, and nothing else", () => {
+    expect(menuSections(facts())).toEqual(["lyrics", "recordings", "chords", "about"])
+    expect(menuSections(facts({ hasVideo: true, hasStory: true }))).toEqual(["lyrics", "recordings", "chords", "video", "story", "about"])
     expect(menuSections(facts({ hasRecordings: false }))).not.toContain("recordings")
   })
 
@@ -306,36 +306,17 @@ describe("which sections the page has", () => {
   })
 })
 
-describe("how the lyrics and the translation sit together", () => {
-  it("pairs a translation under each line, with a Full translation expander, only when the lines truly align", () => {
-    expect(lyricsLayout(facts({ align: pairsFacts }))).toEqual({ kind: "pairs", expand: "full" })
-  })
-
-  it("otherwise: lyrics, a note, and a Show translation button", () => {
-    expect(lyricsLayout(facts())).toEqual({ kind: "stacked", expand: "show", note: true })
-    expect(lyricsLayout(facts({ align: { kind: "stacked", reason: "runs-on", lyricCount: 4, meaningCount: 4 } }))).toEqual({ kind: "stacked", expand: "show", note: true })
-  })
-
-  it("has no note when there is simply nothing to compare", () => {
-    expect(lyricsLayout(facts({ hasMeaning: false, align: { kind: "stacked", reason: "no-meaning", lyricCount: 3, meaningCount: 0 } }))).toEqual({ kind: "plain" })
-  })
-
-  it("is empty without lyrics", () => {
-    expect(lyricsLayout(facts({ hasLyrics: false }))).toEqual({ kind: "empty" })
-  })
-})
-
 describe("jumping and following the scroll", () => {
-  const order = ["lyrics", "meaning", "recordings", "chords"] as const
-  const heights = { lyrics: 700, meaning: 400, recordings: 300, chords: 500 }
+  const order = ["lyrics", "recordings", "chords"] as const
+  const heights = { lyrics: 700, recordings: 300, chords: 500 }
   const start = 600 + STRIP_HEIGHT // hero + strip
 
   it("stacks the section tops from the heights above them", () => {
-    expect(sectionTops(order, heights, start)).toEqual({ lyrics: 649, meaning: 1349, recordings: 1749, chords: 2049 })
+    expect(sectionTops(order, heights, start)).toEqual({ lyrics: 649, recordings: 1349, chords: 1649 })
   })
 
   it("a section not measured yet counts as 0 high", () => {
-    expect(sectionTops(order, { lyrics: 100 }, 0)).toEqual({ lyrics: 0, meaning: 100, recordings: 100, chords: 100 })
+    expect(sectionTops(order, { lyrics: 100 }, 0)).toEqual({ lyrics: 0, recordings: 100, chords: 100 })
   })
 
   it("lands a jump just under the bar and the strip, never above the page", () => {
@@ -346,9 +327,8 @@ describe("jumping and following the scroll", () => {
   it("follows the scroll: the last section whose top is within reach of the strip", () => {
     const at = (y: number) => activeSectionAt(order, heights, start, y, 64)
     expect(at(0)).toBe("lyrics")
-    expect(at(jumpOffset(1349, 64))).toBe("meaning")
-    expect(at(jumpOffset(1749, 64))).toBe("recordings")
-    expect(at(jumpOffset(2049, 64) - 100)).toBe("recordings")
+    expect(at(jumpOffset(1349, 64))).toBe("recordings")
+    expect(at(jumpOffset(1649, 64) - 100)).toBe("recordings")
     expect(at(5000)).toBe("chords")
   })
 

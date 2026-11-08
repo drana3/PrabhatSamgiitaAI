@@ -5,16 +5,15 @@ import type { AlignResult } from "./alignLines"
  * "which sections exist for which song", "what the tab strip and the menu list" and "where a jump lands" are
  * tested here and nowhere else.
  *
- * One scrolling page, in this order: the text block (Lyrics, Commentary, Word by word as three tabs of one block),
- * Recordings, Chords, Video, Story, then About this song. The tab strip lists the first six that exist; the menu
- * lists them and About. The id of Commentary is still "meaning": it is the tab of the text block that the strip and
- * the menu jump to (see blockTabs.ts).
+ * One scrolling page, in this order: the text block (Lyrics, Translation, Word by word as three pages of one block),
+ * Recordings, Chords, Video, Story, then About this song. The tab strip lists the first five that exist; the menu
+ * lists them and About ("Song information"). The block's own pages are not sections: they are paged sideways inside it.
  */
 
-export type TabSection = "lyrics" | "meaning" | "recordings" | "chords" | "video" | "story"
+export type TabSection = "lyrics" | "recordings" | "chords" | "video" | "story"
 export type PageSection = TabSection | "about"
 
-export const SECTION_ORDER: readonly PageSection[] = ["lyrics", "meaning", "recordings", "chords", "video", "story", "about"]
+export const SECTION_ORDER: readonly PageSection[] = ["lyrics", "recordings", "chords", "video", "story", "about"]
 
 export type SongFacts = {
   hasLyrics: boolean
@@ -36,11 +35,12 @@ export type SongFacts = {
 }
 
 /**
- * The sections of the tab strip. Lyrics, Meaning and Chords always have a place (each says honestly when it has
- * nothing yet); Recordings, Video and Story are there only when the song has them.
+ * The sections of the tab strip. Lyrics and Chords always have a place (each says honestly when it has nothing yet);
+ * Recordings, Video and Story are there only when the song has them. There is no Commentary tab: the commentary
+ * belongs to the translation, on the Translation page of the text block.
  */
 export function visibleTabs(facts: SongFacts): TabSection[] {
-  const tabs: TabSection[] = ["lyrics", "meaning"]
+  const tabs: TabSection[] = ["lyrics"]
   if (facts.hasRecordings) tabs.push("recordings")
   tabs.push("chords")
   if (facts.hasVideo) tabs.push("video")
@@ -51,24 +51,6 @@ export function visibleTabs(facts: SongFacts): TabSection[] {
 /** The sections the page has, in page order, About last. This is what the top Menu lists. */
 export function menuSections(facts: SongFacts): PageSection[] {
   return [...visibleTabs(facts), "about"]
-}
-
-export type LyricsLayout =
-  /** no lyrics at all */
-  | { kind: "empty" }
-  /** the translation sits under each lyric line, and "Full translation" expands the whole text */
-  | { kind: "pairs"; expand: "full" }
-  /** the lines do not line up: lyrics first, a small note, and a "Show translation" button */
-  | { kind: "stacked"; expand: "show"; note: boolean }
-  /** lyrics only, no translation to show */
-  | { kind: "plain" }
-
-/** `translationOn` is the reader's own switch in the text options; off, the lyrics stand alone. */
-export function lyricsLayout(facts: SongFacts, translationOn = true): LyricsLayout {
-  if (!facts.hasLyrics) return { kind: "empty" }
-  if (!facts.hasMeaning || !translationOn) return { kind: "plain" }
-  if (facts.align.kind === "pairs") return { kind: "pairs", expand: "full" }
-  return { kind: "stacked", expand: "show", note: facts.align.reason === "count-differs" || facts.align.reason === "runs-on" }
 }
 
 /** Height reserved for the pinned tab strip. */

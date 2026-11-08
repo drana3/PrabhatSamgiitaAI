@@ -43,6 +43,10 @@ import { explanationIsUsable, extrasForSong, glossesAreUsable, glossFor, type So
 import { buildVersions, type SongVersion } from "@/lib/songPage/versions"
 import { nowPlaying } from "@/lib/songPage/nowPlaying"
 import { useSongMeaning } from "@/hooks/useSongMeaning"
+import { useSongTranslations } from "@/hooks/useSongTranslations"
+import { mergeTranslations } from "@/lib/songTranslations/derive"
+import type { SongTranslations } from "@/lib/songTranslations/types"
+import { wordLanguagesOf } from "@/lib/songPage/wordLanguages"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { splitWords } from "@/lib/songPage/chordChart"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -191,6 +195,9 @@ export function useSongPageModel(songId: string | undefined) {
     () => lines.primary.map((line, i) => (lines.primaryScript === "roman" ? true : splitWords(line).length === splitWords(sources.roman[i] ?? "").length)),
     [lines, sources.roman],
   )
+  /** The languages the word meanings exist in (en, ru, es, ...): the word-by-word page offers these and no others. */
+  const wordLanguages = useMemo(() => wordLanguagesOf(glosses), [glosses])
+  const setWordLanguage = useSongPageStore((s) => s.setWordLanguage)
   /** The meaning of one word, or null (also null for any real song: there are no word meanings yet). */
   const glossOf = useCallback(
     (line: number, word: number): string | null => {
@@ -267,6 +274,13 @@ export function useSongPageModel(songId: string | undefined) {
         inCatalogue: language.code === "en" ? Boolean(englishRaw) : Boolean(song && rawIn(language.code)),
       })),
     [song, englishRaw, rawIn],
+  )
+
+  // ---- translations: official, poetic, literal (the server decides what a reader may see) ----
+  const remoteTranslations = useSongTranslations(song?.number, "en", demo)
+  const translations: SongTranslations = useMemo(
+    () => mergeTranslations({ songId: song?.number ?? 0, remote: remoteTranslations.remote, officialRaw: englishRaw }),
+    [song?.number, remoteTranslations.remote, englishRaw],
   )
 
   // the lines the page pairs with the meaning: the script on screen, one for one
@@ -449,7 +463,7 @@ export function useSongPageModel(songId: string | undefined) {
   const notationUrl = notationPdfUrl(song?.notationSourceUrl)
   const facts: SongFacts = {
     hasLyrics: lines.primary.length > 0,
-    hasMeaning: meaning.status !== "none",
+    hasMeaning: translations.items.length > 0 || meaning.status !== "none",
     hasWords: Boolean(glosses),
     hasChords: Boolean(chart),
     hasRecordings: recordingRows.length > 0,
@@ -464,7 +478,9 @@ export function useSongPageModel(songId: string | undefined) {
     song, loading, demo, detail, related,
     // lyrics
     sources, scripts, lines, structure, script: script as ScriptChoice, setScript: setScript as (script: ScriptChoice) => void, glosses, glossOf,
-    chart, explanation, wordCountsMatch,
+    chart, explanation, wordCountsMatch, wordLanguage, wordLanguages, setWordLanguage,
+    // translations of the song (Translation page, text under the lines)
+    translations, translationsLoading: remoteTranslations.loading,
     // meaning
     meaning, meaningRows, setMeaningLanguage: setPrimaryTranslation, align,
     // watch and listen

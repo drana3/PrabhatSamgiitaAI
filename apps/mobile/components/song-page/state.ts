@@ -14,15 +14,17 @@ export type PageSheet = null | "menu" | "pronounce"
 export type ChordView = "diagrams" | "lyrics"
 
 /**
- * The small amount of screen state the page keeps: the tab of the text block, the text options popover, the open
- * translation, the tapped word, the open sheet, requests. Text size and the translation switch are settings and
- * live in the songPageStore (kept on the device), next to the script and the translation language.
+ * The small amount of screen state the page keeps: the page of the text block, the text options popover, the tapped
+ * word, the open sheet, requests. Text size, the translation under each line, the kind of the Translation page and
+ * the word-by-word language are settings and live in the songPageStore (kept on the device), next to the script.
  */
 export function usePageUi() {
   const scaleIndex = useSongPageStore((s) => s.textSize)
   const setScaleIndex = useSongPageStore((s) => s.setTextSize)
-  const translationOn = useSongPageStore((s) => s.translationOn)
-  const setTranslationOn = useSongPageStore((s) => s.setTranslationOn)
+  const lineTranslation = useSongPageStore((s) => s.lineTranslation)
+  const setLineTranslation = useSongPageStore((s) => s.setLineTranslation)
+  const translationKind = useSongPageStore((s) => s.translationKind)
+  const setTranslationKind = useSongPageStore((s) => s.setTranslationKind)
   const [blockTab, setBlockTab] = useState<BlockTab>("lyrics")
   /** the text options popover: closed, or open under the "Aa" button whose bottom edge is at `top` (window y) */
   const [options, setOptions] = useState<null | { top: number }>(null)
@@ -40,8 +42,10 @@ export function usePageUi() {
     scale: TEXT_SCALES[scaleIndex],
     scaleIndex,
     setScaleIndex,
-    translationOn,
-    setTranslationOn,
+    lineTranslation,
+    setLineTranslation,
+    translationKind,
+    setTranslationKind,
     blockTab,
     setBlockTab,
     options,
