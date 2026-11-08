@@ -12,6 +12,10 @@ export const AUTHORS_HREF = "/authors"
 export const BECOME_AUTHOR_HREF = "/become-author"
 export const MY_AUTHOR_HREF = "/my-author"
 export const AUTHOR_EDIT_HREF = "/author-edit"
+/** Recordings in the library that may be the person's (suggestions and their own requests). */
+export const AUTHOR_CLAIMS_HREF = "/author-claims"
+/** The search page "Find my recordings". */
+export const AUTHOR_FIND_HREF = "/author-find"
 export const CONTENT_RULES_HREF = "/content-rules"
 
 /** The public address of a page inside the app and on the web (the same path on both). */

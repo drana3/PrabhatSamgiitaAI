@@ -20,6 +20,7 @@ import type {
   StatsPeriod,
 } from "@/lib/authors/types"
 import { localSlugProblem, normalizeSlug } from "@/lib/authors/slug"
+import { createDemoClaims, type DemoClaims } from "@/lib/authors/demoClaims"
 import { setDemoSignedOut } from "@/lib/authors/demoSession"
 import { NetworkError, RemoteError } from "@/lib/kirtan/remote"
 
@@ -157,6 +158,12 @@ export type DemoControl = {
   setReport(outcome: "received" | "already_reported"): void
   /** show the signed-out screens (read when a screen opens) */
   setSignedIn(value: boolean): void
+  /** the library has recordings that may be the person's ("some") or none */
+  setClaimLibrary(mode: "some" | "none"): void
+  /** the person's claims, by recording id and status */
+  setClaims(rows: Parameters<DemoClaims["setClaims"]>[0]): void
+  /** claiming is paused until this time (after three rejections in a row) */
+  setClaimsPaused(until: string | null): void
 }
 
 export type DemoAuthorsApi = AuthorsApi & { control: DemoControl }
@@ -174,6 +181,7 @@ export function createDemoApi(): DemoAuthorsApi {
   let recordingsMode: "some" | "none" = "some"
   let blocked: string | null | undefined
   let reportOutcome: "received" | "already_reported" = "received"
+  const claims = createDemoClaims(() => mine)
   const failures = new Map<string, Error>()
   const lookups = new Map<string, { moved: string } | "gone">()
 
@@ -194,7 +202,7 @@ export function createDemoApi(): DemoAuthorsApi {
     photo_url: o.photo_url,
     published_at: o.published_at,
     updated_at: o.updated_at,
-    stats: { enough_data: false, counting_since: o.published_at?.slice(0, 10) ?? null, monthly_listeners: null, total_plays: null },
+    stats: o.show_stats ? { enough_data: false, counting_since: o.published_at?.slice(0, 10) ?? null, monthly_listeners: null, total_plays: null } : null,
     indexable: false,
   })
 
@@ -308,6 +316,8 @@ export function createDemoApi(): DemoAuthorsApi {
       let items = found ? recordingsOfText(found.authorText) : []
       if (kind) items = items.filter((r) => r.kind === kind)
       if (exclude) items = items.filter((r) => r.id !== exclude)
+      // numbers switched off on the page: the server sends no play counts at all
+      if (found && !found.profile.stats) items = items.map((r) => ({ ...r, plays: null }))
       return { items: items.slice(offset, offset + limit), total: items.length, limit, offset, has_more: offset + limit < items.length }
     },
     async collections(): Promise<CollectionBrief[]> {
@@ -323,6 +333,7 @@ export function createDemoApi(): DemoAuthorsApi {
     async report() {
       return { status: reportOutcome, message: "Thank you. The team will look at this page." }
     },
+    ...claims.api,
   }
 
   const control: DemoControl = {
@@ -335,6 +346,7 @@ export function createDemoApi(): DemoAuthorsApi {
       reportOutcome = "received"
       failures.clear()
       lookups.clear()
+      claims.reset()
       setDemoSignedOut(false)
     },
     setMine(patch) {
@@ -361,6 +373,15 @@ export function createDemoApi(): DemoAuthorsApi {
     },
     setSignedIn(value) {
       setDemoSignedOut(!value)
+    },
+    setClaimLibrary(mode) {
+      claims.setMode(mode)
+    },
+    setClaims(rows) {
+      claims.setClaims(rows)
+    },
+    setClaimsPaused(until) {
+      claims.setPaused(until)
     },
   }
 

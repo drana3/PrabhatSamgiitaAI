@@ -223,8 +223,15 @@ class ShownWrite(BaseModel):
     shown: bool
 
 
+class AuthorRecordingOut(RecordingOut):
+    """A recording on a public author page. `plays` is null when the author hides the listening
+    statistics: then the page shows no count at all."""
+
+    plays: int | None = None  # type: ignore[assignment]
+
+
 class AuthorRecordingList(BaseModel):
-    items: list[RecordingOut]
+    items: list[AuthorRecordingOut]
     total: int
     limit: int
     offset: int

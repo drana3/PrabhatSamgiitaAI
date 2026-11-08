@@ -141,7 +141,7 @@ export type CollectionBrief = {
   id: string
   title: string
   place: string | null
-  starts_on: string
+  starts_on: string | null
   ends_on: string | null
   cover_url: string | null
   tracks_count: number
@@ -183,6 +183,78 @@ export type PlayEventOut = {
 }
 export type PlayBatchResult = { accepted: number; duplicates: number; rejected: Record<string, number> }
 
+// ---- claiming recordings that somebody else added (apps/api/app/schemas/author_claims.py)
+
+export type ClaimStatus = "pending" | "approved" | "rejected" | "withdrawn" | "revoked"
+export type ClaimRoute = "self" | "team"
+export type MatchLevel = "same" | "alike" | "title" | "manual"
+/** Why a claim goes to the team and is not approved at once (the server's TeamReason). */
+export type TeamReason =
+  | "protected_name"
+  | "famous_name"
+  | "taken_by_other"
+  | "alias_match"
+  | "group_credit"
+  | "group_page"
+  | "not_same_name"
+  | "unverified_page"
+  | "draft_page"
+  | "review_flag"
+
+export type ClaimRecording = {
+  id: string
+  kind: string
+  title: string
+  author: string
+  added_by: string
+  /** added by the team's library import: nobody to tell */
+  library: boolean
+  duration_sec: number | null
+  plays: number
+}
+
+export type ClaimCandidate = {
+  recording: ClaimRecording
+  level: MatchLevel
+  matched_text: string
+  route: ClaimRoute
+  team_reason: TeamReason | null
+  claim_status: ClaimStatus | null
+  claim_id: string | null
+}
+
+export type ClaimSuggestions = { names: string[]; same: ClaimCandidate[]; alike: ClaimCandidate[]; total: number }
+export type ClaimSearch = { query: string; items: ClaimCandidate[]; total: number; has_more: boolean }
+export type ClaimSummary = { suggested: number; pending: number; approved: number; paused_until: string | null }
+
+export type ClaimOutcome =
+  | "approved"
+  | "pending"
+  | "already_on_page"
+  | "already_yours"
+  | "already_pending"
+  | "already_approved"
+  | "rejected_before"
+  | "revoked_before"
+  | "not_found"
+export type ClaimResult = { recording_id: string; outcome: ClaimOutcome; claim_id: string | null; team_reason: TeamReason | null }
+export type ClaimsCreated = { results: ClaimResult[]; approved: number; pending: number }
+
+export type ClaimOut = {
+  id: string
+  recording: ClaimRecording
+  level: MatchLevel
+  matched_text: string
+  route: ClaimRoute
+  status: ClaimStatus
+  team_reason: TeamReason | null
+  decision_note: string | null
+  created_at: string
+  decided_at: string | null
+}
+export type ClaimList = { items: ClaimOut[]; total: number }
+export type Alias = { alias: string; key: string }
+
 /** The one thing the screens talk to: the real client or, in the preview, the demo. */
 export interface AuthorsApi {
   /** true: invented data (the preview). Screens show a "Demo" label. */
@@ -205,6 +277,15 @@ export interface AuthorsApi {
   collections(slug: string): Promise<CollectionBrief[]>
   byRecording(recordingId: string): Promise<AuthorCardData | null>
   report(slug: string, report: { reason: ReportReason; comment?: string }): Promise<ReportOutcome>
+  claimSummary(): Promise<ClaimSummary>
+  claimSuggestions(): Promise<ClaimSuggestions>
+  claimSearch(query: string, offset?: number): Promise<ClaimSearch>
+  createClaims(recordingIds: string[]): Promise<ClaimsCreated>
+  myClaims(status?: ClaimStatus): Promise<ClaimList>
+  withdrawClaim(claimId: string): Promise<void>
+  aliases(): Promise<Alias[]>
+  addAlias(alias: string): Promise<Alias[]>
+  removeAlias(key: string): Promise<void>
 }
 
 /** A public lookup: a page, a moved address, a deleted page or nothing. */

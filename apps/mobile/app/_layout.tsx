@@ -218,6 +218,8 @@ export default function RootLayout() {
             <Stack.Screen name="become-author" options={{ presentation: "card" }} />
             <Stack.Screen name="my-author" options={{ presentation: "card" }} />
             <Stack.Screen name="author-edit" options={{ presentation: "card" }} />
+            <Stack.Screen name="author-claims" options={{ presentation: "card" }} />
+            <Stack.Screen name="author-find" options={{ presentation: "card" }} />
             {/* Upload: the hub of the tab bar's Upload button, offering chords for a song, and the team's review of them. */}
             <Stack.Screen name="upload" options={{ presentation: "modal" }} />
             <Stack.Screen name="upload-chords" options={{ presentation: "modal" }} />

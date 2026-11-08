@@ -273,7 +273,7 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     // the server's `flagged` is still live: it stays in the app until the team decides
     status: removed ? "removed" : "published",
     addedAt: base?.addedAt ?? ms(remote.published_at) ?? ms(remote.created_at) ?? 0,
-    plays: remote.plays,
+    plays: remote.plays ?? undefined,
     serverId: remote.id,
     authorId: remote.author_id,
     ...(remote.year ? { year: remote.year } : base?.year ? { year: base.year } : {}),

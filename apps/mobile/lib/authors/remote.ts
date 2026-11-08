@@ -1,11 +1,18 @@
 import { NetworkError, RemoteError, type RemoteConfig } from "@/lib/kirtan/remote"
 import type {
+  Alias,
   AuthorCardData,
   AuthorList,
   AuthorLookup,
   AuthorProfileOwner,
   AuthorProfilePublic,
   AuthorsApi,
+  ClaimList,
+  ClaimSearch,
+  ClaimStatus,
+  ClaimSuggestions,
+  ClaimSummary,
+  ClaimsCreated,
   CollectionBrief,
   CreateInput,
   DirectoryQuery,
@@ -140,6 +147,15 @@ export function createAuthorsApi(cfg: RemoteConfig): AuthorsApi {
     },
     report: (slug, report: { reason: ReportReason; comment?: string }) =>
       json<ReportOutcome>(cfg, `/authors/${encodeURIComponent(slug)}/report`, { method: "POST", body: report }),
+    claimSummary: () => json<ClaimSummary>(cfg, "/authors/me/claims/summary"),
+    claimSuggestions: () => json<ClaimSuggestions>(cfg, "/authors/me/claims/suggestions"),
+    claimSearch: (q, offset = 0) => json<ClaimSearch>(cfg, `/authors/me/claims/search${query({ q: q.trim(), limit: 30, offset })}`),
+    createClaims: (recordingIds) => json<ClaimsCreated>(cfg, "/authors/me/claims", { method: "POST", body: { recording_ids: recordingIds } }),
+    myClaims: (status?: ClaimStatus) => json<ClaimList>(cfg, `/authors/me/claims${query({ status })}`),
+    withdrawClaim: (id) => nothing(cfg, `/authors/me/claims/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    aliases: async () => (await json<{ items: Alias[] }>(cfg, "/authors/me/aliases")).items,
+    addAlias: async (alias) => (await json<{ items: Alias[] }>(cfg, "/authors/me/aliases", { method: "POST", body: { alias } })).items,
+    removeAlias: (key) => nothing(cfg, `/authors/me/aliases/${encodeURIComponent(key)}`, { method: "DELETE" }),
   }
 }
 

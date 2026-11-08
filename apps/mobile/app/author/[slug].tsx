@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { Stack, useLocalSearchParams, useRouter } from "expo-router"
-import { Shuffle } from "lucide-react-native"
 
-import { AuthorHero } from "@/components/authors/AuthorHero"
-import { Chip, DemoNote, LoadingRows, PillButton, SectionTitle, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
-import { EditorialPage, ShelvesPage, type VariantProps } from "@/components/authors/PageVariants"
+import { Chip, LoadingRows, PillButton, SectionTitle, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { ShowcasePage, type ShowcaseProps } from "@/components/authors/AuthorShowcase"
 import { PublicStatsStrip } from "@/components/authors/StatsViews"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
-import { KirtanRow, PlayFilled } from "@/components/kirtan/KirtanParts"
+import { KirtanRow } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -26,21 +24,18 @@ import { shareAuthor } from "@/lib/authors/share"
 import { say } from "@/lib/authors/text"
 import type { AuthorProfilePublic, CollectionBrief, ReportReason } from "@/lib/authors/types"
 import { useLanguage, useT } from "@/lib/i18n"
-import { kindLabelPlural } from "@/lib/kirtan/kind"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { fromRemote } from "@/lib/kirtan/submissions"
-import type { Kirtan, RecordingKind } from "@/lib/kirtan/types"
+import type { Kirtan } from "@/lib/kirtan/types"
 import { useAuthorStore } from "@/stores/authorStore"
 import { href } from "@/utils/href"
-import { photoSrc } from "@/components/authors/AuthorsUi"
 
-type Tab = "recordings" | "playlists" | "about"
 const REASONS: ReportReason[] = ["impersonation", "offensive", "spam", "copyright", "wrong_info", "other"]
 const SAFE_LINK = /^https:\/\//i
 
 /** Public author page: /author/<slug>. Recordings by kind, playlists from events, About; play all, share, report. */
 export default function AuthorPage() {
-  const params = useLocalSearchParams<{ slug?: string; v?: string }>()
+  const params = useLocalSearchParams<{ slug?: string }>()
   const slug = String(params.slug ?? "").toLowerCase()
   const router = useRouter()
   const t = useT()
@@ -71,16 +66,15 @@ export default function AuthorPage() {
   if (!data || data.kind === "missing") return frame(<StateBlock theme={theme} title={t("authors.page.notFound.title")} body={t("authors.page.notFound.body")} action={t("authors.dir.title")} onAction={() => router.replace(href(AUTHORS_HREF))} />)
   if (data.kind === "gone") return frame(<StateBlock theme={theme} title={t("authors.page.gone.title")} body={t("authors.page.gone.body")} action={t("authors.dir.title")} onAction={() => router.replace(href(AUTHORS_HREF))} />)
 
-  return <Page profile={data.profile} demo={api.demo} top={top} bottom={bottom} onBack={back} variant={api.demo ? Number(params.v) || 1 : 1} />
+  return <Page profile={data.profile} demo={api.demo} top={top} bottom={bottom} onBack={back} />
 }
 
-function Page({ profile, demo, top, bottom, onBack, variant }: { profile: AuthorProfilePublic; demo: boolean; top: number; bottom: number; onBack: () => void; variant: number }) {
+function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePublic; demo: boolean; top: number; bottom: number; onBack: () => void }) {
   const t = useT()
   const locale = useLanguage()
   const theme = useSongsTheme()
   const api = authorsApi()
   const actions = useKirtanActions()
-  const [tab, setTab] = useState<Tab>("recordings")
   const [kind, setKind] = useState<string | null>(null)
   const [items, setItems] = useState<RemoteRecording[]>([])
   const [total, setTotal] = useState(0)
@@ -174,15 +168,12 @@ function Page({ profile, demo, top, bottom, onBack, variant }: { profile: Author
   }
 
   const kirtans = useMemo(() => items.map((r) => fromRemote(r)), [items])
-  const place = [profile.city, profile.country].filter(Boolean).join(", ")
-  const meta = t("authors.count.recordings", { count: profile.recordings_count })
-  const kinds = profile.kinds.filter((k) => k.count > 0)
 
   const openRecording = (r: Kirtan) => {
     const message = playAuthor({ slug, name }, items, { startId: r.serverId ?? null })
     if (message) actions.flash(message)
   }
-  const shared: VariantProps = {
+  const shared: ShowcaseProps = {
     theme,
     profile,
     demo,
@@ -209,54 +200,7 @@ function Page({ profile, demo, top, bottom, onBack, variant }: { profile: Author
     <View style={[styles.root, { backgroundColor: theme.page }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={{ paddingBottom: bottom + 24 }} showsVerticalScrollIndicator={false}>
-        {variant === 2 ? <EditorialPage {...shared} /> : null}
-        {variant === 3 ? <ShelvesPage {...shared} /> : null}
-        {variant !== 2 && variant !== 3 ? <>
-        <AuthorHero theme={theme} top={top} onBack={onBack} demo={demo} data={{ slug, name, type: profile.author_type, verified: profile.verified, place, photoUrl: profile.photo_url ? photoSrc(profile.photo_url) : null, meta }} />
-        {ownPill ? <View style={styles.ownRow}>{ownPill}</View> : null}
-        <View style={styles.actions}>
-          <PillButton theme={theme} busy={busy} label={t("common.play")} icon={<PlayFilled size={18} color={theme.onBrand} />} onPress={() => void playAll(false)} disabled={!total} a11y={t("authors.page.playA11y", { name })} />
-          <View style={styles.actionsRow}>
-          <PillButton theme={theme} flex tone="line" disabled={!total || busy} label={t("common.shuffle")} icon={<Shuffle size={18} color={theme.textHeading} strokeWidth={2.2} />} onPress={() => void playAll(true)} />
-          <PillButton theme={theme} flex tone="line" label={t("common.share")} onPress={() => void onShare()} a11y={t("authors.page.shareA11y", { name })} />
-          </View>
-        </View>
-        <View style={styles.block}>
-          <PublicStatsStrip theme={theme} stats={profile.stats} demo={demo} />
-        </View>
-        {demo ? <DemoNote theme={theme} /> : null}
-        <View style={styles.tabs} accessibilityRole="tablist">
-          <Chip theme={theme} label={t("authors.tab.recordings")} active={tab === "recordings"} onPress={() => setTab("recordings")} />
-          <Chip theme={theme} label={t("authors.tab.playlists")} active={tab === "playlists"} onPress={() => setTab("playlists")} />
-          <Chip theme={theme} label={t("authors.tab.about")} active={tab === "about"} onPress={() => setTab("about")} />
-        </View>
-
-        {tab === "recordings" ? (
-          <View style={styles.block}>
-            {kinds.length > 1 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kindRow}>
-                <Chip theme={theme} label={t("authors.page.allKinds")} active={kind === null} onPress={() => setKind(null)} count={profile.recordings_count} />
-                {kinds.map((k) => (
-                  <Chip key={k.kind} theme={theme} label={kindLabelPlural(k.kind as RecordingKind)} active={kind === k.kind} onPress={() => setKind(k.kind)} count={k.count} />
-                ))}
-              </ScrollView>
-            ) : null}
-            {state === "loading" ? <LoadingRows theme={theme} rows={4} /> : null}
-            {state === "error" ? <StateBlock theme={theme} tone="error" title={t("authors.page.errorTitle")} body={t("authors.error.generic")} action={t("common.tryAgain")} onAction={() => setKind(kind)} /> : null}
-            {state !== "loading" && state !== "error" && !items.length ? <StateBlock theme={theme} title={t("authors.page.empty")} /> : null}
-            <View style={styles.rows}>
-              {kirtans.map((k) => (
-                <KirtanRow key={k.id} theme={theme} kirtan={k} compact onOpen={(r) => { const message = playAuthor({ slug, name }, items, { startId: r.serverId ?? null }); if (message) actions.flash(message) }} onMore={setMenu} />
-              ))}
-            </View>
-            {items.length < total ? <PillButton theme={theme} tone="line" busy={state === "more"} label={t("authors.dir.more")} onPress={() => void more()} /> : null}
-          </View>
-        ) : null}
-
-        {tab === "playlists" ? <Playlists slug={slug} name={name} flash={actions.flash} /> : null}
-
-        {tab === "about" ? <About profile={profile} locale={locale} own={isOwn} signedIn={signedIn} /> : null}
-        </> : null}
+        <ShowcasePage {...shared} />
       </ScrollView>
       <KirtanMenuSheet open={Boolean(menu)} theme={theme} kirtan={menu} saved={false} onPlayNext={actions.playNext} onAddToPlaylist={actions.addToPlaylist} onToggleSave={actions.toggleSaved} onShare={(k) => setShare(k)} onClose={() => setMenu(null)} />
       <KirtanShareSheet open={Boolean(share)} theme={theme} kirtan={share} onShare={() => setShare(null)} onClose={() => setShare(null)} />
@@ -415,11 +359,9 @@ function Fact({ theme, label, value }: { theme: ReturnType<typeof useSongsTheme>
 const styles = StyleSheet.create({
   root: { flex: 1 },
   backRow: { paddingHorizontal: SIDE - 10, alignItems: "flex-start" },
-  actions: { gap: 10, paddingHorizontal: SIDE, paddingTop: 18 },
   actionsRow: { flexDirection: "row", gap: 10 },
   block: { gap: 14, paddingHorizontal: SIDE, paddingTop: 16 },
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE, paddingTop: 20 },
-  kindRow: { gap: 8, paddingRight: SIDE },
   rows: { gap: 8 },
   card: { borderRadius: 18, borderWidth: 1, padding: 14, gap: 6 },
   cardHead: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
@@ -437,7 +379,6 @@ const styles = StyleSheet.create({
   linkKind: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   linkHost: { flexShrink: 1, fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   report: { gap: 12, paddingTop: 12 },
-  ownRow: { paddingHorizontal: SIDE, paddingTop: 14, alignItems: "flex-start" },
   ownPill: { minHeight: 36, borderRadius: 18, borderWidth: 1, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
   ownText: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   reportForm: { gap: 12 },

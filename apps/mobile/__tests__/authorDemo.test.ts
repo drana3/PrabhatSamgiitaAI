@@ -16,6 +16,17 @@ describe("demo author api (the Demo preview)", () => {
     expect((await api.mine()).profile).toBeNull()
   })
 
+  it("shows no numbers on a page whose owner switched them off", async () => {
+    const api = createDemoApi()
+    const input = { slug: "my-page", display_name: "My Page", author_type: "solo" as const, bio: "", about: "", country: null, city: null, languages: [], links: [], claimed_name: null, include_uploads: "all" as const, publish: true }
+    await api.create({ ...input, show_stats: true })
+    const shown = await api.profile("my-page")
+    expect(shown.kind === "profile" && shown.profile.stats).not.toBeNull()
+    await api.update({ show_stats: false })
+    const hidden = await api.profile("my-page")
+    expect(hidden.kind === "profile" && hidden.profile.stats).toBeNull()
+  })
+
   it("checks addresses like the server does", async () => {
     const api = createDemoApi()
     expect((await api.checkSlug("priya-devi")).available).toBe(false)

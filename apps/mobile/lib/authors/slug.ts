@@ -98,6 +98,18 @@ const ERROR_KEYS: Record<string, string> = {
   link_repeat: "authors.error.link_repeat",
   no_profile: "authors.error.no_profile",
   rate_limited: "authors.error.rate_limited",
+  bad_id: "authors.error.generic",
+  alias_invalid: "authors.error.alias_invalid",
+  alias_not_allowed: "authors.error.alias_not_allowed",
+  alias_taken: "authors.error.alias_taken",
+  alias_limit: "authors.error.alias_limit",
+  alias_not_found: "authors.error.generic",
+  claims_paused: "authors.error.claims_paused",
+  claims_per_day: "authors.error.claims_per_day",
+  claims_waiting: "authors.error.claims_waiting",
+  claim_not_found: "authors.error.claim_gone",
+  claim_closed: "authors.error.claim_gone",
+  page_suspended: "authors.error.suspended",
 }
 
 /** The sentence key for an API error: its `code`, a status, or "no network". */

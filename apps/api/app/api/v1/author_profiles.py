@@ -40,6 +40,7 @@ from app.schemas.author_profiles import (
     AuthorProfilePatch,
     AuthorProfilePublic,
     AuthorRecordingList,
+    AuthorRecordingOut,
     CollectionList,
     OwnerRecordingList,
     OwnerRecordingOut,
@@ -436,7 +437,15 @@ async def public_recordings(
         offset=offset,
     )
     return AuthorRecordingList(
-        items=[recording_out(r) for r in rows],
+        items=[
+            AuthorRecordingOut(
+                **{
+                    **recording_out(r).model_dump(),
+                    "plays": r.plays if profile.show_stats else None,
+                }
+            )
+            for r in rows
+        ],
         total=total,
         limit=limit,
         offset=offset,

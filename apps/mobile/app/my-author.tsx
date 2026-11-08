@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AccountBar, topInset } from "@/components/account/AccountUi"
 import { AuthorAvatar, Chip, DemoNote, LoadingRows, PillButton, SectionTitle, SIDE, StateBlock, WEB_THUMB } from "@/components/authors/AuthorsUi"
+import { ClaimsCard } from "@/components/authors/ClaimsCard"
 import { OwnerStatsView } from "@/components/authors/StatsViews"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -75,6 +76,7 @@ export default function MyAuthorScreen() {
         {api.demo ? <DemoNote theme={theme} /> : null}
         <Overview profile={mine} flash={flash} onChange={setMine} />
         <AddButtons />
+        <ClaimsCard />
         <StatsSection />
         <RecordingsSection profile={mine} flash={flash} />
         <Manage profile={mine} flash={flash} onChange={setMine} />
@@ -215,7 +217,7 @@ function RecordingsSection({ profile, flash }: { profile: AuthorProfileOwner; fl
               <Text style={[styles.recTitle, { color: theme.textHeading }]} numberOfLines={2}>
                 {row.recording.title}
               </Text>
-              <Text style={[styles.recMeta, { color: theme.textBody }]}>{`${kindLabel(row.recording.kind)} · ${t("authors.count.plays", { count: row.recording.plays })}`}</Text>
+              <Text style={[styles.recMeta, { color: theme.textBody }]}>{`${kindLabel(row.recording.kind)} · ${t("authors.count.plays", { count: row.recording.plays ?? 0 })}`}</Text>
               <Text style={[styles.recMeta, { color: row.shown ? theme.accentText : theme.textMuted }]}>{row.shown ? t("authors.mine.recordings.shown") : t("authors.mine.recordings.hidden")}</Text>
             </View>
             <Switch

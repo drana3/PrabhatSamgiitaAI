@@ -256,6 +256,35 @@ async def test_the_owner_can_switch_the_numbers_off(world: World) -> None:
     )  # the owner still sees them
 
 
+async def test_switched_off_numbers_show_nowhere_on_the_public_page(world: World) -> None:
+    """Signed out, another member and the owner all see the same public page: no counts at all."""
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await world.listen(rid, 10)
+    for headers in ({}, AS["b"], AS["a"]):
+        page = (await world.client.get(f"{URL}/madhu-vrata/recordings", headers=headers)).json()
+        assert isinstance(page["items"][0]["plays"], int)
+    await world.client.patch(f"{URL}/me", headers=AS["a"], json={"show_stats": False})
+    for headers in ({}, AS["b"], AS["a"]):
+        page = (await world.client.get(f"{URL}/madhu-vrata/recordings", headers=headers)).json()
+        assert page["items"][0]["plays"] is None
+        profile = (await world.client.get(f"{URL}/madhu-vrata", headers=headers)).json()
+        assert profile["stats"] is None
+    card = next(
+        i for i in (await world.client.get(URL)).json()["items"] if i["slug"] == "madhu-vrata"
+    )
+    assert card["monthly_listeners"] is None
+    # the owner's own page for managing keeps every number
+    mine = (await world.client.get(f"{URL}/me/stats", headers=AS["a"])).json()
+    assert mine["total_plays"] == 10
+    mine_rows = (await world.client.get(f"{URL}/me/recordings", headers=AS["a"])).json()
+    assert isinstance(mine_rows["items"][0]["recording"]["plays"], int)
+    # and switching them on again brings them back
+    await world.client.patch(f"{URL}/me", headers=AS["a"], json={"show_stats": True})
+    page = (await world.client.get(f"{URL}/madhu-vrata/recordings")).json()
+    assert isinstance(page["items"][0]["plays"], int)
+
+
 async def test_the_page_counts_the_plays_of_its_own_recordings_only(world: World) -> None:
     await world.create()
     await world.create(who="b", slug="bhakti-music", display_name="Bhakti Music")

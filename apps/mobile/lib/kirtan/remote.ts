@@ -29,7 +29,8 @@ export type RemoteRecording = {
   by_author: boolean
   status: "published" | "removed" | "flagged"
   duration_sec: number | null
-  plays: number
+  /** null on a public author page whose owner hides the listening statistics */
+  plays: number | null
   audio_url: string
   thumbnail_url: string | null
   published_at: string | null

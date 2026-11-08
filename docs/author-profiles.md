@@ -164,6 +164,8 @@ All under `/api/v1`.
 | `POST /plays` | member or device | Batch of play events |
 | `GET /admin/authors`, `GET /admin/authors/{id}/reports` | team | List, read reports |
 | `POST /admin/authors/{id}/approve`, `/verify`, `/unverify`, `/suspend`, `/unsuspend` | team | Team actions |
+| `GET /authors/me/claims/summary`, `/suggestions`, `/search`, `GET\|POST /authors/me/claims`, `DELETE /authors/me/claims/{id}`, `GET\|POST /authors/me/aliases`, `DELETE /authors/me/aliases/{key}` | member | Claiming recordings (see below) |
+| `GET /admin/authors/claims`, `POST /admin/authors/claims/bulk`, `POST /admin/authors/claims/{id}/approve\|reject\|revoke` | team | Claims desk |
 | `GET /admin/authors/suspensions` | team | Member suspensions with evidence |
 | `POST /admin/authors/members/{member_id}/lift-suspension` | team | Allow the member a new page |
 
@@ -186,9 +188,13 @@ The link is the public name of the page: `www.prabhatasamgiita.org/author/anna-r
 - A small "Change link" link opens the field for people who want something else. Rules: Latin letters, numbers and hyphens, 3 to 30 characters.
 - Changing it later: once in 30 days, the old link keeps working for 90 days and no one else can take it meanwhile.
 
-## Page layouts
+## Page layout
 
-The public author page has three layouts, behind `?v=1|2|3`, in the demo preview only (`app/author/[slug].tsx`; real builds always show layout 1 until Dada chooses): 1 Cover (photo across the top, like an artist page), 2 Journal (type-set header, recordings as a numbered list), 3 Showcase (round photo beside the name, "Play all" with a count, numbers, then "Most played" tiles). The recommendation is 3, because it works with and without a photo and shows the best recordings without scrolling. Boards: `Для-Дады/автор-v2/index.html` (board 6). Dada picks one; the other two and the switch are then deleted.
+The public author page has one layout, "Showcase" (Dada chose it; the other two and the `?v` switch are gone): a round photo beside the name, "Play all" with a count, the numbers, then a "Most played" shelf and the recordings. It works with and without a photo. The code is `components/authors/AuthorShowcase.tsx`, used by `app/author/[slug].tsx` for everyone. The cover hero (`AuthorHero.tsx`) stays only for the preview in "Become an author".
+
+### Hiding the numbers
+
+The setting "Show my listening statistics on my public page" (`show_stats`, default on) is the switch. When it is off the public page shows no number at all: no monthly listeners, no total plays, no "Most played" shelf, and `GET /authors/{slug}/recordings` returns `plays: null` for every recording (`AuthorRecordingOut`). The owner still sees every number on "Your author page". Tests: `test_author_stats.py::test_switched_off_numbers_show_nowhere_on_the_public_page` (signed out, another member, the owner) and `__tests__/authorDemo.test.ts`. Boards of redesigns of the statistics block: `Для-Дады/автор-статистика-варианты/index.html` (A to D, recommendation A; it needs a public weekly series in the API, not built).
 
 ## The catalog
 
@@ -196,9 +202,33 @@ One screen, `/authors` (`app/authors.tsx`): search, order (most listened, new, A
 
 Where it is reached from (three placements were drawn, board 7): A, a shelf on Today; B, a block in the search tab; C, a shelf on the Kiirtan tab. Built: C, because people on the Kiirtan tab are the ones who care who sings, the shelf is narrow (round photos), and under a kind chip it shows only that kind. The search block (B) stays as an extra door, placed by the search owner. Today (A) is left out: it is already a dense shelf of the song of the day and festivals.
 
+## Claiming recordings that somebody else added
+
+A performer who makes a page can ask for recordings that already sit in the library under their name, whoever added them. Two ways in (Dada chose them): suggestions (a card on "Your author page", opened by "Look through them", `app/author-claims.tsx`) and a search page "Find my recordings" (`app/author-find.tsx`). Code: `services/author_claim_rules.py` (pure matching), `services/author_claims.py` (finding, the ladder, the team desk), `api/v1/author_claims.py`, migration `0045_author_claims` (tables `author_claims`, `author_claim_events`, `author_aliases`).
+
+Decided by Dada: the uploader is **not asked** and cannot dispute; the uploader only gets an information notice (`claim_on_your_recording`, no actions; none for library recordings). One recording may be on several pages. Pages of deceased or unreachable performers are run by the team.
+
+Matching. A credit is split into names (`,` `;` `&` `+` `/`, "and", "with", "feat.", "x"). Two names are "the same" when their `match_key` is equal: case, accents and look-alike letters folded, Devanagari and Bengali transliterated, and the usual spelling variants made equal (Dewi/Devi, Shri/Sri, sh/s, dh/d, aa/a, ii/i, doubled letters). "Alike" is a near name (one letter off, words reordered, one name inside a longer one). "Title" is the name written only inside the title; only the search page offers it.
+
+The ladder (`Ladder.standing()`). A claim is **approved at once** (route `self`) only when all hold: the page is published and verified, has no review or report flag, is a solo page, the credit names one person, the level is "same" against the **trusted names** of the page, and the name is not protected, famous or already asked for by another page. Otherwise it goes **to the team** (route `team`) with the first matching reason: `protected_name`, `famous_name`, `taken_by_other`, `alias_match`, `group_credit`, `group_page`, `not_same_name`, `unverified_page`, `draft_page`, `review_flag`. The screens show the reason to the person.
+
+- Famous name: credited on 25 or more library recordings (no uploader), or equal to another published verified page's name or claimed name, or protected or staff-like (`FAMOUS_RECORDING_COUNT = 25`).
+- Trusted names are the display name and, only for a verified page, the claimed name. **A name the member adds as "written another way" (an alias) is never trusted.** A match found only through an alias always goes to the team as `alias_match`. Aliases are limited to 5 per page and checked when added: not protected, not staff-like, not the name of another page (`alias_not_allowed`, `alias_taken`, `alias_limit`). Tests (`test_author_claims.py`): an alias equal to a famous name or to another page's name never approves by itself; alias-only matches go to the team; a verified page with its exact claimed name still approves by itself; an alias flood is capped.
+- Limits: 30 requests a day, 200 waiting, a pause of 7 days after 3 refusals in a row, at most 50 recordings in a call.
+- Once approved, the recording is on the page (`attribution()` includes recordings with an approved claim) and counts in the page's statistics like any other (statistics follow the recordings on the page; the member's own plays are still not counted). The owner can take a waiting or approved request back (`DELETE /authors/me/claims/{id}`); the team can reject or revoke.
+- The old rule stays: a verified page also shows recordings whose credit equals its claimed name exactly (no backfill into claims).
+
+Team desk (API only, no screen yet): `GET /admin/authors/claims`, `POST /admin/authors/claims/bulk`, `POST /admin/authors/claims/{id}/approve|reject|revoke`. Each decision tells the member (`claim_approved`, `claim_rejected`, `claim_revoked`).
+
+Member endpoints: `GET /authors/me/claims/summary`, `/suggestions`, `/search?q=`, `GET|POST /authors/me/claims`, `DELETE /authors/me/claims/{id}`, `GET|POST /authors/me/aliases`, `DELETE /authors/me/aliases/{key}`.
+
+Board with the real screens and the decisions: `Для-Дады/автор-подтянуть-записи/index.html` (top section "Готово · фаза 1"; the four earlier proposals are kept below it as an archive). The preview demo (`lib/authors/demoClaims.ts`) answers the same calls from invented library recordings and can be put into states with `__authorsDemo.setClaims`, `setClaimLibrary` and `setClaimsPaused`.
+
+Still for Dada: whether an unverified page may approve clear same-name recordings by itself; how fast the team verifies pages (verification gates every automatic approval); whether the member's own uploads credited to another name stay on the page by default; whether 25 is the right famous-name threshold; whether the team desk needs a screen; and the display of the new notice kinds in the notification centre (another agent's file).
+
 ## Scenarios that were worked through and tested
 
-Create (four steps, draft, publish, claimed name, network error, leave guard, signed out, blocked, load error), edit (picture add and remove, name, link with cooldown, saved, save error, leave guard), my page (published, draft, waiting for the team, verified, reported, suspended, small-listener state, no plays and no recordings, hide a recording, unpublish, delete with confirmation, statistics error, load error, no page, signed out), public page (signed out, signed in, own page, report form, report sent, report again, moved, deleted, not found, small listeners, error, playlists, empty about), the three layouts, the catalog (filters, no match, error, with my page) and the Kiirtan shelf. Screenshots of every state at 390 pixels are in `Для-Дады/автор-v2/` (made with `scratchpad` scripts against the preview, where `authorsApi()` is an in-memory demo that can be put into any of these states with `globalThis.__authorsDemo`). Rules are covered by `__tests__/authorScenarios.test.ts` and the existing author tests.
+Create (four steps, draft, publish, claimed name, network error, leave guard, signed out, blocked, load error), edit (picture add and remove, name, link with cooldown, saved, save error, leave guard), my page (published, draft, waiting for the team, verified, reported, suspended, small-listener state, no plays and no recordings, hide a recording, unpublish, delete with confirmation, statistics error, load error, no page, signed out), public page (signed out, signed in, own page, report form, report sent, report again, moved, deleted, not found, small listeners, error, playlists, empty about), the page layout, the catalog (filters, no match, error, with my page) and the Kiirtan shelf. Screenshots of every state at 390 pixels are in `Для-Дады/автор-v2/` (made with `scratchpad` scripts against the preview, where `authorsApi()` is an in-memory demo that can be put into any of these states with `globalThis.__authorsDemo`). Rules are covered by `__tests__/authorScenarios.test.ts` and the existing author tests.
 
 ## Test data
 
@@ -225,7 +255,7 @@ Decided by the authors owner (change any of them by one constant; each is record
 
 Needs Dada (changes what people see):
 
-1. The layout of the public page: 1, 2 or 3 (recommended 3).
+1. Which statistics block (A to D on the board); A needs a public weekly series in the API.
 2. Whether the catalog also gets a door on Today (built: Kiirtan tab shelf and the search block).
 3. Universal links for `/author/*` (https links opening in the app; needs a new native build).
 
