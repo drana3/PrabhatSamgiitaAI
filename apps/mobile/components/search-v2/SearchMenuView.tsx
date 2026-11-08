@@ -11,9 +11,10 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import type { BrowseTile, DiscoverTag } from "@/lib/fixtures/home"
 import { useT, t as translate } from "@/lib/i18n"
 import type { HistoryEntry } from "@/lib/listening/history"
-import { moodLabel } from "@/lib/kirtan/moods"
+import { kindLabelPlural } from "@/lib/kirtan/kind"
 import type { KindTile } from "@/lib/searchBrowse"
 import { MENU_RULES } from "@/lib/searchMenu/config"
+import { titleCase } from "@/lib/searchMenu/facets"
 import { shelfHref, shelfItems, shelfTitle, type MenuKirtan } from "@/lib/searchMenu/live"
 import type { MenuBlock, MenuShelf } from "@/lib/searchMenu/types"
 import type { SearchMenu } from "@/hooks/useSearchMenu"
@@ -133,6 +134,29 @@ export function SearchMenuView({
           <BlockTitle p={p} text={t("searchMenu.block.ps")} />
           {tiles.length ? <TileGrid p={p} tiles={tiles} subOf={(tile) => t("songs.collections.count", { count: (tile as KindTile).count })} onPick={onTile} /> : null}
           {shelves.filter((sh) => !sh.id.startsWith("ps:kind:")).map((sh) => itemShelf(sh))}
+        </View>
+      )
+    }
+    if (block === "dance") {
+      return (
+        <View key={block} style={s.group}>
+          <BlockTitle p={p} text={kindLabelPlural("dance_song")} />
+          {shelves.map((sh) => itemShelf(sh))}
+        </View>
+      )
+    }
+    if (block === "more") {
+      // categories the library carries that nobody listed (tempo, solo or group, occasion ...): one small heading per facet
+      const facets = [...new Set(shelves.map((sh) => sh.facet ?? ""))]
+      return (
+        <View key={block} style={s.group}>
+          <BlockTitle p={p} text={t("searchMenu.block.more")} />
+          {facets.map((facet) => (
+            <View key={facet} style={s.group}>
+              <SubTitle p={p} text={titleCase(facet)} />
+              {shelves.filter((sh) => (sh.facet ?? "") === facet).map((sh) => itemShelf(sh))}
+            </View>
+          ))}
         </View>
       )
     }

@@ -1,6 +1,7 @@
 import { MENU_RULES } from "@/lib/searchMenu/config"
 import type { AuthorStat, MenuRecording, MenuStats } from "@/lib/searchMenu/types"
 import { artistKey, splitAuthors } from "@/lib/kirtan/artists"
+import { discoverFacets } from "@/lib/searchMenu/facets"
 
 /**
  * Turns the recordings the app already holds into the counts the rules read. Nothing is guessed:
@@ -30,8 +31,6 @@ export function aggregateRecordings(
   extra: Pick<MenuStats, "psCollections"> & Partial<Pick<MenuStats, "themes" | "listener" | "pins" | "memory">>,
 ): MenuStats {
   const kiirtanTypes: Record<string, number> = {}
-  const kiirtanStyles: Record<string, number> = {}
-  const moodCounts: Record<string, number> = {}
   let babaAudio = 0
   const bhajanTypes: Record<string, number> = {}
   const bhajanLanguages: Record<string, number> = {}
@@ -44,6 +43,8 @@ export function aggregateRecordings(
   let totalPlays = 0
   let anyPlayField = false
   const since = now - MENU_RULES.windowDays.new * DAY
+  // category discovery: styles, moods and every other facet the recordings carry (lib/searchMenu/facets.ts)
+  const found = discoverFacets(recordings, normalizeKindId)
 
   for (const r of recordings) {
     const kind = normalizeKindId(r.kind)
@@ -52,11 +53,9 @@ export function aggregateRecordings(
       anyPlayField = true
       if (r.plays > 0) { withPlays++; totalPlays += r.plays }
     }
-    for (const mood of r.moods ?? []) bump(moodCounts, mood)
     if (kind === "baba_audio") babaAudio++
     if (kind === "kiirtan") {
       bump(kiirtanTypes, r.type || "other")
-      if (r.style) bump(kiirtanStyles, r.style)
       if (r.collectionId) sets.set(r.collectionId, (sets.get(r.collectionId) ?? 0) + 1)
       for (const name of splitAuthors(r.author)) {
         const key = artistKey(name)
@@ -76,7 +75,8 @@ export function aggregateRecordings(
     psCollections: extra.psCollections,
     psRecordings,
     kiirtanTypes,
-    kiirtanStyles,
+    kiirtanStyles: found.styles,
+    facets: found.facets,
     babaAudio,
     kiirtanSets: [...sets.values()].filter((n) => n >= 2).length,
     bhajanLanguages,
@@ -86,7 +86,7 @@ export function aggregateRecordings(
     newInWindow,
     // lifetime counter of the recordings table; the 30-day window arrives with the daily counts (play_daily)
     played: { source: anyPlayField ? "lifetime" : "none", recordingsWithPlays: withPlays, totalPlays },
-    themes: extra.themes ?? Object.entries(moodCounts).map(([id, confirmed]) => ({ id, confirmed })),
+    themes: extra.themes ?? Object.entries(found.moods).map(([id, confirmed]) => ({ id, confirmed })),
     listener: extra.listener,
     pins: extra.pins,
     memory: extra.memory,

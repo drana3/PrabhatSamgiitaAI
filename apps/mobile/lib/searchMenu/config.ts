@@ -24,7 +24,10 @@ export const MENU_RULES = {
   spiritual: { on: 3, off: 2 },
   bhajanLanguage: { on: 3, off: 2, max: 5 },
   bhajanType: { on: 3, off: 2 },
-  theme: { on: 5, off: 3, max: 6 },
+  /** Moods are discovered from the tags on recordings: a mood is a shelf at 3 recordings that carry it, gone under 2 */
+  theme: { on: 3, off: 2, max: 8 },
+  /** Any other facet the library carries (dance, tempo, solo or group, occasion, event name ...): per value, at most `max` values per facet. Override one facet in `facetOverrides`. */
+  facet: { on: 3, off: 2, max: 6 },
 
   authors: {
     /** the author has this many published recordings */
@@ -42,6 +45,15 @@ export const MENU_RULES = {
     coldMax: 3,
   },
 } as const
+
+/** A facet that needs its own numbers (facet id -> rule). Empty: every facet follows `MENU_RULES.facet`. */
+export const FACET_OVERRIDES: Readonly<Record<string, { readonly on: number; readonly off: number; readonly max: number }>> = {}
+
+/**
+ * Titles the team chose for a shelf, by shelf id ("kiirtan:style:other:baul": "Baul"). A value nobody renamed gets a title
+ * made from its own words, so this stays empty until someone wants a different word.
+ */
+export const MENU_LABEL_OVERRIDES: Readonly<Record<string, string>> = {}
 
 export type OnOff = { readonly on: number; readonly off: number }
 
@@ -64,5 +76,6 @@ export const MENU_TITLE_KEYS = [
   "searchMenu.block.kiirtan",
   "searchMenu.block.bhajans",
   "searchMenu.block.themes",
+  "searchMenu.block.more",
   "searchMenu.demo",
 ] as const

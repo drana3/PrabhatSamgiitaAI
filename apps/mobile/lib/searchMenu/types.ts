@@ -4,7 +4,7 @@
  */
 
 /** The blocks of the menu, in the order the rules emit them (a layout may regroup them). */
-export type MenuBlock = "pulse" | "baba" | "ps" | "kiirtan" | "authors" | "spiritual" | "bhajans" | "themes"
+export type MenuBlock = "pulse" | "baba" | "ps" | "kiirtan" | "authors" | "spiritual" | "bhajans" | "dance" | "more" | "themes"
 
 /** Why a shelf is on the menu. `kept` = below its "on" threshold but inside the anti-flicker hold. */
 export type ShelfReason = "default" | "threshold" | "popular" | "personal" | "catalogue" | "pinned" | "kept"
@@ -19,6 +19,9 @@ export type ShelfLabel =
   | { type: "language"; id: string }
   | { type: "author"; id: string; name: string }
   | { type: "theme"; id: string }
+  | { type: "dance"; id: string }
+  /** a value nobody gave a title: the title is made from its words (facets.ts titleCase) */
+  | { type: "named"; name: string }
 
 export type MenuShelf = {
   /** Stable id: "new", "mostPlayed", "ps:kind:mood", "kiirtan:type:bnk", "author:<key>", "bhajan:lang:ru", "theme:<id>" ... */
@@ -28,6 +31,8 @@ export type MenuShelf = {
   /** How many items the shelf holds (never fabricated; 0 never reaches the output). */
   count: number
   reason: ShelfReason
+  /** Shelves found by category discovery ("facet:<facet>:<value>"): the facet they belong to (tempo, performance ...), which titles their group */
+  facet?: string
   /** Only "mostPlayed": counted in the last 30 days, or since the start. The screen must say which. */
   source?: "window" | "lifetime"
 }
@@ -62,8 +67,10 @@ export type MenuStats = {
   psRecordings: number
   /** Kiirtans per type id (bnk, lila, festival, other) */
   kiirtanTypes: Record<string, number>
-  /** Kiirtans per style id (bengali, hindi, brajabuli, dhrupad, folk, other); absent = none named yet */
+  /** Kiirtans per style id (bengali, hindi, brajabuli, dhrupad, folk, other, and "other:<slug>" for a style someone typed); absent = none named yet */
   kiirtanStyles?: Record<string, number>
+  /** Every other facet the library carries, found by category discovery (lib/searchMenu/facets.ts): facet -> value -> recordings. `dance` is one. */
+  facets?: Record<string, Record<string, number>>
   /** Baba's Audio Discourses (kind baba_audio): his own voice; absent = none */
   babaAudio?: number
   /** event sets with at least two published tracks */
@@ -120,6 +127,12 @@ export type MenuRecording = {
   createdAt: number
   /** Kiirtan style id, when the uploader named one */
   style?: string | null
+  /** the uploader's own name for the style, when `style` is "other" */
+  styleOther?: string | null
+  /** Dance music: which dance */
+  dance?: string | null
+  /** any other tag the library carries (tempo, performance, occasion, event ...): facet -> values. Discovered, never listed. */
+  tags?: Readonly<Record<string, readonly string[]>> | null
   /** confirmed mood ids (lib/kirtan/moods.ts) */
   moods?: readonly string[] | null
   /** counted plays since the start, when the server sends it */

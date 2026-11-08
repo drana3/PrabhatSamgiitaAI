@@ -7,9 +7,10 @@ import { kirtanTypeLabel, type Kirtan } from "@/lib/kirtan/types"
 import { listenerStatsFromHistory } from "@/lib/listening/stats"
 import type { HistoryEntry } from "@/lib/listening/history"
 import { aggregateRecordings, normalizeKindId } from "@/lib/searchMenu/aggregate"
-import { MENU_RULES } from "@/lib/searchMenu/config"
+import { MENU_LABEL_OVERRIDES, MENU_RULES } from "@/lib/searchMenu/config"
 import { BABA_AUDIO_KIND } from "@/lib/searchMenu/kinds"
-import { buildMenu, rankBhajanLanguages } from "@/lib/searchMenu/rules"
+import { CUSTOM_STYLE_PREFIX, slugOf, titleCase } from "@/lib/searchMenu/facets"
+import { buildMenu, rankBhajanLanguages, splitStyles } from "@/lib/searchMenu/rules"
 import type { AuthorStat, MenuMemory, MenuRecording, MenuResult, MenuShelf, MenuStats } from "@/lib/searchMenu/types"
 import { t } from "@/lib/i18n"
 import { kindLabel, type CollectionKind } from "@/lib/songsV2/collectionsIndex"
@@ -24,7 +25,13 @@ import { kindLabel, type CollectionKind } from "@/lib/songsV2/collectionsIndex"
 const DAY = 24 * 60 * 60 * 1000
 
 /** A recording the menu reads. `style` and `moods` arrive with the API's fields (apps/api recordings.style, confirmed mood tags). */
-export type MenuKirtan = Kirtan & { style?: string | null; styleOther?: string | null; moods?: readonly string[] | null }
+export type MenuKirtan = Kirtan & {
+  style?: string | null
+  styleOther?: string | null
+  moods?: readonly string[] | null
+  /** any other tag the library carries (tempo, performance, occasion, event ...): facet -> values; discovered, never listed */
+  tags?: Readonly<Record<string, readonly string[]>> | null
+}
 
 /** The id behind a kind as the menu sees it: the removed kind reads as a Bhajan, `baba_audio` stays itself. */
 export function menuKind(k: Pick<Kirtan, "kind">): string {
@@ -41,7 +48,10 @@ export function toMenuRecording(k: MenuKirtan): MenuRecording {
     plays: typeof k.plays === "number" ? k.plays : null,
     collectionId: k.collectionId ?? null,
     style: k.style ?? null,
+    styleOther: k.styleOther ?? null,
+    dance: k.dance ?? null,
     moods: k.moods ?? null,
+    tags: k.tags ?? null,
   }
 }
 
@@ -86,11 +96,34 @@ function newest(list: readonly MenuKirtan[]): MenuKirtan[] {
 
 const byAuthorKey = (k: Pick<Kirtan, "author">, key: string) => splitAuthors(k.author).some((name) => artistKey(name) === key)
 
+/** The style key a Kiirtan counts under: a listed id, "other:<slug>" for a typed name, "other" for an unnamed one; "" without a style. */
+function styleKey(k: MenuKirtan): string {
+  if (!k.style) return ""
+  if (k.style !== "other") return k.style
+  const slug = slugOf(k.styleOther)
+  return slug ? `${CUSTOM_STYLE_PREFIX}${slug}` : "other"
+}
+
+/** The Kiirtan carries "Other" styles that have no shelf of their own (yet): they are the list behind "Other styles". */
+function isRestStyle(k: MenuKirtan, stats: Partial<Pick<MenuStats, "kiirtanStyles" | "memory">>, now: number): boolean {
+  const key = styleKey(k)
+  if (key === "other") return true
+  if (!key.startsWith(CUSTOM_STYLE_PREFIX)) return false
+  return !splitStyles({ kiirtanStyles: stats.kiirtanStyles, memory: stats.memory, now }).own.some((o) => o.id === key)
+}
+
+/** Values of one tag facet on a recording, as the keys discovery counts them under. */
+function tagValues(k: MenuKirtan, facet: string): string[] {
+  const out: string[] = []
+  for (const [name, values] of Object.entries(k.tags ?? {})) if (slugOf(name) === facet) for (const v of values) out.push(slugOf(v))
+  return out
+}
+
 /**
  * The recordings on a shelf, in the order the shelf shows them. Empty for a shelf of collections (`ps:kind:*`), which opens
  * the collections page instead. The list is built from published recordings only (the caller passes those).
  */
-export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stats: Pick<MenuStats, "bhajanLanguages" | "listener">, now: number): MenuKirtan[] {
+export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stats: Pick<MenuStats, "bhajanLanguages" | "listener"> & Partial<Pick<MenuStats, "kiirtanStyles" | "memory">>, now: number): MenuKirtan[] {
   const kind = (k: MenuKirtan) => menuKind(k)
   const kiirtans = () => kirtans.filter((k) => kind(k) === "kiirtan")
   if (shelfId === "new") return newest(kirtans.filter((k) => k.addedAt >= now - MENU_RULES.windowDays.new * DAY && k.addedAt <= now))
@@ -105,7 +138,7 @@ export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stat
   }
   const [head, mid, tail] = shelfId.split(":")
   if (head === "kiirtan" && mid === "type") return newest(kiirtans().filter((k) => (k.type || "other") === tail))
-  if (head === "kiirtan" && mid === "style") return newest(kiirtans().filter((k) => k.style === tail))
+  if (head === "kiirtan" && mid === "style") return newest(kiirtans().filter((k) => styleKey(k) === shelfId.slice("kiirtan:style:".length) || (tail === "other" && shelfId === "kiirtan:style:other" && isRestStyle(k, stats, now))))
   if (head === "author") return newest(kirtans.filter((k) => kind(k) === "kiirtan" && byAuthorKey(k, shelfId.slice("author:".length))))
   if (head === "bhajan" && mid === "type") return newest(kirtans.filter((k) => kind(k) === "bhajan" && (k.type || "other") === tail))
   if (head === "bhajan" && mid === "lang") {
@@ -114,12 +147,16 @@ export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stat
     const top = new Set(rankBhajanLanguages(stats).slice(0, MENU_RULES.bhajanLanguage.max).map(([code]) => code))
     return newest(bhajans.filter((k) => !k.language || k.language === "other" || !top.has(k.language)))
   }
-  if (head === "theme") return newest(kirtans.filter((k) => (k.moods ?? []).includes(mid)))
+  if (head === "theme") return newest(kirtans.filter((k) => (k.moods ?? []).some((m) => slugOf(m) === mid) || tagValues(k, "mood").includes(mid)))
+  if (head === "dance") return newest(kirtans.filter((k) => kind(k) === "dance_song" && slugOf(k.dance) === mid))
+  if (head === "facet") return newest(kirtans.filter((k) => tagValues(k, mid).includes(shelfId.slice(`facet:${mid}:`.length))))
   return []
 }
 
 /** The visible name of a shelf. */
-export function shelfTitle(shelf: Pick<MenuShelf, "label">): string {
+export function shelfTitle(shelf: Pick<MenuShelf, "label"> & { id?: string }): string {
+  const own = shelf.id ? MENU_LABEL_OVERRIDES[shelf.id] : undefined
+  if (own) return own
   const l = shelf.label
   switch (l.type) {
     case "key":
@@ -138,6 +175,13 @@ export function shelfTitle(shelf: Pick<MenuShelf, "label">): string {
       return l.name
     case "theme":
       return moodLabel(l.id)
+    case "dance": {
+      const key = `rec.dance.${l.id}`
+      const word = t(key as "searchMenu.new.title")
+      return word === key ? titleCase(l.id) : word
+    }
+    case "named":
+      return l.name
   }
 }
 
@@ -168,8 +212,11 @@ export function labelFromId(id: string, authors: readonly { key: string; name: s
   if (id === "spiritual") return key("searchMenu.spiritual.title")
   if (id === "bhajan:lang:more") return key("searchMenu.bhajans.moreLanguages")
   const [head, mid, tail] = id.split(":")
+  if (head === "kiirtan" && mid === "style" && tail === "other" && id.split(":")[3]) return { type: "named", name: titleCase(id.split(":")[3]) }
   if (head === "kiirtan" && mid === "type" && tail) return { type: "kiirtanType", id: tail }
   if (head === "kiirtan" && mid === "style" && tail) return { type: "kiirtanStyle", id: tail }
+  if (head === "dance" && mid) return { type: "dance", id: mid }
+  if (head === "facet" && mid && tail) return { type: "named", name: titleCase(tail) }
   if (head === "bhajan" && mid === "type" && tail) return { type: "bhajanType", id: tail }
   if (head === "bhajan" && mid === "lang" && tail) return { type: "language", id: tail }
   if (head === "theme" && mid) return { type: "theme", id: mid }

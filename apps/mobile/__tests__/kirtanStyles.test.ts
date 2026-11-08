@@ -57,6 +57,8 @@ describe("mood words", () => {
     expect(MOODS.map((m) => ru[`mood.${m}` as keyof typeof ru])).toEqual(["Радостное", "Тоска", "Спокойное", "Экстатическое", "Преданность", "Грустное"])
     expect(MOODS.map((m) => en[`mood.${m}` as keyof typeof en])).toEqual(["Joyful", "Longing", "Calm", "Ecstatic", "Devotion", "Sad"])
     for (const m of MOODS) expect(es[`mood.${m}` as keyof typeof es], m).toBeTruthy()
-    expect(moodLabel("nope")).toBe("nope")
+    // a mood nobody listed is not dropped: it gets a title made from its own words
+    expect(moodLabel("nope")).toBe("Nope")
+    expect(moodLabel("deep-peace")).toBe("Deep Peace")
   })
 })

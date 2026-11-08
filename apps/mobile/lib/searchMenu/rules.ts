@@ -1,4 +1,5 @@
-import { MENU_RULES, type OnOff } from "@/lib/searchMenu/config"
+import { FACET_OVERRIDES, MENU_RULES, type OnOff } from "@/lib/searchMenu/config"
+import { CUSTOM_STYLE_PREFIX, titleCase } from "@/lib/searchMenu/facets"
 import type {
   AuthorStat,
   HiddenShelf,
@@ -37,11 +38,13 @@ type Candidate = {
   /** higher first inside the block */
   score: number
   source?: MenuShelf["source"]
+  /** the facet a discovered shelf belongs to */
+  facet?: string
   /** passes without any threshold (the catalogue of songs: it exists or it does not) */
   alwaysIfAny?: boolean
 }
 
-const BLOCK_ORDER: readonly MenuBlock[] = ["pulse", "baba", "ps", "kiirtan", "authors", "spiritual", "bhajans", "themes"]
+const BLOCK_ORDER: readonly MenuBlock[] = ["pulse", "baba", "ps", "kiirtan", "authors", "spiritual", "bhajans", "dance", "more", "themes"]
 
 /** The named Bhajan languages in the order the menu ranks them (your own listening first, then by count, then by code). The first `bhajanLanguage.max` get shelves; the rest go into "More languages". */
 export function rankBhajanLanguages(stats: Pick<MenuStats, "bhajanLanguages" | "listener">): [string, number][] {
@@ -50,6 +53,32 @@ export function rankBhajanLanguages(stats: Pick<MenuStats, "bhajanLanguages" | "
   return Object.entries(stats.bhajanLanguages)
     .filter(([code]) => code !== "other" && code !== "")
     .sort(([a, x], [b, y]) => score(b, y) - score(a, x) || a.localeCompare(b))
+}
+
+/**
+ * The Kiirtan styles of the library as shelves. Listed styles (Bengali, Hindi ...) are each a shelf. A style someone typed
+ * under "Other" ("other:<slug>") becomes a shelf of its own once enough Kiirtans carry that name (same on/off/hold as every
+ * shelf); until then its Kiirtans stay inside the shelf "Other styles". `rest` is that shelf's count. Shared with
+ * `shelfItems` so the list behind a shelf is the same set the count came from.
+ */
+export function splitStyles(stats: Pick<MenuStats, "kiirtanStyles" | "memory" | "now">): {
+  listed: { id: string; count: number }[]
+  own: { id: string; count: number }[]
+  rest: number
+} {
+  const listed: { id: string; count: number }[] = []
+  const own: { id: string; count: number }[] = []
+  let rest = 0
+  for (const [id, count] of Object.entries(stats.kiirtanStyles ?? {})) {
+    if (id === "other") rest += count
+    else if (!id.startsWith(CUSTOM_STYLE_PREFIX)) listed.push({ id, count })
+    else {
+      const probe = { id: `kiirtan:style:${id}`, count, threshold: MENU_RULES.kiirtanStyle, reason: "threshold" } as Candidate
+      if (passes(probe, stats.memory, stats.now)) own.push({ id, count })
+      else rest += count
+    }
+  }
+  return { listed, own, rest }
 }
 
 function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf[] } {
@@ -99,12 +128,24 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
       count, threshold: R.kiirtanType, reason: "threshold", score: id === "other" ? -1 : count,
     })
   }
-  for (const [id, count] of Object.entries(stats.kiirtanStyles ?? {})) {
+  const styles = splitStyles(stats)
+  for (const { id, count } of styles.listed) {
     all.push({
       id: `kiirtan:style:${id}`, block: "kiirtan", label: { type: "kiirtanStyle", id },
-      count, threshold: R.kiirtanStyle, reason: "threshold", score: id === "other" ? -2 : count - 0.5,
+      count, threshold: R.kiirtanStyle, reason: "threshold", score: count - 0.5,
     })
   }
+  // a style someone typed under "Other" often enough: a shelf of its own, titled from its own words
+  for (const { id, count } of styles.own) {
+    all.push({
+      id: `kiirtan:style:${id}`, block: "kiirtan", label: { type: "named", name: titleCase(id.slice(CUSTOM_STYLE_PREFIX.length)) },
+      count, threshold: R.kiirtanStyle, reason: "threshold", score: count - 0.5,
+    })
+  }
+  all.push({
+    id: "kiirtan:style:other", block: "kiirtan", label: { type: "kiirtanStyle", id: "other" },
+    count: styles.rest, threshold: R.kiirtanStyle, reason: "threshold", score: -2,
+  })
   all.push({
     id: "kiirtan:sets", block: "kiirtan", label: { type: "key", key: "searchMenu.kiirtan.sets" },
     count: stats.kiirtanSets, threshold: R.kiirtanSets, reason: "threshold", score: 0,
@@ -167,7 +208,22 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
     })
   }
 
-  // ---- themes (confirmed tags)
+  // ---- every other facet the library carries (dance, tempo, solo or group, occasion, event name ...), found by discovery
+  for (const [facet, values] of Object.entries(stats.facets ?? {})) {
+    const rule = FACET_OVERRIDES[facet] ?? R.facet
+    const block: MenuBlock = facet === "dance" ? "dance" : "more"
+    Object.entries(values)
+      .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+      .forEach(([value, count], i) => {
+        all.push({
+          id: `${facet === "dance" ? "dance" : `facet:${facet}`}:${value}`, block, facet,
+          label: facet === "dance" ? { type: "dance", id: value } : { type: "named", name: titleCase(value) },
+          count, threshold: i < rule.max ? rule : null, reason: "threshold", score: count,
+        })
+      })
+  }
+
+  // ---- themes (moods found on the recordings)
   const themes = [...stats.themes].sort((a, b) => b.confirmed - a.confirmed || a.id.localeCompare(b.id))
   themes.forEach((th, i) => {
     all.push({
@@ -223,6 +279,7 @@ export function buildMenu(stats: MenuStats): MenuResult {
     kept.push({
       id: c.id, block: c.block, label: c.label, count: c.count, reason,
       ...(c.source ? { source: c.source } : {}),
+      ...(c.facet ? { facet: c.facet } : {}),
     })
   }
 

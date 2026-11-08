@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { useKirtans } from "@/hooks/useKirtans"
-import { demoCatalog, demoHistory, parseStage, type MenuStage } from "@/lib/fixtures/searchMenuDemo"
+import { demoCatalog, demoHistory, parseStage, stageHasBaba, type MenuStage } from "@/lib/fixtures/searchMenuDemo"
 import { remoteConfig } from "@/lib/kirtan/api"
 import { authorsApi } from "@/lib/authors/api"
 import type { HistoryEntry } from "@/lib/listening/history"
@@ -85,7 +85,9 @@ export function useSearchMenu(stageParam?: string): SearchMenu {
     if (!stage) useSearchMenuStore.getState().setMemory(computed.result.memory)
   }, [computed.result.memory, stage])
 
-  return { ...computed, now, stage, history: stage && stage !== "grown" ? [] : history }
+  // the preview's early stages show no history; the others show the sample history of what that sample library holds
+  const shownHistory = !stage ? history : stage === "new" || stage === "early" ? [] : stageHasBaba(stage) ? history : history.filter((e) => e.kind !== "baba_audio")
+  return { ...computed, now, stage, history: shownHistory }
 }
 
 /** Collection kinds with how many non-empty collections each holds, in display order. */

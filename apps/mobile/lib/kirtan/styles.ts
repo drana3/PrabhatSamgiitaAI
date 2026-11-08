@@ -1,4 +1,5 @@
 import { t } from "@/lib/i18n"
+import { titleCase } from "@/lib/searchMenu/facets"
 
 /**
  * The style (origin) of a Kiirtan: "Indian Kiirtan / style" on the add form, an optional short pick list plus "other".
@@ -23,11 +24,11 @@ export function styleChoices(): { id: string; label: string }[] {
   return [...KIIRTAN_STYLES, OTHER_STYLE].map((id) => ({ id, label: styleLabel(id) }))
 }
 
-/** Visible name of a style id; `other` with a name shows that name. Unknown ids show as "Other". */
+/** Visible name of a style id; `other` with a name shows that name. An id with no translation shows its own words, title-cased. */
 export function styleLabel(id: string | null | undefined, other?: string | null): string {
   if (!id) return ""
   if (id === OTHER_STYLE) return (other ?? "").trim() || t("style.other")
-  return isKiirtanStyle(id) ? t(`style.${id}` as const) : t("style.other")
+  return isKiirtanStyle(id) ? t(`style.${id}` as const) : titleCase(id) || t("style.other")
 }
 
 /**

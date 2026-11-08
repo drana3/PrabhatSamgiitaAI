@@ -13,6 +13,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { demoCatalog, parseStage } from "@/lib/fixtures/searchMenuDemo"
 import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { MENU_RULES } from "@/lib/searchMenu/config"
 import { shelfItems } from "@/lib/searchMenu/live"
 import { href } from "@/utils/href"
 
@@ -34,7 +35,7 @@ export function TodayListeningExtras({ p, filter }: { p: AmProto; filter: string
   const stage = MOCKUP_DATA ? (parseStage(params.menu) ?? "grown") : null
   const catalog = stage ? demoCatalog(playable, stage) : playable
   const baba = shelfItems("baba", catalog, NO_STATS, Date.now())
-  const showBaba = (filter === "all" || filter === "kiirtan") && baba.length > 0
+  const showBaba = (filter === "all" || filter === "kiirtan") && baba.length >= MENU_RULES.baba.on
 
   return (
     <>

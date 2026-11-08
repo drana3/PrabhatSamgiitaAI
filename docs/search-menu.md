@@ -62,9 +62,12 @@ All numbers live in `lib/searchMenu/config.ts` (`MENU_RULES`). **Thresholds belo
 | Bhajan language | 3+ Bhajans in that language | under 2 | all |
 | More languages | 3+ Bhajans in languages past the top five, or with "other" | under 2 | all |
 | Bhajan type | 3+ | under 2 | all |
-| Theme (mood) | 5+ confirmed recordings | under 3 | all |
+| Theme (mood) | 3+ recordings that carry the mood (section 10) | under 2 | all |
 | Baba's Audio Discourses | 1+ recording | under 1 (empty) | all, newest first |
 | Kiirtan style | 3+ Kiirtans of that style | under 2 | all, newest first |
+| Style typed under "Other" | 3+ Kiirtans carry the same typed name (spelling variants count together); fewer stay inside "Other styles" | under 2, after the hold | all, newest first |
+| Dance (Dance music) | 3+ recordings of that dance | under 2 | all, newest first |
+| Any other facet value (tempo, solo or group, occasion, event name ...) | 3+ recordings carry it; at most 6 values per facet | under 2 | all, newest first |
 
 ### 2.2 Windows
 
@@ -77,8 +80,8 @@ All numbers live in `lib/searchMenu/config.ts` (`MENU_RULES`). **Thresholds belo
 
 * At most **14 shelves** in all. Over the cap, the lowest-priority shelves go first. Pinned shelves, Baba's voice, the Prabhat
   Samgiita collections (one tile grid) and the mood chips (one row) are never dropped, and the last two do not use up the 14.
-* Authors: at most **4** shelves, at most **2** of them personal, at most **3** in cold start. Languages: top **5** plus "More languages". Themes: **6**.
-* Blocks come in a fixed order (0 to 6). Inside a block: pinned first, then "you listen" shelves, then shelves that were already
+* Authors: at most **4** shelves, at most **2** of them personal, at most **3** in cold start. Languages: top **5** plus "More languages". Moods: **8**. Any other facet: **6** values each.
+* Blocks come in a fixed order (pulse, Baba, Prabhat Samgiita, Kiirtan, authors, spiritual, Bhajans, Dance music, More ways to listen, moods). Inside a block: pinned first, then "you listen" shelves, then shelves that were already
   visible (in their old order), then newcomers by score. Scores: authors by distinct listeners (then recording count), languages
   and types by count, Kiirtan types by count with "Other" last.
 * The module returns **counts, not recordings**. Which items sit on a shelf (newest first, most played first) is the screen's query.
@@ -257,8 +260,9 @@ dropped by the 14-cap. On Today a shelf "Baba's voice" with "See all"; in Search
 
 ### 9.4 Moods
 
-Exactly six: Joyful, Longing, Calm, Ecstatic, Devotion, Sad (ru: Радостное, Тоска, Спокойное, Экстатическое, Преданность, Грустное;
-es likewise). A mood chip appears at 5 confirmed recordings and leaves under 3. The words live in `lib/kirtan/moods.ts` and
+Six have words: Joyful, Longing, Calm, Ecstatic, Devotion, Sad (ru: Радостное, Тоска, Спокойное, Экстатическое, Преданность, Грустное;
+es likewise). Since round 4 the six are not a gate: the menu finds the moods the recordings carry (section 10). A mood chip appears
+at 3 recordings that carry it and leaves under 2 (after the hold). The words live in `lib/kirtan/moods.ts` and
 `locales/searchMenu.ts` (`mood.*`). **The tagging itself (uploader suggests, listeners confirm, section 6) is not built**: the menu
 reads `themes` from the recordings' `moods` when they exist and shows no chips until then. In the preview, five moods are sample data.
 
@@ -279,5 +283,53 @@ rules locally (`lib/listening/stats.ts`). Reachable from Today ("Listening histo
 ### 9.7 Thresholds (unchanged, written down)
 
 Appear at 3, leave under 2, plus a 7-day hold so a shelf does not blink. A popular author needs 3+ recordings and 5+ distinct
-listeners in 30 days. At most 14 shelves (compact groups excepted, section 2.3). Baba's voice: 1 / 1. Style: 3 / 2. Mood: 5 / 3.
+listeners in 30 days. At most 14 shelves (compact groups excepted, section 2.3). Baba's voice: 1 / 1 (one knob, `MENU_RULES.baba`). Style: 3 / 2.
+Mood: 3 / 2 (round 4, was 5 / 3). Every discovered facet value: 3 / 2.
 
+## 10. Categories appear on their own (round 4)
+
+Dada's rule: **a field or category shows only if songs of it exist; nothing empty is ever shown, and a new category appears
+without anyone writing code for it.** This applies to Kiirtan styles, moods, Baba's Audio Discourses, dances, languages, types,
+authors and any tag the library carries (tempo, solo or group, occasion, event name ...).
+
+### 10.1 How it works
+
+```
+recordings in the library
+   |  lib/searchMenu/facets.ts   discoverFacets(): every value a recording carries, per facet, with counts (decides nothing)
+   v
+stats (counts)  <- aggregate.ts (also kinds, types, languages, authors, sets, plays)
+   |  lib/searchMenu/rules.ts    buildMenu(): a value becomes a shelf at 3, stays at 2, leaves under 2 after the 7-day hold;
+   v                              caps (14, per facet 6, moods 8), block order, pins
+shelves and chips   <- the screens draw exactly these (SearchMenuView), Today reads the same rule for Baba
+   |  lib/searchMenu/live.ts     shelfItems(): the list behind "See all" is the same filter that made the count
+   v
+titles: a translated word when the app has one, otherwise the value's own words, title-cased
+```
+
+* **The library is the only source.** The module scans `kind`, `type`, `language`, `author`, `style` (+ the typed name), `moods`,
+  `dance` and `tags` (any facet: `tags = { tempo: ["slow"], performance: ["solo"], occasion: [...], event: [...] }`). Adding a
+  field to the API means mapping it into `tags` in `toMenuRecording`; no list of categories has to change.
+* **Nothing hard-coded except labels.** The six moods and the five styles still have translations (`locales/searchMenu.ts`), but
+  they are only words: a mood or style that is not in those lists is found just the same and titled from its own words
+  ("deep-peace" becomes "Deep Peace"). A value is matched case-, spacing- and punctuation-insensitively ("Baul", " baul ").
+* **A new style someone types under "Other"** goes into "Other styles". When 3+ Kiirtans carry the same name it gets a shelf of
+  its own, titled automatically; when it falls under 2 it returns to "Other styles" after the hold.
+* **Empty means absent.** No recordings of a facet value: no shelf, no chip, no empty title. In real builds an empty Baba shelf
+  does not exist (Today and Search use the same count). The preview's demo discourses exist only in the preview's sample
+  library (stages below) and all say "Demo".
+* **Renaming.** The team can give any shelf another title in `MENU_LABEL_OVERRIDES` (`lib/searchMenu/config.ts`, shelf id to
+  title). A server-side rename (a team screen) is not built. Numbers per facet live in `FACET_OVERRIDES` (same file).
+* **Caps.** 14 shelves in all; the Prabhat Samgiita tiles and the mood chips are outside it; the cap drops from the end of the
+  block order, so discovered shelves ("Dance music", "More ways to listen") go before the older blocks.
+* **Server.** No separate endpoint: the phone counts the library it already loads. If the library grows past what the phone
+  loads, the same `discoverFacets` result can move to `GET /search-menu/facets` without changing the rules (open question).
+* **Not available yet in the data:** tempo, solo/group and occasion do not exist as recording fields today. The module is ready
+  for them (they arrive as `tags`); until the API sends them, no such shelf exists.
+
+### 10.2 Preview stages (`?menu=`, MOCKUP_DATA only)
+
+`new` empty library; `early`; `grown` (with 3 demo discourses); `nobaba` (grown without discourses: no Baba shelf);
+`newstyle` (nobaba plus 3 Kiirtans of a style nobody listed ("Baul") and a sample solo or group tag: new shelves appear).
+Tests: `__tests__/searchMenuFacets.test.ts` (no Baba items means no shelf, 3 show it, removal, new style, thresholds and hold,
+caps, the preview library).

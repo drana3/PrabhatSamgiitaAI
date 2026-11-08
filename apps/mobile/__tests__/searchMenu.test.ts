@@ -154,11 +154,12 @@ describe("kiirtan, spiritual, bhajans, themes", () => {
     const got = buildMenu(stats({ bhajanLanguages: { ru: 30, en: 22, hi: 15 }, listener: { languages: { hi: 7 } } }))
     expect(got.shelves.filter((s) => s.block === "bhajans")[0].id).toBe("bhajan:lang:hi")
   })
-  it("themes need five confirmed recordings and at most six show", () => {
-    const themes = [{ id: "joyful", confirmed: 5 }, { id: "longing", confirmed: 4 }, ...["a", "b", "c", "d", "e", "f"].map((id, i) => ({ id, confirmed: 6 + i }))]
+  it("themes need three recordings that carry the mood and at most eight show", () => {
+    const themes = [{ id: "joyful", confirmed: 3 }, { id: "longing", confirmed: 2 }, ...["a", "b", "c", "d", "e", "f", "g", "h"].map((id, i) => ({ id, confirmed: 6 + i }))]
     const got = buildMenu(stats({ themes })).shelves.filter((s) => s.block === "themes")
     expect(got.length).toBe(MENU_RULES.theme.max)
     expect(got.map((s) => s.id)).not.toContain("theme:longing")
+    expect(got.map((s) => s.id)).not.toContain("theme:joyful")
   })
 })
 
@@ -308,10 +309,10 @@ describe("Round 3: Baba's voice, Kiirtan styles, moods", () => {
     expect(gone.shelves.map((s) => s.id)).not.toContain("kiirtan:style:bengali")
   })
 
-  it("mood shelves need five confirmed recordings, biggest first", () => {
+  it("mood shelves need three recordings that carry the mood, biggest first", () => {
     const six = ["joyful", "longing", "calm", "ecstatic", "devotion", "sad"]
-    const got = buildMenu(stats({ themes: six.map((id, i) => ({ id, confirmed: 3 + i })) })).shelves.filter((s) => s.block === "themes")
-    // counts 3,4 are under the threshold; 5,6,7,8 appear, biggest first
+    const got = buildMenu(stats({ themes: six.map((id, i) => ({ id, confirmed: 1 + i })) })).shelves.filter((s) => s.block === "themes")
+    // counts 1,2 are under the threshold; 3,4,5,6 appear, biggest first
     expect(got.map((s) => s.id)).toEqual(["theme:sad", "theme:devotion", "theme:ecstatic", "theme:calm"])
   })
 

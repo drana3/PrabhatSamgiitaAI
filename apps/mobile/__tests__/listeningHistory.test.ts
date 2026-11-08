@@ -75,7 +75,7 @@ describe("what counts as a play (same rule as the server count)", () => {
 
   it("a few seconds are not a play, 30 seconds are", () => {
     events.length = 0
-    const tracker = new PlayTracker((e) => events.push(e.recording_id))
+    const tracker = new PlayTracker((e) => events.push(e.recording_id ?? ""))
     play(tracker, "rec:short", 0, 12)
     expect(events).toEqual([])
     play(tracker, "rec:long", 0, 31)
@@ -84,7 +84,7 @@ describe("what counts as a play (same rule as the server count)", () => {
 
   it("is counted once per track per day, and a Prabhat Samgiita song counts too", () => {
     events.length = 0
-    const tracker = new PlayTracker((e) => events.push(e.recording_id))
+    const tracker = new PlayTracker((e) => events.push(e.recording_id ?? ""))
     play(tracker, "ps:12", 0, 31)
     play(tracker, "ps:12", 0, 31)
     expect(events).toEqual(["ps:12"])
