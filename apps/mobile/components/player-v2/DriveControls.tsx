@@ -37,6 +37,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
           style={styles.skip}
         >
           <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+          <View pointerEvents="none" style={styles.ring} />
           <PlayerIcon name="prev" size={playerSize.driveGlyph} color={amColors.white} />
         </TouchButton>
         <TouchButton
@@ -48,6 +49,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
           style={[styles.skip, !canNext && styles.disabled]}
         >
           <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+          <View pointerEvents="none" style={styles.ring} />
           <PlayerIcon name="next" size={playerSize.driveGlyph} color={amColors.white} />
         </TouchButton>
       </View>
@@ -75,6 +77,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
         style={styles.exit}
       >
         <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+        <View pointerEvents="none" style={[styles.ring, styles.ringGold]} />
         <PlayerIcon name="drive" size={18} color={playerColors.gold} />
         <Text style={styles.exitText}>{t("player.drive.exit")}</Text>
       </TouchButton>
@@ -89,12 +92,21 @@ const styles = StyleSheet.create({
     height: playerSize.driveSkipHeight,
     borderRadius: amRadius.pill,
     backgroundColor: playerColors.glassDark,
-    borderWidth: 1,
-    borderColor: playerColors.glassEdge,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
+  /**
+   * The outline is its own layer on top of the frost. If it were the pill's own border, the blur behind
+   * the frost would sample it and smear it inwards at the rounded ends, so the sides looked unlined.
+   */
+  ring: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: amRadius.pill,
+    borderWidth: 1,
+    borderColor: playerColors.glassEdge,
+  },
+  ringGold: { borderColor: playerColors.gold },
   disabled: { opacity: 0.35 },
   playHit: { marginTop: 10, marginHorizontal: 10 },
   play: {
@@ -111,8 +123,6 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: amRadius.pill,
     backgroundColor: playerColors.glassDark,
-    borderWidth: 1,
-    borderColor: playerColors.gold,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
