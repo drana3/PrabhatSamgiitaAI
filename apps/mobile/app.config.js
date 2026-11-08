@@ -87,14 +87,21 @@ module.exports = ({ config }) => {
               },
             ]
           : []),
+        // Only the host that really serves /.well-known/assetlinks.json is verified. On Android 11 and
+        // older ONE host that fails verification (the bare domain does not answer today) makes the whole
+        // filter fail, so www is verified on its own and the bare domain is a plain, unverified filter.
+        // docs/app-links.md, "Why Android links did not open the app".
         {
           action: "VIEW",
           autoVerify: true,
           category: ["BROWSABLE", "DEFAULT"],
-          data: [
-            { scheme: "https", host: "www.prabhatasamgiita.org", pathPrefix: "/songs" },
-            { scheme: "https", host: "prabhatasamgiita.org", pathPrefix: "/songs" },
-          ],
+          data: [{ scheme: "https", host: "www.prabhatasamgiita.org", pathPrefix: "/songs" }],
+        },
+        {
+          action: "VIEW",
+          autoVerify: false,
+          category: ["BROWSABLE", "DEFAULT"],
+          data: [{ scheme: "https", host: "prabhatasamgiita.org", pathPrefix: "/songs" }],
         },
       ],
     },

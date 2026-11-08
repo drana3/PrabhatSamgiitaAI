@@ -26,4 +26,16 @@ describe("app links files served by the website", () => {
       expect(real || placeholder, print).toBe(true)
     }
   })
+
+  it("only the host that serves assetlinks.json is auto-verified (a failing host breaks verification on Android 11 and older)", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const config = require("../app.config.js")({ config: { ios: {}, android: {}, extra: {} } })
+    const filters = config.android.intentFilters as { autoVerify: boolean; data: { scheme?: string; host?: string }[] }[]
+    const verified = filters.filter((f) => f.autoVerify).flatMap((f) => f.data.filter((d) => d.scheme === "https").map((d) => d.host))
+    expect(verified.length).toBeGreaterThan(0)
+    for (const host of verified) expect(host).toBe("www.prabhatasamgiita.org")
+    // the bare domain still opens the app, just without verification
+    const bare = filters.flatMap((f) => f.data).some((d) => d.host === "prabhatasamgiita.org")
+    expect(bare).toBe(true)
+  })
 })

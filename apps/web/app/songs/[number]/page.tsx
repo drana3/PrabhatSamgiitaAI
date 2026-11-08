@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
@@ -21,7 +22,35 @@ import { englishMeaningText } from "@/lib/song-meanings"
 import { localeLabel } from "@/lib/languages"
 import { splitLyricLines, practiceLyricSource, buildDisplayNotes, formatPracticeSequence } from "@/lib/sargam-display"
 import { songPagePath } from "@/lib/song-path"
+import { isSongNumber, songCardPath, songPageDescription, songPageTitle } from "@/lib/song-card"
 import { titleCaseTransliteration } from "@/lib/transliteration-text"
+
+/**
+ * What a chat or a search engine shows for a song link: title, a description and the picture of the song
+ * (docs/share.md, "Song page preview"). The picture is drawn on demand at /share/song/<number>.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ number: string }> }): Promise<Metadata> {
+  const { number } = await params
+  const song = isSongNumber(number) ? coalesceSongDetail(await fetchSong(Number(number)), localSongDetail(Number(number))) : null
+  if (!song) return { title: "Song not found | Prabhat Samgiita" }
+  const title = songPageTitle(song)
+  const description = songPageDescription(song)
+  const picture = songCardPath(song.number)
+  return {
+    title,
+    description,
+    alternates: { canonical: `/songs/${song.number}` },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url: `/songs/${song.number}`,
+      siteName: "Prabhat Samgiita AI",
+      images: [{ url: picture, width: 1200, height: 630, alt: title }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [picture] },
+  }
+}
 
 export default async function SongPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ language?: string }> }) {
   const { number } = await params
