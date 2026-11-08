@@ -41,6 +41,7 @@ import { dayNumberOf, kiirtanOfTheDay, resumeEntries, resumeLabel, resumeProgres
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { bhajansForEveryHour, emptyCatalogText, emptyListText, filterBySub, hasSubFilters, isEmptyCatalog, isShelfChip, isSubFilterOn, kindOfTabChip, KIRTAN_TAB_CHIPS, languagesIn, newKirtansList, NO_SUB_FILTER, parseKirtanTabChip, savedKirtans, subEmptyText, typeCardCount, typeCards, type KindSubFilter, type KirtanTabChip, type TypeCard as TypeCardData } from "@/lib/kirtan/tab"
 import { languageLabel } from "@/lib/kirtan/languages"
+import { avartaCount, avartaOnly } from "@/lib/kirtan/practice"
 import { DANCES, kirtanTypeLabel, type Kirtan, type RecordingKind } from "@/lib/kirtan/types"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
@@ -79,9 +80,12 @@ export default function KiirtanTabScreen() {
   const [chip, setChipRaw] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
   // Spiritual song and Dance music can be narrowed by dance and by language; a new chip starts without it
   const [sub, setSub] = useState<KindSubFilter>(NO_SUB_FILTER)
+  // Kiirtan chip only: show just the Avarta Kiirtan (the choice exists only while the library holds one)
+  const [avartaView, setAvartaView] = useState(false)
   const setChip = (next: KirtanTabChip) => {
     setChipRaw(next)
     setSub(NO_SUB_FILTER)
+    setAvartaView(false)
   }
   const [typePick, setTypePick] = useState<{ kind: RecordingKind; id: TypeCardData["id"] } | null>(null)
   const [length, setLength] = useState<LengthBucketId | null>(null)
@@ -93,7 +97,12 @@ export default function KiirtanTabScreen() {
   const shelves = isShelfChip(chip)
   const showKiirtan = kind === "all" || kind === "kiirtan"
   const subOn = hasSubFilters(kind) && isSubFilterOn(sub)
-  const playable = useMemo(() => (hasSubFilters(kind) ? filterBySub(allPlayable, sub) : allPlayable), [allPlayable, kind, sub])
+  const avartaTotal = useMemo(() => avartaCount(allPlayable), [allPlayable])
+  const avartaOn = avartaView && kind === "kiirtan" && avartaTotal > 0
+  const playable = useMemo(() => {
+    const narrowed = hasSubFilters(kind) ? filterBySub(allPlayable, sub) : allPlayable
+    return avartaOn ? avartaOnly(narrowed) : narrowed
+  }, [allPlayable, kind, sub, avartaOn])
   const languageCodes = useMemo(() => (hasSubFilters(kind) ? languagesIn(allPlayable.filter((k) => k.kind === kind)) : []), [allPlayable, kind])
   // a chosen type card belongs to one kind; it only counts while that kind is shown
   const pick = typePick && (kind === "all" || typePick.kind === kind) ? typePick : null
@@ -205,11 +214,30 @@ export default function KiirtanTabScreen() {
     </>
   )
 
+  /** "All Kiirtans / Avarta Kiirtan (N)" under the Kiirtan heading; absent while the library holds no Avarta Kiirtan. */
+  const practiceChoice = () =>
+    kind === "kiirtan" && avartaTotal > 0 ? (
+      <Reveal index={next()} style={styles.section}>
+        <View style={styles.lengths} accessibilityRole="radiogroup" accessibilityLabel={t("practice.chip")}>
+          {[false, true].map((on) => {
+            const label = on ? `${t("practice.chip")} · ${avartaTotal}` : t("practice.all")
+            const selected = avartaOn === on
+            return (
+              <KPress key={String(on)} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={label} onActivate={() => setAvartaView(on)} pressedScale={0.95} style={[styles.lengthChip, { backgroundColor: selected ? p.action : p.white, borderColor: selected ? p.action : p.sand300 }]}>
+                <Text style={[styles.lengthText, { color: selected ? p.onAction : p.ink800 }]}>{label}</Text>
+              </KPress>
+            )
+          })}
+        </View>
+      </Reveal>
+    ) : null
+
   const renderAll = () =>
     subOn && kindList.length === 0 ? renderFilteredEmpty() : isEmptyCatalog(null, null, kindList.length) ? renderEmptyCatalog() : (
     <>
       {titleBlock()}
       {subFilters()}
+      {practiceChoice()}
 
       {day ? (
         <Reveal index={next()}>

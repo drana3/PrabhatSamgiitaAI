@@ -43,7 +43,7 @@ let counter = 0
 const newId = () => `t${(counter += 1)}`
 
 function draftWith(names: string[], patch: Partial<SetDraft> = {}): SetDraft {
-  const base: SetDraft = { ...newSetDraft("set-1", NOW), title: "Dhanbad retreat", eventYear: 2026, eventMonth: null, performer: "Priya Devi", confirmed: true, ...patch }
+  const base: SetDraft = { ...newSetDraft("set-1", NOW), title: "Dhanbad retreat", eventYear: 2026, eventMonth: null, performer: "Priya Devi", defaultStyle: "bengali", confirmed: true, ...patch }
   return addTracks(base, names.map((name) => file(name)), newId, false).draft
 }
 
@@ -64,16 +64,36 @@ describe("dates", () => {
 })
 
 describe("details of the set", () => {
-  it("needs a title and a year; the first problem is named; the performer, place and month are optional", () => {
+  it("needs a title and, for a Kiirtan, its style; the date, place, performer and month are all optional", () => {
     const empty = newSetDraft("x", NOW)
     expect(validateSetDetails(empty, NOW)).toBe("title")
-    expect(validateSetDetails({ ...empty, title: "A" }, NOW)).toBe("year")
-    expect(validateSetDetails({ ...empty, title: "A", eventYear: 2026 }, NOW)).toBeNull()
-    expect(validateSetDetails({ ...empty, title: "A", eventYear: 2026, eventMonth: 3, performer: "", place: "" }, NOW)).toBeNull()
+    // a Kiirtan playlist names its style (the rule of a single Kiirtan upload)
+    expect(validateSetDetails({ ...empty, title: "A" }, NOW)).toBe("style")
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "other", defaultStyleOther: " " }, NOW)).toBe("style")
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "other", defaultStyleOther: "Manipuri" }, NOW)).toBeNull()
+    // only the title and the style: no year, no month, no place, no performer
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "bengali" }, NOW)).toBeNull()
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "bengali", eventYear: 2026, eventMonth: 3, performer: "", place: "" }, NOW)).toBeNull()
+    // another type has no style to give
+    expect(validateSetDetails({ ...empty, title: "A", defaultKind: "bhajan" }, NOW)).toBeNull()
+  })
+
+  it("a track that is a Kiirtan in a playlist of another type brings the style requirement with it", () => {
+    let draft = draftWith(["a.mp3"], { defaultKind: "bhajan", defaultLanguage: "bn", defaultStyle: null })
+    expect(validateSetDetails(draft, NOW)).toBeNull()
+    draft = setTrackKind(draft, draft.tracks[0]!.id, "kiirtan")
+    expect(validateSetDetails(draft, NOW)).toBe("style")
+    expect(startBlock({ ...draft, defaultStyle: "hindi" }, NOW)).toBeNull()
+  })
+
+  it("a playlist without a date files its tracks under no day", () => {
+    const draft = draftWith(["a.mp3"], { eventYear: null, eventMonth: 5 })
+    expect(validateSetDetails(draft, NOW)).toBeNull()
+    expect(trackDay(draft.tracks[0]!, draft)).toBe("")
   })
 
   it("a year or month ahead of today is the future", () => {
-    const base = { ...newSetDraft("x", NOW), title: "A" }
+    const base = { ...newSetDraft("x", NOW), title: "A", defaultStyle: "bengali" }
     expect(validateSetDetails({ ...base, eventYear: 2027 }, NOW)).toBe("future")
     expect(validateSetDetails({ ...base, eventYear: 2026, eventMonth: 12 }, NOW)).toBe("future")
     expect(validateSetDetails({ ...base, eventYear: 2026, eventMonth: 11 }, NOW)).toBeNull()

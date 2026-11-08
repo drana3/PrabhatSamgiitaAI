@@ -118,6 +118,16 @@ export function kindHasDiscourse(kind: RecordingKind | null | undefined): boolea
   return DISCOURSE_KINDS.includes(normalizeKind(kind))
 }
 
+/**
+ * The chords block (words with chords for the song, sent after the upload) is offered for Kiirtan, Bhajan,
+ * Prabhat Samgiita and Spiritual song. Not for Dance music (an instrumental) and not for Baba's Audio Discourses
+ * (a spoken talk). The one table of the rule, used by the form, the queue, the set page and the recording page.
+ */
+export function kindHasChords(kind: RecordingKind | null | undefined): boolean {
+  const k = normalizeKind(kind)
+  return !DANCE_KINDS.includes(k) && !DISCOURSE_KINDS.includes(k)
+}
+
 /** Every kind names a performer or group, except Baba's Audio Discourses. */
 export function kindHasPerformer(kind: RecordingKind | null | undefined): boolean {
   return !kindHasDiscourse(kind)

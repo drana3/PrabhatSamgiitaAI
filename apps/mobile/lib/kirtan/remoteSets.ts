@@ -16,10 +16,10 @@ export type RemoteSet = {
   description: string | null
   place: string | null
   /** what people give: the year of the event and, when known, the month */
-  event_year: number
+  event_year: number | null
   event_month: number | null
-  /** the day it is filed under (the first of the month); an older field, kept for ordering */
-  starts_on: string
+  /** the day it is filed under (the first of the month); an older field, kept for ordering; null when the playlist has no date */
+  starts_on: string | null
   ends_on: string | null
   /** a path on the API for a picture the member uploaded, or the team's https link; null when none */
   cover_url: string | null
@@ -46,7 +46,8 @@ export type RemoteSetList = { items: RemoteSet[]; total: number }
 export type SetCreatePayload = {
   id: string
   title: string
-  eventYear: number
+  /** null: the playlist has no date (the date is optional) */
+  eventYear: number | null
   /** null: the month is not known */
   eventMonth?: number | null
   place?: string | null

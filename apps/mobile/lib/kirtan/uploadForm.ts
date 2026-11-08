@@ -22,9 +22,11 @@ type TypeFields = {
   place: string
   discourse: string
   psSong: { number: number; title: string } | null
-  /** Kiirtan only: the optional style (lib/kirtan/styles.ts); forms without it leave these out */
+  /** Kiirtan only: the style (lib/kirtan/styles.ts; REQUIRED for a Kiirtan); forms without it leave these out */
   style?: string | null
   styleOther?: string
+  /** Kiirtan only: "avarta" marks an Avarta Kiirtan (lib/kirtan/practice.ts); forms without it leave it out */
+  practice?: string | null
 }
 
 /** The draft after `patch`: the type's own rules applied, whatever the patch said. */
@@ -43,6 +45,7 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
     ;(next as TypeFields).style = null
     ;(next as TypeFields).styleOther = ""
   }
+  if (next.kind !== "kiirtan" && "practice" in next) (next as TypeFields).practice = null
   return next
 }
 

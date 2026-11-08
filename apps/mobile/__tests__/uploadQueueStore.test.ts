@@ -44,7 +44,7 @@ beforeEach(() => {
   forgetChords.mockClear()
   useKirtanStore.getState().reset()
   queue().reset()
-  queue().setDraft({ performer: "Priya Devi" })
+  queue().setDraft({ performer: "Priya Devi", style: "bengali" })
 })
 
 describe("the form of the queue", () => {
@@ -104,6 +104,56 @@ describe("uploading the queue", () => {
     await queue().start()
     expect(flushChords).toHaveBeenCalledTimes(1)
     expect(flushChords).toHaveBeenCalledWith(queue().items[0]!.id, expect.any(String), "a")
+  })
+
+  it("sends no chords for a Dance music or a Baba's Audio Discourse, even if some were typed first", async () => {
+    queue().setDraft({ kind: "dance_song", dance: "tandava" })
+    pick("a.mp3")
+    runUpload.mockResolvedValueOnce({ status: "published" })
+    await queue().start()
+    queue().reset()
+    queue().setDraft({ kind: "baba_audio", language: "en" })
+    pick("b.mp3")
+    runUpload.mockResolvedValueOnce({ status: "published" })
+    await queue().start()
+    expect(flushChords).not.toHaveBeenCalled()
+  })
+
+  it("a Kiirtan queue marked Avarta sends every row as Avarta Kiirtan, unless a row says it is not", async () => {
+    queue().setDraft({ practice: "avarta" })
+    pick("a.mp3", "b.mp3", "c.mp3")
+    queue().setRowFields(queue().items[1]!.id, { practice: null })
+    runUpload.mockResolvedValue({ status: "published" })
+    await queue().start()
+    expect(useKirtanStore.getState().submissions.map((k) => k.practice)).toEqual(["avarta", undefined, "avarta"])
+  })
+
+  it("a row marked on its own is Avarta in a queue that is not", async () => {
+    pick("a.mp3", "b.mp3")
+    queue().setRowFields(queue().items[0]!.id, { practice: "avarta" })
+    runUpload.mockResolvedValue({ status: "published" })
+    await queue().start()
+    // the newest upload is first in the person's list
+    expect(useKirtanStore.getState().submissions.map((k) => [k.title, k.practice])).toEqual([["b", undefined], ["a", "avarta"]])
+  })
+
+  it("another type never sends the mark, even if the form had it before the type changed", async () => {
+    queue().setDraft({ practice: "avarta" })
+    queue().setDraft({ kind: "bhajan", language: "hindi" })
+    expect(queue().draft.practice).toBeNull()
+    pick("a.mp3")
+    runUpload.mockResolvedValue({ status: "published" })
+    await queue().start()
+    expect(useKirtanStore.getState().submissions[0]!.practice).toBeUndefined()
+  })
+
+  it("a Kiirtan without a style is not sent", async () => {
+    queue().setDraft({ style: null })
+    pick("a.mp3")
+    runUpload.mockResolvedValue({ status: "published" })
+    await queue().start()
+    expect(runUpload).not.toHaveBeenCalled()
+    expect(statuses()).toEqual(["failed"])
   })
 
   it("a failed row stays in the queue with Try again and does not stay in the person's list", async () => {

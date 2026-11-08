@@ -1,4 +1,5 @@
-import { addFiles, effectiveFields, patchItem, queueCounts, removeItem, requeue, requeueAll, runQueue, setRowFields, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
+import { addFiles, effectiveFields, effectivePractice, patchItem, queueCounts, removeItem, requeue, requeueAll, runQueue, setRowFields, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
+import { cleanStyle } from "@/lib/kirtan/styles"
 import { kindHasDance, kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther } from "@/lib/kirtan/languages"
 import { missingKindFields, type MissingField } from "@/lib/kirtan/uploadForm"
@@ -53,7 +54,7 @@ export type SetTrack = QueueItem & {
 export type SetDraft = {
   id: string
   title: string
-  /** the approximate date: the year (null until it is chosen) and, when it is known, the month (1 to 12) */
+  /** the approximate date, optional: the year (null when it is not given) and, when it is known, the month (1 to 12; only with a year) */
   eventYear: number | null
   eventMonth: number | null
   place: string
@@ -71,6 +72,8 @@ export type SetDraft = {
   /** Kiirtan only, optional: the style every track gets (lib/kirtan/styles.ts), and its name when it is "other" */
   defaultStyle: string | null
   defaultStyleOther: string
+  /** Kiirtan only, optional: "avarta" marks every Kiirtan track as Avarta Kiirtan; a track may say otherwise (SetTrack.practice) */
+  defaultPractice: string | null
   /** the person confirmed the content rules once for the whole set */
   confirmed: boolean
   /** the playlist exists on the server (the create was answered) */
@@ -81,7 +84,7 @@ export type SetDraft = {
   createdAt: string
 }
 
-export type SetDetailsError = "title" | "year" | "future"
+export type SetDetailsError = "title" | "year" | "future" | "style"
 
 /* ------------------------------------------------------------------ dates */
 
@@ -125,6 +128,7 @@ export function newSetDraft(id: string, now: Date = new Date()): SetDraft {
     defaultDance: null,
     defaultStyle: null,
     defaultStyleOther: "",
+    defaultPractice: null,
     confirmed: false,
     created: false,
     finished: false,
@@ -152,6 +156,8 @@ export function trackFields(track: SetTrack, draft: SetDraft) {
     language: kindHasLanguage(kind) ? fields.language : null,
     languageOther: kindHasLanguage(kind) && fields.language === "other" ? cleanLanguageOther(fields.languageOther) : null,
     dance: kindHasDance(kind) ? fields.dance : null,
+    /** Avarta Kiirtan: the track's own choice, else the playlist's; only a Kiirtan has one */
+    practice: effectivePractice(track, kind, draft.defaultPractice ?? null),
   }
 }
 
@@ -179,10 +185,32 @@ export function trackDay(track: SetTrack, draft: SetDraft): string {
   return parseDay(track.recordedOn) ?? parseDay(setDay(draft)) ?? ""
 }
 
-/** The first thing wrong with the set's details, or null: a title and a year. Place, month, performer and cover are optional. */
+/**
+ * Does this playlist hold a Kiirtan that is still to go up? Then it needs one style (a Kiirtan's style is required, the
+ * playlist gives it once to all of them).
+ */
+export function setNeedsStyle(draft: SetDraft): boolean {
+  if (draft.defaultKind === "kiirtan") return true
+  return draft.tracks.some((track) => track.status === "waiting" && trackKind(track, draft) === "kiirtan")
+}
+
+/** The playlist has a usable style ("other" needs its name). */
+export function hasSetStyle(draft: Pick<SetDraft, "defaultStyle" | "defaultStyleOther">): boolean {
+  const clean = cleanStyle("kiirtan", draft.defaultStyle, draft.defaultStyleOther)
+  return !!clean.style && !clean.missingName
+}
+
+/**
+ * The first thing wrong with the set's details, or null. Only the title is required. The date (a year, and a month with
+ * it), place, performer and cover are optional; a date that is given must be real. The style is required when the
+ * playlist holds a Kiirtan (the rule of a single Kiirtan upload).
+ */
 export function validateSetDetails(draft: SetDraft, now: Date = new Date()): SetDetailsError | null {
   if (!draft.title.trim()) return "title"
-  return checkEventDate(draft.eventYear, draft.eventMonth, now)
+  const date = checkEventDate(draft.eventYear, draft.eventMonth, now)
+  if (date) return date
+  if (setNeedsStyle(draft) && !hasSetStyle(draft)) return "style"
+  return null
 }
 
 /** Tracks the set may still take. */
@@ -386,5 +414,5 @@ export function restoreDraft(draft: SetDraft): SetDraft {
   })
   // a cover picked in the browser is a blob address that does not survive a reload: choosing it again is one tap
   const lostCover = draft.coverUri.startsWith("blob:")
-  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
+  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", defaultPractice: draft.defaultPractice ?? null, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
 }

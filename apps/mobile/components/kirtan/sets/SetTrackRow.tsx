@@ -34,13 +34,15 @@ export type SetTrackHandlers = {
   onKind: (id: string, kind: RecordingKind | undefined) => void
   onRowLanguage: (id: string) => void
   onRowDance: (id: string, dance: DanceId) => void
+  /** this track is an Avarta Kiirtan, or not (its own choice over the playlist's tick) */
+  onPractice: (id: string, on: boolean) => void
   onSimilarYes: (id: string) => void
   onSimilarNo: (id: string) => void
   onPlaySimilar: (brief: RemoteBrief) => void
   onHear: (track: SetTrack) => void
 }
 
-export function SetTrackRow({ theme, track, position, total, fields, firstDay, locked, handlers }: { theme: SongsTheme; track: SetTrack; position: number; total: number; fields: RowKindFields; firstDay: string; locked: boolean; handlers: SetTrackHandlers }) {
+export function SetTrackRow({ theme, track, position, total, fields, firstDay, locked, handlers, practice }: { theme: SongsTheme; track: SetTrack; position: number; total: number; fields: RowKindFields; practice?: { on: boolean }; firstDay: string; locked: boolean; handlers: SetTrackHandlers }) {
   const t = useT()
   const [open, setOpen] = useState(Boolean(track.recordedOn || track.kind))
   const [dayText, setDayText] = useState(track.recordedOn ?? "")
@@ -68,6 +70,7 @@ export function SetTrackRow({ theme, track, position, total, fields, firstDay, l
           kindFields={fields}
           onRowLanguage={handlers.onRowLanguage}
           onRowDance={handlers.onRowDance}
+          practice={practice ? { on: practice.on, onChange: (on) => handlers.onPractice(track.id, on) } : undefined}
           onTitle={handlers.onTitle}
           onRemove={handlers.onRemove}
           onRetry={handlers.onRetry}

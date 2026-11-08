@@ -5,6 +5,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { AuthorLine } from "@/components/authors/AuthorLine"
 import { AddLanguagePrompt } from "@/components/kirtan/AddLanguagePrompt"
+import { PracticeBlock, PracticeTag } from "@/components/kirtan/PracticeBlock"
 import { RecordingFacts } from "@/components/kirtan/RecordingFacts"
 import { CommentsView } from "@/components/comments/CommentsView"
 import { useComments } from "@/components/comments/useComments"
@@ -24,6 +25,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useT } from "@/lib/i18n"
 import { allKirtans } from "@/lib/kirtan/catalog"
+import { kindHasChords } from "@/lib/kirtan/kind"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { apiIdOf, chordsFormHref } from "@/lib/recordingExtras/links"
@@ -111,6 +113,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
           </Text>
           {recording.author ? <Text style={[styles.author, { color: theme.textHeading }]}>{recording.author}</Text> : null}
           <AuthorLine theme={theme} recordingId={apiId} />
+          <PracticeTag theme={theme} kirtan={recording} />
           <RecordingFacts theme={theme} kirtan={recording} />
           <View style={styles.row}>
             <SpPress onPress={() => actions.open(recording, [recording], recording.title)} accessibilityLabel={tr("recPage.play")} style={[styles.play, { backgroundColor: t.action }]}>
@@ -119,9 +122,13 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
           </View>
         </Reveal>
         <AddLanguagePrompt theme={theme} kirtan={recording} variant="card" />
-        <Reveal index={1}>
-          <ChordsBlock t={t} sheets={sheets} onOpen={() => setViewing(true)} onAdd={() => router.push(href(chordsFormHref({ recordingId: apiId, title: recording.title })))} />
-        </Reveal>
+        <PracticeBlock theme={theme} kirtan={recording} />
+        {/* chords: Kiirtan, Bhajan, Prabhat Samgiita and Spiritual song; not a Dance music or a Baba's Audio Discourse (lib/kirtan/kind.ts kindHasChords) */}
+        {kindHasChords(recording.kind) ? (
+          <Reveal index={1}>
+            <ChordsBlock t={t} sheets={sheets} onOpen={() => setViewing(true)} onAdd={() => router.push(href(chordsFormHref({ recordingId: apiId, title: recording.title })))} />
+          </Reveal>
+        ) : null}
         <Reveal index={2}>
           <VideosSection t={t} videos={videos} onAdd={() => setAdding(true)} onFlash={actions.flash} />
         </Reveal>

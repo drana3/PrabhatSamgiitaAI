@@ -26,6 +26,7 @@ const input: SubmissionInput = {
   fileUri: "blob:morning",
   title: "  Baba   Nam Kevalam ",
   author: "Group",
+  style: "bengali",
   byAuthor: true,
   addedBy: "Dada",
   termsAccepted: true,

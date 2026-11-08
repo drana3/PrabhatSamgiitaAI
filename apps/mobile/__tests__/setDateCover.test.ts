@@ -18,8 +18,9 @@ describe("approximate date: year and month", () => {
     expect(monthsOf(null, NOW)).toHaveLength(12)
   })
 
-  it("a year is required, the month is optional, nothing may be ahead of today", () => {
-    expect(checkEventDate(null, null, NOW)).toBe("year")
+  it("the whole date is optional, a year that is given must be real, nothing may be ahead of today", () => {
+    expect(checkEventDate(null, null, NOW)).toBeNull()
+    expect(checkEventDate(null, 5, NOW)).toBeNull() // a month without a year is ignored
     expect(checkEventDate(1850, null, NOW)).toBe("year")
     expect(checkEventDate(2026, null, NOW)).toBeNull()
     expect(checkEventDate(2026, 11, NOW)).toBeNull()

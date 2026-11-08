@@ -17,6 +17,7 @@ import {
   retrySubmission,
   withdrawSubmission,
   withLanguage,
+  withPractice,
   type AddResult,
   type SubmissionInput,
 } from "@/lib/kirtan/submissions"
@@ -53,6 +54,8 @@ type KirtanState = {
   withdraw: (id: string) => void
   /** the language was added to a recording that had none (its own id or its server id) */
   languageAdded: (id: string, value: { language: string; languageOther?: string }) => void
+  /** the Avarta mark of a recording was set or cleared (its own id or its server id) */
+  practiceChanged: (id: string, practice: string | null) => void
   /** the server's list of the person's own uploads; a recording that was live and is now removed raises a notice */
   applyMine: (remote: readonly RemoteRecording[], now?: number) => void
   setCatalog: (remote: readonly RemoteRecording[]) => void
@@ -95,6 +98,9 @@ export const useKirtanStore = create<KirtanState>()(
       withdraw: (id) => set({ submissions: withdrawSubmission(get().submissions, id) }),
       languageAdded: (id, value) => {
         set({ submissions: withLanguage(get().submissions, id, value), catalog: withLanguage(get().catalog, id, value) })
+      },
+      practiceChanged: (id, practice) => {
+        set({ submissions: withPractice(get().submissions, id, practice), catalog: withPractice(get().catalog, id, practice) })
       },
       applyMine: (remote, now = Date.now()) => {
         const before = get().submissions

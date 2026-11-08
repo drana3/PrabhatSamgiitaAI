@@ -1,9 +1,9 @@
 import { create } from "zustand"
 
-import { addFiles, applyOutcome, applyToAll, effectiveFields, incompleteRows, patchItem, queueCounts, removeItem, requeue, requeueAll, rowMissing, runQueue, setItemTitle, setRowFields, withoutFinished, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
+import { addFiles, applyOutcome, applyToAll, effectiveFields, effectivePractice, incompleteRows, patchItem, queueCounts, removeItem, requeue, requeueAll, rowMissing, runQueue, setItemTitle, setRowFields, withoutFinished, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
 import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import { validateSubmission } from "@/lib/kirtan/submissions"
-import { kindHasLanguage } from "@/lib/kirtan/kind"
+import { kindHasChords, kindHasLanguage } from "@/lib/kirtan/kind"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { useKirtanStore } from "@/stores/kirtanStore"
@@ -38,10 +38,12 @@ export type QueueDraft = {
   /** Kiirtan only, optional: the style, and its name when it is "other" (applies to every row) */
   style: string | null
   styleOther: string
+  /** Kiirtan only, optional: "avarta" marks the whole queue as Avarta Kiirtan; a row may say otherwise (QueueItem.practice) */
+  practice: string | null
   byAuthor: boolean
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, byAuthor: false }
 
 type QueueState = {
   items: QueueItem[]
@@ -123,6 +125,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       psSong: draft.psSong?.number ?? null,
       style: draft.style,
       styleOther: draft.styleOther,
+      practice: effectivePractice(item, draft.kind, draft.practice),
     }
     if (validateSubmission(input)) return { status: "failed", failure: { code: "gone" } }
     const added = useKirtanStore.getState().submit(input).added
@@ -131,7 +134,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     // A row that failed lives in the queue (with "Try again"), not in the person's list.
     if (result.status === "failed") useKirtanStore.getState().withdraw(added.id)
     const outcome = outcomeOf(result, added.id)
-    if (outcome.status === "published") sendChords(item.id, added.id, item.title || item.fileName)
+    if (outcome.status === "published" && kindHasChords(draft.kind)) sendChords(item.id, added.id, item.title || item.fileName)
     return outcome
   }
 
@@ -199,7 +202,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       if (result.status === "failed") useKirtanStore.getState().withdraw(submissionId)
       const outcome = outcomeOf(result, submissionId)
       patch(id, applyOutcome(outcome).patch)
-      if (outcome.status === "published") sendChords(id, submissionId, row.title || row.fileName)
+      if (outcome.status === "published" && kindHasChords(get().draft.kind)) sendChords(id, submissionId, row.title || row.fileName)
     },
     clearFinished: () => set({ items: withoutFinished(get().items), stopped: null }),
     reset: () => set({ items: [], draft: EMPTY_DRAFT, running: false, stopped: null }),

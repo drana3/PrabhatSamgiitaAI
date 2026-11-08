@@ -4,6 +4,7 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSprin
 import Svg, { Path } from "react-native-svg"
 
 import { DanceChoices, RequiredMark } from "@/components/kirtan/add/KindFields"
+import { PracticeRowToggle } from "@/components/kirtan/add/PracticeField"
 import { ChordsPrompt } from "@/components/recording-extras/ChordsPrompt"
 import { KPress } from "@/components/kirtan/KPress"
 import { amColors } from "@/constants/tokens/amColors"
@@ -11,7 +12,7 @@ import { amSpring } from "@/constants/tokens/amMotion"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
-import { kindHasDance, kindHasLanguage, kindRequiresLanguage } from "@/lib/kirtan/kind"
+import { kindHasChords, kindHasDance, kindHasLanguage, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import { languageLabel } from "@/lib/kirtan/languages"
 import { isRetryable, queueProgress, type QueueItem, type QueueSummary } from "@/lib/kirtan/queue"
 import type { DanceId, RecordingKind } from "@/lib/kirtan/types"
@@ -137,6 +138,7 @@ export function QueueRow({
   kindFields,
   onRowLanguage,
   onRowDance,
+  practice,
   onTitle,
   onRemove,
   onRetry,
@@ -154,6 +156,8 @@ export function QueueRow({
   kindFields?: RowKindFields
   onRowLanguage?: (id: string) => void
   onRowDance?: (id: string, dance: DanceId) => void
+  /** Kiirtan queue of several files: this row is an Avarta Kiirtan, or not (its own choice over the whole-queue tick) */
+  practice?: { on: boolean; onChange: (next: boolean) => void }
   onTitle: (id: string, title: string) => void
   onRemove: (id: string) => void
   onRetry: (id: string) => void
@@ -205,7 +209,8 @@ export function QueueRow({
         {meta}
       </Text>
       {kindFields && onRowLanguage && onRowDance && item.status === "waiting" && (kindHasLanguage(kindFields.kind) || kindHasDance(kindFields.kind)) ? <RowKindLine theme={theme} item={item} fields={kindFields} onLanguage={onRowLanguage} onDance={onRowDance} /> : null}
-      {item.status === "failed" && !isRetryable(item) ? null : <ChordsPrompt theme={theme} rowKey={item.id} title={item.title || item.fileName} locked={!editable} />}
+      {practice && item.status === "waiting" ? <PracticeRowToggle theme={theme} on={practice.on} onChange={practice.onChange} /> : null}
+      {item.status === "failed" && !isRetryable(item) ? null : !kindHasChords(kindFields?.kind) ? null : <ChordsPrompt theme={theme} rowKey={item.id} title={item.title || item.fileName} locked={!editable} />}
       <View style={styles.statusLine}>
         <View style={[styles.dot, { backgroundColor: item.status === "uploading" ? amColors.orange700 : tone }]} />
         <Text style={[styles.status, { color: tone }]} accessibilityLiveRegion="polite">

@@ -163,6 +163,8 @@ export type Kirtan = {
   style?: string
   /** the uploader's own name for the style, when `style` is "other" */
   styleOther?: string
+  /** Kiirtan only: the practice it is for ("avarta" = Avarta Kiirtan), when marked (lib/kirtan/practice.ts) */
+  practice?: string
   /** Dance music: which dance (a DANCES id) */
   dance?: DanceId
   /** Baba's Audio Discourses: where it was given (optional) */

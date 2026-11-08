@@ -1,5 +1,6 @@
 import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
+import { cleanPractice } from "@/lib/kirtan/practice"
 import { cleanStyle } from "@/lib/kirtan/styles"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
@@ -45,6 +46,8 @@ export type RemoteRecording = {
   /** Kiirtan only: the Indian Kiirtan style id, or `other` (then `style_other` names it) */
   style?: string | null
   style_other?: string | null
+  /** Kiirtan only: "avarta" for an Avarta Kiirtan */
+  practice?: string | null
   /** Dance music: tandava or kaoshiki */
   dance?: string | null
   /** the playlist from an event this is a track of, and its place there */
@@ -224,6 +227,8 @@ export type PublishPayload = {
   /** Kiirtan only: the Indian Kiirtan style id or `other` (then `styleOther` names it); optional */
   style?: string | null
   styleOther?: string | null
+  /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
+  practice?: string | null
   /** required for the Dance music kind, refused for the others */
   dance?: string | null
   /** a track of a playlist from an event, and its place there; kind, language and dance left out come from the playlist */
@@ -259,6 +264,7 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
       const st = cleanStyle(payload.kind, payload.style, payload.styleOther)
       return st.style && !st.missingName ? { style: st.style, ...(st.styleOther ? { style_other: st.styleOther } : {}) } : {}
     })(),
+    ...(cleanPractice(payload.kind, payload.practice) ? { practice: cleanPractice(payload.kind, payload.practice) } : {}),
     ...(payload.dance && kindHasDance(payload.kind) ? { dance: payload.dance } : {}),
     ...(payload.collectionId ? { collection_id: payload.collectionId, ...(payload.position ? { position: payload.position } : {}) } : {}),
     ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),
@@ -275,6 +281,11 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
 export async function setRecordingLanguage(cfg: RemoteConfig, id: string, language: string, languageOther?: string): Promise<RemoteRecording> {
   const name = cleanLanguageOther(languageOther)
   return call<RemoteRecording>(cfg, "PATCH", `/${id}/language`, { language, ...(language === OTHER_LANGUAGE && name ? { language_other: name } : {}) })
+}
+
+/** Marks a Kiirtan as an Avarta Kiirtan (`"avarta"`) or clears the mark (`null`). Its uploader or the team. */
+export async function setRecordingPractice(cfg: RemoteConfig, id: string, practice: string | null): Promise<RemoteRecording> {
+  return call<RemoteRecording>(cfg, "PATCH", `/${id}/practice`, { practice })
 }
 
 /** The file reached the server but the author backed out: the stored file is deleted (an unpublished one only). */

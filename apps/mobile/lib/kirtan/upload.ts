@@ -51,6 +51,8 @@ export type UploadSource = {
   /** Kiirtan only: the optional style and the name of an "other" style */
   style?: string | null
   styleOther?: string | null
+  /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
+  practice?: string | null
   /** the version of the content rules the person accepted */
   termsVersion?: string
   /** the author saw the "sounds like a recording already in the library" question and said theirs is different */
@@ -123,6 +125,7 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       psSong: source.psSong,
       style: source.style,
       styleOther: source.styleOther,
+      practice: source.practice,
       confirmDifferent: Boolean(source.confirmDifferent),
     })
     return { status: "published", recording }

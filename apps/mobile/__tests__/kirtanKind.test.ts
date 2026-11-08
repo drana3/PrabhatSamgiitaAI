@@ -257,7 +257,8 @@ describe("submissions carry the kind", () => {
   it("needs no type: the derived type is valid for both kinds", () => {
     expect(validateSubmission(base)).toBe("language") // a Bhajan names its language
     expect(validateSubmission({ ...base, language: "bn" })).toBeNull()
-    expect(validateSubmission({ ...base, kind: "kiirtan" })).toBeNull()
+    expect(validateSubmission({ ...base, kind: "kiirtan" })).toBe("style") // a Kiirtan names its style
+    expect(validateSubmission({ ...base, kind: "kiirtan", style: "hindi" })).toBeNull()
     expect(buildSubmission({ ...base, kind: "kiirtan" }, 1).type).toBe("other")
   })
 

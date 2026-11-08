@@ -1,5 +1,6 @@
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { validateAudioFile } from "@/lib/kirtan/rules"
+import { AVARTA, cleanPractice } from "@/lib/kirtan/practice"
 import { missingKindFields, type KindFields, type MissingField } from "@/lib/kirtan/uploadForm"
 import type { DanceId, KirtanOriginal, RecordingKind, UploadFailure } from "@/lib/kirtan/types"
 
@@ -46,6 +47,8 @@ export type QueueItem = {
   languageOther?: string
   /** this row's own dance; undefined means the form's choice */
   dance?: DanceId | null
+  /** Kiirtan only: this row's own practice ("avarta", or null for "no"); undefined means the form's tick for the whole queue */
+  practice?: string | null
 }
 
 export type PickedFile = { name: string; uri: string; size: number | null; type: string | null }
@@ -171,7 +174,19 @@ export function missingCounts(items: readonly QueueItem[], defaults: KindDefault
   }
 }
 
-export type RowFieldsPatch = { language?: string | null; languageOther?: string; dance?: DanceId | null }
+/** The practice a row will be sent with: its own choice, or else the tick of the whole form. Only a Kiirtan has one. */
+export function effectivePractice(item: Pick<QueueItem, "practice">, kind: string, formPractice: string | null): string | null {
+  if (kind !== "kiirtan") return null
+  return cleanPractice(kind, item.practice !== undefined ? item.practice : formPractice)
+}
+
+/** How many of the rows still to send are Avarta Kiirtan, and how many rows that is in all. */
+export function practiceCounts(items: readonly QueueItem[], kind: string, formPractice: string | null): { avarta: number; total: number } {
+  const open = items.filter((item) => item.status === "waiting" || item.status === "limit" || item.status === "failed")
+  return { avarta: open.filter((item) => effectivePractice(item, kind, formPractice) === AVARTA).length, total: open.length }
+}
+
+export type RowFieldsPatch = { language?: string | null; languageOther?: string; dance?: DanceId | null; practice?: string | null }
 
 /** Sets one row's own language and/or dance. Choosing a language other than "other" forgets the name. */
 export function setRowFields(items: readonly QueueItem[], id: string, patch: RowFieldsPatch): QueueItem[] {
@@ -185,6 +200,7 @@ export function setRowFields(items: readonly QueueItem[], id: string, patch: Row
       next.languageOther = patch.languageOther
     }
     if ("dance" in patch) next.dance = patch.dance
+    if ("practice" in patch) next.practice = patch.practice
     return next
   })
 }

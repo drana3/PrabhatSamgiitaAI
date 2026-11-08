@@ -1,7 +1,7 @@
 /**
  * The approximate date of an event playlist: a YEAR and, when the person knows it, a MONTH. No first and last day.
- * The server files the playlist under the first of the month (or 1 January) and keeps ordering by that, so
- * `firstDayOf` here gives a track the same fallback day. Pure: no React, no clock except the `now` that is passed.
+ * The date can be left out. When it is given, the server files the playlist under the first of the month (or 1 January)
+ * and keeps ordering by that (a playlist without a date goes last), so `firstDayOf` here gives a track the same fallback day. Pure: no React, no clock except the `now` that is passed.
  */
 
 export const FIRST_EVENT_YEAR = 1900
@@ -22,9 +22,13 @@ export function monthsOf(year: number | null, now: Date = new Date()): number[] 
 
 export type EventDateError = "year" | "future" | null
 
-/** Year required and not in the future; a month is only checked against the current year. */
+/**
+ * The date of a playlist is optional: no year is fine (a month without a year is ignored). A year that is given must be a
+ * real one and not in the future; a month is only checked against the current year.
+ */
 export function checkEventDate(year: number | null, month: number | null, now: Date = new Date()): EventDateError {
-  if (year === null || !Number.isInteger(year) || year < FIRST_EVENT_YEAR) return "year"
+  if (year === null) return null
+  if (!Number.isInteger(year) || year < FIRST_EVENT_YEAR) return "year"
   const thisYear = now.getUTCFullYear()
   if (year > thisYear) return "future"
   if (month !== null && (month < 1 || month > 12)) return "year"
@@ -33,8 +37,8 @@ export function checkEventDate(year: number | null, month: number | null, now: D
 }
 
 /** YYYY-MM-DD: the first of the month, or 1 January when the month is not known. Empty when there is no year. */
-export function firstDayOf(year: number | null, month: number | null): string {
-  if (year === null) return ""
+export function firstDayOf(year: number | null | undefined, month: number | null | undefined): string {
+  if (year === null || year === undefined) return ""
   return `${String(year).padStart(4, "0")}-${String(month ?? 1).padStart(2, "0")}-01`
 }
 

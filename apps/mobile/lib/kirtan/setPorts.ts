@@ -1,3 +1,4 @@
+import { kindHasChords } from "@/lib/kirtan/kind"
 import { canUseServer, remoteConfig } from "@/lib/kirtan/api"
 import { failureFromError, RemoteError } from "@/lib/kirtan/remote"
 import { createSet, deleteSet, finishSet, patchSet, patchTrackOnServer, putSetCover, removeTrackFromSet, reorderSet } from "@/lib/kirtan/remoteSets"
@@ -38,7 +39,9 @@ function demoDelay(ms: number): Promise<void> {
 }
 
 /** The chords typed on a track go to its recording once it is up (docs/recording-extras.md). Never throws, never changes the track's result. */
-function sendTrackChords(track: SetTrack, recordingId: string): void {
+function sendTrackChords(track: SetTrack, kind: SetTrack["kind"], recordingId: string): void {
+  // a Dance music and a Baba's Audio Discourse have no chords block: nothing typed on them before a type change goes up
+  if (!kindHasChords(kind)) return
   void useRecordingChordsPendingStore.getState().flush(track.id, recordingId, track.title || track.fileName)
 }
 
@@ -49,7 +52,7 @@ const realPorts: SetPorts = {
     await createSet(remoteConfig(), {
       id: draft.id,
       title: draft.title,
-      eventYear: draft.eventYear as number,
+      eventYear: draft.eventYear,
       eventMonth: draft.eventMonth,
       place: draft.place,
       defaultKind: draft.defaultKind,
@@ -69,7 +72,7 @@ const realPorts: SetPorts = {
   async uploadTrack(draft, track, position) {
     if (MOCKUP_DATA) {
       await demoDelay(350)
-      sendTrackChords(track, `demo-${track.id}`)
+      sendTrackChords(track, trackFields(track, draft).kind, `demo-${track.id}`)
       return { status: "published", recordingId: `demo-${track.id}` }
     }
     const fields = trackFields(track, draft)
@@ -87,6 +90,7 @@ const realPorts: SetPorts = {
       // the style belongs to a Kiirtan only; a track of another type sends none
       style: fields.kind === "kiirtan" ? draft.defaultStyle : null,
       styleOther: fields.kind === "kiirtan" ? draft.defaultStyleOther : null,
+      practice: fields.practice,
       collectionId: draft.id,
       position,
       recordedOn: trackDay(track, draft),
@@ -95,7 +99,7 @@ const realPorts: SetPorts = {
       key: track.similar?.key,
     })
     if (outcome.status === "published") {
-      sendTrackChords(track, outcome.recording.id)
+      sendTrackChords(track, fields.kind, outcome.recording.id)
       return { status: "published", recordingId: outcome.recording.id }
     }
     if (outcome.status === "similar") return { status: "similar", key: outcome.key, similar: outcome.similar, submissionId: track.id }

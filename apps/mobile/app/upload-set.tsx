@@ -4,7 +4,10 @@ import * as DocumentPicker from "expo-document-picker"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { PracticeField } from "@/components/kirtan/add/PracticeField"
+import { AVARTA } from "@/lib/kirtan/practice"
 import { StyleField } from "@/components/kirtan/add/StyleField"
+import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { DanceField, FieldError, LanguageField, LanguagePicker, RequiredMark, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar } from "@/components/kirtan/add/QueueRows"
 import { CoverField } from "@/components/kirtan/sets/CoverField"
@@ -25,7 +28,7 @@ import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { missingCounts, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { isRulesAccepted, uploadErrorText } from "@/lib/kirtan/rules"
-import { SET_LIMITS, setCounts, setDay, setDefaults, setProgress, setState, trackMissing, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
+import { SET_LIMITS, setCounts, setDay, setDefaults, setProgress, setState, trackMissing, setNeedsStyle, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
 import { eventLabel } from "@/lib/kirtan/setDate"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
 import { RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
@@ -35,7 +38,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { useContentRulesStore } from "@/stores/contentRulesStore"
 import { useUploadSetStore } from "@/stores/uploadSetStore"
 import { href } from "@/utils/href"
-import { effectiveFields } from "@/lib/kirtan/queue"
+import { effectiveFields, effectivePractice } from "@/lib/kirtan/queue"
 
 /**
  * Playlist from an event (docs/kiirtan-sets.md): a concert, a retreat, a satsang, sent as one set.
@@ -116,7 +119,11 @@ export default function UploadSetScreen() {
     }
   }, [draft])
 
-  const close = () => (router.canGoBack() ? router.back() : router.replace(href("/add-kirtan")))
+  // Once the playlist is up every page above the shell closes (the Upload hub must not stay under the result): X and "Open"
+  // leave through the exit plans of lib/kirtan/uploadExit.ts; before that the form just goes back.
+  const exit = useUploadExit()
+  const sent = !!draft && running === null && setState(draft) === "published"
+  const close = () => (sent ? exit.toOrigin() : router.canGoBack() ? router.back() : router.replace(href("/add-kirtan")))
   const locked = running !== null
 
   const listenTo = (ref: OriginalRef) => {
@@ -191,12 +198,14 @@ export default function UploadSetScreen() {
         title: t("set.err.title"),
         year: detailsError === "future" ? t("set.err.future") : t("set.err.year"),
         dance: t("ugc.form.error.dance"),
+        style: t("ugc.form.error.style"),
         language: defaultsMissing.includes("languageName") ? t("ugc.form.error.languageName") : t("ugc.form.error.language"),
       }
       const missingKeys = [
         ...(detailsError === "title" ? ["title"] : []),
         ...(detailsError === "year" || detailsError === "future" ? ["year"] : []),
         ...(defaultsMissing.includes("dance") ? ["dance"] : []),
+        ...(detailsError === "style" ? ["style"] : []),
         ...(defaultsMissing.includes("language") || defaultsMissing.includes("languageName") ? ["language"] : []),
       ]
       if (missingKeys.length) {
@@ -412,7 +421,8 @@ export default function UploadSetScreen() {
             month={d.eventMonth}
             onYear={(year) => {
               form.clear()
-              store().details(d.id, { eventYear: year, ...(d.eventMonth && year === new Date().getUTCFullYear() && d.eventMonth > new Date().getUTCMonth() + 1 ? { eventMonth: null } : {}) })
+              // no year: no month either (a month needs a year); a month later than this one in this year goes too
+              store().details(d.id, { eventYear: year, ...(year === null || (d.eventMonth && year === new Date().getUTCFullYear() && d.eventMonth > new Date().getUTCMonth() + 1) ? { eventMonth: null } : {}) })
             }}
             onMonth={(month) => store().details(d.id, { eventMonth: month })}
             invalid={!!form.error("year")}
@@ -437,7 +447,7 @@ export default function UploadSetScreen() {
                   onActivate={() => {
                     if (locked) return
                     const clear = kindHasLanguage(kind) ? {} : { defaultLanguage: null, defaultLanguageOther: "" }
-                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "" }) })
+                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "", defaultPractice: null }) })
                   }}
                   pressedScale={0.96}
                   style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
@@ -455,7 +465,15 @@ export default function UploadSetScreen() {
             <DanceField theme={theme} value={d.defaultDance} onChange={(dance) => { form.clear(); store().details(d.id, { defaultDance: dance }) }} invalid={!!form.error("dance")} errorText={form.error("dance")} disabled={locked} />
           </View>
         ) : null}
-        <StyleField theme={theme} kind={d.defaultKind} value={{ style: d.defaultStyle, styleOther: d.defaultStyleOther }} onChange={(next) => store().details(d.id, { defaultStyle: next.style, defaultStyleOther: next.styleOther })} />
+        {/* a Kiirtan's style is required; the playlist gives it once to all its Kiirtans. The Avarta tick is optional (a track can say otherwise). */}
+        {setNeedsStyle(d) ? (
+          <View style={styles.field}>
+            <View {...form.field("style")} style={styles.field}>
+              <StyleField theme={theme} kind="kiirtan" value={{ style: d.defaultStyle, styleOther: d.defaultStyleOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultStyle: next.style, defaultStyleOther: next.styleOther }) }} invalid={!!form.error("style")} errorText={form.error("style")} disabled={locked} />
+            </View>
+            <PracticeField theme={theme} kind="kiirtan" on={d.defaultPractice === AVARTA} onChange={(on) => store().details(d.id, { defaultPractice: on ? AVARTA : null })} disabled={locked} />
+          </View>
+        ) : null}
         {kindHasLanguage(d.defaultKind) ? (
           <View {...form.field("language")}>
             <LanguageField theme={theme} kind={d.defaultKind} value={languageValue} onOpen={() => setLangFor("set")} invalid={!!form.error("language")} errorText={form.error("language")} disabled={locked} />
@@ -477,6 +495,7 @@ export default function UploadSetScreen() {
       onKind: (id, kind) => store().kind(d.id, id, kind),
       onRowLanguage: (id) => setLangFor(id),
       onRowDance: (id, dance) => store().fields(d.id, id, { dance }),
+      onPractice: (id, on) => store().fields(d.id, id, { practice: on ? AVARTA : null }),
       onSimilarYes: (id) => void store().decideSimilar(d.id, id, true),
       onSimilarNo: (id) => void store().decideSimilar(d.id, id, false),
       onPlaySimilar: (brief: RemoteBrief) => listenTo({ id: brief.id, title: brief.title, author: brief.author, audioUrl: brief.audio_url, kind: brief.kind }),
@@ -527,7 +546,7 @@ export default function UploadSetScreen() {
             {d.tracks.map((track, index) => {
               const kind = trackKind(track, d)
               const fields = effectiveFields(track, { ...defaults, kind })
-              return <View key={track.id} {...form.field(`track-${track.id}`)}><SetTrackRow theme={theme} track={track} position={index + 1} total={d.tracks.length} fields={{ ...fields, missing: trackMissing(track, d), tried: tried || sending }} firstDay={setDay(d)} locked={locked || doneAll} handlers={handlers} />{form.error(`track-${track.id}`) ? <FieldError theme={theme} text={form.error(`track-${track.id}`)} /> : null}</View>
+              return <View key={track.id} {...form.field(`track-${track.id}`)}><SetTrackRow theme={theme} track={track} position={index + 1} total={d.tracks.length} practice={kind === "kiirtan" && d.tracks.length > 1 ? { on: effectivePractice(track, kind, d.defaultPractice) === AVARTA } : undefined} fields={{ ...fields, missing: trackMissing(track, d), tried: tried || sending }} firstDay={setDay(d)} locked={locked || doneAll} handlers={handlers} />{form.error(`track-${track.id}`) ? <FieldError theme={theme} text={form.error(`track-${track.id}`)} /> : null}</View>
             })}
           </View>
         ) : (
@@ -574,7 +593,7 @@ export default function UploadSetScreen() {
               onPress={() => {
                 const id = d.id
                 store().archiveDone(id)
-                router.replace(href(`/recording-set/${id}`))
+                exit.toPage(`/recording-set/${id}`)
               }}
             />
             <KPress

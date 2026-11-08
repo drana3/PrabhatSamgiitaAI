@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path } from "react-native-svg"
 
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
+import { AVARTA } from "@/lib/kirtan/practice"
+import { useUploadExit } from "@/components/kirtan/useUploadExit"
+import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
 import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
@@ -23,7 +26,7 @@ import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { formatDate, useT } from "@/lib/i18n"
 import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
-import { effectiveFields, hasWork, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
+import { effectiveFields, effectivePractice, hasWork, practiceCounts, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
@@ -137,6 +140,7 @@ export default function AddKirtanScreen() {
   const defaults = defaultsOf(draft)
   const formMissing = missingKindFields({ kind, language: draft.language, languageOther: draft.languageOther, dance: draft.dance })
   const rowsIncomplete = incompleteRows(items, defaults)
+  const practiceSummary = practiceCounts(items, kind, draft.practice)
   const missing = missingCounts(items, defaults)
   /** the inline error under a field: only after a try, and only when it is what blocks the upload */
   const fieldError = (field: "language" | "languageName" | "dance"): string | null => {
@@ -267,6 +271,8 @@ export default function AddKirtanScreen() {
       author: draft.performer,
       psSong: draft.psSong?.number ?? null,
       year: yearOf(draft.year),
+      style: draft.style,
+      styleOther: draft.styleOther,
       byAuthor: draft.byAuthor,
       addedBy: "You",
       termsAccepted: rulesOk || agree,
@@ -304,8 +310,11 @@ export default function AddKirtanScreen() {
     await store().start()
   }
 
-  const close = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
-  const viewSubmissions = () => router.replace(href("/v2/kiirtan?filter=mine"))
+  // Before anything went up the form just goes back. After it did, every page above the shell closes (the Upload hub must not
+  // stay under the result): Done lands on the tab the person came from, "View" on the list of their uploads.
+  const exit = useUploadExit()
+  const close = () => (finished ? exit.toOrigin() : router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
+  const viewSubmissions = () => exit.toMine()
   const openRules = () => router.push(href("/content-rules"))
   const addMore = () => {
     store().clearFinished()
@@ -458,6 +467,16 @@ export default function AddKirtanScreen() {
             </Reveal>
             ) : null}
 
+            {/* Kiirtan only: the style is required (ticks nothing by itself), the Avarta tick is optional and covers the whole queue */}
+            {kind === "kiirtan" ? (
+              <Reveal index={3} style={styles.field}>
+                <View {...form.field("style")} style={styles.field}>
+                  <StyleField theme={theme} kind={kind} value={{ style: draft.style, styleOther: draft.styleOther }} onChange={(next) => store().setDraft({ style: next.style, styleOther: next.styleOther })} invalid={formError === "style" || !!form.error("style")} errorText={form.error("style")} disabled={locked} />
+                </View>
+                <PracticeField theme={theme} kind={kind} on={draft.practice === AVARTA} onChange={(on) => store().setDraft({ practice: on ? AVARTA : null })} disabled={locked} />
+              </Reveal>
+            ) : null}
+
             <Reveal index={4} style={styles.field}>
               <View {...form.field("file")} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.files.label")}</Text>
@@ -503,6 +522,11 @@ export default function AddKirtanScreen() {
                 {items.length > 1 && (kindHasLanguage(kind) || kindHasDance(kind)) ? (
                   <ApplyToAllCard theme={theme} kind={kind} missing={missing} tried={tried} locked={locked} onLanguage={() => setLangFor("all")} onDance={pickDanceForAll} />
                 ) : null}
+                {kind === "kiirtan" && items.length > 1 && (practiceSummary.avarta > 0) ? (
+                  <Text style={[styles.hint, { color: theme.textBody }]} accessibilityLiveRegion="polite">
+                    {practiceSummary.avarta === practiceSummary.total ? t("practice.queue.all") : t("practice.queue.some", { count: practiceSummary.avarta, total: practiceSummary.total })}
+                  </Text>
+                ) : null}
                 {items.map((item, index) => (
                   <View key={item.id} {...form.field(`row-${item.id}`)} style={styles.rowWrap}>
                   <QueueRow
@@ -512,6 +536,7 @@ export default function AddKirtanScreen() {
                     kindFields={{ ...effectiveFields(item, defaults), missing: rowMissing(item, defaults), tried }}
                     onRowLanguage={(id) => setLangFor(id)}
                     onRowDance={(id, dance) => store().setRowFields(id, { dance })}
+                    practice={kind === "kiirtan" && items.length > 1 ? { on: effectivePractice(item, kind, draft.practice) === AVARTA, onChange: (on) => store().setRowFields(item.id, { practice: on ? AVARTA : null }) } : undefined}
                     titleInvalid={rowWithProblem === item.id}
                     onTitle={(id, title) => store().setTitle(id, title)}
                     onRemove={(id) => store().remove(id)}
@@ -618,8 +643,6 @@ function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMe
   const has = moreDetailsFor(kind)
   return (
     <View style={styles.moreBody}>
-      {/* Kiirtan only: the optional style of the Kiirtan (renders nothing for the other types) */}
-      <StyleField theme={theme} kind={kind} value={{ style: draft.style, styleOther: draft.styleOther }} onChange={(next) => setDraft({ style: next.style, styleOther: next.styleOther })} />
       {/* a Bhajan and a Spiritual song ask for their language above, as a required field; the optional ones keep it here */}
       {has.language ? (
         <View {...fieldProps("language")}>

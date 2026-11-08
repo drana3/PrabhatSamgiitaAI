@@ -1,6 +1,7 @@
 import { kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
+import { cleanPractice } from "@/lib/kirtan/practice"
 import { cleanStyle, isKiirtanStyle, OTHER_STYLE } from "@/lib/kirtan/styles"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
@@ -62,6 +63,8 @@ export type SubmissionInput = {
   /** Kiirtan only: the optional style (a KIIRTAN_STYLES id or "other") and its name */
   style?: string | null
   styleOther?: string | null
+  /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
+  practice?: string | null
   /** the person is the author, or performs it themselves */
   byAuthor: boolean
   addedBy: string
@@ -69,7 +72,7 @@ export type SubmissionInput = {
   termsAccepted?: boolean
 }
 
-export type SubmissionError = "file" | FileProblem | "title" | "author" | "language" | "languageName" | "dance" | "song" | "year" | "terms"
+export type SubmissionError = "file" | FileProblem | "title" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "year" | "terms"
 
 /** Is this a song number of the Prabhat Samgiita catalogue (a whole number from 1 to 5018)? */
 export function isPsSongNumber(value: unknown): value is number {
@@ -94,6 +97,11 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   const missing = missingKindFields({ kind: normalizeKind(input.kind), language: input.language, languageOther: input.languageOther, dance: input.dance })
   if (missing.length) return missing[0]!
   if (normalizeKind(input.kind) === "prabhat_samgiita" && !isPsSongNumber(input.psSong)) return "song"
+  // the style of a Kiirtan is required ("other" needs its name); the other kinds have none
+  if (normalizeKind(input.kind) === "kiirtan") {
+    const style = cleanStyle("kiirtan", input.style, input.styleOther)
+    if (!style.style || style.missingName) return "style"
+  }
   if (input.year != null && !isRecordableYear(input.year)) return "year"
   if (!input.termsAccepted) return "terms"
   return null
@@ -142,6 +150,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),
     ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),
     ...styleOfInput(kind, input),
+    ...(cleanPractice(kind, input.practice) ? { practice: cleanPractice(kind, input.practice) as string } : {}),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
@@ -184,6 +193,16 @@ export function markFailed(list: readonly Kirtan[], id: string, failure: UploadF
 export function withLanguage(list: readonly Kirtan[], id: string, value: { language: string; languageOther?: string }): Kirtan[] {
   const name = value.language === OTHER_LANGUAGE ? cleanLanguageOther(value.languageOther) : null
   return list.map((k) => (k.language || (k.id !== id && k.serverId !== id) ? k : { ...k, language: value.language, ...(name ? { languageOther: name } : {}) }))
+}
+
+/** The Avarta mark of a recording was changed (by its id here or on the server): set, or cleared with `null`. */
+export function withPractice(list: readonly Kirtan[], id: string, practice: string | null): Kirtan[] {
+  const clean = practice === "avarta" ? practice : null
+  return list.map((k) => {
+    if (k.id !== id && k.serverId !== id) return k
+    const { practice: _old, ...rest } = k
+    return clean ? { ...rest, practice: clean } : rest
+  })
 }
 
 /** Try again: back to uploading, the old failure forgotten. */
@@ -255,6 +274,13 @@ function styleOf(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kir
   return { style: id, ...(name ? { styleOther: name } : {}) }
 }
 
+/** The practice of a server row: the server is the truth when it says (even "none"); an older server says nothing and the phone's own value stays. */
+function practiceOf(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kirtan, "practice"> {
+  const said = remote.practice === undefined ? base?.practice : remote.practice
+  const clean = cleanPractice(kind, said)
+  return clean ? { practice: clean } : {}
+}
+
 /** A server recording as the app's `Kirtan`. `base` keeps the phone's own id and time when the item is already here. */
 export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
   const removed = remote.status === "removed"
@@ -279,6 +305,7 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     ...(remote.year ? { year: remote.year } : base?.year ? { year: base.year } : {}),
     ...languageOf(remote, base),
     ...styleOf(remote, kind, base),
+    ...practiceOf(remote, kind, base),
     ...(isDance(remote.dance) ? { dance: remote.dance } : base?.dance ? { dance: base.dance } : {}),
     ...(remote.collection_id ? { collectionId: remote.collection_id } : base?.collectionId ? { collectionId: base.collectionId } : {}),
     ...(remote.position ? { position: remote.position } : base?.position ? { position: base.position } : {}),

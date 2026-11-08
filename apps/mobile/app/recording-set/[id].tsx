@@ -54,8 +54,8 @@ export default function RecordingSetScreen() {
   const [load, setLoad] = useState<Load>({ kind: "loading" })
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState("")
-  const [editYear, setEditYear] = useState<number | null>(null)
-  const [editMonth, setEditMonth] = useState<number | null>(null)
+  // the date being edited (null: not editing it); both parts null means "no date"
+  const [editDate, setEditDate] = useState<{ year: number | null; month: number | null } | null>(null)
   const [busy, setBusy] = useState(false)
   const [asking, setAsking] = useState(false)
 
@@ -149,12 +149,11 @@ export default function RecordingSetScreen() {
   }
 
   const saveWhen = (year: number | null, month: number | null) => {
-    if (!view || year === null) return
+    if (!view) return
     void guarded(async () => {
       const saved = await patchSet(remoteConfig(), view.id, { eventYear: year, eventMonth: month })
       setLoad((current) => (current.kind === "ready" ? { kind: "ready", detail: { ...current.detail, event_year: saved.event_year, event_month: saved.event_month } } : current))
-      setEditYear(null)
-      setEditMonth(null)
+      setEditDate(null)
     }, t("set.own.saved"))
   }
 
@@ -235,10 +234,11 @@ export default function RecordingSetScreen() {
     }
     const when = whenLabel(view, monthName)
     const cover = coverSrc(view.coverUrl, apiBaseUrl)
-    const year = editYear ?? view.eventYear
-    const month = editYear === null && editMonth === null ? view.eventMonth : editMonth
+    const year = editDate ? editDate.year : view.eventYear
+    const month = editDate ? editDate.month : view.eventMonth
     const dateChanged = year !== view.eventYear || month !== view.eventMonth
-    const dateOk = year !== null && checkEventDate(year, month, new Date()) === null
+    // the date is optional: no year is fine, and clears the date
+    const dateOk = checkEventDate(year, month, new Date()) === null
     return (
       <>
         <Reveal index={0} style={styles.stack}>
@@ -279,12 +279,10 @@ export default function RecordingSetScreen() {
               year={year}
               month={month}
               onYear={(next) => {
-                setEditYear(next)
-                setEditMonth(editYear === null && editMonth === null ? view.eventMonth : editMonth)
+                setEditDate({ year: next, month: next === null ? null : month })
               }}
               onMonth={(next) => {
-                setEditYear(year)
-                setEditMonth(next)
+                setEditDate({ year, month: next })
               }}
               disabled={busy}
             />
