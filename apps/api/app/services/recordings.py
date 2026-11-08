@@ -64,6 +64,7 @@ from app.services.recording_fingerprint import (
 )
 from app.services.recording_info import clean_info
 from app.services.recording_languages import OTHER
+from app.services.recording_loudness import Loudness, measure_loudness
 from app.services.recording_storage import (
     RecordingStorage,
     StorageError,
@@ -201,6 +202,8 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         recording_type=recording.recording_type,
         tempo=recording.tempo,
         performance=recording.performance,
+        loudness_lufs=recording.loudness_lufs,
+        true_peak_db=recording.true_peak_db,
         collection_id=str(recording.collection_id) if recording.collection_id else None,
         position=recording.position,
         recorded_on=recording.recorded_on,
@@ -524,6 +527,7 @@ class StoredFile:
     extension: str
     fingerprint: str | None
     duration_sec: int | None
+    loudness: Loudness | None = None
 
 
 async def inspect_stored_file(
@@ -551,12 +555,18 @@ async def inspect_stored_file(
                 status_code=422, detail="This does not look like an audio file (MP3, M4A, WAV)."
             )
         fingerprint = await compute_fingerprint(local, settings.recording_fpcalc_path)
+        loudness = await measure_loudness(
+            local,
+            settings.recording_ffmpeg_path,
+            timeout=settings.recording_loudness_timeout_seconds,
+        )
         return StoredFile(
             sha256=sha256_of_file(local),
             size=local.stat().st_size,
             extension=extension,
             fingerprint=fingerprint.data if fingerprint else None,
             duration_sec=fingerprint.duration_sec if fingerprint else None,
+            loudness=loudness,
         )
 
 
@@ -683,6 +693,9 @@ async def create_recording(
         audio_bytes=info.size,
         audio_sha256=info.sha256,
         fingerprint=info.fingerprint,
+        loudness_lufs=info.loudness.lufs if info.loudness else None,
+        true_peak_db=info.loudness.true_peak_db if info.loudness else None,
+        loudness_measured_at=moment if info.loudness else None,
         terms_accepted_at=moment,
         terms_version=payload.terms_version,
         published_at=moment,

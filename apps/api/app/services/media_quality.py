@@ -29,6 +29,7 @@ from app.config import get_settings
 from app.models.media import Media
 from app.schemas.song import MediaItemResponse
 from app.services.media_proxy import BROKEN_TLS_MEDIA_HOSTS, client_media_url
+from app.services.recording_loudness import loudness_from_metadata
 
 ACCEPTED_MEDIA_STATUSES = frozenset(
     {"verified", "verified_external", "human_reviewed", "officially_verified"}
@@ -256,6 +257,7 @@ def to_media_item_response(item: Media, *, latest_url: str | None = None) -> Med
     client_embed = (
         client_media_url(item.embed_url, api_base_url=api_base) if item.embed_url else None
     )
+    loudness = loudness_from_metadata(metadata) if is_audio else None
     return MediaItemResponse(
         kind=item.kind,
         provider=item.provider,
@@ -275,4 +277,6 @@ def to_media_item_response(item: Media, *, latest_url: str | None = None) -> Med
         is_older=is_older,
         is_low_quality=is_low_quality,
         is_latest=bool(is_audio and latest_url and item.url == latest_url),
+        loudness_lufs=loudness[0] if loudness else None,
+        true_peak_db=loudness[1] if loudness else None,
     )

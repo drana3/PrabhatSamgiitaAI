@@ -105,6 +105,11 @@ class Settings(BaseSettings):
     recording_terms_version: str = Field(default="2026-11", alias="RECORDING_TERMS_VERSION")
     recording_flag_threshold: int = Field(default=3, alias="RECORDING_FLAG_THRESHOLD", ge=1)
     recording_fpcalc_path: str = Field(default="fpcalc", alias="RECORDING_FPCALC_PATH")
+    # ffmpeg measures the loudness of a new recording (docs/loudness-leveling.md); optional.
+    recording_ffmpeg_path: str = Field(default="ffmpeg", alias="RECORDING_FFMPEG_PATH")
+    recording_loudness_timeout_seconds: float = Field(
+        default=120.0, alias="RECORDING_LOUDNESS_TIMEOUT_SECONDS", ge=5.0, le=900.0
+    )
     # How many recordings one member may add in 24 hours (docs/kiirtan-publishing.md, "Duplicates").
     recording_uploads_per_day: int = Field(default=20, alias="RECORDING_UPLOADS_PER_DAY", ge=1)
     # Playlists from an event (docs/kiirtan-sets.md, "Limits"). A team member is not held to the

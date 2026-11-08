@@ -371,6 +371,10 @@ class RecordingOut(BaseModel):
     recording_type: str | None = None
     tempo: str | None = None
     performance: str | None = None
+    # How loud the file is, measured on the server (integrated loudness in LUFS, true peak in
+    # dBTP); the phone levels playback with them. Null until measured.
+    loudness_lufs: float | None = Field(default=None, ge=-70.0, le=0.0)
+    true_peak_db: float | None = Field(default=None, ge=-120.0, le=6.0)
     # Playlist from an event: its id, the place in it, the day this track was recorded.
     collection_id: str | None = None
     position: int | None = None

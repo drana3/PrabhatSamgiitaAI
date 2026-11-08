@@ -112,6 +112,7 @@ from app.services.recording_languages import (  # noqa: E402
     clean_language_other,
     normalize_language,
 )
+from app.services.recording_loudness import Loudness, measure_loudness  # noqa: E402
 from app.services.recording_storage import (  # noqa: E402
     RecordingStorage,
     new_key,
@@ -472,6 +473,7 @@ async def ffmpeg_to_mp3(source: Path, target: Path, ffmpeg: str) -> bool:
 
 
 Fingerprinter = Callable[[Path, str], Awaitable[Fingerprint | None]]
+LoudnessMeter = Callable[[Path, str], Awaitable[Loudness | None]]
 
 
 class Importer:
@@ -484,6 +486,7 @@ class Importer:
         out: TextIO = sys.stdout,
         converter: Converter | None = None,
         fingerprinter: Fingerprinter | None = None,
+        loudness_meter: LoudnessMeter | None = None,
     ) -> None:
         self.config = config
         self.sessions = sessions
@@ -493,6 +496,8 @@ class Importer:
             lambda source, target, _name: ffmpeg_to_mp3(source, target, config.ffmpeg)
         )
         self.fingerprinter: Fingerprinter = fingerprinter or compute_fingerprint
+        # How loud the stored file is (docs/loudness-leveling.md); a miss leaves the numbers empty.
+        self.loudness_meter: LoudnessMeter = loudness_meter or measure_loudness
         self.state = State(config.state_path)
         self.outcomes: list[Outcome] = []
         self.collection_id: Any = None  # the playlist the run fills (set mode, --execute)
@@ -735,6 +740,7 @@ class Importer:
             await self.storage.store_file(key, source, CONTENT_TYPES.get(extension, "audio/mpeg"))
         except Exception as exc:  # noqa: BLE001  (storage errors differ per backend)
             return Outcome(row, "failed", f"upload failed: {exc}", sha)
+        loudness = await self.loudness_meter(source, config.ffmpeg)
         moment = datetime.now(UTC)
         try:
             async with self.sessions() as session:
@@ -754,6 +760,9 @@ class Importer:
                     audio_bytes=source.stat().st_size,
                     audio_sha256=sha,
                     fingerprint=print_.data if print_ else None,
+                    loudness_lufs=loudness.lufs if loudness else None,
+                    true_peak_db=loudness.true_peak_db if loudness else None,
+                    loudness_measured_at=moment if loudness else None,
                     published_at=moment,
                     reviewed_at=moment,
                     reviewed_by=REVIEWED_BY,

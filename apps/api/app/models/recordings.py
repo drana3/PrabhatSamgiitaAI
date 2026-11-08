@@ -18,6 +18,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -182,6 +183,12 @@ class Recording(Base, TimestampMixin):
     audio_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     # Chromaprint raw fingerprint (base64 of big-endian uint32 values); null when fpcalc is missing.
     fingerprint: Mapped[str | None] = mapped_column(Text)
+    # How loud it is (services/recording_loudness.py): integrated loudness in LUFS and the true
+    # peak in dBTP, read with ffmpeg; the phone levels recordings with them. Null until measured
+    # (ffmpeg missing, or an old recording that the backfill script has not reached).
+    loudness_lufs: Mapped[float | None] = mapped_column(Float)
+    true_peak_db: Mapped[float | None] = mapped_column(Float)
+    loudness_measured_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     thumbnail_url: Mapped[str | None] = mapped_column(Text)
 
     # Terms the uploader accepted, with the time.
