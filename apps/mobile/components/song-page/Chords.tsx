@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
+import { PianoBlock } from "@/components/piano/PianoBlock";
 import { CommunityChords } from "@/components/song-chords/CommunityChords";
 import { SpEmptyNote } from "@/components/song-v2/SpHonest";
 import { SpIcon } from "@/components/song-v2/SpIcon";
@@ -300,6 +301,16 @@ export function ChordsSection({
           romanLines={model.sources.roman}
         />
       ) : null}
+      {/* piano notes of the song: the booklet's for songs 1, 2 and 27, members' for any song (docs/piano-notation.md) */}
+      {model.song ? (
+        <View style={styles.piano}>
+          <PianoBlock
+            t={t}
+            target={{ kind: "song", number: model.song.number }}
+            title={model.song.title}
+          />
+        </View>
+      ) : null}
       <View style={styles.sing}>
         <SpPill
           t={t}
@@ -322,6 +333,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   body: { gap: 12 },
+  piano: { paddingTop: 24 },
   pad: { paddingHorizontal: 20, gap: 8 },
   eyebrow: { paddingHorizontal: 20, paddingTop: 4 },
   keyPad: { paddingHorizontal: 20 },

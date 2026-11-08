@@ -131,6 +131,7 @@ export default function TeamReviewScreen() {
         {state.items.map((item) => (
           <ReviewCard key={item.key} item={item} onAct={act} />
         ))}
+        <ActionButton theme={theme} tone="quiet" label={t("pianoReview.entry")} onPress={() => router.push(href("/piano-review"))} />
       </ScrollView>
     </View>
   )

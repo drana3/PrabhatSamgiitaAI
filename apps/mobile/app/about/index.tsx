@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 
 import { collectionCount } from "@/data/collections"
 import { BabaPhoto } from "@/components/common/BabaPhoto"
@@ -38,6 +38,14 @@ export default function AboutScreen() {
           <Text style={styles.bullet}>{t("about.what.3")}</Text>
           <Text style={styles.bullet}>{t("about.what.4")}</Text>
           <Text style={styles.bullet}>{t("about.what.5")}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("about.credits.title")}</Text>
+          <Text style={styles.bullet}>{t("about.credits.piano")}</Text>
+          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL("https://creativecommons.org/licenses/by/3.0/")} hitSlop={8}>
+            <Text style={[styles.bullet, styles.link]}>{t("about.credits.piano.link")}</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -92,6 +100,10 @@ const styles = StyleSheet.create({
     ...typography.h3,
     color: colors.textPrimary,
     marginBottom: spacing.md,
+  },
+  link: {
+    color: colors.textPrimary,
+    textDecorationLine: "underline",
   },
   bullet: {
     ...typography.bodySmall,

@@ -237,6 +237,10 @@ export default function RootLayout() {
             <Stack.Screen name="recording-chords" options={{ presentation: "modal" }} />
             <Stack.Screen name="recording-chart" options={{ presentation: "modal" }} />
             {/* Author pages: the directory, a public page, becoming an author, the author's own page and its edit form. */}
+            {/* Piano notes of a recording or a Prabhat Samgiita song: read, write, and the team's review (docs/piano-notation.md). */}
+            <Stack.Screen name="piano-notes" options={{ presentation: "modal" }} />
+            <Stack.Screen name="piano-notes-edit" options={{ presentation: "modal" }} />
+            <Stack.Screen name="piano-review" options={{ presentation: "card" }} />
             <Stack.Screen name="authors" options={{ presentation: "card" }} />
             <Stack.Screen name="author/[slug]" options={{ presentation: "card" }} />
             <Stack.Screen name="become-author" options={{ presentation: "card" }} />

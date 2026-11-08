@@ -27,6 +27,7 @@ import { playbackControlsEs } from "./playbackControls"
 import { assistantErrorsEs } from "./assistantErrors"
 import { recordingExtrasEs } from "./recordingExtras"
 import { pushEs } from "./push"
+import { pianoEs } from "./pianoNotes"
 import { songCommentsEs } from "./songComments"
 import { chordProposalsEs } from "./chordProposals"
 import { pronunciationEs } from "./pronunciation"
@@ -1299,6 +1300,7 @@ export const es: Dictionary = {
   ...assistantErrorsEs,
   ...songCommentsEs,
   ...pushEs,
+  ...pianoEs,
   ...playbackControlsEs,
   ...recordingExtrasEs,
   ...chordProposalsEs,

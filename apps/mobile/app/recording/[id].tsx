@@ -13,6 +13,7 @@ import { useComments } from "@/components/comments/useComments"
 import { AddVideoSheet } from "@/components/recording-extras/AddVideoSheet"
 import { ChordsBlock } from "@/components/recording-extras/ChordsBlock"
 import { Viewer } from "@/components/recording-extras/RecordingChordsSheet"
+import { PianoBlock } from "@/components/piano/PianoBlock"
 import { VideosSection } from "@/components/recording-extras/VideosSection"
 import { useRecordingSheets } from "@/components/recording-extras/useRecordingSheets"
 import { useVideos } from "@/components/recording-extras/useVideos"
@@ -130,6 +131,12 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
         {kindHasChords(recording.kind) ? (
           <Reveal index={1}>
             <ChordsBlock t={t} sheets={sheets} onOpen={() => setViewing(true)} onAdd={() => router.push(href(sheetFormHref({ chart: kindHasCharts(recording.kind), recordingId: apiId, title: recording.title })))} />
+          </Reveal>
+        ) : null}
+        {/* piano notes: the same kinds as chords (docs/piano-notation.md) */}
+        {kindHasChords(recording.kind) ? (
+          <Reveal index={2}>
+            <PianoBlock t={t} target={{ kind: "recording", id: apiId }} title={recording.title} />
           </Reveal>
         ) : null}
         <Reveal index={2}>
