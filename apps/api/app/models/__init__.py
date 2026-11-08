@@ -6,6 +6,9 @@ from app.models.admin_workflow import (
 from app.models.ai_usage import AiDailyUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
 from app.models.author_profiles import (
+    AuthorAlias,
+    AuthorClaim,
+    AuthorClaimEvent,
     AuthorProfile,
     AuthorProfilePhoto,
     AuthorRecordingLink,
@@ -58,7 +61,6 @@ from app.models.member import (
 )
 from app.models.notation import Notation
 from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
-from app.models.search_menu import SearchMenuPin
 from app.models.recording_extras import (
     RecordingChordReport,
     RecordingChordSheet,
@@ -75,14 +77,18 @@ from app.models.recordings import (
     RecordingSimilarConfirm,
 )
 from app.models.sargam_capture import NotationCapture
+from app.models.search_menu import SearchMenuPin
 from app.models.song import Song
-from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordReport
 from app.models.song_comments import SongComment, SongCommentReport
+from app.models.song_plays import SongPlayDaily, SongPlayEvent
 
 __all__ = [
     "AiDailyUsage",
+    "AuthorAlias",
     "AuthorBlock",
+    "AuthorClaim",
+    "AuthorClaimEvent",
     "AuthorProfile",
     "AuthorProfilePhoto",
     "AuthorRecordingLink",

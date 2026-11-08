@@ -47,6 +47,9 @@ AUTHOR_TYPES = ("solo", "group")
 INCLUDE_MODES = ("all", "chosen")
 LINK_MODES = ("include", "exclude")
 SLUG_HISTORY_KINDS = ("renamed", "deleted")
+CLAIM_STATUSES = ("pending", "approved", "rejected", "withdrawn", "revoked")
+CLAIM_ROUTES = ("self", "team")
+CLAIM_LEVELS = ("same", "alike", "title", "manual")
 AUTHOR_REPORT_REASONS = ("impersonation", "offensive", "spam", "copyright", "wrong_info", "other")
 
 # JSONB on Postgres, plain JSON elsewhere (the tests run on SQLite).
@@ -258,6 +261,98 @@ class AuthorReport(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(16), default="new", server_default="new", nullable=False
     )
+
+
+# --------------------------------------------------------------------------- claims
+
+
+class AuthorClaim(Base, TimestampMixin):
+    """A performer asks to have a recording that somebody else added shown on their page. The
+    recording itself is never changed (its `author` text stays as its uploader wrote it); an
+    APPROVED claim is what puts it on the page (`services/author_profiles.attribution`).
+
+    `route` says who decides: `self` = approved at once (a clear same-name match on a
+    team-verified page), `team` = a pending row for the team desk. The uploader is not asked
+    (Dada's decision): they only get an information notice once a claim is approved.
+    `team_reason` is why a claim went to the team. One recording may be claimed by several pages
+    (a group and its member).
+    """
+
+    __tablename__ = "author_claims"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "recording_id", name="uq_author_claims_pair"),
+        CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected', 'withdrawn', 'revoked')",
+            name="ck_author_claims_status",
+        ),
+        CheckConstraint("route IN ('self', 'team')", name="ck_author_claims_route"),
+        CheckConstraint(
+            "match_level IN ('same', 'alike', 'title', 'manual')", name="ck_author_claims_level"
+        ),
+        Index("ix_author_claims_status_route", "status", "route"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    profile_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("author_profiles.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    recording_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recordings.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    # What the credit said when the claim was made (a later edit of the recording does not move it).
+    matched_text: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    match_level: Mapped[str] = mapped_column(String(8), nullable=False)
+    route: Mapped[str] = mapped_column(String(8), nullable=False)
+    status: Mapped[str] = mapped_column(String(10), default="pending", nullable=False)
+    # Why this one went to the team: protected_name, famous_name, taken_by_other, alias_match,
+    # group_credit, group_page, not_same_name, unverified_page, draft_page, review_flag.
+    team_reason: Mapped[str | None] = mapped_column(String(24))
+    decided_by: Mapped[str | None] = mapped_column(String(255))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+
+
+class AuthorClaimEvent(Base):
+    """The log of a claim: made, approved, rejected, withdrawn, revoked. Nothing is ever erased."""
+
+    __tablename__ = "author_claim_events"
+
+    id: Mapped[int] = mapped_column(BigIntPk, primary_key=True, autoincrement=True)
+    claim_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("author_claims.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    actor: Mapped[str] = mapped_column(String(255), nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+
+
+class AuthorAlias(Base):
+    """ "Also known as": other ways the owner's name is written. Used only to find recordings; an
+    alias never makes a claim easier to approve."""
+
+    __tablename__ = "author_aliases"
+    __table_args__ = (UniqueConstraint("profile_id", "alias_key", name="uq_author_aliases_key"),)
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    profile_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("author_profiles.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    alias: Mapped[str] = mapped_column(String(120), nullable=False)
+    alias_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 # --------------------------------------------------------------------------- statistics

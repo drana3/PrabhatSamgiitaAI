@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.models import UserAccount
 from app.models.author_profiles import (
+    AuthorClaim,
     AuthorProfile,
     AuthorProfilePhoto,
     AuthorRecordingLink,
@@ -131,6 +132,7 @@ def attribution(profile: AuthorProfile) -> Any:
 
     1. The owner's own uploads, by the page's rule (all minus the switched off, or only the chosen).
     2. When the team has verified the page: library recordings credited to the claimed name.
+    3. Recordings of other people that have an APPROVED claim from this page (author_claims).
     Only visible (published or flagged) recordings count.
     """
     link = AuthorRecordingLink
@@ -148,6 +150,13 @@ def attribution(profile: AuthorProfile) -> Any:
     claimed = (profile.claimed_name or "").strip().lower()
     if profile.verified and claimed:
         options.append(and_(func.lower(Recording.author) == claimed, Recording.id.not_in(excluded)))
+    options.append(
+        Recording.id.in_(
+            select(AuthorClaim.recording_id).where(
+                AuthorClaim.profile_id == profile.id, AuthorClaim.status == "approved"
+            )
+        )
+    )
     return and_(Recording.status.in_(VISIBLE), or_(*options))
 
 
@@ -754,6 +763,15 @@ async def line_for_recording(session: AsyncSession, recording: Recording) -> Aut
             )
         ).all()
         candidates.extend(p for p in claimed if p not in candidates)
+    claimed_here = (
+        await session.scalars(
+            select(AuthorProfile)
+            .join(AuthorClaim, AuthorClaim.profile_id == AuthorProfile.id)
+            .where(AuthorClaim.recording_id == recording.id, AuthorClaim.status == "approved")
+            .order_by(AuthorClaim.created_at)
+        )
+    ).all()
+    candidates.extend(p for p in claimed_here if p not in candidates)
     for profile in candidates:
         if profile.status != "published":
             continue

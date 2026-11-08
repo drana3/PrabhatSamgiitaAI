@@ -27,6 +27,9 @@ from app.config import Settings, get_settings
 from app.core.db import get_session
 from app.models import UserAccount
 from app.models.author_profiles import (
+    AuthorAlias,
+    AuthorClaim,
+    AuthorClaimEvent,
     AuthorProfile,
     AuthorProfilePhoto,
     AuthorRecordingLink,
@@ -39,7 +42,7 @@ from app.models.author_profiles import (
 )
 from app.models.base import Base
 from app.models.recording_collections import RecordingCollection
-from app.models.recordings import AuthorBlock, Recording
+from app.models.recordings import AuthorBlock, MemberNotice, Recording
 from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.services import author_profiles as service
 from app.services import author_stats as stats
@@ -162,6 +165,10 @@ async def world() -> AsyncIterator[World]:
             SongPlayDaily,
             AuthorStatsSnapshot,
             AuthorSuspension,
+            AuthorClaim,
+            AuthorClaimEvent,
+            AuthorAlias,
+            MemberNotice,
         )
     ]
     async with engine.begin() as conn:
