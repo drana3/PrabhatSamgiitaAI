@@ -47,6 +47,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useSongPageStore } from "@/stores/songPageStore"
+import { openFromProfile } from "@/lib/profileNav"
 import { href } from "@/utils/href"
 
 
@@ -124,9 +125,11 @@ export function useProfileContent(theme: AmTheme) {
     cachedEmail: getCachedMemberEmail(),
   })
 
-  const go = (route: ProfileRoute | string) => router.push(href(route))
-  /** the prototype swaps the profile sheet for the next one */
-  const swapTo = (route: ProfileRoute) => router.replace(href(route))
+  /** Every row pushes its page above the sheet, so Back lands on the sheet again (lib/profileNav.ts). */
+  const go = (route: ProfileRoute | string) => {
+    const action = openFromProfile(route)
+    if (action.type === "push") router.push(href(action.to))
+  }
 
   const requestClearChat = () =>
     setConfirm({
@@ -197,10 +200,10 @@ export function useProfileContent(theme: AmTheme) {
     <>
       <ProfileHeader p={p} identity={identity} onPress={() => go(PROFILE_ROUTES.editProfile)} />
 
-      {/* Your library: closes this sheet and opens the page, so Back returns to the screen under it */}
+      {/* Your library and History: pushed above the sheet, so Back returns to the profile */}
       <Group p={p}>
-        <LibraryEntryRow p={p} onPress={() => swapTo(PROFILE_ROUTES.library)} />
-        <SetRow p={p} label={t("history.link")} chevron onPress={() => swapTo(PROFILE_ROUTES.listeningHistory)} />
+        <LibraryEntryRow p={p} onPress={() => go(PROFILE_ROUTES.library)} />
+        <SetRow p={p} label={t("history.link")} chevron onPress={() => go(PROFILE_ROUTES.listeningHistory)} />
       </Group>
 
       {/* "Quiz and certificates" row hidden for now (Dada 2026-11-05), see lib/learn/hub.ts */}
@@ -238,19 +241,19 @@ export function useProfileContent(theme: AmTheme) {
           p={p}
           label={t("profile.language")}
           value={languagePref === "auto" ? t("language.auto") : LANGUAGE_NATIVE_NAMES[languagePref]}
-          onPress={() => swapTo(PROFILE_ROUTES.language)}
+          onPress={() => go(PROFILE_ROUTES.language)}
         />
         <SetRow
           p={p}
           label={t("profile.scriptAndTranslations")}
           value={languageSummary(script, translations)}
-          onPress={() => swapTo(PROFILE_ROUTES.scriptAndTranslations)}
+          onPress={() => go(PROFILE_ROUTES.scriptAndTranslations)}
         />
         <SetRow
           p={p}
           label={t("profile.reviewStyle")}
           value={reviewStyleRowValue(reviewStyle)}
-          onPress={() => swapTo(PROFILE_ROUTES.reviewStyle)}
+          onPress={() => go(PROFILE_ROUTES.reviewStyle)}
         />
         <SetRow
           p={p}

@@ -85,6 +85,17 @@ exceptions and a policy change needs no screen change.
 2. If it scrolls, set the content's `paddingBottom` from `useScrollBottomInset()`.
 3. A new sheet that is not a route calls `useCoverWhile(open)` (`lib/sheetCover.ts`).
 
+## The profile sheet: the way back
+
+The profile sheet is the hub of every setting. A row of it always PUSHES its page above the sheet (`openFromProfile` in
+`lib/profileNav.ts`; Edit profile, Your library, History, Storage, Language, Script and translations, Review style,
+Notifications, Sign in, Send feedback, Content rules, About, Admin), so the sheet stays one step down in the stack and
+Back (the button, the Done of a sheet, the swipe, the Android back key) lands on it. Before, five rows replaced the
+sheet, and Back from them dropped the person on Today or Songs. A page that closes with `router.back()` is right; one
+that opens a tab with `replace` or `dismissTo` is not, except the tab bar of the pushed browse pages (`DeepTabBar`),
+which is meant to leave. Tested in `__tests__/profileBack.test.ts` (a model of the stack, plus a check of the source of
+`ProfileContent` and of the exits of every inner page).
+
 ## Scenario board
 
 A picture of eight representative screens with the pill, its bottom air and the hidden cases is in
