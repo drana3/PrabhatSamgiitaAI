@@ -223,7 +223,8 @@ export function LangRow({ p, name, sub, control, on, action, dim, wrap, onPress,
       style={[s.lrow, rowBorder(p, last)]}
     >
       <View style={s.lm}>
-        <Text style={[s.lName, { color: dim ? p.ink500 : p.ink800 }]} numberOfLines={1}>
+        {/* no line limit: at the largest system text size a long name wraps instead of being cut */}
+        <Text style={[s.lName, { color: dim ? p.ink500 : p.ink800 }]}>
           {name}
         </Text>
         {sub ? (
@@ -254,7 +255,7 @@ export function LanguageSearch({ p, value, onChangeText, placeholder }: SearchPr
         placeholder={placeholder}
         // the prototype sets no ::placeholder colour here, so the browser's default grey shows
         placeholderTextColor="#757575"
-        accessibilityLabel="Search languages"
+        accessibilityLabel={placeholder ?? "Search languages"}
         autoCapitalize="none"
         autoCorrect={false}
         spellCheck={false}
@@ -365,6 +366,7 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, minWidth: 0, height: 44, paddingVertical: 0, paddingHorizontal: 2, fontFamily: amFonts.medium, fontSize: 16 },
   note: { paddingHorizontal: 20, paddingTop: 12, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   doneWrap: { paddingHorizontal: 20, paddingTop: 16 },
-  done: { height: 48, borderRadius: 70, alignItems: "center", justifyContent: "center" },
+  // minHeight, not height: at 200% text size the label grows and must not be clipped
+  done: { minHeight: 48, paddingVertical: 12, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   doneText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 23.2, color: "#FFFFFF" },
 })
