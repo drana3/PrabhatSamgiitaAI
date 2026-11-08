@@ -87,6 +87,20 @@ author gets a notice with the reason and how to answer. This file is the operati
 - Verified: 28 API tests on SQLite and the mobile vitest suite. Not verified: a real database (Postgres), a real R2
   bucket, a real phone.
 
+## Warning in the forms
+
+Every form that sends something to the library ends with one notice just above the send button, "We review every upload":
+everything sent is reviewed by the moderators, and a recording of very poor quality (heavy noise, cut-offs, a wrong or
+silent file) may be declined or removed. It does not promise a check before publishing, because there is none for a
+recording (see the decision at the top); for a member's chord chart, which does wait for the team, the same words are true.
+One component (`components/common/ModerationNotice.tsx`), one set of strings (`ugc.moderation.*` in `locales/ugc.ts`, en/ru/es),
+shown in: add Kiirtan or Bhajan (`app/add-kirtan.tsx`, also the queue and "Upload a corrected version"), playlist upload
+(`app/upload-set.tsx`), chord chart for a Prabhat Samgiita song (`app/upload-chords.tsx`), chord chart for a recording
+(`app/recording-chart.tsx`, `app/recording-chords.tsx`; the text of the notice is the `chords` variant). A guard test
+(`__tests__/moderationNotice.test.ts`) lists the forms. Not built: a "poor quality" removal reason (the reason is free
+text, 3 to 500 characters, the author reads it; listener reports have no such reason either). The planned upload wizard
+shows the notice on its last page, "Check and send".
+
 ## Duplicates
 
 The same chant is sung by many people, so the library separates three things: the same file (a duplicate, refused),

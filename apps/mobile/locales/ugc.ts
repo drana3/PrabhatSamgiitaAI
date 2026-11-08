@@ -36,6 +36,12 @@ export const ugcEn = {
   "ugc.add.readRules": "Read the content rules",
   "ugc.add.footer": "You can publish at once. We review after publishing and may remove recordings that break the rules, and we will tell you why.",
 
+  // the moderation notice, shown at the very end of every upload form, just above the send button (components/common/ModerationNotice.tsx).
+  // Honest about how it works: published at once, reviewed after (docs/kiirtan-publishing.md); chord charts of members wait for the team.
+  "ugc.moderation.title": "We review every upload",
+  "ugc.moderation.recording": "Everything you upload is reviewed by our moderators. A recording of very poor quality (heavy noise, cut-offs, a wrong or silent file) may be declined or removed. We do this to keep the library good for everyone.",
+  "ugc.moderation.chords": "Everything you send is reviewed by our moderators. A chart that is unreadable, badly wrong or too incomplete may be declined or removed. We do this to keep the library good for everyone.",
+
   // errors in the form
   "ugc.form.error.file": "Choose the audio file you recorded.",
   "ugc.form.error.title": "Add a title.",
@@ -176,6 +182,11 @@ export const ugcRu: Record<keyof typeof ugcEn, string> = {
   "ugc.add.readRules": "Читать правила контента",
   "ugc.add.footer": "Вы можете опубликовать сразу. Мы проверяем после публикации и можем удалить запись, нарушающую правила, и скажем вам почему.",
 
+  // the moderation notice, shown at the very end of every upload form, just above the send button
+  "ugc.moderation.title": "Мы проверяем каждую загрузку",
+  "ugc.moderation.recording": "Всё, что вы загружаете, просматривают наши модераторы. Запись очень плохого качества (сильные шумы, обрывы, не тот или пустой файл) может быть отклонена или удалена. Так мы сохраняем хорошее качество библиотеки для всех.",
+  "ugc.moderation.chords": "Всё, что вы отправляете, просматривают наши модераторы. Аккорды, которые невозможно прочитать, сильно неверны или слишком неполны, могут быть отклонены или удалены. Так мы сохраняем хорошее качество библиотеки для всех.",
+
   "ugc.form.error.file": "Выберите аудиофайл, который вы записали.",
   "ugc.form.error.title": "Добавьте название.",
   "ugc.form.error.author": "Добавьте исполнителя или группу.",
@@ -304,6 +315,11 @@ export const ugcEs: Record<keyof typeof ugcEn, string> = {
   "ugc.add.termsAgreed": "Aceptaste las normas de contenido el {date}.",
   "ugc.add.readRules": "Leer las normas de contenido",
   "ugc.add.footer": "Puedes publicar al instante. Revisamos después de publicar y podemos eliminar grabaciones que incumplan las normas, y te diremos por qué.",
+
+  // the moderation notice, shown at the very end of every upload form, just above the send button (components/common/ModerationNotice.tsx)
+  "ugc.moderation.title": "Revisamos cada subida",
+  "ugc.moderation.recording": "Todo lo que subes lo revisan nuestros moderadores. Una grabación de calidad muy mala (mucho ruido, cortes, un archivo equivocado o en silencio) puede ser rechazada o eliminada. Lo hacemos para que la biblioteca sea buena para todos.",
+  "ugc.moderation.chords": "Todo lo que envías lo revisan nuestros moderadores. Unos acordes ilegibles, muy equivocados o demasiado incompletos pueden ser rechazados o eliminados. Lo hacemos para que la biblioteca sea buena para todos.",
 
   "ugc.form.error.file": "Elige el archivo de audio que grabaste.",
   "ugc.form.error.title": "Añade un título.",

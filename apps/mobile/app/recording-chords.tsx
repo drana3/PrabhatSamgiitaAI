@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
+import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ChordFields } from "@/components/recording-extras/ChordFields"
 import { ActionButton, Hint } from "@/components/song-chords/parts"
@@ -143,6 +144,7 @@ export default function RecordingChordsScreen() {
           review={!isAdmin && !editId}
         />
         {failure ? <Hint theme={theme} tone="danger">{sheetFailureText(tr, failure)}</Hint> : null}
+        <ModerationNotice kind="chords" />
         <ActionButton theme={theme} label={busy ? tr("recChordsForm.sending") : tr(editId ? "recChordsForm.save" : "recChordsForm.submit")} onPress={() => void submit()} disabled={busy || isBlankDraft(draft)} busy={busy} />
       </View>
     )

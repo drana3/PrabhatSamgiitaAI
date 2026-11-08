@@ -14,6 +14,7 @@ import { ApplyToAllCard, QueueBar } from "@/components/kirtan/add/QueueRows"
 import { CoverField } from "@/components/kirtan/sets/CoverField"
 import { EventDateField } from "@/components/kirtan/sets/EventDateField"
 import { SetTrackRow, type SetTrackHandlers } from "@/components/kirtan/sets/SetTrackRow"
+import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
 import { Toast } from "@/components/songs-v2/Toast"
@@ -651,6 +652,8 @@ export default function UploadSetScreen() {
             {/* nothing left to send (the rest cannot go up as it is): no button, the note above says what to do */}
             {running !== null || open > 0 ? (
               <>
+                {/* the last thing before the send button: what moderation means for a poor recording */}
+                <ModerationNotice kind="recording" />
                 <Primary theme={theme} label={label} onPress={() => void send()} disabled={running !== null} busy={running !== null} />
                 <Text style={[styles.hint, { color: theme.textBody, textAlign: "center" }]}>{t("set.up.keepOpen")}</Text>
               </>

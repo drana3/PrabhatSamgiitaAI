@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ChordSheet } from "@/components/song-chords/ChordSheet"
 import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
@@ -402,6 +403,7 @@ export default function RecordingChartScreen() {
                   <Hint theme={theme} tone="danger">{sheetFailureText(t, failure)}</Hint>
                 </View>
               ) : null}
+              <ModerationNotice kind="chords" />
               <ActionButton theme={theme} label={sendLabel} onPress={() => void send()} disabled={busy} busy={busy} />
             </View>
           </>

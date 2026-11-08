@@ -7,6 +7,7 @@ import { ChordSheet } from "@/components/song-chords/ChordSheet"
 import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
 import { ChordEntryField, ConfirmFields, InstrumentField, KeyCapoField, OptionalFields, PreviewField } from "@/components/song-chords/OfferFields"
 import { EditBanner, ResumePanel, SentPanel } from "@/components/song-chords/OfferPanels"
+import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ActionButton, CORNER, Hint, Label, PILL } from "@/components/song-chords/parts"
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
@@ -568,6 +569,7 @@ export default function UploadChordsScreen() {
                     {failure === "signin" ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.signin.action")} onPress={() => router.push(href("/signin"))} /> : null}
                   </View>
                 ) : null}
+                <ModerationNotice kind="chords" />
                 <ActionButton theme={theme} label={sendLabel} onPress={() => void send()} disabled={busy} busy={busy} />
                 {keep || inBook ? (
                   <>

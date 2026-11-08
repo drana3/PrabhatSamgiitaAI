@@ -14,6 +14,7 @@ import { StyleField } from "@/components/kirtan/add/StyleField"
 import { effectiveRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
+import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
@@ -620,6 +621,8 @@ export default function AddKirtanScreen() {
 
             {finished ? <QueueSummaryCard theme={theme} summary={summary} dailyLimit={stopped === "dailyLimit"} retryable={retryable} onRetryAll={() => void store().retryAll()} onAddMore={addMore} onView={viewSubmissions} /> : null}
 
+            {/* the last thing before the send button: what moderation means for a poor recording */}
+            {allDone ? null : <ModerationNotice kind="recording" />}
             <KPress
               accessibilityRole="button"
               accessibilityLabel={buttonLabel}
