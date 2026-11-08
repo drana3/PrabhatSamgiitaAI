@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router"
 import { Chip, LoadingRows, PillButton, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
 import { Section } from "@/components/common/Layout"
 import { ShowcasePage, type ShowcaseProps } from "@/components/authors/AuthorShowcase"
+import { AuthorShareSheet } from "@/components/authors/AuthorShareSheet"
 import { PublicStatsStrip } from "@/components/authors/StatsViews"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
 import { KirtanRow } from "@/components/kirtan/KirtanParts"
@@ -21,7 +22,6 @@ import { isSignedIn } from "@/lib/authors/session"
 import { AUTHORS_HREF, MY_AUTHOR_HREF, RECORDINGS_PAGE, authorHref } from "@/lib/authors/constants"
 import { formatDay, linkHost } from "@/lib/authors/format"
 import { playAuthor } from "@/lib/authors/playback"
-import { shareAuthor } from "@/lib/authors/share"
 import { say } from "@/lib/authors/text"
 import type { AuthorProfilePublic, CollectionBrief, ReportReason } from "@/lib/authors/types"
 import { useLanguage, useT } from "@/lib/i18n"
@@ -83,6 +83,7 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
   const [menu, setMenu] = useState<Kirtan | null>(null)
   const [share, setShare] = useState<Kirtan | null>(null)
   const [busy, setBusy] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const slug = profile.slug
   const name = profile.display_name
@@ -162,12 +163,6 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
     }
   }
 
-  const onShare = async () => {
-    const outcome = await shareAuthor({ slug, name }, t("authors.share.intro", { name }))
-    if (outcome === "copied") actions.flash(t("authors.share.copied"))
-    if (outcome === "failed") actions.flash(t("authors.error.generic"))
-  }
-
   const kirtans = useMemo(() => items.map((r) => fromRemote(r)), [items])
 
   const openRecording = (r: Kirtan) => {
@@ -187,7 +182,7 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
     setKind,
     busy,
     onPlay: (shuffle) => void playAll(shuffle),
-    onShare: () => void onShare(),
+    onShare: () => setShareOpen(true),
     onOpen: openRecording,
     onMenu: setMenu,
     onMore: () => void more(),
@@ -205,6 +200,7 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
       </ScrollView>
       <KirtanMenuSheet open={Boolean(menu)} theme={theme} kirtan={menu} saved={false} onPlayNext={actions.playNext} onAddToPlaylist={actions.addToPlaylist} onToggleSave={actions.toggleSaved} onShare={(k) => setShare(k)} onClose={() => setMenu(null)} />
       <KirtanShareSheet open={Boolean(share)} theme={theme} kirtan={share} onShare={() => setShare(null)} onClose={() => setShare(null)} />
+      <AuthorShareSheet open={shareOpen} theme={theme} page={shareOpen ? profile : null} flash={actions.flash} onClose={() => setShareOpen(false)} />
       <Toast message={actions.toast} theme={theme} />
     </View>
   )

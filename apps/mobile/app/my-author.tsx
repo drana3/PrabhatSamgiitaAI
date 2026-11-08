@@ -4,6 +4,7 @@ import { Stack, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AccountBar, topInset } from "@/components/account/AccountUi"
+import { AuthorShareSheet } from "@/components/authors/AuthorShareSheet"
 import { AuthorAvatar, Chip, DemoNote, LoadingRows, PillButton, SIDE, StateBlock, WEB_THUMB } from "@/components/authors/AuthorsUi"
 import { BlockStack, Section } from "@/components/common/Layout"
 import { ClaimsCard } from "@/components/authors/ClaimsCard"
@@ -16,7 +17,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
 import { isSignedIn } from "@/lib/authors/session"
 import { ADD_PLAYLIST_HREF, ADD_RECORDING_HREF, AUTHORS_HREF, AUTHOR_EDIT_HREF, BECOME_AUTHOR_HREF, SHOW_PAGE_LINK, authorHref, authorShareUrl } from "@/lib/authors/constants"
-import { copyAuthorLink, shareAuthor } from "@/lib/authors/share"
+import { copyAuthorLink } from "@/lib/authors/share"
 import { reviewKey, say } from "@/lib/authors/text"
 import type { AuthorProfileOwner, OwnerRecording, StatsPeriod } from "@/lib/authors/types"
 import { useT } from "@/lib/i18n"
@@ -47,6 +48,7 @@ export default function MyAuthorScreen() {
   const setMine = useAuthorStore((s) => s.setMine)
   const signedIn = isSignedIn(api)
   const [toast, setToast] = useState<string | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const flash = useCallback((message: string) => {
     setToast(message)
@@ -75,19 +77,20 @@ export default function MyAuthorScreen() {
     <>
       <ScrollView contentContainerStyle={{ paddingBottom: bottom + 32 }} showsVerticalScrollIndicator={false}>
         {api.demo ? <DemoNote theme={theme} /> : null}
-        <Overview profile={mine} flash={flash} onChange={setMine} />
+        <Overview profile={mine} flash={flash} onChange={setMine} onShare={() => setShareOpen(true)} />
         <AddButtons />
         <ClaimsCard />
         <StatsSection />
         <RecordingsSection profile={mine} flash={flash} />
         <Manage profile={mine} flash={flash} onChange={setMine} />
       </ScrollView>
+      <AuthorShareSheet open={shareOpen} theme={theme} page={shareOpen ? mine : null} flash={flash} onClose={() => setShareOpen(false)} />
       <Toast message={toast} theme={theme} />
     </>,
   )
 }
 
-function Overview({ profile, flash, onChange }: { profile: AuthorProfileOwner; flash: (m: string) => void; onChange: (p: AuthorProfileOwner) => void }) {
+function Overview({ profile, flash, onChange, onShare }: { profile: AuthorProfileOwner; flash: (m: string) => void; onChange: (p: AuthorProfileOwner) => void; onShare: () => void }) {
   const t = useT()
   const theme = useSongsTheme()
   const router = useRouter()
@@ -105,12 +108,7 @@ function Overview({ profile, flash, onChange }: { profile: AuthorProfileOwner; f
       setBusy(false)
     }
   }
-  const copy = async () => flash((await copyAuthorLink(profile.slug)) ? t("authors.share.copied") : t("authors.error.generic"))
-  const share = async () => {
-    const outcome = await shareAuthor({ slug: profile.slug, name: profile.display_name }, t("authors.share.intro", { name: profile.display_name }))
-    if (outcome === "copied") flash(t("authors.share.copied"))
-    if (outcome === "failed") flash(t("authors.error.generic"))
-  }
+  const copy = async () => flash((await copyAuthorLink(profile)) ? t("authors.share.copied") : t("authors.error.generic"))
 
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}>
@@ -141,7 +139,7 @@ function Overview({ profile, flash, onChange }: { profile: AuthorProfileOwner; f
           <View style={styles.headerStack}>
             <PillButton theme={theme} label={t("authors.mine.view")} onPress={() => router.push(href(authorHref(profile.slug)))} />
             <View style={styles.row}>
-              <PillButton theme={theme} flex tone="line" label={t("common.share")} onPress={() => void share()} />
+              <PillButton theme={theme} flex tone="line" label={t("common.share")} onPress={onShare} />
               <PillButton theme={theme} flex tone="line" label={t("authors.mine.copy")} onPress={() => void copy()} />
             </View>
           </View>

@@ -110,7 +110,10 @@ async function lookup(cfg: RemoteConfig, slug: string): Promise<AuthorLookup> {
   if (!response.ok) throw await readError(response)
   const profile = (await response.json()) as AuthorProfilePublic
   // the browser/RN fetch follows a redirect by itself: the page that comes back has the new address
-  return profile.slug.toLowerCase() !== slug.toLowerCase() ? { kind: "moved", slug: profile.slug } : { kind: "profile", profile }
+  // the page may be opened by its id (a shared link without the page link): that is the page, not a moved address
+  const asked = slug.toLowerCase()
+  const same = profile.slug.toLowerCase() === asked || profile.id?.toLowerCase() === asked
+  return same ? { kind: "profile", profile } : { kind: "moved", slug: profile.slug }
 }
 
 export function createAuthorsApi(cfg: RemoteConfig): AuthorsApi {

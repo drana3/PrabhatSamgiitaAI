@@ -59,6 +59,8 @@ export type AuthorCardData = {
 export type AuthorList = { items: AuthorCardData[]; total: number; limit: number; offset: number; has_more: boolean }
 
 export type AuthorProfilePublic = {
+  /** The page's id: a share link can carry it while the page link (the slug) is not offered. Absent from a server older than that. */
+  id?: string
   slug: string
   display_name: string
   author_type: AuthorType

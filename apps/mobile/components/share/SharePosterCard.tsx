@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
@@ -113,14 +113,22 @@ export function SharePosterCard({ subject, format, scale = 1, onSettled }: Props
     </View>
   )
 
-  if (scale === 1) return content
-  // a smaller preview: the same 1080 px card, shrunk about its centre inside a box of the smaller size
+  return (
+    <Scaled width={width} height={height} scale={scale} label={title}>
+      {content}
+    </Scaled>
+  )
+}
+
+/** A smaller preview of a card: the same 1080 px card, shrunk about its centre inside a box of the smaller size. */
+export function Scaled({ width, height, scale, label, children }: { width: number; height: number; scale: number; label: string; children: ReactNode }) {
+  if (scale === 1) return <>{children}</>
   const shiftX = -(width * (1 - scale)) / 2
   const shiftY = -(height * (1 - scale)) / 2
   return (
-    <View style={{ width: width * scale, height: height * scale, overflow: "hidden" }} accessibilityLabel={`Share card: ${title}`} accessible>
+    <View style={{ width: width * scale, height: height * scale, overflow: "hidden" }} accessibilityLabel={`Share card: ${label}`} accessible>
       <View style={{ position: "absolute", left: 0, top: 0, width, height, transform: [{ translateX: shiftX }, { translateY: shiftY }, { scale }] }} pointerEvents="none">
-        {content}
+        {children}
       </View>
     </View>
   )

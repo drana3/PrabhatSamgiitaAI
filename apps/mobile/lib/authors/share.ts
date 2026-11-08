@@ -1,7 +1,7 @@
 import { setStringAsync } from "expo-clipboard"
 import { Platform, Share } from "react-native"
 
-import { authorShareUrl } from "@/lib/authors/constants"
+import { authorShareKey, authorShareUrl } from "@/lib/authors/constants"
 
 /**
  * Share an author page: the system share sheet on a phone, the clipboard where there is none (the web preview).
@@ -9,8 +9,8 @@ import { authorShareUrl } from "@/lib/authors/constants"
  */
 export type ShareOutcome = "shared" | "copied" | "failed"
 
-export async function shareAuthor(author: { slug: string; name: string }, intro: string): Promise<ShareOutcome> {
-  const url = authorShareUrl(author.slug)
+export async function shareAuthor(author: { id?: string | null; slug: string; name: string }, intro: string): Promise<ShareOutcome> {
+  const url = authorShareUrl(authorShareKey(author))
   try {
     if (Platform.OS !== "web") {
       const result = await Share.share({ message: `${intro} ${url}`.trim(), url })
@@ -28,9 +28,9 @@ export async function shareAuthor(author: { slug: string; name: string }, intro:
   }
 }
 
-export async function copyAuthorLink(slug: string): Promise<boolean> {
+export async function copyAuthorLink(author: { id?: string | null; slug: string }): Promise<boolean> {
   try {
-    await setStringAsync(authorShareUrl(slug))
+    await setStringAsync(authorShareUrl(authorShareKey(author)))
     return true
   } catch {
     return false

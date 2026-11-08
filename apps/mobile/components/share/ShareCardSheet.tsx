@@ -4,13 +4,14 @@ import Animated, { cancelAnimation, runOnJS, useAnimatedStyle, useReducedMotion,
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AccountButton, topInset } from "@/components/account/AccountUi"
+import { AuthorPosterCard } from "@/components/share/AuthorPosterCard"
 import { SharePosterCard } from "@/components/share/SharePosterCard"
 import { Press } from "@/components/songs-v2/Press"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { copyText } from "@/lib/playerV2/playerActionsIO"
-import { CARD_FORMATS, cardActions, cardFileName, cardSize, type CardAction, type CardFormat, type CardSubject } from "@/lib/share/card"
+import { cardActions, cardFormatsFor, cardFileName, cardSize, type CardAction, type CardFormat, type CardSubject } from "@/lib/share/card"
 import { useShareCardT, type ShareCardKey } from "@/lib/share/cardCopy"
 import { canShareFileOnWeb, captureCard, saveCardImage, shareCardImage, type CardImage } from "@/lib/share/cardIO"
 
@@ -23,14 +24,19 @@ const REDUCED_MS = 150
 const SIDE = 24
 
 const ACTION_LABEL: Record<CardAction, ShareCardKey> = { share: "shareCard.share", save: "shareCard.save", copy: "shareCard.copy" }
-const FORMAT_LABEL: Record<CardFormat, ShareCardKey> = { portrait: "shareCard.portrait", square: "shareCard.square" }
+const FORMAT_LABEL: Record<CardFormat, ShareCardKey> = { portrait: "shareCard.portrait", square: "shareCard.square", story: "shareCard.story" }
 
 /**
- * Full-screen "Share card" step: the card as it will leave the app, in two shapes (1080 x 1350 and 1080 x 1080).
+ * Full-screen "Share card" step: the card as it will leave the app, in two shapes (1080 x 1350 and 1080 x 1080; an author page also in a third, 1080 x 1920 for Stories).
  * The picture is drawn once at full size out of sight, captured to a PNG, and sent: native shares the file through
  * the system sheet; the web saves it as a download (or shares it where the browser can) and copies the link.
  * Rises on a spring and leaves by the same path. Esc and the Android back button close it.
  */
+/** The card of a subject: an author page has its own picture, a song and a Kiirtan share one. */
+function Poster({ subject, format, scale, onSettled }: { subject: CardSubject; format: CardFormat; scale?: number; onSettled?: () => void }) {
+  return subject.kind === "author" ? <AuthorPosterCard subject={subject} format={format} scale={scale} onSettled={onSettled} /> : <SharePosterCard subject={subject} format={format} scale={scale} onSettled={onSettled} />
+}
+
 export function ShareCardSheet({ subject, link, message, onClose }: { subject: CardSubject; link: string; message: string; onClose: () => void }) {
   const t = useShareCardT()
   const theme = useSongsTheme()
@@ -164,7 +170,7 @@ export function ShareCardSheet({ subject, link, message, onClose }: { subject: C
         accessibilityElementsHidden
         style={[styles.hidden, { width: cardW, height: cardH }]}
       >
-        <SharePosterCard subject={subject} format={format} onSettled={() => setSettled(true)} />
+        <Poster subject={subject} format={format} onSettled={() => setSettled(true)} />
       </View>
 
       <View style={[styles.top, { paddingTop: topInset(insets.top) + 8 }]}>
@@ -178,12 +184,12 @@ export function ShareCardSheet({ subject, link, message, onClose }: { subject: C
       </View>
 
       <View style={styles.stage} onLayout={onStageLayout}>
-        {fit > 0 ? <SharePosterCard subject={subject} format={format} scale={fit} /> : null}
+        {fit > 0 ? <Poster subject={subject} format={format} scale={fit} /> : null}
       </View>
 
       <View style={styles.controls}>
         <View style={styles.formats} accessibilityRole="radiogroup" accessibilityLabel={t("shareCard.shape")}>
-          {CARD_FORMATS.map((f) => {
+          {cardFormatsFor(subject).map((f) => {
             const on = f.id === format
             return (
               <Press
@@ -231,7 +237,7 @@ const styles = StyleSheet.create({
   stage: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: STAGE },
   controls: { gap: 12, paddingTop: 12, paddingHorizontal: 16, backgroundColor: STAGE },
   formats: { flexDirection: "row", justifyContent: "center", gap: 8 },
-  formatPill: { minHeight: 44, minWidth: 120, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  formatPill: { minHeight: 44, minWidth: 96, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 },
   formatOn: { backgroundColor: "rgba(255, 255, 255, 0.2)", borderColor: WHITE },
   formatOff: { backgroundColor: "transparent", borderColor: EDGE },
   formatText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },

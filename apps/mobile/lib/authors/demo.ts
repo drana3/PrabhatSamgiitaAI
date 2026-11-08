@@ -173,7 +173,7 @@ export function createDemoApi(): DemoAuthorsApi {
   const authors = sampleAuthors().map((a) => {
     const rows = recordingsOfText(a.authorText)
     const kinds = [...new Set(rows.map((r) => r.kind))].map((kind) => ({ kind, count: rows.filter((r) => r.kind === kind).length }))
-    return { ...a, profile: { ...a.profile, recordings_count: rows.length, kinds } }
+    return { ...a, profile: { ...a.profile, id: a.profile.id ?? `demo-author-${a.profile.slug}`, recordings_count: rows.length, kinds } }
   })
   let mine: AuthorProfileOwner | null = null
   let shown = new Map<string, boolean>()
@@ -186,6 +186,7 @@ export function createDemoApi(): DemoAuthorsApi {
   const lookups = new Map<string, { moved: string } | "gone">()
 
   const publicOf = (o: AuthorProfileOwner): AuthorProfilePublic => ({
+    id: o.id,
     slug: o.slug,
     display_name: o.display_name,
     author_type: o.author_type,
@@ -236,7 +237,8 @@ export function createDemoApi(): DemoAuthorsApi {
     share_path: `/author/${input.slug}`,
   })
 
-  const find = (slug: string) => authors.find((a) => a.profile.slug === slug)
+  // a page answers to its address and to its id (the shared link may carry either)
+  const find = (key: string) => authors.find((a) => a.profile.slug === key || a.profile.id === key)
 
   const base: AuthorsApi = {
     demo: true,
@@ -307,7 +309,7 @@ export function createDemoApi(): DemoAuthorsApi {
       const moved = lookups.get(slug)
       if (moved === "gone") return { kind: "gone" }
       if (moved) return { kind: "moved", slug: moved.moved }
-      if (mine && mine.slug === slug && mine.status === "published") return { kind: "profile", profile: publicOf(mine) }
+      if (mine && (mine.slug === slug || mine.id === slug) && mine.status === "published") return { kind: "profile", profile: publicOf(mine) }
       const found = find(slug)
       return found ? { kind: "profile", profile: found.profile } : { kind: "missing" }
     },

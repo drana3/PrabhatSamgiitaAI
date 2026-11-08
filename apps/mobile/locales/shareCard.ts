@@ -10,6 +10,7 @@ export const shareCardEn = {
   "shareCard.shape": "Card shape",
   "shareCard.portrait": "Portrait",
   "shareCard.square": "Square",
+  "shareCard.story": "Story",
   "shareCard.share": "Share image",
   "shareCard.save": "Save image",
   "shareCard.copy": "Copy link",
@@ -21,6 +22,8 @@ export const shareCardEn = {
   "shareCard.copied": "Link copied",
   "shareCard.copyFailed": "Could not copy the link",
   "shareCard.unsupported": "This browser cannot share a picture. Use Save image.",
+  "authorShare.link": "Share link",
+  "authorShare.note": "Send the link to this page, or make a picture card of it.",
 }
 
 export const shareCardRu: Record<keyof typeof shareCardEn, string> = {
@@ -30,6 +33,7 @@ export const shareCardRu: Record<keyof typeof shareCardEn, string> = {
   "shareCard.shape": "Форма открытки",
   "shareCard.portrait": "Вертикальная",
   "shareCard.square": "Квадрат",
+  "shareCard.story": "История",
   "shareCard.share": "Поделиться картинкой",
   "shareCard.save": "Сохранить картинку",
   "shareCard.copy": "Скопировать ссылку",
@@ -41,6 +45,8 @@ export const shareCardRu: Record<keyof typeof shareCardEn, string> = {
   "shareCard.copied": "Ссылка скопирована",
   "shareCard.copyFailed": "Не удалось скопировать ссылку",
   "shareCard.unsupported": "Этот браузер не умеет делиться картинкой. Нажмите «Сохранить картинку».",
+  "authorShare.link": "Поделиться ссылкой",
+  "authorShare.note": "Отправьте ссылку на эту страницу или сделайте из неё открытку-картинку.",
 }
 
 export const shareCardEs: Record<keyof typeof shareCardEn, string> = {
@@ -50,6 +56,7 @@ export const shareCardEs: Record<keyof typeof shareCardEn, string> = {
   "shareCard.shape": "Formato de la tarjeta",
   "shareCard.portrait": "Vertical",
   "shareCard.square": "Cuadrado",
+  "shareCard.story": "Historia",
   "shareCard.share": "Compartir imagen",
   "shareCard.save": "Guardar imagen",
   "shareCard.copy": "Copiar enlace",
@@ -61,4 +68,6 @@ export const shareCardEs: Record<keyof typeof shareCardEn, string> = {
   "shareCard.copied": "Enlace copiado",
   "shareCard.copyFailed": "No se pudo copiar el enlace",
   "shareCard.unsupported": "Este navegador no puede compartir una imagen. Usa Guardar imagen.",
+  "authorShare.link": "Compartir enlace",
+  "authorShare.note": "Envía el enlace de esta página o crea una tarjeta con imagen.",
 }

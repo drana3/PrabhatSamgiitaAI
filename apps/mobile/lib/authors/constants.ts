@@ -36,6 +36,15 @@ export function authorShareUrl(slug: string, origin: string = AUTHOR_SHARE_ORIGI
   return `${origin.replace(/\/+$/, "")}${authorHref(slug)}`
 }
 
+/**
+ * What a shared link carries after `/author/`: the page id while the page link is hidden (`SHOW_PAGE_LINK` false), the
+ * address (slug) once it is offered. The API and the website open a page by either; an id also survives a change of
+ * address. A server too old to send the id leaves the address.
+ */
+export function authorShareKey(page: { slug: string; id?: string | null }, showLink: boolean = SHOW_PAGE_LINK): string {
+  return showLink ? page.slug : page.id || page.slug
+}
+
 export const AUTHOR_SHARE_ORIGIN = (process.env.EXPO_PUBLIC_WEB_BASE_URL ?? "https://www.prabhatasamgiita.org").trim() || "https://www.prabhatasamgiita.org"
 
 // ---- limits the server also enforces (apps/api/app/services/author_rules.py); the form shows them early
