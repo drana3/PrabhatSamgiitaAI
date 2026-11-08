@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { useKirtans } from "@/hooks/useKirtans"
+import { usePianoRecordingIds } from "@/hooks/usePianoRecordingIds"
 import { demoCatalog, demoHistory, parseStage, stageHasBaba, type MenuStage } from "@/lib/fixtures/searchMenuDemo"
 import { remoteConfig } from "@/lib/kirtan/api"
 import { authorsApi } from "@/lib/authors/api"
 import type { HistoryEntry } from "@/lib/listening/history"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { withPianoFlag } from "@/lib/pianoNotes/flag"
 import { realCollectionEntries } from "@/lib/searchBrowse"
 import { buildLiveMenu, type DirectoryAuthor, type MenuKirtan } from "@/lib/searchMenu/live"
 import { fetchMenuPins } from "@/lib/searchMenu/remote"
@@ -35,7 +37,9 @@ export type SearchMenu = {
  * "grown"); the stage never writes the remembered menu. Counted once per open and whenever the data changes.
  */
 export function useSearchMenu(stageParam?: string): SearchMenu {
-  const { playable } = useKirtans()
+  const { playable: heard } = useKirtans()
+  const pianoIds = usePianoRecordingIds()
+  const playable = useMemo(() => withPianoFlag(heard, pianoIds), [heard, pianoIds])
   const history = useListeningHistoryStore((s) => s.entries)
   const storedPins = useSearchMenuStore((s) => s.pins)
   const [directory, setDirectory] = useState<readonly DirectoryAuthor[]>([])

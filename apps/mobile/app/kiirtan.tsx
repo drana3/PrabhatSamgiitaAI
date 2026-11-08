@@ -28,6 +28,7 @@ import { useDownloadedKirtans } from "@/hooks/useDownloadedKirtans"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
+import { usePianoRecordingIds } from "@/hooks/usePianoRecordingIds"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -36,6 +37,8 @@ import { artistsWithKirtans, kirtansOfArtist } from "@/lib/kirtan/artists"
 import { filterByKind, kindDayA11y, kindDayLabel, kindHeading, kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
 import { LENGTH_BUCKETS, longKirtans, type LengthBucketId } from "@/lib/kirtan/length"
 import { formatKirtanLength } from "@/lib/kirtan/list"
+import { withPianoFlag } from "@/lib/pianoNotes/flag"
+import { isPianoKirtan, menuKind } from "@/lib/searchMenu/live"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { dayNumberOf, kiirtanOfTheDay, resumeEntries, resumeLabel, resumeProgress } from "@/lib/kirtan/resume"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
@@ -114,6 +117,9 @@ export default function KiirtanTabScreen() {
   const day = useMemo(() => kiirtanOfTheDay(filterByKind(playable, kind === "all" ? "kiirtan" : kind), dayN), [playable, kind, dayN])
   const bhajanDay = useMemo(() => (kind === "all" ? kiirtanOfTheDay(filterByKind(playable, "bhajan"), dayN) : null), [playable, kind, dayN])
   const hourly = useMemo(() => bhajansForEveryHour(playable), [playable])
+  // "Kiirtan for piano": accepted piano notes, or a piano lead instrument (same filter as the Search shelf, so the counts agree)
+  const pianoIds = usePianoRecordingIds()
+  const pianoList = useMemo(() => (showKiirtan ? withPianoFlag(allPlayable, pianoIds).filter((k) => menuKind(k) === "kiirtan" && isPianoKirtan(k)).sort((a, b) => b.addedAt - a.addedAt) : []), [allPlayable, pianoIds, showKiirtan])
   const jump = useMemo(() => resumeEntries(sampleResume(), byId, 2).filter((e) => kind === "all" || e.kirtan.kind === kind), [byId, kind])
   const cards = useMemo(() => typeCards(playable, kind), [playable, kind, t])
   const artists = useMemo(() => artistsWithKirtans(sampleArtists(), kindList), [kindList])
@@ -327,6 +333,23 @@ export default function KiirtanTabScreen() {
       <Reveal index={next()} style={styles.section}>
         <AuthorsShelf p={p} kind={kind === "all" || kind === "baba_audio" ? undefined : kind} />
       </Reveal>
+
+      {pianoList.length ? (
+        <Reveal index={next()} style={styles.section}>
+          <HomeSectionHead
+            p={p}
+            eyebrow={t("kt.piano.eyebrow")}
+            first={kindLabelPlural("kiirtan")}
+            second={t("kt.piano.second")}
+            action={{ label: t("kt.piano.all"), onPress: () => router.push(href(`/browse-shelf?id=${encodeURIComponent("kiirtan:piano")}`)) }}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
+            {pianoList.slice(0, 12).map((k) => (
+              <LongCard key={k.id} kirtan={k} onPress={() => play(k, pianoList, t("searchMenu.kiirtan.piano"))} />
+            ))}
+          </ScrollView>
+        </Reveal>
+      ) : null}
 
       {kind === "all" && bhajanDay ? (
         <Reveal index={next()}>

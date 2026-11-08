@@ -13,6 +13,8 @@ export const MENU_RULES = {
   /** Baba's own voice is rare and wanted: one recording is enough, and the shelf is never the one dropped by the cap */
   baba: { on: 1, off: 1 },
   kiirtanStyle: { on: 3, off: 2 },
+  /** "Kiirtan for piano": recordings with accepted piano notes or a piano lead. Rare and wanted, like Baba: one is enough. */
+  kiirtanPiano: { on: 1, off: 1 },
 
   newMonth: { on: 3, off: 2, show: 12 },
   /** "Most played" needs real counts: this many recordings with plays and this many plays in all */
@@ -65,6 +67,7 @@ export const MENU_TITLE_KEYS = [
   "searchMenu.mostPlayed.lifetime",
   "searchMenu.ps.recordings",
   "searchMenu.kiirtan.sets",
+  "searchMenu.kiirtan.piano",
   "searchMenu.baba.title",
   "searchMenu.block.baba",
   "searchMenu.kiirtan.styleOther",

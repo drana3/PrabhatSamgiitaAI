@@ -73,6 +73,8 @@ export type MenuStats = {
   facets?: Record<string, Record<string, number>>
   /** Baba's Audio Discourses (kind baba_audio): his own voice; absent = none */
   babaAudio?: number
+  /** Kiirtans with accepted piano notes or a piano lead instrument (shelf "Kiirtan for piano"); absent = none */
+  kiirtanPiano?: number
   /** event sets with at least two published tracks */
   kiirtanSets: number
   /** Bhajans per language code; recordings without a language are not counted here */
@@ -139,4 +141,6 @@ export type MenuRecording = {
   plays?: number | null
   /** event set the track belongs to */
   collectionId?: string | null
+  /** accepted piano notes exist for it, or its lead instrument is the piano */
+  piano?: boolean
 }

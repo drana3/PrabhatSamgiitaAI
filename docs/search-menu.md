@@ -19,6 +19,7 @@ shelf with nothing in it, and never see a number the app did not count.
 | 0b | Baba's voice | One shelf, "Baba's Audio Discourses" (kind `baba_audio`); also on Today with "See all" | `recordings.kind = baba_audio` |
 | 1 | Prabhat Samgiita | The real collections (moods, festivals, themes, occasions, seasons, languages) and, when there are enough, performances of PS songs | `lib/searchBrowse.ts` (collections), recordings of `kind = prabhat_samgiita` |
 | 2 | Kiirtan | Categories by **type** (Baba Nam Kevalam, Lila, Festival, Other), "Events and retreats" (sets uploaded together), and "Indian Kiirtan by style" (Bengali, Hindi, Brajabuli, Dhrupad-flavoured, Folk, Other) | `recordings.type`, `recordings.collection_id`, `recordings.style` |
+| 2b | Kiirtan for piano | One shelf, "Kiirtan for piano": recordings with accepted piano notes or whose lead instrument is the piano. No pinning, no empty state. Also a row on the Kiirtan tab | `GET /piano-notes/recordings` (ids with live notes), `recordings.lead_instrument = piano` |
 | 3 | Kiirtans by authors | One shelf per author, named by the author | `recordings.author` (text) |
 | 4 | Spiritual songs | One shelf | `recordings.kind = spiritual_song` (API has it; the phone's kind list does not yet) |
 | 5 | Bhajans by language | One shelf per language that has Bhajans, then a "More languages" shelf, then types (morning, evening, devotional) | `recordings.language` (ISO code), `recordings.type` |
@@ -64,6 +65,7 @@ All numbers live in `lib/searchMenu/config.ts` (`MENU_RULES`). **Thresholds belo
 | Bhajan type | 3+ | under 2 | all |
 | Theme (mood) | 3+ recordings that carry the mood (section 10) | under 2 | all |
 | Baba's Audio Discourses | 1+ recording | under 1 (empty) | all, newest first |
+| Kiirtan for piano | 1+ Kiirtan with accepted piano notes or a piano lead instrument (`MENU_RULES.kiirtanPiano`) | under 1 (empty) | all, newest first |
 | Kiirtan style | 3+ Kiirtans of that style | under 2 | all, newest first |
 | Style typed under "Other" | 3+ Kiirtans carry the same typed name (spelling variants count together); fewer stay inside "Other styles" | under 2, after the hold | all, newest first |
 | Dance (Dance music) | 3+ recordings of that dance | under 2 | all, newest first |
@@ -258,6 +260,14 @@ the picker `components/kirtan/add/StyleField.tsx`. **Not done:** placing the pic
 Kind id `baba_audio` (owned by the upload work; the menu only reads the id). One shelf as soon as one recording exists, never
 dropped by the 14-cap. On Today a shelf "Baba's voice" with "See all"; in Search a block of its own at the top of the menu.
 
+### 9.3b Kiirtan for piano
+
+One shelf, `kiirtan:piano`, in the Kiirtan block. A Kiirtan is on it when members' piano notes for it are published
+(`GET /piano-notes/recordings`, read at most every two minutes) or when its lead instrument is the piano (the upload form's
+field; read defensively, so the shelf works before the field exists). Only Kiirtans count. One recording is enough
+(`{ on: 1, off: 1 }`), so a new shelf appears at the first piano Kiirtan and goes when none is left. The Kiirtan tab shows the
+same recordings as a row with "See all". Design of the notes: docs/piano-notation.md.
+
 ### 9.4 Moods
 
 Six have words: Joyful, Longing, Calm, Ecstatic, Devotion, Sad (ru: Радостное, Тоска, Спокойное, Экстатическое, Преданность, Грустное;
@@ -283,7 +293,7 @@ rules locally (`lib/listening/stats.ts`). Reachable from Today ("Listening histo
 ### 9.7 Thresholds (unchanged, written down)
 
 Appear at 3, leave under 2, plus a 7-day hold so a shelf does not blink. A popular author needs 3+ recordings and 5+ distinct
-listeners in 30 days. At most 14 shelves (compact groups excepted, section 2.3). Baba's voice: 1 / 1 (one knob, `MENU_RULES.baba`). Style: 3 / 2.
+listeners in 30 days. At most 14 shelves (compact groups excepted, section 2.3). Baba's voice: 1 / 1 (one knob, `MENU_RULES.baba`). Kiirtan for piano: 1 / 1 (`MENU_RULES.kiirtanPiano`). Style: 3 / 2.
 Mood: 3 / 2 (round 4, was 5 / 3). Every discovered facet value: 3 / 2.
 
 ## 10. Categories appear on their own (round 4)

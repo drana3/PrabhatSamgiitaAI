@@ -146,6 +146,11 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
     id: "kiirtan:style:other", block: "kiirtan", label: { type: "kiirtanStyle", id: "other" },
     count: styles.rest, threshold: R.kiirtanStyle, reason: "threshold", score: -2,
   })
+  // one shelf for the piano: recordings with accepted piano notes, or whose lead instrument is the piano (it needs no pinning)
+  all.push({
+    id: "kiirtan:piano", block: "kiirtan", label: { type: "key", key: "searchMenu.kiirtan.piano" },
+    count: stats.kiirtanPiano ?? 0, threshold: R.kiirtanPiano, reason: "threshold", score: 5,
+  })
   all.push({
     id: "kiirtan:sets", block: "kiirtan", label: { type: "key", key: "searchMenu.kiirtan.sets" },
     count: stats.kiirtanSets, threshold: R.kiirtanSets, reason: "threshold", score: 0,

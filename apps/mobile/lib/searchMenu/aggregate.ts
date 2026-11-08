@@ -32,6 +32,7 @@ export function aggregateRecordings(
 ): MenuStats {
   const kiirtanTypes: Record<string, number> = {}
   let babaAudio = 0
+  let kiirtanPiano = 0
   const bhajanTypes: Record<string, number> = {}
   const bhajanLanguages: Record<string, number> = {}
   const sets = new Map<string, number>()
@@ -56,6 +57,7 @@ export function aggregateRecordings(
     if (kind === "baba_audio") babaAudio++
     if (kind === "kiirtan") {
       bump(kiirtanTypes, r.type || "other")
+      if (r.piano) kiirtanPiano++
       if (r.collectionId) sets.set(r.collectionId, (sets.get(r.collectionId) ?? 0) + 1)
       for (const name of splitAuthors(r.author)) {
         const key = artistKey(name)
@@ -78,6 +80,7 @@ export function aggregateRecordings(
     kiirtanStyles: found.styles,
     facets: found.facets,
     babaAudio,
+    kiirtanPiano,
     kiirtanSets: [...sets.values()].filter((n) => n >= 2).length,
     bhajanLanguages,
     bhajanTypes,
