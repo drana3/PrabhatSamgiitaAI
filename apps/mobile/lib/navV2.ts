@@ -2,7 +2,7 @@ import { t } from "@/lib/i18n"
 import { amColors, amDark, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
 import { projectMomentum } from "@/constants/tokens/amMotion"
 import { amNav } from "@/constants/tokens/amNav"
-import { HIDDEN_MINI_PREFIXES, miniModeForPath } from "@/lib/playerPolicy"
+import { HIDDEN_MINI_PREFIXES, miniModeForPath, policyForPath } from "@/lib/playerPolicy"
 
 /**
  * Navigation shell v2 (spec 2.1 four tabs, SCR-07, SCR-12).
@@ -135,10 +135,10 @@ export function miniPlayerVisible(input: { pathname: string; hasSong: boolean })
  */
 export const NAV_V2_TAB_BAR_OVERLAY_PATHS: readonly string[] = ["/search-v2"]
 
-/** Is the floating tab bar on screen? The four tab screens of the v2 shell carry it, and the overlay screens. */
+/** Is the floating tab bar on screen? The four tab screens of the v2 shell carry it, the overlay screens, and the browse pages the policy table marks (lib/playerPolicy.ts). */
 export function tabBarVisible(pathname: string, tabs: readonly NavV2Tab[] = NAV_V2_TABS): boolean {
   const path = normalisePath(pathname)
-  return tabs.some((tab) => path === tab.href) || NAV_V2_TAB_BAR_OVERLAY_PATHS.includes(path)
+  return tabs.some((tab) => path === tab.href) || NAV_V2_TAB_BAR_OVERLAY_PATHS.includes(path) || policyForPath(path).tabBar
 }
 
 /**
@@ -155,6 +155,62 @@ export function tabIdForRouteName<F extends NavV2TabId | null = "songs">(
   const byScreen = tabs.find((tab) => tab.screen === bare)
   if (byScreen) return byScreen.id
   return tabIdForPath(`/${bare}`, tabs) ?? fallback
+}
+
+/** The part of a navigation state this file reads (no React Navigation import: it stays pure and testable). */
+export type NavRouteLike = {
+  name?: string
+  params?: object
+  state?: { index?: number; routes?: readonly NavRouteLike[] }
+}
+
+/**
+ * Every route of a navigation state, outer navigator first, following the focused child down: the root stack's
+ * routes (the shell "v2", the pushed pages) come before the routes of the navigator inside the focused one. The
+ * state comes from `navigationRef.getRootState()`, which holds the nested states in full.
+ */
+export function flattenRoutes(state: { index?: number; routes?: readonly NavRouteLike[] } | null | undefined): NavRouteLike[] {
+  const out: NavRouteLike[] = []
+  let level: { index?: number; routes?: readonly NavRouteLike[] } | undefined | null = state
+  while (level?.routes?.length) {
+    out.push(...level.routes)
+    const focused: NavRouteLike | undefined = level.routes[level.index ?? level.routes.length - 1]
+    level = focused?.state
+  }
+  return out
+}
+
+/**
+ * The tab a pushed page belongs to: the tab that was showing when the person left the shell. The root stack holds the
+ * shell route "v2" (its own state names the active tab) and the pushed pages above it; the newest shell below is what
+ * the person sees when they go back. `null` when there is none (opened by a link): no tab is marked.
+ */
+export function originTabId(routes: readonly NavRouteLike[] | undefined, tabs: readonly NavV2Tab[] = NAV_V2_TABS): NavV2TabId | null {
+  if (!routes) return null
+  for (let i = routes.length - 1; i >= 0; i -= 1) {
+    const route = routes[i]
+    if (route?.name !== "v2") continue
+    const nested = route.state
+    const inner = nested?.routes?.[nested.index ?? 0]?.name
+    return tabIdForRouteName(inner, null, tabs)
+  }
+  return null
+}
+
+/**
+ * Is the NEAREST song page below the asking screen the page of this song? The full player's "Song page" button then
+ * goes back to it (router.dismissTo) instead of stacking a second copy. Only the nearest one counts: going back to a
+ * song page that has another song page above it would drop that one from the history.
+ */
+export function songPageInStack(routes: readonly NavRouteLike[] | undefined, songId: string): boolean {
+  if (!routes) return false
+  const want = songId.trim().toLowerCase()
+  for (let i = routes.length - 1; i >= 0; i -= 1) {
+    const route = routes[i]
+    if (route?.name !== "song-v2/[songId]") continue
+    return String((route.params as Record<string, unknown> | undefined)?.songId ?? "").trim().toLowerCase() === want
+  }
+  return false
 }
 
 /** The tab pill is one light pill on every tab. */

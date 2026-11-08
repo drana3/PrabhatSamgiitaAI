@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Alert, StyleSheet, Text, View, useWindowDimensions } from "react-native"
-import { useRouter } from "expo-router"
+import { useNavigationContainerRef, useRouter } from "expo-router"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
@@ -78,7 +78,7 @@ import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/kind"
 import { isKiirtanNumber, isKiirtanSong, recordingKindOfSong } from "@/lib/kirtan/track"
-import { rubberBand } from "@/lib/navV2"
+import { flattenRoutes, rubberBand, songPageInStack } from "@/lib/navV2"
 import { formatClock } from "@/lib/playerV2/transportState"
 import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
 import { mockupSong } from "@/lib/fixtures/songMockup"
@@ -160,6 +160,7 @@ const PLAYER_PHOTO = require("../assets/player-baba.jpg")
  */
 export default function PlayerV2Screen() {
   const router = useRouter()
+  const navigation = useNavigationContainerRef()
   const theme = useAmTheme()
   const spTheme = useSpTheme()
   const insets = useSafeAreaInsets()
@@ -636,7 +637,10 @@ export default function PlayerV2Screen() {
   const openSongPage = () => {
     if (!song) return
     setSheet(null)
-    router.push(href(`/song-v2/ps-${song.number}`))
+    const path = href(`/song-v2/ps-${song.number}`)
+    // the page of this song is already under the player: go back to it, not a second copy on top
+    if (navigation.isReady() && songPageInStack(flattenRoutes(navigation.getRootState()), `ps-${song.number}`)) router.dismissTo(path)
+    else router.push(path)
   }
   const onAction = (id: ActionId) => {
     if (!song) return

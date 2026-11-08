@@ -134,11 +134,14 @@ describe("nav v2: home route", () => {
 })
 
 describe("nav v2: tab bar and pill position", () => {
-  it("the tab bar is on the four tab screens only", () => {
+  it("the tab bar is on the four tab screens and on the browse pages of the policy table, not on forms or full-screen tasks", () => {
     expect(tabBarVisible("/v2/today")).toBe(true)
     expect(tabBarVisible("/v2/kiirtan")).toBe(true)
-    expect(tabBarVisible("/song/42")).toBe(false)
-    expect(tabBarVisible("/kirtan-artist")).toBe(false)
+    expect(tabBarVisible("/song/42")).toBe(true)
+    expect(tabBarVisible("/kirtan-artist")).toBe(true)
+    expect(tabBarVisible("/quiz")).toBe(false)
+    expect(tabBarVisible("/upload")).toBe(false)
+    expect(tabBarVisible("/player-v2")).toBe(false)
   })
 
   it("search draws the bar itself, so the pill sits above it there", () => {

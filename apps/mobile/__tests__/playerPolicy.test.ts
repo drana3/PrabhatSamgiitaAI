@@ -4,8 +4,8 @@ import { join, relative } from "node:path"
 import { describe, expect, it } from "vitest"
 
 import { amNav } from "@/constants/tokens/amNav"
-import { NAV_V2_MINI_HIDDEN_PREFIXES, NAV_V2_TABS, SCROLL_AIR, contentInsetFor, miniBottomFor, miniPlayerVisible, navV2Layout, scrollBottomInset, tabBarVisible } from "@/lib/navV2"
-import { DEFAULT_ROW, HIDDEN_MINI_PREFIXES, PLAYER_POLICY, miniModeForPath, policyForPath } from "@/lib/playerPolicy"
+import { NAV_V2_MINI_HIDDEN_PREFIXES, NAV_V2_TABS, SCROLL_AIR, flattenRoutes, originTabId, songPageInStack, contentInsetFor, miniBottomFor, miniPlayerVisible, navV2Layout, scrollBottomInset, tabBarVisible } from "@/lib/navV2"
+import { DEFAULT_ROW, HIDDEN_MINI_PREFIXES, PLAYER_POLICY, carriesDeepTabBar, miniModeForPath, policyForPath } from "@/lib/playerPolicy"
 
 const SAFE = 34
 
@@ -36,7 +36,7 @@ describe("player policy table", () => {
   })
 
   it("matches by segment, so /kiirtan is a browsing page and /kiirtan-live is hidden", () => {
-    expect(miniModeForPath("/kiirtan")).toBe("above-bottom")
+    expect(miniModeForPath("/kiirtan")).toBe("above-tab-bar")
     expect(miniModeForPath("/kiirtan-live")).toBe("hidden")
     expect(miniModeForPath("/upload")).toBe("hidden")
     expect(miniModeForPath("/upload-chords")).toBe("hidden")
@@ -87,8 +87,68 @@ describe("the code follows the table", () => {
   })
 
   it("adds no room on a phone without a home indicator beyond the minimum gap, and keeps the pill room", () => {
-    expect(scrollBottomInset({ safeBottom: 0, pathname: "/library-v2", hasSong: true })).toBe(amNav.tabBottom + amNav.miniHeight + amNav.gap + SCROLL_AIR)
+    expect(scrollBottomInset({ safeBottom: 0, pathname: "/quiz", hasSong: true })).toBe(amNav.tabBottom + amNav.miniHeight + amNav.gap + SCROLL_AIR)
+    // a browse page with the bar: the bar, the gap, the pill and the gap clear
+    expect(scrollBottomInset({ safeBottom: 0, pathname: "/library-v2", hasSong: true })).toBe(amNav.tabBottom + amNav.tabHeight + amNav.gap + amNav.miniHeight + amNav.gap)
     expect(scrollBottomInset({ safeBottom: 0, pathname: "/content-rules", hasSong: true })).toBe(amNav.tabBottom + SCROLL_AIR)
+  })
+})
+
+describe("the tab bar on the pushed browse pages", () => {
+  it("is drawn by the root host on a browse row with the bar, never on a tab row (the shell and Search draw their own)", () => {
+    for (const row of PLAYER_POLICY) expect(carriesDeepTabBar(row.sample), row.id).toBe(row.tabBar && row.group !== "tab")
+    expect(carriesDeepTabBar("/song-v2/ps-19")).toBe(true)
+    expect(carriesDeepTabBar("/author/priya-devi")).toBe(true)
+    expect(carriesDeepTabBar("/recording/abc")).toBe(true)
+    expect(carriesDeepTabBar("/v2/songs")).toBe(false)
+    expect(carriesDeepTabBar("/search-v2")).toBe(false)
+  })
+
+  it("keeps the bar off the screens that own the bottom", () => {
+    for (const path of ["/player-v2", "/upload", "/add-kirtan", "/signin", "/assistant", "/quiz", "/stories/x", "/learn/words", "/learn/add", "/harmonium-v2", "/content-rules", "/storage"]) {
+      expect(carriesDeepTabBar(path), path).toBe(false)
+    }
+    // but the learn lists keep it
+    expect(carriesDeepTabBar("/learn/songs")).toBe(true)
+  })
+
+  it("marks the tab the person came from: the newest shell under the page, none when opened by a link", () => {
+    const shell = (tab: string) => ({ name: "v2", state: { index: 0, routes: [{ name: tab }] } })
+    expect(originTabId([shell("songs"), { name: "song-v2/[songId]" }])).toBe("songs")
+    expect(originTabId([shell("kiirtan"), { name: "song-v2/[songId]" }, { name: "author/[slug]" }, { name: "recording/[id]" }])).toBe("kiirtan")
+    expect(originTabId([{ name: "index" }, shell("learn"), { name: "learn/songs" }])).toBe("learn")
+    expect(originTabId([{ name: "song-v2/[songId]" }])).toBeNull()
+    expect(originTabId(undefined)).toBeNull()
+    // a second shell above the first (a replace that built a new one): the newest wins
+    expect(originTabId([shell("today"), { name: "upload" }, shell("kiirtan")])).toBe("kiirtan")
+  })
+
+  it("reads the whole stack out of a nested state, outer navigator first", () => {
+    const state = {
+      index: 2,
+      routes: [
+        { name: "v2", state: { index: 1, routes: [{ name: "today" }, { name: "songs" }] } },
+        { name: "song-v2/[songId]", params: { songId: "ps-19" } },
+        { name: "player-v2" },
+      ],
+    }
+    expect(flattenRoutes(state).map((r) => r.name)).toEqual(["v2", "song-v2/[songId]", "player-v2"])
+    expect(originTabId(flattenRoutes(state))).toBe("songs")
+    expect(songPageInStack(flattenRoutes(state), "ps-19")).toBe(true)
+    expect(flattenRoutes(null)).toEqual([])
+  })
+
+  it("finds a song page of the same song in the stack, so the player goes back to it", () => {
+    const stack = [{ name: "v2" }, { name: "song-v2/[songId]", params: { songId: "ps-19" } }, { name: "player-v2" }]
+    expect(songPageInStack(stack, "ps-19")).toBe(true)
+    expect(songPageInStack(stack, "PS-19")).toBe(true)
+    expect(songPageInStack(stack, "ps-3")).toBe(false)
+    expect(songPageInStack([{ name: "v2" }, { name: "player-v2" }], "ps-19")).toBe(false)
+    expect(songPageInStack(undefined, "ps-19")).toBe(false)
+    // another song page nearer than the one of this song: push a new copy, do not drop the nearer page from the history
+    const deeper = [{ name: "song-v2/[songId]", params: { songId: "ps-19" } }, { name: "song-v2/[songId]", params: { songId: "ps-3" } }, { name: "player-v2" }]
+    expect(songPageInStack(deeper, "ps-19")).toBe(false)
+    expect(songPageInStack(deeper, "ps-3")).toBe(true)
   })
 })
 

@@ -1,6 +1,7 @@
 /**
  * THE mini-player policy: for every screen, is the mini-player shown, where does it sit, and does the screen
- * carry the floating tab bar (with its Upload button). One table, read by lib/navV2.ts (miniPlayerVisible,
+ * carry the floating tab bar (with its Upload button): on the four tabs and Search the screen draws it, on the browse
+ * pages below it the root mini-player host draws it (components/nav-v2/MiniPlayerHost.tsx, DeepTabBar). One table, read by lib/navV2.ts (miniPlayerVisible,
  * NAV_V2_MINI_HIDDEN_PREFIXES) and written out for people in docs/player-visibility.md; __tests__/playerPolicy.test.ts
  * checks the code against this table AND the table against the document, so the three cannot drift apart.
  *
@@ -43,14 +44,15 @@ export const PLAYER_POLICY: readonly PolicyRow[] = [
   { id: "search", title: "Search", group: "tab", prefixes: ["/search-v2"], sample: "/search-v2", mini: "above-tab-bar", tabBar: true, why: "A tab-like page: the bar stays under it, and results are played from it." },
 
   // ---- shown above the bottom edge: pushed pages with no tab bar
-  { id: "song-page", title: "Song page", group: "browse", prefixes: ["/song-v2", "/song"], sample: "/song-v2/ps-1", mini: "above-bottom", tabBar: false, why: "The page is about a song; the pill shows what is playing and opens the player." },
-  { id: "lists", title: "Songs lists and collections", group: "browse", prefixes: ["/songs-v2-collection", "/songs-v2-index", "/songs-v2", "/collections-v2", "/collections", "/browse-shelf"], sample: "/collections-v2", mini: "above-bottom", tabBar: false, why: "Browsing: the person plays one song after another." },
-  { id: "library", title: "Library, saved and playlists", group: "browse", prefixes: ["/library-v2", "/saved-v2", "/playlist-v2", "/playlist", "/listening-history", "/top-played"], sample: "/library-v2", mini: "above-bottom", tabBar: false, why: "Browsing the person's own songs." },
-  { id: "kiirtan-pages", title: "Kiirtan pages (list, artist, mix, event playlists, a recording)", group: "browse", prefixes: ["/kiirtan", "/kirtan-artist", "/kirtan-mix", "/recording-set", "/my-sets", "/recording"], sample: "/kirtan-artist", mini: "above-bottom", tabBar: false, why: "Browsing recordings; a recording's page (chords, videos, comments) scrolls clear of the pill." },
-  { id: "learn-pages", title: "Learn pages (songs, words, quiz, stories, harmonium)", group: "browse", prefixes: ["/learn", "/stories", "/story-sheet", "/quiz", "/harmonium-v2"], sample: "/learn/words", mini: "above-bottom", tabBar: false, why: "Study with the song playing in the background." },
-  { id: "festivals", title: "Festivals", group: "browse", prefixes: ["/festivals", "/festival"], sample: "/festivals", mini: "above-bottom", tabBar: false, why: "Browsing; songs of the festival can be played." },
-  { id: "notifications", title: "Notifications", group: "browse", prefixes: ["/notifications"], sample: "/notifications", mini: "above-bottom", tabBar: false, why: "A list; nothing at the bottom to cover." },
-  { id: "author-pages", title: "Author pages (directory, a public page, your own page)", group: "browse", prefixes: ["/author", "/authors", "/my-author"], sample: "/author/priya-devi", mini: "above-bottom", tabBar: false, why: "Browsing recordings: a page to play from, and the pill is the way back to what plays." },
+  { id: "song-page", title: "Song page", group: "browse", prefixes: ["/song-v2", "/song"], sample: "/song-v2/ps-1", mini: "above-tab-bar", tabBar: true, why: "The page is about a song; the bar under it takes the person to any tab in one tap, and the pill above it shows what is playing." },
+  { id: "lists", title: "Songs lists and collections", group: "browse", prefixes: ["/songs-v2-collection", "/songs-v2-index", "/songs-v2", "/collections-v2", "/collections", "/browse-shelf"], sample: "/collections-v2", mini: "above-tab-bar", tabBar: true, why: "Browsing: the person plays one song after another, and the bar is the way back to any tab." },
+  { id: "library", title: "Library, saved and playlists", group: "browse", prefixes: ["/library-v2", "/saved-v2", "/playlist-v2", "/playlist", "/listening-history", "/top-played"], sample: "/library-v2", mini: "above-tab-bar", tabBar: true, why: "Browsing the person's own songs; the bar is the way back to any tab." },
+  { id: "kiirtan-pages", title: "Kiirtan pages (list, artist, mix, event playlists, a recording)", group: "browse", prefixes: ["/kiirtan", "/kirtan-artist", "/kirtan-mix", "/recording-set", "/my-sets", "/recording"], sample: "/kirtan-artist", mini: "above-tab-bar", tabBar: true, why: "Browsing recordings; a recording's page (chords, videos, comments) scrolls clear of the pill and the bar, and the bar hides while a keyboard is up." },
+  { id: "learn-pages", title: "Learn pages (songs, ragas)", group: "browse", prefixes: ["/learn"], sample: "/learn/songs", mini: "above-tab-bar", tabBar: true, why: "Study with the song playing in the background; the bar is the way back to any tab." },
+  { id: "learn-focus", title: "Learn full-screen (flashcards, add a word, quiz, stories, harmonium)", group: "browse", prefixes: ["/learn/words", "/learn/add", "/stories", "/story-sheet", "/quiz", "/harmonium-v2"], sample: "/quiz", mini: "above-bottom", tabBar: false, why: "A full-screen task, card review or story: the screen owns the bottom, so no tab bar; the pill stays above the edge." },
+  { id: "festivals", title: "Festivals", group: "browse", prefixes: ["/festivals", "/festival"], sample: "/festivals", mini: "above-tab-bar", tabBar: true, why: "Browsing; songs of the festival can be played, and the bar is the way back to any tab." },
+  { id: "notifications", title: "Notifications", group: "browse", prefixes: ["/notifications"], sample: "/notifications", mini: "above-tab-bar", tabBar: true, why: "A list; the bar is the way back to any tab." },
+  { id: "author-pages", title: "Author pages (directory, a public page, your own page)", group: "browse", prefixes: ["/author", "/authors", "/my-author"], sample: "/author/priya-devi", mini: "above-tab-bar", tabBar: true, why: "Browsing recordings: a page to play from; the bar is the way back to any tab and the pill to what plays." },
 
   // ---- hidden: the screen opens over it
   { id: "player", title: "Full player", group: "player", prefixes: ["/player-v2", "/player"], sample: "/player-v2", mini: "hidden", tabBar: false, why: "The player IS the full version of the pill." },
@@ -105,3 +107,12 @@ export function miniModeForPath(pathname: string): MiniMode {
 
 /** Every route prefix of a hidden row: lib/navV2.ts NAV_V2_MINI_HIDDEN_PREFIXES. */
 export const HIDDEN_MINI_PREFIXES: readonly string[] = PLAYER_POLICY.filter((row) => row.mini === "hidden").flatMap((row) => row.prefixes)
+
+/**
+ * The pushed browse pages that carry the floating tab bar, drawn by the root host (not by the screen): every row with
+ * `tabBar` that is not a tab row. A tab row's own screen (the v2 shell, Search) draws its bar.
+ */
+export function carriesDeepTabBar(pathname: string): boolean {
+  const row = policyForPath(pathname)
+  return row.tabBar && row.group !== "tab"
+}
