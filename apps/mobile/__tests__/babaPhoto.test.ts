@@ -86,6 +86,14 @@ describe("Baba photos are shown clean", () => {
     expect(cropFits(today, 3.5)).toBe(false)
   })
 
+  it("blocks that put text over a photo get a stock photo, not Baba (Today hero keeps its design)", () => {
+    for (const f of ["components/home/HomeBlocks.tsx", "components/today/TodayBlocks.tsx", "app/player-v2.tsx"]) {
+      const src = readFileSync(path.join(root, f), "utf8")
+      expect(src, f).toContain("photoWithoutPeople(")
+      expect(src, f).not.toMatch(/BABA_PHOTOS|id="today"/)
+    }
+  })
+
   it("the stock picker never returns a photo marked as Baba", () => {
     const list = [
       { id: "a", tone: "warm", moods: ["morning"], people: "none", subject: "baba" },

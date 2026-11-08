@@ -33,6 +33,15 @@ export function photoForSeed(seed: string, mood?: PhotoMood, opts?: PickOptions)
   return pickFromList(STOCK_PHOTOS, seed, mood, opts) ?? (STOCK_PHOTOS.find((p) => p.people === "none") as StockPhoto)
 }
 
+/**
+ * For a block that puts text over the photo (Today hero, player): the same pick as `photoForSeed`, but only
+ * photos with nobody in them (`people: "none"`), so no figure or face ever sits under the text.
+ */
+export function photoWithoutPeople(seed: string, mood?: PhotoMood): StockPhoto {
+  const none = STOCK_PHOTOS.filter((p) => p.people === "none")
+  return pickFromList(none, seed, mood) ?? none[0]
+}
+
 export function photosByCategory(category: PhotoCategory): StockPhoto[] {
   return groupByCategory(STOCK_PHOTOS, category)
 }

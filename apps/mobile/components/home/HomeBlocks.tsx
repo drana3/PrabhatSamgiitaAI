@@ -1,21 +1,22 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, type ReactNode } from "react"
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { Bell, MoreHorizontal, Search } from "lucide-react-native"
 import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated"
 
-import { BabaPhoto } from "@/components/common/BabaPhoto"
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
 import { PlayGlyph } from "@/components/today/protoIcons"
 import { overStyle } from "@/components/today/TodayBlocks"
 import { TodayPress } from "@/components/today/TodayPress"
-import { amPhotoChip } from "@/constants/tokens/amColors"
+import { todayAssets } from "@/constants/todayAssets"
+import { amPhotoChip, amScrimPhoto, amScrimPhotoTop } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 import { chunk, coverFor, type HomeCoverId, type StripTone } from "@/lib/homeShelves"
 import { useT } from "@/lib/i18n"
+import { moodForText, photoWithoutPeople } from "@/lib/photos/catalog"
 import type { TodayDayKind } from "@/lib/todayDay"
 
 type P = { p: AmProto }
@@ -131,15 +132,17 @@ export function HomeSectionHead({ p, eyebrow, first, second, action }: P & { eye
 
 /* ------------------------------------------------------------- today hero card */
 
+/** Chips on a photograph are neutral only: dark glass + white text, whatever kind of day it is. */
+const KIND = (_p: AmProto, _kind: TodayDayKind) => amPhotoChip.glass
+
 /**
- * The song of the day: Baba's photograph as a clean picture on top (nothing over it), and below it the date,
- * what kind of day it is ("Composed on this day", a festival, a season), the title and a play button.
- * The Today prototype's hero, rebuilt so no text or chip sits on the photograph.
+ * The song of the day: photo, the date, what kind of day it is ("Composed on this day", a festival,
+ * a season), the title and a play button. The Today prototype's hero, shortened to fit a shelf page.
  */
 export function HomeTodayCard({
   p,
   dateLabel,
-  kind: _kind,
+  kind,
   kindLabel,
   note,
   meta,
@@ -159,39 +162,42 @@ export function HomeTodayCard({
   onListen: () => void
 }) {
   const t = useT()
+  const chip = KIND(p, kind)
+  // Text sits over this picture, so it is a stock photo with no people (never a photo of Baba, which stays clean:
+  // docs/photo-system.md 2.5). One day, one photo.
+  const photo = useMemo(() => photoWithoutPeople(`today-${dateLabel}`, moodForText(title)), [dateLabel, title])
   return (
-    <View style={[s.today, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-      <BabaPhoto id="today" ratio={1.5} radius={0} />
-      <View style={s.todayBody}>
+    <View style={[s.today, { backgroundColor: p.sage900 }]}>
+      <Image source={photo.cover} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" accessibilityIgnoresInvertColors />
+      <LinearGradient pointerEvents="none" colors={[amScrimPhotoTop[0], amScrimPhotoTop[1], amScrimPhoto[1]]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+      <View style={s.todayTop}>
         {/* the date gives way to the chip: one line, shrinking a little before it would wrap ("ВОСКРЕСЕНЬЕ · 1 / НОЯБРЯ") */}
-        <View style={s.todayTop}>
-          <Text style={[overStyle, s.todayDate, { color: p.orange700 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-            {dateLabel}
+        <Text style={[overStyle, s.todayDate, { color: "#FFFFFF" }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+          {dateLabel}
+        </Text>
+        <View style={[s.kindChip, { backgroundColor: chip.bg }]}>
+          <Text style={[s.kindText, { color: chip.fg }]} numberOfLines={1}>
+            {kindLabel}
           </Text>
-          <View style={[s.kindChip, { backgroundColor: p.ink900 }]}>
-            <Text style={[s.kindText, { color: p.onInk }]} numberOfLines={1}>
-              {kindLabel}
-            </Text>
-          </View>
         </View>
-        <View style={s.todayBottom}>
-          <TodayPress accessibilityRole="button" accessibilityLabel={t("today.readLyricsOf", { title })} onPress={onOpen} pressedScale={PRESS} style={s.todayMain}>
-            <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
-              {meta}
+      </View>
+      <View style={s.todayBottom}>
+        <TodayPress accessibilityRole="button" accessibilityLabel={t("today.readLyricsOf", { title })} onPress={onOpen} pressedScale={PRESS} style={s.todayMain}>
+          <Text style={[overStyle, { color: "#FFFFFF" }]} numberOfLines={1}>
+            {meta}
+          </Text>
+          <Text style={s.todayTitle} numberOfLines={2}>
+            {title}
+          </Text>
+          {note ? (
+            <Text style={s.todayNote} numberOfLines={2}>
+              {note}
             </Text>
-            <Text style={[s.todayTitle, { color: p.ink800 }]} numberOfLines={2}>
-              {title}
-            </Text>
-            {note ? (
-              <Text style={[s.todayNote, { color: p.ink500 }]} numberOfLines={2}>
-                {note}
-              </Text>
-            ) : null}
-          </TodayPress>
-          <TodayPress accessibilityRole="button" accessibilityLabel={playing ? t("today.pauseTitle", { title }) : t("today.listenTo", { title })} onPress={onListen} pressedScale={PRESS} style={[s.play, { backgroundColor: p.action }]}>
-            <PlayGlyph size={24} color={p.onAction} />
-          </TodayPress>
-        </View>
+          ) : null}
+        </TodayPress>
+        <TodayPress accessibilityRole="button" accessibilityLabel={playing ? t("today.pauseTitle", { title }) : t("today.listenTo", { title })} onPress={onListen} pressedScale={PRESS} style={[s.play, { backgroundColor: p.action }]}>
+          <PlayGlyph size={24} color={p.onAction} />
+        </TodayPress>
       </View>
     </View>
   )
@@ -374,16 +380,15 @@ const s = StyleSheet.create({
   action: { height: 36, paddingHorizontal: 14, borderRadius: 70, justifyContent: "center" },
   actionText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
   h2: { fontFamily: amFonts.display, fontSize: 30, lineHeight: 30, letterSpacing: em(30, -0.02), textTransform: "uppercase" },
-  today: { marginHorizontal: HOME_INSET - 10, borderRadius: 30, borderWidth: 1, overflow: "hidden" },
-  todayBody: { padding: 16, gap: 12 },
+  today: { marginHorizontal: HOME_INSET - 10, height: 232, borderRadius: 30, overflow: "hidden", padding: 16, justifyContent: "space-between" },
   todayTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   todayDate: { flex: 1, minWidth: 0 },
   kindChip: { flexShrink: 0, maxWidth: "62%", height: 32, paddingHorizontal: 14, borderRadius: 70, justifyContent: "center" },
   kindText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
   todayBottom: { flexDirection: "row", alignItems: "flex-end", gap: 12 },
   todayMain: { flex: 1, minWidth: 0, gap: 3 },
-  todayTitle: { fontFamily: amFonts.display, fontSize: 26, lineHeight: 26, letterSpacing: em(26, -0.02), textTransform: "uppercase" },
-  todayNote: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19, marginTop: 2 },
+  todayTitle: { fontFamily: amFonts.display, fontSize: 26, lineHeight: 26, letterSpacing: em(26, -0.02), textTransform: "uppercase", color: "#FFFFFF" },
+  todayNote: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19, color: "rgba(255, 255, 255, 0.86)", marginTop: 2 },
   play: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
   page: { gap: 8 },
   row: { height: 64, borderRadius: 18, borderWidth: 1, flexDirection: "row", alignItems: "center", paddingLeft: 8, paddingRight: 2 },

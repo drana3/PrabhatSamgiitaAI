@@ -71,7 +71,7 @@ import {
 } from "@/lib/songPage/lyricLanguages"
 import { gapText, playerGlossRows, playerSampleKey } from "@/lib/songPage/honest"
 import { artistForAuthor } from "@/lib/kirtan/artists"
-import { moodForText, photoForSeed } from "@/lib/photos/catalog"
+import { moodForText, photoWithoutPeople } from "@/lib/photos/catalog"
 import { ensureKirtansRegistered, kirtanById, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
 import { openReportSheet } from "@/stores/safetySheetStore"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
@@ -246,7 +246,7 @@ export default function PlayerV2Screen() {
   const photoStyle = useAnimatedStyle(() => ({ opacity: photoShown.value }))
   // The title and header sit over this picture, so it is a stock photo (no people), never one of Baba:
   // his photographs are only shown clean, by BabaPhoto. One song, one photo.
-  const heroPhoto = useMemo(() => photoForSeed(`player-${song?.number ?? 0}`, moodForText(song?.title ?? "")), [song?.number, song?.title])
+  const heroPhoto = useMemo(() => photoWithoutPeople(`player-${song?.number ?? 0}`, moodForText(song?.title ?? "")), [song?.number, song?.title])
 
   // Drag down to collapse: 1:1 with the finger, the release carries its velocity into a spring.
   const dragY = useSharedValue(0)

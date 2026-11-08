@@ -2,5 +2,5 @@
 export const todayAssets = {
   /** sun mark, 240 x 289; the header shows it 36dp high */
   logo: require("../assets/today-logo.png"),
-  // the hero photograph (Baba) is lib/photos/baba.ts "today", shown by components/common/BabaPhoto
+  // no hero photograph here: text sits over it, so it is a stock photo (lib/photos/catalog) picked per day, never Baba
 } as const
