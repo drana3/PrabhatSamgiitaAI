@@ -43,6 +43,9 @@ import { ListeningHistoryHost } from "@/components/listening/ListeningHistoryHos
 import { SaveHost } from "@/components/save/SaveHost"
 import { PlaybackLifecycle } from "@/components/player/PlaybackLifecycle"
 import { colors } from "@/constants/colors"
+import { track } from "@/lib/analytics"
+import { startFlags } from "@/lib/flags"
+import { initObservability } from "@/lib/observability/init"
 import { useAppearanceStore } from "@/stores/appearanceStore"
 import { applyLanguagePreference, useLanguageStore } from "@/stores/languageStore"
 import { useAuthStore } from "@/stores/authStore"
@@ -114,6 +117,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     startPlaylistBackgroundSync()
+  }, [])
+
+  // Crash reports, feature flags and the launch count. Each is off or a no-op without its setting
+  // (no DSN, no API address, or the person chose Off in Profile, Usage data); none can stop the app.
+  useEffect(() => {
+    initObservability()
+    void startFlags()
+    track("app_open", { cold: true })
   }, [])
 
   useEffect(() => {
@@ -204,6 +215,10 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="volume-leveling"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
+            <Stack.Screen
+              name="usage-data"
               options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
             />
             <Stack.Screen name="parity/index" options={{ presentation: "card" }} />

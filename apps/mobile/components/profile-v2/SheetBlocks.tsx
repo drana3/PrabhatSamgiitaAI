@@ -206,11 +206,13 @@ type LangRowProps = P &
     action?: string
     /** dim the name: language that is not available yet */
     dim?: boolean
+    /** let the second line wrap (a sentence, not a language name) */
+    wrap?: boolean
     onPress: () => void
   }
 
 /** `.lrow`: min 56, padding 6 16 6 20, 16 / 600 name over a 13 / 500 line. */
-export function LangRow({ p, name, sub, control, on, action, dim, onPress, last }: LangRowProps) {
+export function LangRow({ p, name, sub, control, on, action, dim, wrap, onPress, last }: LangRowProps) {
   return (
     <TodayPress
       accessibilityRole={control === "radio" ? "radio" : "checkbox"}
@@ -225,7 +227,7 @@ export function LangRow({ p, name, sub, control, on, action, dim, onPress, last 
           {name}
         </Text>
         {sub ? (
-          <Text style={[s.lSub, { color: p.ink500 }]} numberOfLines={1}>
+          <Text style={[s.lSub, { color: p.ink500 }]} numberOfLines={wrap ? undefined : 1}>
             {/* a left-to-right mark keeps a right-to-left native name from flipping the whole line */}
             {"\u200E" + sub}
           </Text>

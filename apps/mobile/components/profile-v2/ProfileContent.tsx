@@ -44,6 +44,7 @@ import { useLanguageStore } from "@/stores/languageStore"
 import { LANGUAGE_NATIVE_NAMES, formatNumber, useLanguage, useT } from "@/lib/i18n"
 import { effectiveTranslations } from "@/lib/songPage/lyricLanguages"
 import { useAiConsentStore } from "@/stores/aiConsentStore"
+import { useAnalyticsConsentStore } from "@/stores/analyticsConsentStore"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
@@ -113,6 +114,7 @@ export function useProfileContent(theme: AmTheme) {
   const remindersOn = useNotificationSettingsStore((st) => anyEnabled(st))
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   const aiAllowed = useAiConsentStore((st) => isConsentValid(st))
+  const analyticsMode = useAnalyticsConsentStore((st) => st.mode)
 
   const identity = useProfileIdentity()
   const signedIn = MOCKUP_DATA || mode === "signed_in"
@@ -306,6 +308,13 @@ export function useProfileContent(theme: AmTheme) {
           onPress={aiAllowed ? requestRevokeAi : undefined}
         />
         {signedIn ? <SetRow p={p} label={t("profile.clearChat")} onPress={requestClearChat} /> : null}
+        <SetRow
+          p={p}
+          label={t("profile.usageData")}
+          value={t(`profile.usageData.${analyticsMode}`)}
+          chevron
+          onPress={() => go(PROFILE_ROUTES.usageData)}
+        />
         <SetRow p={p} label={t("profile.feedback")} chevron onPress={() => go(PROFILE_ROUTES.feedback)} />
         <SetRow p={p} label={t("profile.privacy")} chevron onPress={() => Linking.openURL(privacyUrl()).catch(() => undefined)} />
         <SetRow p={p} label={t("ugc.rules.title")} chevron onPress={() => go(PROFILE_ROUTES.contentRules)} />

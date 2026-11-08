@@ -24,6 +24,17 @@ function mergeUrlSchemes(existing, schemes) {
   return next
 }
 
+/**
+ * Crash-report source maps (docs/observability.md). The Sentry plugin uploads them during an EAS build,
+ * so it is added ONLY when the build environment holds all three values; otherwise the build is exactly
+ * what it was. SENTRY_AUTH_TOKEN is a secret set in EAS, never written in the repository.
+ */
+function sentryPlugins() {
+  const { SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT } = process.env
+  if (!SENTRY_AUTH_TOKEN?.trim() || !SENTRY_ORG?.trim() || !SENTRY_PROJECT?.trim()) return []
+  return [["@sentry/react-native/expo", { organization: SENTRY_ORG.trim(), project: SENTRY_PROJECT.trim() }]]
+}
+
 /** @param {{ config: import('expo/config').ExpoConfig }} props */
 module.exports = ({ config }) => {
   const configuredProjectId =
@@ -34,6 +45,7 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    plugins: [...(config.plugins ?? []), ...sentryPlugins()],
     ios: {
       ...config.ios,
       buildNumber: config.ios?.buildNumber ?? "1",

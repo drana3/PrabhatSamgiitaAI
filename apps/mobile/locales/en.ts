@@ -20,6 +20,7 @@ import { homeFestivalsEn } from "./homeFestivals"
 import { festivalSongsEn } from "./festivalSongs"
 import { profileRowsEn } from "./profileRows"
 import { volumeEn } from "./volume"
+import { opsEn } from "./ops"
 import { assistantErrorsEn } from "./assistantErrors"
 import { recordingExtrasEn } from "./recordingExtras"
 import { songCommentsEn } from "./songComments"
@@ -1296,6 +1297,7 @@ export const en = {
   ...festivalSongsEn,
   ...profileRowsEn,
   ...volumeEn,
+  ...opsEn,
   ...assistantErrorsEn,
   ...songCommentsEn,
   ...recordingExtrasEn,

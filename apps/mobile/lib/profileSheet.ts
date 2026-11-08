@@ -28,6 +28,8 @@ export const PROFILE_ROUTES = {
   volumeLeveling: "/volume-leveling",
   /** the rules for a Kiirtan or a Bhajan: app/content-rules.tsx */
   contentRules: "/content-rules",
+  /** what the app may count and report: app/usage-data.tsx */
+  usageData: "/usage-data",
   /** admins only: app/admin/index.tsx (it checks the role again) */
   admin: "/admin",
 } as const
@@ -48,6 +50,7 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/edit-profile": true,
   "/content-rules": true,
   "/volume-leveling": true,
+  "/usage-data": true,
   "/admin": true,
 }
 
