@@ -10,7 +10,7 @@ import { PILL } from "./parts"
 
 /**
  * Where a chart stands, as a small round chip: an icon and one word, never colour alone. Draft = a pencil (only on
- * this phone), Waiting = a clock, Published = a check, Not accepted = a cross. Colours come from the app's own tokens.
+ * this phone), Waiting = a clock, Published = a check, Not accepted = a cross, Replaced = two arrows (a newer version took its place). Colours come from the app's own tokens.
  */
 export function StatusChip({ theme, status }: { theme: SongsTheme; status: RowKind }) {
   const t = useT()
@@ -20,7 +20,7 @@ export function StatusChip({ theme, status }: { theme: SongsTheme; status: RowKi
       ? { bg: theme.oliveBg, fg: theme.oliveText, border: theme.oliveBg }
       : status === "rejected"
         ? { bg: "transparent", fg: theme.dangerText, border: theme.dangerText }
-        : status === "draft"
+        : status === "draft" || status === "replaced"
           ? { bg: "transparent", fg: theme.textBody, border: theme.line }
           : { bg: theme.peach, fg: theme.accent, border: theme.peach }
   return (
@@ -33,6 +33,8 @@ export function StatusChip({ theme, status }: { theme: SongsTheme; status: RowKi
           </>
         ) : status === "published" ? (
           <Path d="M5 12.5l4.5 4.5L19 7.5" stroke={tone.fg} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+        ) : status === "replaced" ? (
+          <Path d="M4 8h13m0 0l-3.5-3.5M17 8l-3.5 3.5M20 16H7m0 0l3.5-3.5M7 16l3.5 3.5" stroke={tone.fg} strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" />
         ) : status === "draft" ? (
           <Path d="M4 20l1-4L16.5 4.5a2 2 0 013 3L8 19l-4 1z" stroke={tone.fg} strokeWidth={2.25} strokeLinejoin="round" />
         ) : (

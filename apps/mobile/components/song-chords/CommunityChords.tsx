@@ -113,6 +113,20 @@ export function CommunityChords({
             <Text style={[s.meta, { color: t.ink900 }]}>
               {current.mine ? tr("chordSong.byYou") : current.author ? tr("chordSong.by", { name: current.author.name }) : tr("chordSong.anonymous")}
             </Text>
+            {current.basedOn
+              ? (() => {
+                  const credit = current.basedOn.name ? tr("chordSong.basedOn", { name: current.basedOn.name }) : tr("chordSong.basedOn.anonymous")
+                  const original = current.basedOn.id ? items.find((p) => p.id === current.basedOn?.id) : undefined
+                  // linked to the original when it is on this page; plain words when it is not (deleted, or another instrument's tab)
+                  return original ? (
+                    <SpPress accessibilityLabel={`${credit}. ${tr("chordSong.basedOn.a11y")}`} onPress={() => setChosen(original.id)} style={s.link}>
+                      <Text style={[s.linkText, { color: t.accentText }]}>{credit}</Text>
+                    </SpPress>
+                  ) : (
+                    <Text style={[s.note, { color: t.ink500 }]}>{credit}</Text>
+                  )
+                })()
+              : null}
             <Text style={[s.note, { color: t.ink500 }]}>
               {current.instrument === "guitar"
                 ? current.capo > 0

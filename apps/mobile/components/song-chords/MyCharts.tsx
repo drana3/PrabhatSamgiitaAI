@@ -11,6 +11,8 @@ import { getActiveLanguage, useT } from "@/lib/i18n"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { chordFailure, chordsBackend } from "@/lib/songChords/backend"
 import { shortDate } from "@/lib/songChords/charts"
+import { draftFromWithdrawn } from "@/lib/songChords/draft"
+import { bookIsFull, draftKey } from "@/lib/songChords/drafts"
 import { actionHref, buildRows, menuActions, primaryAction, type ChartRow, type RowAction } from "@/lib/songChords/rows"
 import { useChordDraftStore } from "@/stores/chordDraftStore"
 import { href } from "@/utils/href"
@@ -23,7 +25,7 @@ import { ActionButton, CORNER, Hint } from "./parts"
 /**
  * "Your chord charts" on the Upload hub: ONE compact row for each chart, the ones sent to the team and the drafts kept
  * on this phone alike. A row is the song (number and title), a chip for where it stands (Draft, Waiting, Published,
- * Not accepted), one line of facts, and a ⋯ menu. A tap on the row does the one thing the state is for; every other
+ * Not accepted, Replaced), one line of facts, and a ⋯ menu. A tap on the row does the one thing the state is for; every other
  * action is in the menu. What each action does, asks and says is the table in docs/chord-proposals.md ("Actions of a
  * row"); the rules that decide it are pure and tested in lib/songChords/rows.ts.
  */
@@ -35,6 +37,7 @@ export function MyCharts({ theme, chords, onChanged }: { theme: SongsTheme; chor
   const router = useRouter()
   const book = useChordDraftStore((s) => s.drafts)
   const discard = useChordDraftStore((s) => s.discard)
+  const saveDraft = useChordDraftStore((s) => s.save)
 
   const rows = useMemo(() => buildRows(chords.items, book), [chords.items, book])
   const [menu, setMenu] = useState<ChartRow | null>(null)
@@ -92,8 +95,19 @@ export function MyCharts({ theme, chords, onChanged }: { theme: SongsTheme; chor
       setNotice({ tone: "ok", text: t(action === "discardDraft" ? "chordOffer.notice.draftDiscarded" : "chordOffer.notice.changesDiscarded") })
       return
     }
-    const id = row.proposal?.id
-    if (!id) return
+    const proposal = row.proposal
+    const id = proposal?.id
+    if (!proposal || !id) return
+    // "Withdraw" does not delete: the chart goes back to the drafts on this phone, whole, and leaves the team's queue.
+    // The draft is saved FIRST, so nothing can be lost between the two steps; if the server refuses, it is taken back.
+    const kept = action === "withdraw" ? draftFromWithdrawn(proposal, row.draft?.draft ?? null) : null
+    if (kept) {
+      if (!(draftKey(kept) in book) && bookIsFull(book)) {
+        setNotice({ tone: "error", text: t("chordOffer.failure.draftsFull") })
+        return
+      }
+      saveDraft(kept)
+    }
     try {
       await chordsBackend().remove(id)
       chords.drop(id)
@@ -103,14 +117,21 @@ export function MyCharts({ theme, chords, onChanged }: { theme: SongsTheme; chor
     } catch (error) {
       const failure = chordFailure(error)
       if (failure === "gone") {
-        // somebody (this member on another phone) already removed it: the list should say so, too
+        // somebody (this member on another phone) already removed it: the list should say so, too. A withdrawn chart's
+        // draft stays: the chart is not with the team any more, and the work is the member's.
         chords.drop(id)
         forgetDraftsOf(id)
         onChanged?.()
+        if (kept) {
+          setNotice({ tone: "ok", text: t("chordOffer.notice.withdrawn") })
+          return
+        }
+      } else if (kept) {
+        discard(draftKey(kept))
       }
       setNotice({ tone: "error", text: t(`chordOffer.failure.${failure}` as "chordOffer.failure.server") })
     }
-  }, [confirm, discard, chords, forgetDraftsOf, onChanged, t])
+  }, [confirm, discard, saveDraft, book, chords, forgetDraftsOf, onChanged, t])
 
   // ---- states of the list ----
   const loading = (chords.status === "loading" || chords.status === "idle") && chords.items.length === 0
@@ -154,13 +175,13 @@ export function MyCharts({ theme, chords, onChanged }: { theme: SongsTheme; chor
       </View>
     )
 
-  const menuItems = menu ? menuActions(menu).map((action) => ({ id: action, label: t(`chordOffer.action.${action}` as "chordOffer.action.edit"), tone: action === "withdraw" || action === "delete" || action === "discardDraft" || action === "discardChanges" ? ("danger" as const) : undefined })) : []
+  const menuItems = menu ? menuActions(menu).map((action) => ({ id: action, label: t(`chordOffer.action.${action}` as "chordOffer.action.edit"), tone: action === "delete" || action === "discardDraft" || action === "discardChanges" ? ("danger" as const) : undefined })) : []
   const titleOf = (row: ChartRow) => rowTitle(row.songId, t)
 
   const confirmCopy = confirm ? confirmTexts(confirm, t) : { title: "", body: "", yes: "", keep: "" }
   const confirmActions: DialogAction[] = [
     { label: confirmCopy.keep, tone: "quiet", onPress: () => setConfirm(null) },
-    { label: confirmCopy.yes, tone: "danger", onPress: () => void doConfirm() },
+    { label: confirmCopy.yes, tone: confirm?.action === "withdraw" ? "primary" : "danger", onPress: () => void doConfirm() },
   ]
   const whyReason = why?.proposal?.rejectedReason?.trim()
   const whyActions: DialogAction[] = [
@@ -224,7 +245,7 @@ function confirmTexts(confirm: Confirm, t: ReturnType<typeof useT>): { title: st
   if (action === "delete")
     return {
       title: t("chordOffer.delete.ask"),
-      body: row.kind === "published" ? t("chordOffer.delete.ask.published") : t("chordOffer.delete.ask.body"),
+      body: row.kind === "published" ? t("chordOffer.delete.ask.published") : row.kind === "replaced" ? t("chordOffer.delete.ask.replaced") : t("chordOffer.delete.ask.body"),
       yes: t("chordOffer.delete.yes"),
       keep: t("chordOffer.delete.keep"),
     }
@@ -251,6 +272,7 @@ function ChartRowView({ theme, row, onPrimary, onMenu }: { theme: SongsTheme; ro
   const p = row.proposal
   let facts: string
   if (row.kind === "draft") facts = `${instrument} · ${t("chordOffer.chords.count", { count: row.draft?.chords ?? 0 })}`
+  else if (row.kind === "replaced") facts = `${instrument} · ${t("chordOffer.row.replaced")}`
   else if (row.draft) facts = `${instrument} · ${t("chordOffer.row.changes")}`
   else {
     const detail = p?.instrument === "guitar" && p.capo > 0 ? `${instrument} · ${t("chordOffer.row.capo", { capo: p.capo })}` : instrument

@@ -47,5 +47,5 @@ export function parseEntry(params: Record<string, string | string[] | undefined>
 /** What identifies the member's work in a draft; two drafts with the same signature are the same work. */
 export function draftSignature(d: Draft): string {
   const lines = d.lines.map((line) => line.map((p) => `${p.word}:${p.chord}`).join(","))
-  return JSON.stringify([d.songId, d.instrument, d.key, d.capo, d.strum, lines, d.note.trim(), d.isAnonymous, d.playedIt, d.editId ?? null, d.basedOn ?? null])
+  return JSON.stringify([d.songId, d.instrument, d.key, d.capo, d.strum, lines, d.note.trim(), d.isAnonymous, d.playedIt, d.editId ?? null, d.basedOn ?? null, d.startedFrom ?? null, d.keptFrom ?? null])
 }

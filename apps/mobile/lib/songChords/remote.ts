@@ -26,6 +26,10 @@ export type WireProposal = {
   status: "pending" | "published" | "rejected"
   rejected_reason: string | null
   can_review: boolean
+  based_on?: { id: string | null; name: string | null } | null
+  archived?: boolean
+  replaced_by?: string | null
+  replaces?: string | null
 }
 
 /** `AdminChordProposalOut`: the team's shape, which knows the author. */
@@ -50,6 +54,10 @@ export function proposalFromWire(w: WireProposal): ChordProposal {
     status: w.status,
     rejectedReason: w.rejected_reason ?? null,
     canReview: Boolean(w.can_review),
+    basedOn: w.based_on ? { id: w.based_on.id ?? null, name: w.based_on.name ?? null } : null,
+    archived: Boolean(w.archived),
+    replacedBy: w.replaced_by ?? null,
+    replaces: w.replaces ?? null,
   }
 }
 
@@ -68,6 +76,8 @@ export function payloadToWire(p: ProposalPayload): Record<string, unknown> {
     played_it: p.playedIt,
     note: p.note,
     is_anonymous: p.isAnonymous,
+    ...(p.replacesId ? { replaces_id: p.replacesId } : {}),
+    ...(p.basedOnId ? { based_on_id: p.basedOnId } : {}),
   }
 }
 

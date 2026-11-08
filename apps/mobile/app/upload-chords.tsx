@@ -265,8 +265,11 @@ export default function UploadChordsScreen() {
   const problems: DraftProblem[] = useMemo(() => draftProblems(draft, counts), [draft, counts])
   const used = useMemo(() => usedChords(draft.lines), [draft.lines])
   const guitar = draft.instrument === "guitar"
-  const leave = () => (router.canGoBack() ? router.back() : router.replace(href("/upload")))
-  const toHub = () => router.replace(href("/upload"))
+  // `dismissTo` goes back to the Upload screen that is already in the stack (this screen is opened over it) and only
+  // opens one when there is none; `replace` would leave the old Upload under a second one, and the result screen would
+  // have two hubs under it
+  const leave = () => (router.canGoBack() ? router.back() : router.dismissTo(href("/upload")))
+  const toHub = () => router.dismissTo(href("/upload"))
   // opened from a song page (or from a chart on it): that is where "Back" goes
   const cameFromSong = (entry.kind === "new" && entry.song !== null) || entry.kind === "from"
 
@@ -487,7 +490,7 @@ export default function UploadChordsScreen() {
               copy={sent.copy}
               name={name}
               fromSong={cameFromSong}
-              onOpenSong={() => router.replace(href(`/song-v2/ps-${sent.proposal.songId}`))}
+              onOpenSong={() => router.dismissTo(href(`/song-v2/ps-${sent.proposal.songId}`))}
               onAnother={another}
               onHub={toHub}
               onBack={leave}

@@ -11,8 +11,9 @@ export type DraftBook = Record<string, StoredDraft>
 
 export const MAX_DRAFTS = 5
 
-export function draftKey(draft: Pick<Draft, "songId" | "instrument" | "editId" | "basedOn">): string {
+export function draftKey(draft: Pick<Draft, "songId" | "instrument" | "editId" | "basedOn" | "keptFrom">): string {
   if (draft.editId) return `edit:${draft.editId}`
+  if (draft.keptFrom) return `kept:${draft.keptFrom}`
   if (draft.basedOn) return `copy:${draft.basedOn}`
   return `song:${draft.songId ?? 0}:${draft.instrument}`
 }
@@ -36,6 +37,11 @@ export function putDraft(book: DraftBook, draft: Draft, now: number): DraftBook 
     for (const drop of oldest.slice(0, keys.length - MAX_DRAFTS)) delete next[drop]
   }
   return next
+}
+
+/** True when saving a draft under a NEW key would push the oldest one out of the book (work lost without being asked). */
+export function bookIsFull(book: DraftBook): boolean {
+  return Object.keys(book).length >= MAX_DRAFTS
 }
 
 export function removeDraft(book: DraftBook, key: string): DraftBook {

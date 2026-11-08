@@ -100,6 +100,24 @@ class SongChordProposal(Base, TimestampMixin):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[str | None] = mapped_column(String(255))
     rejected_reason: Mapped[str | None] = mapped_column(Text)
+    # A new version of the author's own live chart: when this one goes live, the old one is
+    # archived (kept, not shown on the song page). Null when the old chart is deleted.
+    replaces_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("song_chord_proposals.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Set when a newer version took this chart's place. An archived chart is invisible to everybody
+    # (the song page, the live-chart cap, the duplicate check); its author still sees the fact.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "Start from this chart": the chart whose chords were copied (somebody else's), and the name to
+    # credit, copied at that time. The name is null when the original was anonymous.
+    based_on_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("song_chord_proposals.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    based_on_name: Mapped[str | None] = mapped_column(String(80))
 
 
 class SongChordOffer(Base, TimestampMixin):
@@ -107,6 +125,10 @@ class SongChordOffer(Base, TimestampMixin):
 
     The daily allowance counts these, not the charts that are left: deleting a chart must not give
     its place in the day back. Nothing else reads it; a deleted member takes their rows with them.
+
+    One exception, on purpose: a chart taken back while it still waits for the review (the member
+    "withdraws" it) never reached the team, so its row goes with it. `proposal_id` links the row to
+    its chart for that; it has no foreign key because the row must outlive the chart.
     """
 
     __tablename__ = "song_chord_offers"
@@ -118,6 +140,7 @@ class SongChordOffer(Base, TimestampMixin):
         ForeignKey("user_accounts.id", ondelete="CASCADE"),
         nullable=False,
     )
+    proposal_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
 
 class SongChordReport(Base, TimestampMixin):

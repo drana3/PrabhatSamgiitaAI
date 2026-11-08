@@ -2996,7 +2996,17 @@
     "songComments.notice.group_one": false,
     "songComments.notice.group_few": false,
     "songComments.notice.group_many": false,
-    "songComments.notice.group_other": false
+    "songComments.notice.group_other": false,
+    "chordSong.basedOn": false,
+    "chordOffer.status.long.replaced": false,
+    "chordOffer.status.short.replaced": false,
+    "chordOffer.delete.ask.replaced": false,
+    "chordSong.basedOn.a11y": false,
+    "chordOffer.failure.draftsFull": false,
+    "chordOffer.row.replaced": false,
+    "notif.chords.replaced.title": false,
+    "notif.chords.replaced.text": false,
+    "chordSong.basedOn.anonymous": false
   },
   "es": {
     "unit.kb": false,
@@ -5811,6 +5821,16 @@
     "songComments.notice.text": false,
     "songComments.notice.textAnonymous": false,
     "songComments.notice.group_one": false,
-    "songComments.notice.group_other": false
+    "songComments.notice.group_other": false,
+    "chordSong.basedOn": false,
+    "chordOffer.status.long.replaced": false,
+    "chordOffer.status.short.replaced": false,
+    "chordOffer.delete.ask.replaced": false,
+    "chordSong.basedOn.a11y": false,
+    "chordOffer.failure.draftsFull": false,
+    "chordOffer.row.replaced": false,
+    "notif.chords.replaced.title": false,
+    "notif.chords.replaced.text": false,
+    "chordSong.basedOn.anonymous": false
   }
 }

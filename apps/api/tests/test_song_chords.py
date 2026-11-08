@@ -448,15 +448,31 @@ async def test_a_chart_that_cannot_be_changed_does_not_use_up_the_edit_allowance
         assert refused.headers["X-Error-Code"] == service.NOT_EDITABLE_CODE
 
 
-async def test_deleting_a_chart_does_not_give_its_place_in_the_day_back(world: World) -> None:
+async def _approve(world: World, proposal_id: str) -> None:
+    response = await world.client.post(f"/api/v1/admin/song-chords/{proposal_id}/approve", json={})
+    assert response.status_code == 200, response.text
+
+
+async def _delete(world: World, who: str, proposal_id: str) -> None:
+    gone = await world.client.delete(f"{URL}/{proposal_id}", headers={"X-Test-Member": who})
+    assert gone.status_code == 204
+
+
+async def test_deleting_a_live_or_rejected_chart_does_not_give_its_place_in_the_day_back(
+    world: World,
+) -> None:
     ids = []
     for song in range(1, service.DAILY_PROPOSALS + 1):
         service.limiter.reset()
         ids.append((await world.offer("a", song_id=song)).json()["id"])
+    # five go live, five are rejected: all ten had been sent to the team
+    for index, chart_id in enumerate(ids):
+        if index % 2:
+            await _reject(world, chart_id)
+        else:
+            await _approve(world, chart_id)
     for chart_id in ids:
-        assert (
-            await world.client.delete(f"{URL}/{chart_id}", headers={"X-Test-Member": "a"})
-        ).status_code == 204
+        await _delete(world, "a", chart_id)
     assert await world.scalar(select(sa.func.count()).select_from(SongChordProposal)) == 0
     service.limiter.reset()
     blocked = await world.offer("a", song_id=500)
@@ -471,6 +487,36 @@ async def test_deleting_a_chart_does_not_give_its_place_in_the_day_back(world: W
         await session.commit()
     service.limiter.reset()
     assert (await world.offer("a", song_id=501)).status_code == 201
+
+
+async def test_a_chart_withdrawn_before_the_review_does_not_count_for_the_day(
+    world: World,
+) -> None:
+    ids = []
+    for song in range(1, service.DAILY_PROPOSALS + 1):
+        service.limiter.reset()
+        ids.append((await world.offer("a", song_id=song)).json()["id"])
+    service.limiter.reset()
+    assert (await world.offer("a", song_id=500)).status_code == 429
+    # taking back one that still waits gives its place back, once
+    await _delete(world, "a", ids[0])
+    service.limiter.reset()
+    assert (await world.offer("a", song_id=500)).status_code == 201
+    service.limiter.reset()
+    assert (await world.offer("a", song_id=501)).status_code == 429
+    assert await world.scalar(select(sa.func.count()).select_from(SongChordOffer)) == 10
+
+
+async def test_withdrawing_a_waiting_chart_from_before_the_ledger_knew_its_chart(
+    world: World,
+) -> None:
+    """A ledger row stored before `proposal_id` existed is matched by time."""
+    item = (await world.offer("a")).json()
+    async with world.sessions() as session:
+        await session.execute(update(SongChordOffer).values(proposal_id=None))
+        await session.commit()
+    await _delete(world, "a", item["id"])
+    assert await world.scalar(select(sa.func.count()).select_from(SongChordOffer)) == 0
 
 
 async def _reject(world: World, proposal_id: str, reason: str = "The chords do not fit.") -> None:
@@ -683,8 +729,8 @@ async def test_the_author_deletes_their_chart_for_good_in_any_state(world: World
 
 
 async def test_withdrawing_a_waiting_chart_takes_it_off_the_review_queue(world: World) -> None:
-    """The app's "Withdraw from the team" is a delete of a waiting chart: the team no longer sees it
-    and the author's list drops it. The day's allowance stays used (see the test above)."""
+    """The app's "Withdraw from the team" removes a waiting chart from the server (the app keeps its
+    content as a local draft): the team no longer sees it and the author's list drops it."""
     item = (await world.offer("a")).json()
     assert (await world.client.get("/api/v1/admin/song-chords")).json()["total"] == 1
     gone = await world.client.delete(f"{URL}/{item['id']}", headers={"X-Test-Member": "a"})
@@ -709,15 +755,210 @@ async def test_a_new_version_of_a_live_chart_waits_while_the_old_one_stays_live(
     assert {i["status"] for i in own["items"]} == {"published", "pending"}
 
 
+# --------------------------------------------------------------------------- new versions
+
+
+async def _live_chart(world: World, who: str = "a", **overrides: Any) -> dict[str, Any]:
+    item = (await world.offer(who, **overrides)).json()
+    if item["status"] == "pending":
+        await _approve(world, item["id"])
+    service.limiter.reset()
+    return cast(dict[str, Any], item)
+
+
+async def _mine(world: World, who: str = "a") -> dict[str, dict[str, Any]]:
+    response = await world.client.get(f"{URL}/mine", headers={"X-Test-Member": who})
+    assert response.status_code == 200, response.text
+    return {item["id"]: item for item in response.json()["items"]}
+
+
+async def test_an_approved_new_version_replaces_the_old_live_chart(world: World) -> None:
+    old = await _live_chart(world)
+    newer = (await world.offer("a", capo=0, base_key="G", replaces_id=old["id"])).json()
+    assert newer["status"] == "pending" and newer["replaces"] == old["id"]
+    # while it waits, the old chart stays live and untouched
+    assert [i["id"] for i in (await world.listing("b")).json()["items"]] == [old["id"]]
+    assert (await _mine(world))[old["id"]]["archived"] is False
+    await _approve(world, newer["id"])
+    # the song page shows the new one only; the old one is archived, not deleted
+    assert [i["id"] for i in (await world.listing("b")).json()["items"]] == [newer["id"]]
+    assert [i["id"] for i in (await world.listing("a")).json()["items"]] == [newer["id"]]
+    mine = await _mine(world)
+    assert mine[old["id"]]["archived"] is True
+    assert mine[old["id"]]["replaced_by"] == newer["id"]
+    assert mine[newer["id"]]["archived"] is False and mine[newer["id"]]["replaced_by"] is None
+    row = await world.scalar(
+        select(SongChordProposal).where(SongChordProposal.id == UUID(old["id"]))
+    )
+    assert row is not None and row.archived_at is not None and row.status == "published"
+    # the author is told it replaced the old one
+    async with world.sessions() as session:
+        notices = (
+            await session.scalars(
+                select(MemberNotice).where(MemberNotice.kind == service.NOTICE_PUBLISHED)
+            )
+        ).all()
+    assert any("replaces the old one" in notice.body for notice in notices)
+    # nobody else learns anything about an archived chart
+    assert (await _mine(world, "b")) == {}
+    assert (await world.client.post(f"{URL}/{old['id']}/report", json={"reason": "spam"})).json()[
+        "message"
+    ] == "Thank you. This chart is not live."
+
+
+async def test_a_team_members_new_version_replaces_at_once(world: World) -> None:
+    old = (await world.offer("team")).json()
+    service.limiter.reset()
+    newer = (await world.offer("team", base_key="G", capo=0, replaces_id=old["id"])).json()
+    assert newer["status"] == "published"
+    assert [i["id"] for i in (await world.listing("b")).json()["items"]] == [newer["id"]]
+    assert (await _mine(world, "team"))[old["id"]]["archived"] is True
+
+
+async def test_a_version_cannot_replace_somebody_elses_or_a_waiting_or_another_chart(
+    world: World,
+) -> None:
+    theirs = await _live_chart(world, "b")
+    waiting = (await world.offer("a", song_id=20)).json()
+    other_song = await _live_chart(world, "a", song_id=21)
+    other_tool = await _live_chart(
+        world, "a", song_id=22, instrument="harmonium", capo=0, strum=None
+    )
+    seen: list[str] = []
+    for target, extra in (
+        (theirs["id"], {}),
+        (waiting["id"], {"song_id": 20}),
+        (other_song["id"], {"song_id": 19}),
+        (other_tool["id"], {"song_id": 22}),
+        (str(uuid4()), {}),
+    ):
+        service.limiter.reset()
+        key = "EFGABC"[len(seen)]
+        seen.append(key)
+        sent = (await world.offer("a", base_key=key, replaces_id=target, **extra)).json()
+        assert sent["replaces"] is None
+        await _approve(world, sent["id"])
+    # nothing was archived by those
+    assert all(not item["archived"] for item in (await _mine(world)).values())
+    assert theirs["id"] in {i["id"] for i in (await world.listing("b", song=19)).json()["items"]}
+
+
+async def test_a_new_version_takes_the_place_of_the_old_one_in_the_cap(world: World) -> None:
+    first = await _live_chart(world)
+    await _live_chart(world, base_key="E")
+    await _live_chart(world, base_key="F")
+    plain = await world.offer("a", base_key="A")
+    assert plain.status_code == 409 and plain.headers["X-Error-Code"] == service.OPEN_LIMIT_CODE
+    service.limiter.reset()
+    version = await world.offer("a", base_key="A", replaces_id=first["id"])
+    assert version.status_code == 201
+
+
+async def test_an_archived_chart_is_out_of_the_duplicate_check_and_the_queues(
+    world: World,
+) -> None:
+    old = await _live_chart(world)
+    newer = (await world.offer("a", base_key="G", capo=0, replaces_id=old["id"])).json()
+    await _approve(world, newer["id"])
+    service.limiter.reset()
+    # the old content, offered again, is not a twin of anything live
+    again = await world.offer("a")
+    assert again.status_code == 201
+    published = (await world.client.get("/api/v1/admin/song-chords?filter=published")).json()
+    assert old["id"] not in {i["id"] for i in published["items"]}
+    everything = (await world.client.get("/api/v1/admin/song-chords?filter=all")).json()
+    assert old["id"] in {i["id"] for i in everything["items"]}
+
+
+async def test_deleting_a_chart_cuts_the_links_to_it(world: World) -> None:
+    old = await _live_chart(world)
+    newer = (await world.offer("a", base_key="G", capo=0, replaces_id=old["id"])).json()
+    # the old one is deleted while the new one waits: approving it later breaks nothing
+    await _delete(world, "a", old["id"])
+    assert (await _mine(world))[newer["id"]]["replaces"] is None
+    await _approve(world, newer["id"])
+    assert [i["id"] for i in (await world.listing("b")).json()["items"]] == [newer["id"]]
+    # the new version is deleted: the old one stays archived (deleting is the author's own act)
+    other = await _live_chart(world, song_id=30)
+    version = (
+        await world.offer("a", song_id=30, base_key="G", capo=0, replaces_id=other["id"])
+    ).json()
+    await _approve(world, version["id"])
+    await _delete(world, "a", version["id"])
+    assert (await _mine(world))[other["id"]]["archived"] is True
+    assert (await _mine(world))[other["id"]]["replaced_by"] is None
+
+
+async def test_a_restored_new_version_replaces_the_old_one(world: World) -> None:
+    old = await _live_chart(world)
+    newer = (await world.offer("a", base_key="G", capo=0, replaces_id=old["id"])).json()
+    await _reject(world, newer["id"])
+    assert (await _mine(world))[old["id"]]["archived"] is False
+    restored = await world.client.post(f"/api/v1/admin/song-chords/{newer['id']}/restore", json={})
+    assert restored.status_code == 200
+    assert (await _mine(world))[old["id"]]["archived"] is True
+
+
+# --------------------------------------------------------------------------- start from a chart
+
+
+async def test_a_chart_started_from_another_carries_the_credit(world: World) -> None:
+    original = await _live_chart(world, "a")
+    copy = (await world.offer("b", base_key="C", capo=0, based_on_id=original["id"])).json()
+    assert copy["based_on"] == {"id": original["id"], "name": "Ananda"}
+    await _approve(world, copy["id"])
+    shown = (await world.listing("team")).json()["items"]
+    credited = next(i for i in shown if i["id"] == copy["id"])
+    assert credited["based_on"] == {"id": original["id"], "name": "Ananda"}
+    # the original is untouched
+    assert next(i for i in shown if i["id"] == original["id"])["based_on"] is None
+
+
+async def test_the_credit_of_an_anonymous_original_has_no_name(world: World) -> None:
+    original = await _live_chart(world, "a", is_anonymous=True)
+    copy = (await world.offer("b", base_key="C", capo=0, based_on_id=original["id"])).json()
+    assert copy["based_on"] == {"id": original["id"], "name": None}
+    assert "Ananda" not in json.dumps(copy)
+
+
+async def test_no_credit_for_ones_own_chart_a_waiting_chart_or_another_song(world: World) -> None:
+    mine = await _live_chart(world, "a")
+    waiting = (await world.offer("b", song_id=20)).json()
+    other_song = await _live_chart(world, "a", song_id=21)
+    for index, (target, who, extra) in enumerate(
+        (
+            (mine["id"], "a", {"base_key": "C"}),
+            (waiting["id"], "a", {"song_id": 20}),
+            (other_song["id"], "b", {"song_id": 19}),
+            (str(uuid4()), "b", {}),
+        )
+    ):
+        service.limiter.reset()
+        sent = (
+            await world.offer(
+                who, based_on_id=target, **{"capo": 0, "base_key": "EFGA"[index], **extra}
+            )
+        ).json()
+        assert sent["based_on"] is None
+
+
+async def test_the_credit_survives_the_original_being_deleted_without_a_link(
+    world: World,
+) -> None:
+    original = await _live_chart(world, "a")
+    copy = (await world.offer("b", base_key="C", capo=0, based_on_id=original["id"])).json()
+    await _delete(world, "a", original["id"])
+    after = (await _mine(world, "b"))[copy["id"]]
+    assert after["based_on"] == {"id": None, "name": "Ananda"}
+
+
 # --------------------------------------------------------------------------- migration 0031
 
 VERSIONS = Path(__file__).resolve().parents[1] / "alembic" / "versions"
 
 
-def load_migration() -> ModuleType:
-    spec = importlib.util.spec_from_file_location(
-        "m0031", VERSIONS / "0031_song_chord_proposals.py"
-    )
+def load_migration(name: str = "0031_song_chord_proposals") -> ModuleType:
+    spec = importlib.util.spec_from_file_location(f"m{name[:4]}", VERSIONS / f"{name}.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -738,13 +979,23 @@ def test_the_chain_has_one_head_and_0031_follows_0030() -> None:
     assert "0031_song_chord_proposals" in {r.revision for r in script.walk_revisions()}
 
 
-def test_the_migration_builds_the_tables_runs_twice_and_matches_the_model() -> None:
+def test_0043_follows_the_head_it_was_written_on() -> None:
+    script = ScriptDirectory.from_config(Config(str(VERSIONS.parents[1] / "alembic.ini")))
+    revision = script.get_revision("0043_song_chord_versions")
+    assert revision is not None and revision.down_revision == "0042_song_plays"
+    assert len(script.get_heads()) == 1
+
+
+def test_the_migrations_build_the_tables_run_twice_and_match_the_model() -> None:
     migration = load_migration()
+    versions = load_migration("0043_song_chord_versions")
     engine = sa.create_engine("sqlite://", poolclass=sa.pool.StaticPool)
     with engine.begin() as connection:
         connection.execute(sa.text("CREATE TABLE user_accounts (id CHAR(32) PRIMARY KEY)"))
     run(engine, migration.upgrade)
     run(engine, migration.upgrade)  # again: nothing breaks
+    run(engine, versions.upgrade)
+    run(engine, versions.upgrade)
     inspector = sa.inspect(engine)
     for model in (SongChordProposal, SongChordOffer, SongChordReport):
         table = cast(Table, model.__table__)
@@ -773,6 +1024,11 @@ def test_the_migration_builds_the_tables_runs_twice_and_matches_the_model() -> N
             with pytest.raises(sa.exc.IntegrityError):
                 with connection.begin_nested():
                     connection.execute(insert, {"i": uuid4().hex, **good, **override})
+    run(engine, versions.downgrade)
+    run(engine, versions.downgrade)
+    assert "archived_at" not in {
+        c["name"] for c in sa.inspect(engine).get_columns("song_chord_proposals")
+    }
     run(engine, migration.downgrade)
     run(engine, migration.downgrade)
     assert not sa.inspect(engine).has_table("song_chord_proposals")
@@ -793,6 +1049,44 @@ def test_the_migration_leaves_tables_that_create_all_made_alone() -> None:
     )
     run(engine, migration.upgrade)
     assert sa.inspect(engine).has_table("song_chord_reports")
+    run(engine, load_migration("0043_song_chord_versions").upgrade)  # columns are there already
+    engine.dispose()
+
+
+def test_0043_keeps_the_rows_that_were_there() -> None:
+    migration = load_migration()
+    versions = load_migration("0043_song_chord_versions")
+    engine = sa.create_engine("sqlite://", poolclass=sa.pool.StaticPool)
+    with engine.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE user_accounts (id CHAR(32) PRIMARY KEY)"))
+    run(engine, migration.upgrade)
+    user, chart = uuid4().hex, uuid4().hex
+    with engine.begin() as connection:
+        connection.execute(sa.text("INSERT INTO user_accounts (id) VALUES (:i)"), {"i": user})
+        connection.execute(
+            sa.text(
+                "INSERT INTO song_chord_proposals (id, song_id, member_id, instrument, base_key, "
+                "capo, chart, status) VALUES (:i, 19, :m, 'guitar', 'D', 0, '{}', 'published')"
+            ),
+            {"i": chart, "m": user},
+        )
+        connection.execute(
+            sa.text("INSERT INTO song_chord_offers (id, member_id) VALUES (:i, :m)"),
+            {"i": uuid4().hex, "m": user},
+        )
+    run(engine, versions.upgrade)
+    with engine.connect() as connection:
+        row = connection.execute(
+            sa.text(
+                "SELECT status, replaces_id, archived_at, based_on_id, based_on_name FROM "
+                "song_chord_proposals"
+            )
+        ).one()
+        assert tuple(row) == ("published", None, None, None, None)
+        assert (
+            connection.execute(sa.text("SELECT proposal_id FROM song_chord_offers")).scalar()
+            is None
+        )
     engine.dispose()
 
 

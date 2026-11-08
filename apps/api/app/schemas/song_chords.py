@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -66,6 +67,12 @@ class ChordProposalCreate(BaseModel):
     played_it: bool
     note: str | None = Field(default=None, max_length=300)
     is_anonymous: bool = False
+    # A new version of the author's own LIVE chart (same song and instrument): when it goes live,
+    # the old one is archived. Checked by the service; ignored when the chart is edited (PUT).
+    replaces_id: UUID | None = None
+    # "Start from this chart": somebody else's published chart of the same song whose chords were
+    # copied. Credited on the new chart. Dropped, not refused, when it is gone or not eligible.
+    based_on_id: UUID | None = None
 
     @field_validator("base_key")
     @classmethod
@@ -116,6 +123,14 @@ class ChordAuthor(BaseModel):
     name: str
 
 
+class ChordBasedOn(BaseModel):
+    """The credit "Based on a chart by <name>". `name` is null when that chart was anonymous (the
+    credit then reads "Based on another chart"); `id` is null once the original was deleted."""
+
+    id: str | None
+    name: str | None
+
+
 class ChordProposalOut(BaseModel):
     id: str
     song_id: int
@@ -136,6 +151,13 @@ class ChordProposalOut(BaseModel):
     rejected_reason: str | None = None
     # true for the team (any proposal can be rejected)
     can_review: bool = False
+    based_on: ChordBasedOn | None = None
+    # Only the author's own view (`/mine`) ever carries an archived chart. `replaced_by` is the id
+    # of the newer chart that took its place.
+    archived: bool = False
+    replaced_by: str | None = None
+    # The author's view of a new version still on its way: the id of the live chart it will replace.
+    replaces: str | None = None
 
 
 class ChordProposalList(BaseModel):

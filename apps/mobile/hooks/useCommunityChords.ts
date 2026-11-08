@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { useFocusEffect } from "expo-router"
 
 import { chordFailure, chordsBackend } from "@/lib/songChords/backend"
 import type { ChordFailure, ChordProposal, ChordReportReason } from "@/lib/songChords/types"
@@ -42,6 +43,15 @@ export function useCommunityChords(songNumber: number | null): CommunityChords {
   }, [songNumber, tick])
 
   const reload = useCallback(() => setTick((n) => n + 1), [])
+  // coming back to the song page (from the chord editor, after a chart was sent, replaced or taken back) shows what
+  // changed meanwhile; the first look is the load above
+  const seenOnce = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (seenOnce.current) setTick((n) => n + 1)
+      seenOnce.current = true
+    }, []),
+  )
 
   const remove = useCallback(async (id: string) => {
     try {

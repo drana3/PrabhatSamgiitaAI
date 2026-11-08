@@ -59,6 +59,11 @@ function previewParam(name: string): string | null {
   }
 }
 
+/** Preview only: `?replaced` adds a chart of the member's that a newer version replaced (and the newer one). */
+function previewReplaced(): boolean {
+  return previewParam("replaced") !== null
+}
+
 function withPreviewFailures(base: ChordsBackend): ChordsBackend {
   const write = previewParam("fail") as ChordFailure | null
   const list = previewParam("failList") !== null
@@ -74,7 +79,7 @@ function withPreviewFailures(base: ChordsBackend): ChordsBackend {
 
 export function chordsBackend(): ChordsBackend {
   if (MOCKUP_DATA) {
-    mock ??= createMockBackend({ me: previewName, team: previewTeam, seedMine: !previewEmpty() })
+    mock ??= createMockBackend({ me: previewName, team: previewTeam, seedMine: !previewEmpty(), seedReplaced: previewReplaced() })
     return withPreviewFailures(mock)
   }
   return remoteBackend(remoteConfig())

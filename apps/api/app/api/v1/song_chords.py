@@ -118,9 +118,14 @@ async def list_for_song(
 
 @router.get("/mine", response_model=ChordProposalList)
 async def my_proposals(session: DatabaseSession, member: Member) -> ChordProposalList:
-    """The member's own charts in every state, with the reason of a rejection."""
+    """The member's own charts in every state, with the reason of a rejection. A chart that a newer
+    version replaced comes with `archived: true` and `replaced_by`."""
     rows = await service.list_mine(session, member.id)
-    items = [service.public_out(p, a, viewer_id=member.id, team=False) for p, a in rows]
+    replaced = await service.replaced_by_map(session, [p.id for p, _ in rows if p.archived_at])
+    items = [
+        service.public_out(p, a, viewer_id=member.id, team=False, replaced_by=replaced.get(p.id))
+        for p, a in rows
+    ]
     return ChordProposalList(items=items, total=len(items))
 
 
@@ -172,7 +177,8 @@ async def update_own(
 
 @router.delete("/{proposal_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_own(proposal_id: UUID, session: DatabaseSession, member: Member) -> Response:
-    """The author takes their chart back, for good, in any state."""
+    """The author takes their chart back, for good, in any state. A chart that still waits for the
+    review gives its place in the daily allowance back; a live or rejected one does not."""
     proposal = await get_proposal(session, proposal_id)
     if proposal.member_id != member.id:
         raise HTTPException(status_code=404, detail="Chart not found")
@@ -201,7 +207,7 @@ async def report_chart(
     else:
         reporter_key = f"anon:{host}"[:80]
     proposal = await get_proposal(session, proposal_id)
-    if proposal.status != "published":
+    if proposal.status != "published" or proposal.archived_at is not None:
         return ChordReportResponse(status="received", message="Thank you. This chart is not live.")
     if member is not None and proposal.member_id == member.id:
         raise HTTPException(status_code=422, detail="This is your own chart. You can delete it.")

@@ -16,7 +16,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserAccount
@@ -25,6 +25,7 @@ from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordR
 from app.schemas.song_chords import (
     AdminChordProposalOut,
     ChordAuthor,
+    ChordBasedOn,
     ChordLineOut,
     ChordPlacementOut,
     ChordProposalCreate,
@@ -44,6 +45,8 @@ NOT_EDITABLE_CODE = "chords_not_editable"
 FALLBACK_NAME = "Member"
 NOTICE_REJECTED = "chords_rejected"
 NOTICE_PUBLISHED = "chords_published"
+# A waiting chart taken back is older than this window of the ledger to be matched by time alone.
+LEDGER_MATCH_SLACK = timedelta(minutes=2)
 
 limiter = RateLimiter()
 
@@ -108,6 +111,7 @@ def public_out(
     *,
     viewer_id: UUID | None,
     team: bool,
+    replaced_by: UUID | str | None = None,
 ) -> ChordProposalOut:
     """What every reader gets. `author` is filled only for a NAMED proposal."""
     mine = viewer_id is not None and proposal.member_id == viewer_id
@@ -132,6 +136,18 @@ def public_out(
         # the reason is the author's and the team's business only
         rejected_reason=proposal.rejected_reason if (mine or team) else None,
         can_review=team,
+        based_on=(
+            ChordBasedOn(
+                id=str(proposal.based_on_id) if proposal.based_on_id else None,
+                name=proposal.based_on_name,
+            )
+            if proposal.based_on_id or proposal.based_on_name
+            else None
+        ),
+        # what happened to a chart is the author's business
+        archived=bool(mine and proposal.archived_at is not None),
+        replaced_by=str(replaced_by) if (mine and replaced_by) else None,
+        replaces=str(proposal.replaces_id) if (mine and proposal.replaces_id) else None,
     )
 
 
@@ -159,8 +175,9 @@ async def list_for_song(
     instrument: str | None = None,
 ) -> list[tuple[SongChordProposal, UserAccount | None]]:
     """Published charts of one song, oldest first (the first good one keeps its place), plus the
-    viewer's own pending ones (marked `mine`, status `pending`)."""
-    visible = SongChordProposal.status == "published"
+    viewer's own pending ones (marked `mine`, status `pending`). An archived chart (replaced by a
+    newer version of the same author) is not listed for anybody."""
+    visible = (SongChordProposal.status == "published") & SongChordProposal.archived_at.is_(None)
     if viewer_id is not None:
         visible = visible | (
             (SongChordProposal.member_id == viewer_id) & (SongChordProposal.status == "pending")
@@ -191,14 +208,37 @@ async def list_mine(
     return [(p, a) for p, a in rows]
 
 
+async def replaced_by_map(session: AsyncSession, ids: list[UUID]) -> dict[UUID, UUID]:
+    """For archived charts: the id of the newer chart that took each one's place."""
+    if not ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(SongChordProposal.replaces_id, SongChordProposal.id)
+            .where(
+                SongChordProposal.replaces_id.in_(ids),
+                SongChordProposal.status == "published",
+            )
+            .order_by(SongChordProposal.published_at.asc())
+        )
+    ).all()
+    found: dict[UUID, UUID] = {}
+    for old_id, new_id in rows:
+        if old_id is not None:
+            found[old_id] = new_id  # the latest wins
+    return found
+
+
 # --------------------------------------------------------------------------- offering
 
 
 async def proposals_in_last_day(session: AsyncSession, member_id: UUID) -> int:
-    """Charts the member offered in 24 hours, the ones they deleted since included.
+    """Charts the member sent for review in 24 hours, the ones they deleted since included.
 
-    Every offer leaves a row in the ledger that outlives the chart, so taking a chart back does
-    not give its place in the day back. Charts stored before the ledger existed are counted too.
+    Every offer leaves a row in the ledger that outlives the chart, so deleting a live or rejected
+    chart does not give its place in the day back. The one exception is a chart taken back while it
+    still waits for the review: it never reached the team, so `delete_proposal` removes its row and
+    it does not count. Charts stored before the ledger existed are counted too.
     """
     since = now_utc() - timedelta(hours=24)
     offered = await session.scalar(
@@ -232,6 +272,76 @@ def _fingerprint(chart: dict[str, Any]) -> str:
     return json.dumps(chart, sort_keys=True, separators=(",", ":"))
 
 
+def _live(*, member_id: UUID, song_id: int, instrument: str) -> Any:
+    """The member's charts of one song and instrument that are waiting or live (an archived one,
+    replaced by a newer version, is neither)."""
+    return select(SongChordProposal).where(
+        SongChordProposal.member_id == member_id,
+        SongChordProposal.song_id == song_id,
+        SongChordProposal.instrument == instrument,
+        SongChordProposal.status.in_(("pending", "published")),
+        SongChordProposal.archived_at.is_(None),
+    )
+
+
+async def _replaceable(
+    session: AsyncSession, *, member_id: UUID, payload: ChordProposalCreate
+) -> SongChordProposal | None:
+    """The live chart of the author that a new version may replace: their own, published, not
+    archived, same song and instrument. Anything else is ignored (the chart is then a new one):
+    a stranger's id must not tell the sender anything."""
+    if payload.replaces_id is None:
+        return None
+    old = await session.get(SongChordProposal, payload.replaces_id)
+    if (
+        old is None
+        or old.member_id != member_id
+        or old.status != "published"
+        or old.archived_at is not None
+        or old.song_id != payload.song_id
+        or old.instrument != payload.instrument
+    ):
+        return None
+    return old
+
+
+async def _credit(
+    session: AsyncSession, *, member_id: UUID, payload: ChordProposalCreate
+) -> tuple[UUID | None, str | None]:
+    """The credit for "Start from this chart": the original must be another member's published chart
+    of the same song. The name is null for an anonymous original. Anything else is ignored."""
+    if payload.based_on_id is None:
+        return None, None
+    original = await session.get(SongChordProposal, payload.based_on_id)
+    if (
+        original is None
+        or original.member_id == member_id
+        or original.status != "published"
+        or original.archived_at is not None
+        or original.song_id != payload.song_id
+    ):
+        return None, None
+    if original.is_anonymous:
+        return original.id, None
+    author = await session.get(UserAccount, original.member_id)
+    return original.id, (display_name(author) if author is not None else None)
+
+
+async def _archive_replaced(session: AsyncSession, proposal: SongChordProposal) -> None:
+    """The new version is live: the chart it replaces is archived (kept, hidden). Does nothing when
+    that chart is gone, was already archived, or is no longer published."""
+    if proposal.replaces_id is None:
+        return
+    old = await session.get(SongChordProposal, proposal.replaces_id)
+    if (
+        old is not None
+        and old.id != proposal.id
+        and old.status == "published"
+        and old.archived_at is None
+    ):
+        old.archived_at = now_utc()
+
+
 async def create_proposal(
     session: AsyncSession,
     *,
@@ -245,14 +355,11 @@ async def create_proposal(
     await ensure_daily_allowance(session, member.id, team=team)
     live = (
         await session.scalars(
-            select(SongChordProposal).where(
-                SongChordProposal.member_id == member.id,
-                SongChordProposal.song_id == payload.song_id,
-                SongChordProposal.instrument == payload.instrument,
-                SongChordProposal.status.in_(("pending", "published")),
-            )
+            _live(member_id=member.id, song_id=payload.song_id, instrument=payload.instrument)
         )
     ).all()
+    replaced = await _replaceable(session, member_id=member.id, payload=payload)
+    based_on_id, based_on_name = await _credit(session, member_id=member.id, payload=payload)
     wanted = _fingerprint(chart)
     for row in live:
         if (
@@ -265,7 +372,9 @@ async def create_proposal(
                 detail="You already offered exactly this chart.",
                 headers={"X-Error-Code": DUPLICATE_CODE},
             )
-    if not team and len(live) >= OPEN_PER_SONG_INSTRUMENT:
+    # The chart a new version replaces goes away when this one is live: it takes its place.
+    staying = [row for row in live if replaced is None or row.id != replaced.id]
+    if not team and len(staying) >= OPEN_PER_SONG_INSTRUMENT:
         raise HTTPException(
             status_code=409,
             detail=(
@@ -283,7 +392,6 @@ async def create_proposal(
         window_seconds=3600,
     )
     now = now_utc()
-    session.add(SongChordOffer(member_id=member.id))
     proposal = SongChordProposal(
         song_id=payload.song_id,
         member_id=member.id,
@@ -300,8 +408,16 @@ async def create_proposal(
         published_at=now if team else None,
         reviewed_at=now if team else None,
         reviewed_by="team" if team else None,
+        replaces_id=replaced.id if replaced is not None else None,
+        based_on_id=based_on_id,
+        based_on_name=based_on_name,
     )
     session.add(proposal)
+    await session.flush()
+    # The ledger row is linked to its chart: only a chart taken back while it waits gives it up.
+    session.add(SongChordOffer(member_id=member.id, proposal_id=proposal.id))
+    if team:
+        await _archive_replaced(session, proposal)
     await session.commit()
     await session.refresh(proposal)
     return proposal
@@ -335,13 +451,11 @@ async def update_proposal(
         raise HTTPException(status_code=422, detail="Put at least one chord over a word.")
     others = (
         await session.scalars(
-            select(SongChordProposal).where(
-                SongChordProposal.member_id == proposal.member_id,
-                SongChordProposal.song_id == proposal.song_id,
-                SongChordProposal.instrument == proposal.instrument,
-                SongChordProposal.status.in_(("pending", "published")),
-                SongChordProposal.id != proposal.id,
-            )
+            _live(
+                member_id=proposal.member_id,
+                song_id=proposal.song_id,
+                instrument=proposal.instrument,
+            ).where(SongChordProposal.id != proposal.id)
         )
     ).all()
     wanted = _fingerprint(chart)
@@ -356,8 +470,10 @@ async def update_proposal(
                 detail="You already offered exactly this chart.",
                 headers={"X-Error-Code": DUPLICATE_CODE},
             )
-    # A rejected chart that comes back is a live chart again: it counts against the cap.
-    if not team and proposal.status == "rejected" and len(others) >= OPEN_PER_SONG_INSTRUMENT:
+    # A rejected chart that comes back is a live chart again: it counts against the cap (not the
+    # chart a new version replaces: that one goes away when this one is live).
+    staying = [row for row in others if row.id != proposal.replaces_id]
+    if not team and proposal.status == "rejected" and len(staying) >= OPEN_PER_SONG_INSTRUMENT:
         raise HTTPException(
             status_code=409,
             detail=(
@@ -381,12 +497,61 @@ async def update_proposal(
     proposal.published_at = now if team else None
     proposal.reviewed_at = now if team else None
     proposal.reviewed_by = "team" if team else None
+    if team:
+        await _archive_replaced(session, proposal)
     await session.commit()
     await session.refresh(proposal)
     return proposal
 
 
+async def _give_back_place(session: AsyncSession, proposal: SongChordProposal) -> None:
+    """Remove the ledger row of a chart that never reached the team. A row stored before the ledger
+    knew its chart is matched by time: the member's latest unlinked row not newer than the chart."""
+    linked = (
+        await session.scalars(
+            select(SongChordOffer).where(
+                SongChordOffer.member_id == proposal.member_id,
+                SongChordOffer.proposal_id == proposal.id,
+            )
+        )
+    ).all()
+    if linked:
+        for row in linked:
+            await session.delete(row)
+        return
+    legacy = await session.scalar(
+        select(SongChordOffer)
+        .where(
+            SongChordOffer.member_id == proposal.member_id,
+            SongChordOffer.proposal_id.is_(None),
+            SongChordOffer.created_at <= proposal.created_at + LEDGER_MATCH_SLACK,
+        )
+        .order_by(SongChordOffer.created_at.desc())
+        .limit(1)
+    )
+    if legacy is not None:
+        await session.delete(legacy)
+
+
 async def delete_proposal(session: AsyncSession, proposal: SongChordProposal) -> None:
+    """The author takes a chart back, for good.
+
+    A chart still waiting for the review gives its place in the daily allowance back (it was never
+    sent to the team: "withdraw"). A live, archived or rejected one does not. Charts that point at
+    this one (a newer version, a "based on" credit) lose the link and keep everything else.
+    """
+    if proposal.status == "pending":
+        await _give_back_place(session, proposal)
+    await session.execute(
+        update(SongChordProposal)
+        .where(SongChordProposal.replaces_id == proposal.id)
+        .values(replaces_id=None)
+    )
+    await session.execute(
+        update(SongChordProposal)
+        .where(SongChordProposal.based_on_id == proposal.id)
+        .values(based_on_id=None)
+    )
     for report in (
         await session.scalars(
             select(SongChordReport).where(SongChordReport.proposal_id == proposal.id)
@@ -469,16 +634,21 @@ async def approve(session: AsyncSession, proposal: SongChordProposal, *, by: str
     proposal.reviewed_at = now
     proposal.reviewed_by = by[:255]
     proposal.rejected_reason = None
+    replaces = proposal.replaces_id is not None
+    await _archive_replaced(session, proposal)
     session.add(
         _notice(
             proposal,
             kind=NOTICE_PUBLISHED,
             title=f"Your {_what(proposal)} are live",
             body=(
-                f"Thank you. Your {_what(proposal)} passed the review "
+                f"Thank you. Your new version of the {_what(proposal)} passed the review "
+                "and replaces the old one on the song page."
+                if replaces
+                else f"Thank you. Your {_what(proposal)} passed the review "
                 "and now show on the song page."
             ),
-            extra={},
+            extra={"replaces": str(proposal.replaces_id)} if replaces else {},
         )
     )
     await session.commit()
@@ -523,6 +693,7 @@ async def restore(session: AsyncSession, proposal: SongChordProposal, *, by: str
     proposal.reviewed_at = now
     proposal.reviewed_by = by[:255]
     proposal.rejected_reason = None
+    await _archive_replaced(session, proposal)
     session.add(
         _notice(
             proposal,
@@ -539,14 +710,20 @@ async def admin_queue(
     session: AsyncSession, *, which: str, limit: int, offset: int
 ) -> tuple[list[tuple[SongChordProposal, UserAccount | None]], int]:
     """pending = waiting for the first look (oldest first); reported = published and reported;
-    published; rejected; all. Newest first, except `pending`."""
+    published; rejected; all. Newest first, except `pending`. An archived chart (replaced by a newer
+    version) is not live, so `reported` and `published` leave it out; `all` still lists it."""
     conditions: list[Any]
+    live = SongChordProposal.archived_at.is_(None)
     if which == "pending":
         conditions = [SongChordProposal.status == "pending"]
     elif which == "reported":
-        conditions = [SongChordProposal.status == "published", SongChordProposal.reports_count > 0]
+        conditions = [
+            SongChordProposal.status == "published",
+            SongChordProposal.reports_count > 0,
+            live,
+        ]
     elif which == "published":
-        conditions = [SongChordProposal.status == "published"]
+        conditions = [SongChordProposal.status == "published", live]
     elif which == "rejected":
         conditions = [SongChordProposal.status == "rejected"]
     else:

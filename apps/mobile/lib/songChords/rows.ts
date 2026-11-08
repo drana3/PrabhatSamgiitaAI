@@ -6,7 +6,7 @@ import type { ChordInstrument, ChordProposal, ProposalStatus } from "./types"
  * published, not accepted) or a draft that lives only on the phone. Pure, so the whole table of actions
  * (docs/chord-proposals.md, "Actions of a row") is tested without a screen.
  */
-export type RowKind = "draft" | ProposalStatus
+export type RowKind = "draft" | ProposalStatus | "replaced"
 
 export type ChartRow = {
   /** the chart id, or the draft key for a draft */
@@ -28,20 +28,20 @@ export type RowAction =
   | "newVersion" // open a copy of a live chart in the editor
   | "why" // the team's reason, in a small window with a way to fix it
   | "viewSong" // the song page
-  | "withdraw" // take a waiting chart back from the team (deletes it)
-  | "delete" // delete a live or not accepted chart
+  | "withdraw" // take a waiting chart back from the team: it becomes a draft again (nothing is deleted)
+  | "delete" // delete a live, replaced or not accepted chart, for good
   | "discardDraft" // throw away a draft that has no chart
   | "discardChanges" // throw away the unsent changes of a chart
 
-const ORDER: Record<RowKind, number> = { rejected: 0, draft: 1, pending: 2, published: 3 }
+const ORDER: Record<RowKind, number> = { rejected: 0, draft: 1, pending: 2, published: 3, replaced: 4 }
 
 function ownerOf(entry: DraftEntry): string | null {
   return entry.draft.editId ?? entry.draft.basedOn ?? null
 }
 
 /**
- * The rows of the list: what needs the member first (not accepted, then drafts, then waiting, then live), newest first
- * inside each group. A draft that belongs to a chart in the list (a fix, a new version) rides on that chart's row as
+ * The rows of the list: what needs the member first (not accepted, then drafts, then waiting, then live, then the old
+ * versions a newer one replaced), newest first inside each group. A draft that belongs to a chart in the list (a fix, a new version) rides on that chart's row as
  * "unsent changes" instead of being a second row. A draft whose chart cannot be found (deleted somewhere else, or the
  * list has not loaded yet) is shown on its own, so a draft is never hidden.
  */
@@ -57,7 +57,7 @@ export function buildRows(mine: readonly ChordProposal[], book: DraftBook): Char
     }
     rows.push({ key: entry.key, kind: "draft", songId: entry.draft.songId, instrument: entry.draft.instrument, proposal: null, draft: entry })
   }
-  for (const p of mine) rows.push({ key: p.id, kind: p.status, songId: p.songId, instrument: p.instrument, proposal: p, draft: attachedTo.get(p.id) ?? null })
+  for (const p of mine) rows.push({ key: p.id, kind: p.archived ? "replaced" : p.status, songId: p.songId, instrument: p.instrument, proposal: p, draft: attachedTo.get(p.id) ?? null })
   const when = (r: ChartRow) => (r.kind === "draft" ? (r.draft?.updatedAt ?? 0) : Date.parse(r.proposal?.createdAt ?? "") || 0)
   return rows.sort((a, b) => ORDER[a.kind] - ORDER[b.kind] || when(b) - when(a) || a.key.localeCompare(b.key))
 }
@@ -72,6 +72,7 @@ export function primaryAction(row: Pick<ChartRow, "kind">): RowAction {
     case "rejected":
       return "why"
     case "published":
+    case "replaced":
       return "viewSong"
   }
 }
@@ -83,11 +84,13 @@ export function menuActions(row: Pick<ChartRow, "kind" | "draft">): RowAction[] 
     case "draft":
       return ["continue", "discardDraft"]
     case "pending":
-      return ["edit", "viewSong", ...changes, "withdraw"]
+      return ["edit", "viewSong", ...changes, "withdraw", "delete"]
     case "rejected":
       return ["fix", "why", ...changes, "delete"]
     case "published":
       return ["viewSong", "newVersion", ...changes, "delete"]
+    case "replaced":
+      return ["viewSong", ...changes, "delete"]
   }
 }
 

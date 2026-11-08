@@ -29,8 +29,12 @@ export type Draft = {
   isAnonymous: boolean
   /** set while the member fixes a chart they already sent (a waiting or a rejected one): "send again" updates it */
   editId?: string | null
-  /** set while the member makes a changed copy of a live chart: it is sent as a NEW chart */
+  /** set while the member makes a changed copy of a live chart: it is sent as a NEW chart that replaces the live one */
   basedOn?: string | null
+  /** set when the chords were copied from ANOTHER member's chart ("Start from this chart"): the credit is sent with it */
+  startedFrom?: string | null
+  /** set when this draft is a chart the member took back from the team: it keeps its own place in the book */
+  keptFrom?: string | null
 }
 
 export const NOTE_MAX = 300
@@ -152,6 +156,9 @@ export function toPayload(draft: Draft, wordCounts: readonly number[]): Proposal
     playedIt: draft.playedIt,
     note: note || null,
     isAnonymous: draft.isAnonymous,
+    // a changed copy of a live chart takes its place once accepted; chords borrowed from someone are credited to them
+    ...(draft.basedOn ? { replacesId: draft.basedOn } : {}),
+    ...(draft.startedFrom && !draft.editId && !draft.basedOn ? { basedOnId: draft.startedFrom } : {}),
   }
 }
 
@@ -185,11 +192,24 @@ export function draftFromProposal(proposal: ChordProposal, how: "edit" | "copy")
 }
 
 /**
- * Someone else's published chart as the start of a NEW chart of the member's own: the chords come over, nothing else.
- * The member has not played or checked them yet (so the box is empty), the note is theirs to write, and the chart is
- * not tied to the original (no `editId`, no `basedOn`): it is a plain chart of that song and instrument.
+ * Someone else's published chart as the start of a NEW chart of the member's own: the CHORDS come over, nothing else.
+ * Not the capo and not the strum pattern: the chords are written as they sound, in the key they sound in, with no capo
+ * and no strum, and the member sets those to what they play. The member has not played or checked them yet (so the
+ * box is empty) and the note is theirs to write. The chart is not tied to the original as an edit (no `editId`, no
+ * `basedOn`: it is a plain chart of that song and instrument), but `startedFrom` carries the credit.
  */
 export function draftFromOther(proposal: ChordProposal): Draft {
-  const base = draftFromProposal(proposal, "copy")
-  return { ...base, playedIt: false, note: "", isAnonymous: false, editId: null, basedOn: null }
+  const base = draftFromProposal({ ...proposal, capo: 0, strum: null }, "copy")
+  return { ...base, playedIt: false, note: "", isAnonymous: false, editId: null, basedOn: null, startedFrom: proposal.id }
+}
+
+/**
+ * A chart the member takes back from the team becomes a draft again: all of it (chords, key, capo, strum, note, the
+ * anonymous choice), as a plain new-chart draft with its own place in the book (`keptFrom`), so it never replaces
+ * another draft of the same song. `unsent` is the draft the member had saved for this chart (their changes, sent or
+ * not), when there is one: it is newer than what the team holds, so it wins.
+ */
+export function draftFromWithdrawn(proposal: ChordProposal, unsent?: Draft | null): Draft {
+  const source = unsent ?? draftFromProposal(proposal, "edit")
+  return { ...source, editId: null, basedOn: null, keptFrom: proposal.id }
 }

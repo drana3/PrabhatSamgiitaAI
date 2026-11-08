@@ -13,6 +13,12 @@ export type ProposalStatus = "pending" | "published" | "rejected"
 
 export type ProposalAuthor = { name: string }
 
+/**
+ * "Based on a chart by <name>": the chart whose chords were copied with "Start from this chart". `name` is null when
+ * that chart was anonymous (the server never sends a name for it); `id` is null once the original was deleted.
+ */
+export type ProposalCredit = { id: string | null; name: string | null }
+
 export type ChordProposal = {
   id: string
   songId: number
@@ -34,6 +40,14 @@ export type ChordProposal = {
   rejectedReason: string | null
   /** true for the team */
   canReview: boolean
+  /** set when the chords were copied from another member's chart */
+  basedOn?: ProposalCredit | null
+  /** the author's own view only: a newer version of this chart went live and replaced it (kept, hidden from everyone) */
+  archived?: boolean
+  /** the id of the newer chart that replaced this one (only when `archived`) */
+  replacedBy?: string | null
+  /** the author's own view only: the live chart this waiting chart will replace once it is accepted */
+  replaces?: string | null
 }
 
 /** A proposal as the team sees it in the review queue. */
@@ -56,6 +70,10 @@ export type ProposalPayload = {
   playedIt: boolean
   note: string | null
   isAnonymous: boolean
+  /** a new version of the author's own LIVE chart: when it goes live the old one is replaced (archived) */
+  replacesId?: string | null
+  /** "Start from this chart": somebody else's published chart whose chords were copied (credited) */
+  basedOnId?: string | null
 }
 
 export type ChordReportReason = "wrong_chords" | "offensive" | "spam" | "other"
