@@ -22,6 +22,7 @@ import {
 
 function profile(over: Partial<AuthorProfile> = {}): AuthorProfile {
   return {
+    id: "6f1c1d5e-0b7e-4c43-9d57-0a9b6a1b2c3d",
     slug: "demo-singer",
     display_name: "Demo Singer",
     author_type: "solo",

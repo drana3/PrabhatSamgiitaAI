@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound, permanentRedirect } from "next/navigation"
 
 import { SiteHeader } from "@/components/site-header"
+import { authorCardPath, cardVersion } from "@/lib/author-card"
 import {
   authorDescription,
   authorJsonLd,
@@ -54,7 +55,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const title = authorTitle(profile)
   const description = authorDescription(profile)
   const url = authorUrl(profile.slug)
-  const photo = authorPhotoUrl(profile.photo_url)
+  // the share picture (lib/author-card.ts): always drawn, with the author's photo or a round placeholder, 1.91:1
+  const card = `${authorCardPath(profile.id, "link", cardVersion(profile.updated_at))}`
   return {
     title,
     description,
@@ -66,13 +68,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       description,
       url,
       siteName: "Prabhat Samgiita AI",
-      ...(photo ? { images: [{ url: photo, alt: profile.display_name }] } : {}),
+      images: [{ url: card, width: 1200, height: 630, alt: profile.display_name }],
     },
     twitter: {
-      card: photo ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      ...(photo ? { images: [photo] } : {}),
+      images: [card],
     },
   }
 }

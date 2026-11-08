@@ -18,6 +18,8 @@ export type AuthorStats = {
 }
 
 export type AuthorProfile = {
+  /** the page's own id; the share link and the share picture use it, so they survive a new page link */
+  id: string
   slug: string
   display_name: string
   author_type: "solo" | "group"
@@ -162,6 +164,32 @@ export async function fetchAuthorPage(slug: string): Promise<AuthorPageData> {
     profile,
     recordings: recordings.body?.items ?? [],
     collections: collections.body?.items ?? [],
+  }
+}
+
+/** Only the profile of a page, by address or by id (the share picture needs no recordings). A moved address is followed once. */
+export async function fetchAuthorProfile(slugOrId: string): Promise<AuthorProfile | null> {
+  const found = await getJson<AuthorProfile & { slug: string }>(`/authors/${encodeURIComponent(slugOrId)}`)
+  if (found.status === 301 || found.status === 308) {
+    const moved = (found.body as { slug?: string } | null)?.slug
+    return moved && moved !== slugOrId ? fetchAuthorProfile(moved) : null
+  }
+  return found.status === 200 && found.body ? found.body : null
+}
+
+/** The picture a page owner uploaded, as bytes (the API answers by id as by address); null when there is none. */
+export async function fetchAuthorPhotoBytes(slugOrId: string, maxBytes = 600_000): Promise<Uint8Array | null> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 6000)
+  try {
+    const response = await fetch(`${apiBase()}/api/v1/authors/${encodeURIComponent(slugOrId)}/photo`, { signal: controller.signal, next: { revalidate: 300 } })
+    if (response.status !== 200) return null
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    return bytes.length > 0 && bytes.length <= maxBytes ? bytes : null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
