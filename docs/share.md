@@ -69,3 +69,38 @@ Who builds it
 - Mobile: nothing more, except to point `cardUrlLine` and `kirtanSharePayload` at the Kiirtan page when it exists.
 
 Acceptance: pasting a song link into WhatsApp, Telegram and the Facebook Sharing Debugger shows that song's title and card; a Kiirtan link does the same only after the Kiirtan page exists; the image answers in under a second warm; no photo with `people` of `close` or `children` is ever served.
+
+## 5. Author page preview
+
+Built (2026-11-09, branch `redesign/v2`). Variant 1 of the board «автор-превью-шеринга», "like the song". Dada's decisions: no site name (`prabhatasamgiita.org`) at the top or the bottom, the author's photo when there is one, no number of listeners, nothing at the bottom, English captions, a 9:16 shape for stories.
+
+What the picture is
+
+- A warm stock photo with nobody in it behind everything, a black scrim under the text (0.6 where the text starts, 0.88 at the bottom edge, so ivory text keeps 4.5:1 on any photo), the author's round photo or, without one, a round placeholder with initials, a gold hairline, a small line `Singer · Warsaw, Poland` (or `Group · Spain`), the name in capitals, the kinds of recordings (`Kiirtan · Bhajan`).
+- The photo is one of eight (`AUTHOR_CARD_PHOTOS`, the app's photo numbers 10, 12, 14, 15, 16, 24, 25, 35), picked by the FNV-1a hash of the page id. The website (`apps/web/lib/author-card.ts`) and the app (`apps/mobile/lib/share/card.ts`) hold the same list and the same hash, so a page's card in the app and its link preview show one photo. A test in the app (`__tests__/authorShareCard.test.ts`) reads the web file and fails if the list, the placeholders or the picked photo drift apart.
+- Nothing about statistics is read. The card takes the name, type, city, country, kinds and photo only, so a page that hides its numbers cannot leak them through its picture.
+- Shapes: link preview 1200 × 630 (1.91:1), story 1080 × 1920 (9:16; text kept inside the middle 1250 px, 335 px free above and below because Instagram draws over them), square 1080 × 1080. The app also has portrait 1080 × 1350 beside the song card's two shapes.
+
+The website
+
+- `GET /share/author/<page id or address>` (`apps/web/app/share/author/[id]/route.tsx`, `next/og`) answers the link preview; `?format=story` and `?format=square` the other two. 404 for a page that is not published (the page then falls back to the site's own image). Cache `public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400`; the address of the picture carries `v=<updated_at>` so a changed page shows a new picture in chats.
+- `generateMetadata` of `/author/[slug]` always points `openGraph.images` (1200 × 630, alt = the display name) and `twitter` (`summary_large_image`) at this picture, with or without a photo. Before, only a page with a photo had an image.
+- Fonts: Gloock (name) and DM Mono (small lines), both OFL, files in `apps/web/public/fonts` (TTF: the renderer reads no woff2). Stock photos in `apps/web/public/share/bg/<n>.jpg`.
+- Limits of the renderer: only JPEG and PNG author photos can be drawn (a webp photo falls back to the initials), and a name in a script the two fonts do not cover (Devanagari, Cyrillic, ...) is drawn as `Author page` with an empty round placeholder. The pictures weigh 0.5–1.7 MB as PNG; if WhatsApp refuses one, downscale the background (`public/share/bg`) or the shape.
+
+Sharing without the page link
+
+- While `SHOW_PAGE_LINK` is `false` the shared link is `https://<site>/author/<page id>`; once the page link is offered again it is `/author/<slug>` (`authorShareKey` in `apps/mobile/lib/authors/constants.ts`). A server too old to send the id leaves the address.
+- API: the public `GET /authors/{slug_or_id}` family accepts the page id (36 characters; a slug is at most 30, so the two never collide) and answers the same page; `AuthorProfilePublic` carries `id`. Only a published page answers by id, a draft or an unknown id is 404. The page `/author/<id>` renders and names the slug as its canonical address, and the app opens it as the page, not as a "moved" address.
+- A link by id survives a change of address, which a link by address does not after the hold period.
+
+The app
+
+- The Share button of an author page (and of the author's own page, `my-author`) opens a sheet with three rows: `Image card`, `Share link`, `Copy link` (`components/authors/AuthorShareSheet.tsx`). `Share link` hands the system share sheet "Listen to {name} on Prabhat Samgiita:" and the link; on the web preview it copies.
+- `Image card` opens the same full-screen card step as a song (`ShareCardSheet`), with `AuthorPosterCard` instead of the song's poster and a third shape, `Story`. Native shares the PNG through the system sheet (Save Image and Instagram are in it); the web saves a download. Pure rules (texts, photo, layout, scrim, file name) are in `lib/share/card.ts`, the subject builder in `lib/authors/shareCard.ts`.
+- Strings: `locales/shareCard.ts` (`shareCard.story`, `authorShare.link`, `authorShare.note`), read through `useShareCardT`, as the song card's.
+
+Not checked
+
+- Messengers (WhatsApp, Telegram, Facebook Sharing Debugger, Instagram): the preview needs a public address. Acceptance: paste `https://<site>/author/<page id>` into each; the card shows, with no site name, no numbers.
+- A phone: view-shot capture of an author's remote photo, the system share sheet and Save Image.
