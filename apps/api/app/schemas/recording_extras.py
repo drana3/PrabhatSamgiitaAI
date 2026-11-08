@@ -14,9 +14,18 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.recording_extras import (
+    SHEET_MAX_LINE_LENGTH,
+    SHEET_MAX_LINES,
     SHEET_TEXT_MAX_LENGTH,
     VIDEO_TITLE_MAX_LENGTH,
     VIDEO_URL_MAX_LENGTH,
+)
+from app.schemas.song_chords import (
+    KEY_PATTERN,
+    STRUM_PATTERN,
+    ChordBasedOn,
+    ChordLineIn,
+    ChordPlacementOut,
 )
 from app.schemas.song_comments import CommentAuthor, ReplyTo
 
@@ -89,16 +98,34 @@ SheetFilter = Literal["pending", "reported", "published", "rejected", "all"]
 SHEET_KEY_PATTERN = re.compile(r"[A-G][#b]?m?")
 
 
+class SheetLineIn(ChordLineIn):
+    """One line of a chart: the words it holds and the chords over them, by word number."""
+
+    text: str = Field(default="", max_length=SHEET_MAX_LINE_LENGTH + 80)
+
+
 class SheetCreate(BaseModel):
     instrument: SheetInstrument
-    # The key the chords are written in. Optional: many players do not know it.
+    # The key the chords are written in. Optional: many players do not know it. For a chart (see
+    # `lines`) it is the key the chords SOUND in (Sa for the harmonium) and it is required.
     chart_key: str | None = Field(default=None, max_length=3)
     # Raw text; the service cleans it and checks it holds chords. A little room over the stored
-    # limit: cleaning only ever makes the text shorter.
-    body: str = Field(min_length=1, max_length=SHEET_TEXT_MAX_LENGTH + 2000)
+    # limit: cleaning only ever makes the text shorter. Not sent together with `lines`.
+    body: str | None = Field(default=None, min_length=1, max_length=SHEET_TEXT_MAX_LENGTH + 2000)
+    # A chart of a Bhajan or a Spiritual song: the lines of the pasted text with chords over words,
+    # like a Prabhat Samgiita chart. Sent instead of `body`; the service writes `body` from it.
+    lines: list[SheetLineIn] | None = Field(default=None, min_length=1, max_length=SHEET_MAX_LINES)
+    capo: int = Field(default=0, ge=0, le=7)
+    strum: str | None = Field(default=None, max_length=40)
     played_it: bool
     note: str | None = Field(default=None, max_length=300)
     is_anonymous: bool = False
+    # A new version of the author's own LIVE sheet (same recording and instrument): when it goes
+    # live the old one is archived. Checked by the service; ignored when a sheet is edited (PUT).
+    replaces_id: UUID | None = None
+    # "Start from this chart": somebody else's published chart of the same recording. Credited on
+    # the new one. Dropped, not refused, when it is gone or not eligible.
+    based_on_id: UUID | None = None
 
     @field_validator("chart_key")
     @classmethod
@@ -112,15 +139,42 @@ class SheetCreate(BaseModel):
             raise ValueError("The key must be a note name such as C, F#, Bb or Am")
         return key
 
+    @field_validator("strum")
+    @classmethod
+    def _strum_shape(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = " ".join(value.split())
+        if not text:
+            return None
+        if not STRUM_PATTERN.fullmatch(text):
+            raise ValueError("The strum pattern may only use D, U, x, dots and dashes")
+        return text
+
     @model_validator(mode="after")
     def _whole(self) -> SheetCreate:
         if not self.played_it:
             raise ValueError("Please confirm that you played or checked these chords")
+        if (self.body is None) == (self.lines is None):
+            raise ValueError("Send either the chart text or the chart lines")
+        if self.lines is None:
+            if self.capo or self.strum or self.replaces_id or self.based_on_id:
+                raise ValueError("A capo, a strum pattern and versions belong to a chart")
+            return self
+        if self.chart_key is None or not KEY_PATTERN.fullmatch(self.chart_key):
+            raise ValueError("A chart needs its key as a note name such as C, F# or Bb")
+        if self.instrument == "harmonium" and (self.capo or self.strum):
+            raise ValueError("A harmonium chart has no capo and no strum pattern")
         return self
 
 
 class SheetAuthor(BaseModel):
     name: str
+
+
+class SheetLineOut(BaseModel):
+    text: str
+    placements: list[ChordPlacementOut]
 
 
 class SheetOut(BaseModel):
@@ -129,6 +183,16 @@ class SheetOut(BaseModel):
     instrument: SheetInstrument
     chart_key: str | None
     body: str
+    # Set for a chart (Bhajan, Spiritual song): the lines with their chords; null for plain text
+    lines: list[SheetLineOut] | None = None
+    capo: int = 0
+    strum: str | None = None
+    based_on: ChordBasedOn | None = None
+    # Only the author's own view ever carries an archived chart; `replaced_by` is the newer sheet
+    # that took its place, `replaces` the live one a new version on its way will replace.
+    archived: bool = False
+    replaced_by: str | None = None
+    replaces: str | None = None
     chords_count: int
     note: str | None
     played_it: bool

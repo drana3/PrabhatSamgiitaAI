@@ -60,6 +60,11 @@ async def _author(session: AsyncSession, sheet: RecordingChordSheet) -> UserAcco
     return await session.get(UserAccount, sheet.member_id)
 
 
+async def _admin(session: AsyncSession, sheet: RecordingChordSheet) -> AdminSheetOut:
+    credits = await service.credit_map(session, [sheet])
+    return service.admin_out(sheet, await _author(session, sheet), credits=credits)
+
+
 # --------------------------------------------------------------------------- reading
 
 
@@ -78,10 +83,7 @@ async def list_for_recording(
         session, recording_id, viewer_id=member.id if member else None, instrument=instrument
     )
     team = member is not None and is_team_member(member, settings)
-    items = [
-        service.public_out(s, a, viewer_id=member.id if member else None, team=team)
-        for s, a in rows
-    ]
+    items = await service.present(session, rows, viewer_id=member.id if member else None, team=team)
     # The answer depends on who asks (own pending charts): never share it between viewers.
     response.headers["Cache-Control"] = "private, no-store"
     return SheetList(items=items, total=len(items))
@@ -91,11 +93,11 @@ async def list_for_recording(
 async def my_sheets(session: DatabaseSession, member: Member) -> SheetList:
     """The member's own charts in every state, with the reason of a rejection."""
     rows = await service.list_mine(session, member.id)
-    items = []
-    for sheet, recording in rows:
-        out = service.public_out(sheet, member, viewer_id=member.id, team=False)
+    items = await service.present(
+        session, [(sheet, member) for sheet, _ in rows], viewer_id=member.id, team=False
+    )
+    for out, (_, recording) in zip(items, rows, strict=True):
         out.recording_title = recording.title if recording else None
-        items.append(out)
     return SheetList(items=items, total=len(items))
 
 
@@ -124,7 +126,7 @@ async def offer_sheet(
         await session.rollback()
         logger.exception("Recording chord sheet could not be stored")
         raise HTTPException(status_code=503, detail="Storage is temporarily unavailable") from exc
-    return service.public_out(sheet, member, viewer_id=member.id, team=team)
+    return (await service.present(session, [(sheet, member)], viewer_id=member.id, team=team))[0]
 
 
 @router.put("/{sheet_id}", response_model=SheetOut)
@@ -148,7 +150,7 @@ async def update_own(
         await session.rollback()
         logger.exception("Recording chord sheet could not be updated")
         raise HTTPException(status_code=503, detail="Storage is temporarily unavailable") from exc
-    return service.public_out(sheet, member, viewer_id=member.id, team=team)
+    return (await service.present(session, [(sheet, member)], viewer_id=member.id, team=team))[0]
 
 
 @router.delete("/{sheet_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -172,8 +174,8 @@ async def report_sheet(
     session: DatabaseSession,
     member: OptionalMember,
 ) -> ReportResponse:
-    """Anyone may report a published chart, signed in or not. Nobody reports their own chart: they delete
-    it. One report per person; rate limited."""
+    """Anyone may report a published chart, signed in or not. Nobody reports their own chart: they
+    delete it. One report per person; rate limited."""
     host = client_host(request)
     service.limiter.hit("report-sheet", host, limit=30, window_seconds=3600)
     if member is not None:
@@ -226,7 +228,10 @@ async def review_list(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AdminSheetList:
     rows, total = await service.admin_queue(session, which=filter, limit=limit, offset=offset)
-    return AdminSheetList(items=[service.admin_out(s, a) for s, a in rows], total=total)
+    credits = await service.credit_map(session, [s for s, _ in rows])
+    return AdminSheetList(
+        items=[service.admin_out(s, a, credits=credits) for s, a in rows], total=total
+    )
 
 
 @router.post("/review/{sheet_id}/approve", response_model=AdminSheetOut)
@@ -235,7 +240,7 @@ async def review_approve(
 ) -> AdminSheetOut:
     sheet = await get_sheet(session, sheet_id)
     await service.approve(session, sheet, by=display_name(team))
-    return service.admin_out(sheet, await _author(session, sheet))
+    return await _admin(session, sheet)
 
 
 @router.post("/review/{sheet_id}/reject", response_model=AdminSheetOut)
@@ -244,7 +249,7 @@ async def review_reject(
 ) -> AdminSheetOut:
     sheet = await get_sheet(session, sheet_id)
     await service.reject(session, sheet, reason=payload.reason, by=display_name(team))
-    return service.admin_out(sheet, await _author(session, sheet))
+    return await _admin(session, sheet)
 
 
 @router.post("/review/{sheet_id}/restore", response_model=AdminSheetOut)
@@ -253,4 +258,4 @@ async def review_restore(
 ) -> AdminSheetOut:
     sheet = await get_sheet(session, sheet_id)
     await service.restore(session, sheet, by=display_name(team))
-    return service.admin_out(sheet, await _author(session, sheet))
+    return await _admin(session, sheet)

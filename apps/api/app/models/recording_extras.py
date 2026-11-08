@@ -22,6 +22,7 @@ never carry an id, a name or an avatar for an anonymous item.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -40,7 +41,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
-from app.models.recordings import PS_SONG_COUNT
+from app.models.recordings import PS_SONG_COUNT, PortableJSON
 
 # ---------------------------------------------------------------------------------- comments
 
@@ -209,6 +210,29 @@ class RecordingChordSheet(Base, TimestampMixin):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reviewed_by: Mapped[str | None] = mapped_column(String(255))
     rejected_reason: Mapped[str | None] = mapped_column(Text)
+    # A chart of a Bhajan or a Spiritual song, in the shape of the Prabhat Samgiita charts, with
+    # the text of every line kept beside its chords (a recording has no lyrics of its own):
+    # {"lines": [{"text": "Baba Nam", "placements": [{"word": 0, "chord": "Am"}]}]}. Null for a
+    # plain-text sheet. `body` is filled for both: for a chart it is the same chart as `[Am]word`.
+    chart: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON, nullable=True)
+    # Guitar only: the fret of the capo the author played with (a hint; chords are as they sound).
+    capo: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    strum: Mapped[str | None] = mapped_column(String(40))
+    # A new version of the author's own live sheet: when this one goes live the old one is archived
+    # (kept, hidden). Null when the old sheet is deleted.
+    replaces_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recording_chord_sheets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "Start from this chart": the sheet whose chords were copied; the credit is worked out when it
+    # is shown (`credit_map`).
+    based_on_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("recording_chord_sheets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
 
 class RecordingChordReport(Base, TimestampMixin):

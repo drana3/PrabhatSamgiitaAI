@@ -11,21 +11,31 @@ the author may change a waiting or rejected sheet, or delete their own for good.
 hourly allowance are SHARED with the song chord proposals (the same `song_chord_offers` ledger and
 the same limiter bucket): one member cannot double the allowance by using both kinds.
 
+Bhajans and Spiritual songs also take a CHART in the shape of the Prabhat Samgiita charts: the
+member pastes the text of the song, the app cuts it into lines and words and the chords sit on
+words (`lines` in the request). A recording has no lyrics of its own, so the chart keeps the text
+of each line beside its chords. `body` is written from the chart (`[Am]word`), so the plain-text
+viewer, the report and the review queue read both kinds. A chart can be a new version of the
+author's own live one (the old one is archived when the new one is live) and can be "started from"
+somebody else's published chart (the credit is worked out when it is shown). Never for a Kiirtan.
+
 The rule that must not break: a PUBLIC view of an anonymous sheet carries no trace of its author
 (see `public_out`). Everything that knows the author is `admin_out` and team-only.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import textwrap
 import unicodedata
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserAccount
@@ -38,8 +48,14 @@ from app.models.recording_extras import (
 )
 from app.models.recordings import MemberNotice, Recording
 from app.models.song_chords import SongChordOffer, SongChordProposal
-from app.schemas.recording_extras import AdminSheetOut, SheetAuthor, SheetCreate, SheetOut
-from app.schemas.song_chords import CHORD_PATTERN
+from app.schemas.recording_extras import (
+    AdminSheetOut,
+    SheetAuthor,
+    SheetCreate,
+    SheetLineOut,
+    SheetOut,
+)
+from app.schemas.song_chords import CHORD_PATTERN, ChordBasedOn, ChordPlacementOut
 from app.services import song_chords as shared
 from app.services.extras_common import display_name, one_line
 from app.services.recordings import now_utc
@@ -52,6 +68,9 @@ HOURLY_SHEETS_TEAM = shared.HOURLY_PROPOSALS_TEAM
 # instrument.
 OPEN_PER_RECORDING_INSTRUMENT = 3
 MAX_CHORDS = 2000
+# The kinds that take a chart over pasted text. A Kiirtan has its own plain-text sheets only; a
+# Prabhat Samgiita recording has the song page's charts (the legacy "devotional_song" is a Bhajan).
+CHART_KINDS = ("bhajan", "devotional_song", "spiritual_song")
 DAILY_LIMIT_CODE = shared.DAILY_LIMIT_CODE
 DUPLICATE_CODE = shared.DUPLICATE_CODE
 OPEN_LIMIT_CODE = shared.OPEN_LIMIT_CODE
@@ -177,6 +196,121 @@ def _collapse_blank(lines: list[str]) -> list[str]:
     return out
 
 
+@dataclass(frozen=True)
+class Cleaned:
+    """A sheet as it will be stored: the text, the number of chords and, for a chart, the chart."""
+
+    body: str
+    chords: int
+    chart: dict[str, Any] | None = None
+
+
+def _line_text(raw: str) -> str:
+    """The words of one chart line: invisible and control characters gone, runs of spaces and tabs
+    collapsed, no web links. The words are what the chord numbers count, so spacing carries none."""
+    text = _CONTROL.sub(" ", strip_invisible(raw))
+    text = " ".join(text.split())
+    if len(text) > SHEET_MAX_LINE_LENGTH:
+        raise HTTPException(
+            status_code=422,
+            detail=f"A line is longer than {SHEET_MAX_LINE_LENGTH} characters. Please split it.",
+        )
+    if link_count(text) > 0:
+        raise HTTPException(status_code=422, detail="Please leave web links out of a chord chart.")
+    return text
+
+
+def chart_body(chart: dict[str, Any]) -> str:
+    """The chart written as plain text, chords inside the words: `[Am]Baba [G]Nam`."""
+    out: list[str] = []
+    for line in chart["lines"]:
+        by_word = {p["word"]: p["chord"] for p in line["placements"]}
+        words = line["text"].split()
+        out.append(
+            " ".join(
+                f"[{by_word[i]}]{word}" if i in by_word else word for i, word in enumerate(words)
+            )
+        )
+    return "\n".join(out)
+
+
+def clean_chart(payload: SheetCreate) -> Cleaned:
+    """The chart of a request: one entry per line with its text and its placements sorted by word
+    (one chord per word, the first wins, the rule the song page's `wordColumns` uses). Blank lines
+    stay as stanza breaks, no more than one in a row; blank lines at the ends go."""
+    lines: list[dict[str, Any]] = []
+    kept = 0
+    found: list[str] = []
+    for line in payload.lines or []:
+        text = _line_text(line.text)
+        words = len(text.split())
+        seen: set[int] = set()
+        placements: list[dict[str, Any]] = []
+        for placement in sorted(line.placements, key=lambda p: p.word):
+            if placement.word >= words:
+                raise HTTPException(
+                    status_code=422, detail="A chord sits on a word that is not in its line."
+                )
+            if placement.word in seen:
+                continue
+            seen.add(placement.word)
+            placements.append({"word": placement.word, "chord": placement.chord})
+            found.append(placement.chord)
+        kept += len(placements)
+        if not text and lines and not lines[-1]["text"]:
+            continue
+        lines.append({"text": text, "placements": placements})
+    while lines and not lines[-1]["text"]:
+        lines.pop()
+    while lines and not lines[0]["text"]:
+        lines.pop(0)
+    if kept == 0:
+        raise HTTPException(status_code=422, detail="Put at least one chord over a word.")
+    if not proves_a_chart(found):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "A single plain letter is not a chord chart. Add a second chord, "
+                "or write the chord in full, for example Am or G7."
+            ),
+        )
+    if kept > MAX_CHORDS:
+        raise HTTPException(status_code=422, detail="Too many chords for one chart.")
+    if len(lines) > SHEET_MAX_LINES:
+        raise HTTPException(
+            status_code=422, detail=f"A chord chart can have {SHEET_MAX_LINES} lines at most."
+        )
+    chart = {"lines": lines}
+    body = chart_body(chart)
+    if len(body) > SHEET_TEXT_MAX_LENGTH:
+        raise HTTPException(status_code=422, detail="This chord chart is too long.")
+    return Cleaned(body=body, chords=kept, chart=chart)
+
+
+def clean_payload(payload: SheetCreate) -> Cleaned:
+    """The text rules for either kind of sheet."""
+    if payload.lines is not None:
+        return clean_chart(payload)
+    body, chords = clean_sheet(payload.body or "")
+    return Cleaned(body=body, chords=chords)
+
+
+def fingerprint(chart: dict[str, Any]) -> str:
+    return json.dumps(chart, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+async def check_kind(session: AsyncSession, recording_id: UUID, payload: SheetCreate) -> None:
+    """A chart over pasted text is for a Bhajan or a Spiritual song only."""
+    if payload.lines is None:
+        return
+    recording = await session.get(Recording, recording_id)
+    if recording is None or recording.kind not in CHART_KINDS:
+        raise HTTPException(
+            status_code=422,
+            detail="A chart over the words is for Bhajans and Spiritual songs.",
+        )
+
+
 def same_sheet_key(body: str) -> str:
     """What "the same chart" means: the text with every run of spaces collapsed."""
     return "\n".join(" ".join(line.split()) for line in body.split("\n"))
@@ -191,14 +325,32 @@ def clean_note(raw: str | None) -> str | None:
     return note
 
 
+def chart_lines(sheet: RecordingChordSheet) -> list[SheetLineOut] | None:
+    if sheet.chart is None:
+        return None
+    return [
+        SheetLineOut(
+            text=str(line.get("text") or ""),
+            placements=[
+                ChordPlacementOut(word=int(p["word"]), chord=str(p["chord"]))
+                for p in (line.get("placements") or [])
+            ],
+        )
+        for line in sheet.chart.get("lines", [])
+    ]
+
+
 def public_out(
     sheet: RecordingChordSheet,
     author: UserAccount | None,
     *,
     viewer_id: UUID | None,
     team: bool,
+    replaced_by: UUID | str | None = None,
+    credits: dict[UUID, ChordBasedOn] | None = None,
 ) -> SheetOut:
-    """What every reader gets. `author` is filled only for a NAMED sheet."""
+    """What every reader gets. `author` is filled only for a NAMED sheet. `credits` comes from
+    `credit_map`: the "based on" credit is worked out when the chart is shown, never stored."""
     mine = viewer_id is not None and sheet.member_id == viewer_id
     shown = None
     if not sheet.is_anonymous and author is not None:
@@ -209,6 +361,14 @@ def public_out(
         instrument=sheet.instrument,  # type: ignore[arg-type]
         chart_key=sheet.chart_key,
         body=sheet.body,
+        lines=chart_lines(sheet),
+        capo=sheet.capo or 0,
+        strum=sheet.strum,
+        based_on=(credits or {}).get(sheet.id),
+        # what happened to a chart is the author's business
+        archived=bool(mine and sheet.archived_at is not None),
+        replaced_by=str(replaced_by) if (mine and replaced_by) else None,
+        replaces=str(sheet.replaces_id) if (mine and sheet.replaces_id) else None,
         chords_count=sheet.chords_count,
         note=sheet.note,
         played_it=sheet.played_it,
@@ -223,8 +383,13 @@ def public_out(
     )
 
 
-def admin_out(sheet: RecordingChordSheet, author: UserAccount | None) -> AdminSheetOut:
-    base = public_out(sheet, author, viewer_id=None, team=True)
+def admin_out(
+    sheet: RecordingChordSheet,
+    author: UserAccount | None,
+    *,
+    credits: dict[UUID, ChordBasedOn] | None = None,
+) -> AdminSheetOut:
+    base = public_out(sheet, author, viewer_id=None, team=True, credits=credits)
     return AdminSheetOut(
         **base.model_dump(),
         author_id=str(sheet.member_id),
@@ -256,7 +421,12 @@ async def list_for_recording(
     query = (
         select(RecordingChordSheet, UserAccount)
         .join(UserAccount, UserAccount.id == RecordingChordSheet.member_id, isouter=True)
-        .where(RecordingChordSheet.recording_id == recording_id, visible)
+        .where(
+            RecordingChordSheet.recording_id == recording_id,
+            visible,
+            # a chart a newer version took the place of is hidden from everybody
+            RecordingChordSheet.archived_at.is_(None),
+        )
         .order_by(RecordingChordSheet.created_at.asc(), RecordingChordSheet.id.asc())
     )
     if instrument:
@@ -278,6 +448,60 @@ async def list_mine(
         )
     ).all()
     return [(s, r) for s, r in rows]
+
+
+async def credit_map(
+    session: AsyncSession, sheets: list[RecordingChordSheet]
+) -> dict[UUID, ChordBasedOn]:
+    """The "based on" credit of each chart that has one, worked out from the original NOW.
+
+    The name is shown only while the original exists, is published, is not anonymous and its
+    author's account is there. An anonymous original gives the credit without a name; an original
+    that was deleted gives no credit at all.
+    """
+    wanted = {s.based_on_id for s in sheets if s.based_on_id is not None}
+    if not wanted:
+        return {}
+    rows = (
+        await session.execute(
+            select(RecordingChordSheet, UserAccount)
+            .join(UserAccount, UserAccount.id == RecordingChordSheet.member_id, isouter=True)
+            .where(RecordingChordSheet.id.in_(wanted))
+        )
+    ).all()
+    now: dict[UUID, ChordBasedOn] = {}
+    for original, author in rows:
+        named = author is not None and not original.is_anonymous and original.status == "published"
+        now[original.id] = ChordBasedOn(
+            id=str(original.id),
+            name=display_name(author) if named else None,
+        )
+    return {
+        s.id: now[s.based_on_id]
+        for s in sheets
+        if s.based_on_id is not None and s.based_on_id in now
+    }
+
+
+async def replaced_by_map(session: AsyncSession, ids: list[UUID]) -> dict[UUID, UUID]:
+    """For archived charts: the id of the newer chart that took each one's place."""
+    if not ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(RecordingChordSheet.replaces_id, RecordingChordSheet.id)
+            .where(
+                RecordingChordSheet.replaces_id.in_(ids),
+                RecordingChordSheet.status == "published",
+            )
+            .order_by(RecordingChordSheet.published_at.asc())
+        )
+    ).all()
+    found: dict[UUID, UUID] = {}
+    for old_id, new_id in rows:
+        if old_id is not None:
+            found[old_id] = new_id  # the latest wins
+    return found
 
 
 # --------------------------------------------------------------------------- offering
@@ -325,11 +549,78 @@ def _live_statement(member_id: UUID, recording_id: UUID, instrument: str) -> Any
         RecordingChordSheet.recording_id == recording_id,
         RecordingChordSheet.instrument == instrument,
         RecordingChordSheet.status.in_(("pending", "published")),
+        # an archived sheet (a newer version took its place) is neither waiting nor live
+        RecordingChordSheet.archived_at.is_(None),
     )
 
 
-def _is_twin(row: RecordingChordSheet, key: str | None, body_key: str) -> bool:
-    return row.chart_key == key and same_sheet_key(row.body) == body_key
+def _is_twin(row: RecordingChordSheet, payload: SheetCreate, cleaned: Cleaned) -> bool:
+    """The same chart: a plain sheet by its text, a chart by its lines and its capo."""
+    if row.chart_key != payload.chart_key:
+        return False
+    if cleaned.chart is None:
+        return row.chart is None and same_sheet_key(row.body) == same_sheet_key(cleaned.body)
+    return (
+        row.chart is not None
+        and row.capo == payload.capo
+        and fingerprint(row.chart) == fingerprint(cleaned.chart)
+    )
+
+
+async def _replaceable(
+    session: AsyncSession, *, member_id: UUID, recording_id: UUID, payload: SheetCreate
+) -> RecordingChordSheet | None:
+    """The live sheet of the author that a new version may replace: their own, published, not
+    archived, same recording and instrument. Anything else is ignored (the chart is then a new
+    one): a stranger's id must not tell the sender anything."""
+    if payload.replaces_id is None:
+        return None
+    old = await session.get(RecordingChordSheet, payload.replaces_id)
+    if (
+        old is None
+        or old.member_id != member_id
+        or old.status != "published"
+        or old.archived_at is not None
+        or old.recording_id != recording_id
+        or old.instrument != payload.instrument
+    ):
+        return None
+    return old
+
+
+async def _credit(
+    session: AsyncSession, *, member_id: UUID, recording_id: UUID, payload: SheetCreate
+) -> UUID | None:
+    """The chart "Start from this chart" was made from: another member's published chart of the
+    same recording. Anything else is ignored. Only the id is kept."""
+    if payload.based_on_id is None:
+        return None
+    original = await session.get(RecordingChordSheet, payload.based_on_id)
+    if (
+        original is None
+        or original.member_id == member_id
+        or original.status != "published"
+        or original.archived_at is not None
+        or original.recording_id != recording_id
+        or original.chart is None
+    ):
+        return None
+    return original.id
+
+
+async def _archive_replaced(session: AsyncSession, sheet: RecordingChordSheet) -> None:
+    """The new version is live: the sheet it replaces is archived (kept, hidden). Does nothing when
+    that sheet is gone, was already archived, or is no longer published."""
+    if sheet.replaces_id is None:
+        return
+    old = await session.get(RecordingChordSheet, sheet.replaces_id)
+    if (
+        old is not None
+        and old.id != sheet.id
+        and old.status == "published"
+        and old.archived_at is None
+    ):
+        old.archived_at = now_utc()
 
 
 def _duplicate() -> HTTPException:
@@ -360,16 +651,24 @@ async def create_sheet(
     team: bool,
 ) -> RecordingChordSheet:
     # Content first: a chart refused for what is in it costs nothing, not even an hourly place.
-    body, chords = clean_sheet(payload.body)
+    await check_kind(session, recording_id, payload)
+    cleaned = clean_payload(payload)
     note = clean_note(payload.note)
     await ensure_daily_allowance(session, member.id, team=team)
     live = (
         await session.scalars(_live_statement(member.id, recording_id, payload.instrument))
     ).all()
-    wanted = same_sheet_key(body)
-    if any(_is_twin(row, payload.chart_key, wanted) for row in live):
+    replaced = await _replaceable(
+        session, member_id=member.id, recording_id=recording_id, payload=payload
+    )
+    based_on_id = await _credit(
+        session, member_id=member.id, recording_id=recording_id, payload=payload
+    )
+    if any(_is_twin(row, payload, cleaned) for row in live):
         raise _duplicate()
-    if not team and len(live) >= OPEN_PER_RECORDING_INSTRUMENT:
+    # The sheet a new version replaces goes away when this one is live: it takes its place.
+    staying = [row for row in live if replaced is None or row.id != replaced.id]
+    if not team and len(staying) >= OPEN_PER_RECORDING_INSTRUMENT:
         raise _too_many()
     # Only a chart that passed every check above uses up the hourly allowance.
     limiter.hit(
@@ -385,8 +684,11 @@ async def create_sheet(
         member_id=member.id,
         instrument=payload.instrument,
         chart_key=payload.chart_key,
-        body=body,
-        chords_count=chords,
+        body=cleaned.body,
+        chart=cleaned.chart,
+        capo=payload.capo if cleaned.chart is not None else 0,
+        strum=payload.strum if cleaned.chart is not None else None,
+        chords_count=cleaned.chords,
         played_it=payload.played_it,
         note=note,
         is_anonymous=payload.is_anonymous,
@@ -394,8 +696,13 @@ async def create_sheet(
         published_at=now if team else None,
         reviewed_at=now if team else None,
         reviewed_by="team" if team else None,
+        replaces_id=replaced.id if replaced is not None else None,
+        based_on_id=based_on_id,
     )
     session.add(sheet)
+    await session.flush()
+    if team:
+        await _archive_replaced(session, sheet)
     await session.commit()
     await session.refresh(sheet)
     return sheet
@@ -423,7 +730,9 @@ async def update_sheet(
         )
     if payload.instrument != sheet.instrument:
         raise HTTPException(status_code=422, detail="A chart keeps its instrument.")
-    body, chords = clean_sheet(payload.body)
+    if (payload.lines is None) != (sheet.chart is None):
+        raise HTTPException(status_code=422, detail="A chart keeps its kind.")
+    cleaned = clean_payload(payload)
     note = clean_note(payload.note)
     others = [
         row
@@ -434,17 +743,21 @@ async def update_sheet(
         ).all()
         if row.id != sheet.id
     ]
-    wanted = same_sheet_key(body)
-    if any(_is_twin(row, payload.chart_key, wanted) for row in others):
+    if any(_is_twin(row, payload, cleaned) for row in others):
         raise _duplicate()
-    # A rejected chart that comes back is a live chart again: it counts against the cap.
-    if not team and sheet.status == "rejected" and len(others) >= OPEN_PER_RECORDING_INSTRUMENT:
+    # A rejected chart that comes back is a live chart again: it counts against the cap (not the
+    # sheet a new version replaces: that one goes away when this one is live).
+    staying = [row for row in others if row.id != sheet.replaces_id]
+    if not team and sheet.status == "rejected" and len(staying) >= OPEN_PER_RECORDING_INSTRUMENT:
         raise _too_many()
     limiter.hit("edit", str(sheet.member_id), limit=30, window_seconds=3600)
     now = now_utc()
     sheet.chart_key = payload.chart_key
-    sheet.body = body
-    sheet.chords_count = chords
+    sheet.body = cleaned.body
+    sheet.chart = cleaned.chart
+    sheet.capo = payload.capo if cleaned.chart is not None else 0
+    sheet.strum = payload.strum if cleaned.chart is not None else None
+    sheet.chords_count = cleaned.chords
     sheet.played_it = payload.played_it
     sheet.note = note
     sheet.is_anonymous = payload.is_anonymous
@@ -453,12 +766,26 @@ async def update_sheet(
     sheet.published_at = now if team else None
     sheet.reviewed_at = now if team else None
     sheet.reviewed_by = "team" if team else None
+    if team:
+        await _archive_replaced(session, sheet)
     await session.commit()
     await session.refresh(sheet)
     return sheet
 
 
 async def delete_sheet(session: AsyncSession, sheet: RecordingChordSheet) -> None:
+    # Sheets that point at this one (a newer version, a "based on" credit) lose the link and keep
+    # everything else.
+    await session.execute(
+        update(RecordingChordSheet)
+        .where(RecordingChordSheet.replaces_id == sheet.id)
+        .values(replaces_id=None)
+    )
+    await session.execute(
+        update(RecordingChordSheet)
+        .where(RecordingChordSheet.based_on_id == sheet.id)
+        .values(based_on_id=None)
+    )
     for report in (
         await session.scalars(
             select(RecordingChordReport).where(RecordingChordReport.sheet_id == sheet.id)
@@ -544,6 +871,7 @@ async def approve(session: AsyncSession, sheet: RecordingChordSheet, *, by: str)
     sheet.reviewed_at = now
     sheet.reviewed_by = by[:255]
     sheet.rejected_reason = None
+    await _archive_replaced(session, sheet)
     session.add(
         _notice(
             sheet,
@@ -596,6 +924,7 @@ async def restore(session: AsyncSession, sheet: RecordingChordSheet, *, by: str)
     sheet.reviewed_at = now
     sheet.reviewed_by = by[:255]
     sheet.rejected_reason = None
+    await _archive_replaced(session, sheet)
     session.add(
         _notice(
             sheet,
@@ -655,3 +984,34 @@ async def pending_count(session: AsyncSession) -> int:
         .where(RecordingChordSheet.status == "pending")
     )
     return int(total or 0)
+
+
+# --------------------------------------------------------------------------- presenting
+
+
+async def present(
+    session: AsyncSession,
+    rows: list[tuple[RecordingChordSheet, UserAccount | None]],
+    *,
+    viewer_id: UUID | None,
+    team: bool,
+) -> list[SheetOut]:
+    """Sheets ready to send: the credit worked out now, and for the author's own archived sheets
+    the newer one that replaced them."""
+    sheets = [sheet for sheet, _ in rows]
+    credits = await credit_map(session, sheets)
+    archived = [
+        s.id for s in sheets if s.archived_at is not None and viewer_id and s.member_id == viewer_id
+    ]
+    newer = await replaced_by_map(session, archived)
+    return [
+        public_out(
+            sheet,
+            author,
+            viewer_id=viewer_id,
+            team=team,
+            replaced_by=newer.get(sheet.id),
+            credits=credits,
+        )
+        for sheet, author in rows
+    ]
