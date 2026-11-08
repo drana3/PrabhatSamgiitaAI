@@ -10,7 +10,9 @@ in-memory SQLite database: Postgres is NOT covered here.
 from __future__ import annotations
 
 import csv
+import importlib.util
 import io
+import json
 import os
 import shutil
 import stat
@@ -189,6 +191,159 @@ async def test_no_ffmpeg_a_failing_ffmpeg_silence_and_a_hang_all_give_none(tmp_p
     slow = tmp_path / "slow"
     slow.mkdir()
     assert await measure_loudness(audio, str(make_fake_ffmpeg(slow, sleep=5)), timeout=0.5) is None
+
+
+# --------------------------------------------------------------------------- an untrusted file
+
+
+def make_recording_ffmpeg(folder: Path, *, body: str = "") -> Path:
+    """A stand-in that records its arguments, environment and pid beside itself, then prints."""
+    script = folder / "ffmpeg"
+    script.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, os, sys, time\n"
+        f"here = {str(folder)!r}\n"
+        "open(here + '/argv.json', 'w').write(json.dumps(sys.argv[1:]))\n"
+        "open(here + '/env.json', 'w').write(json.dumps(dict(os.environ)))\n"
+        "open(here + '/pid', 'w').write(str(os.getpid()))\n"
+        f"{body}\n"
+        f"sys.stderr.write({SUMMARY!r})\n"
+    )
+    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    return script
+
+
+def recorded(folder: Path, name: str) -> object:
+    return json.loads((folder / name).read_text())
+
+
+async def test_ffmpeg_gets_a_whitelisted_protocol_a_fixed_format_and_a_file_prefixed_path(
+    tmp_path: Path,
+) -> None:
+    audio = tmp_path / "concat:evil.mp3"
+    audio.write_bytes(b"ID3\x04 whatever")
+    fake = make_recording_ffmpeg(tmp_path)
+    assert await measure_loudness(audio, str(fake)) is not None
+    argv = recorded(tmp_path, "argv.json")
+    assert isinstance(argv, list)
+    assert argv[argv.index("-protocol_whitelist") + 1] == "file"
+    assert argv.index("-protocol_whitelist") < argv.index("-i")
+    assert argv[argv.index("-f") + 1] == "mp3"
+    assert argv.index("-f") < argv.index("-i")
+    assert argv[argv.index("-i") + 1] == f"file:{audio.resolve()}"
+    assert argv[argv.index("-i") + 1].startswith("file:/")
+    assert argv[argv.index("-threads") + 1] == "1"
+    assert int(argv[argv.index("-t") + 1]) == loud.MAX_INPUT_SECONDS
+    assert "-nostdin" in argv
+    assert argv[-3:] == ["-f", "null", "-"]
+
+
+@pytest.mark.parametrize(
+    ("head", "demuxer"),
+    [
+        (b"ID3\x04\x00", "mp3"),
+        (b"\xff\xfb\x90\x00", "mp3"),
+        (b"\xff\xf1\x50\x80", "aac"),
+        (b"\x00\x00\x00\x20ftypM4A \x00\x00", "mov"),
+        (b"RIFF\x00\x00\x00\x00WAVEfmt ", "wav"),
+        (b"OggS\x00\x02", "ogg"),
+        (b"fLaC\x00\x00", "flac"),
+        (b"\x1a\x45\xdf\xa3\x9f", "matroska"),
+    ],
+)
+def test_the_demuxer_comes_from_the_type_we_sniffed(
+    tmp_path: Path, head: bytes, demuxer: str
+) -> None:
+    audio = tmp_path / "x.bin"  # the name says nothing: only the bytes count
+    audio.write_bytes(head + b"\x00" * 16)
+    arguments = loud.ffmpeg_input_arguments(audio)
+    assert arguments is not None
+    assert arguments[arguments.index("-f") + 1] == demuxer
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"#EXTM3U\nhttp://169.254.169.254/latest/meta-data/\n",
+        b"ffconcat version 1.0\nfile '/etc/passwd'\n",
+        b"<?xml version='1.0'?><MPD/>",
+        b"",
+    ],
+)
+async def test_a_playlist_or_other_non_audio_file_never_starts_ffmpeg(
+    tmp_path: Path, content: bytes
+) -> None:
+    audio = tmp_path / "evil.mp3"  # a harmless extension does not make it audio
+    audio.write_bytes(content)
+    fake = make_recording_ffmpeg(tmp_path)
+    assert await measure_loudness(audio, str(fake)) is None
+    assert not (tmp_path / "argv.json").exists()
+    assert loud.ffmpeg_input_arguments(audio) is None
+
+
+async def test_an_unreadable_file_is_not_measured(tmp_path: Path) -> None:
+    fake = make_recording_ffmpeg(tmp_path)
+    assert await measure_loudness(tmp_path / "missing.mp3", str(fake)) is None
+    assert not (tmp_path / "argv.json").exists()
+
+
+async def test_ffmpeg_gets_a_clean_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:secret@db/app")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "very-secret")
+    audio = tmp_path / "a.mp3"
+    audio.write_bytes(b"ID3\x04 whatever")
+    assert await measure_loudness(audio, str(make_recording_ffmpeg(tmp_path))) is not None
+    seen = recorded(tmp_path, "env.json")
+    assert isinstance(seen, dict)
+    assert "DATABASE_URL" not in seen
+    assert "R2_SECRET_ACCESS_KEY" not in seen
+    # nothing of the parent's environment but the two values we pass (macOS adds one of its own)
+    assert (set(seen) & set(os.environ)) - {"PATH", "LC_ALL", "__CF_USER_TEXT_ENCODING"} == set()
+    assert seen["PATH"] == "/usr/bin:/bin"
+
+
+async def test_a_run_that_takes_too_long_is_killed(tmp_path: Path) -> None:
+    audio = tmp_path / "a.mp3"
+    audio.write_bytes(b"ID3\x04 whatever")
+    fake = make_recording_ffmpeg(tmp_path, body="time.sleep(30)")
+    assert await measure_loudness(audio, str(fake), timeout=0.6) is None
+    pid = int((tmp_path / "pid").read_text())
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
+
+
+async def test_a_flood_of_output_is_read_without_keeping_it_all(tmp_path: Path) -> None:
+    audio = tmp_path / "a.mp3"
+    audio.write_bytes(b"ID3\x04 whatever")
+    flood = "sys.stderr.write('x' * 5_000_000)"
+    found = await measure_loudness(audio, str(make_recording_ffmpeg(tmp_path, body=flood)))
+    assert found == Loudness(-14.3, -0.8, 5.2)  # the Summary at the end still arrives
+
+
+async def test_the_import_conversion_is_just_as_careful(tmp_path: Path) -> None:
+    spec = importlib.util.spec_from_file_location(
+        "import_kiirtan_library_for_loudness",
+        Path(__file__).resolve().parents[1] / "scripts" / "import_kiirtan_library.py",
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    fake = make_recording_ffmpeg(tmp_path)
+    evil = tmp_path / "evil.mp3"
+    evil.write_bytes(b"#EXTM3U\nhttp://example.com/x\n")
+    assert await module.ffmpeg_to_mp3(evil, tmp_path / "out.mp3", str(fake)) is False
+    assert not (tmp_path / "argv.json").exists()
+    good = tmp_path / "good.mp3"
+    good.write_bytes(b"ID3\x04 whatever")
+    await module.ffmpeg_to_mp3(good, tmp_path / "out.mp3", str(fake))
+    argv = recorded(tmp_path, "argv.json")
+    assert isinstance(argv, list)
+    assert argv[argv.index("-protocol_whitelist") + 1] == "file"
+    assert argv[argv.index("-i") + 1].startswith("file:/")
+    assert argv[argv.index("-f") + 1] == "mp3"
 
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg is not installed")

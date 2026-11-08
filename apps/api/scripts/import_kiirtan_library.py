@@ -112,7 +112,12 @@ from app.services.recording_languages import (  # noqa: E402
     clean_language_other,
     normalize_language,
 )
-from app.services.recording_loudness import Loudness, measure_loudness  # noqa: E402
+from app.services.recording_loudness import (  # noqa: E402
+    Loudness,
+    ffmpeg_environment,
+    ffmpeg_input_arguments,
+    measure_loudness,
+)
 from app.services.recording_storage import (  # noqa: E402
     RecordingStorage,
     new_key,
@@ -441,14 +446,17 @@ async def ffmpeg_to_mp3(source: Path, target: Path, ffmpeg: str) -> bool:
     binary = shutil.which(ffmpeg)
     if binary is None:
         return False
+    # The source is somebody else's file: fixed demuxer, file protocol only, clean environment.
+    source_arguments = ffmpeg_input_arguments(source)
+    if source_arguments is None:
+        return False
     process = await asyncio.create_subprocess_exec(
         binary,
         "-nostdin",
         "-y",
         "-loglevel",
         "error",
-        "-i",
-        str(source),
+        *source_arguments,
         "-vn",
         "-map_metadata",
         "-1",
@@ -461,8 +469,10 @@ async def ffmpeg_to_mp3(source: Path, target: Path, ffmpeg: str) -> bool:
         "-f",
         "mp3",
         str(target),
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL,
+        env=ffmpeg_environment(),
     )
     try:
         await asyncio.wait_for(process.wait(), timeout=900)

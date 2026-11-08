@@ -128,5 +128,14 @@ It is the engine for one, and the reference for a native engine with overlap.
   archive recordings (downloaded politely, `--delay`); `--report loudness.csv` writes a line per item. It is safe
   to repeat (items that have numbers are skipped; `--remeasure` redoes them), commits each item on its own, and
   asks for a typed `yes` before it writes. Never run it against production without a backup.
+- **ffmpeg opens other people's files, so it is locked down.** In code: `-protocol_whitelist file` (no network, no
+  `concat:` or `data:` inputs), a fixed demuxer taken from the type we sniffed ourselves (`-f mp3`, `mov`, `wav`,
+  `ogg`, `flac`, `matroska`, `aac`; any other type, such as a playlist, is not given to ffmpeg and is simply "not
+  measured"), the input as `file:<absolute path>`, `-nostdin`, `-threads 1`, at most 3 hours of audio, a timeout
+  (120 s by default, never above 900 s) that kills the process, only the last 64 KB of its output kept, and a clean
+  environment (none of our keys or database addresses). The same applies to the import script's MP3 conversion.
+  **A requirement for the deployment:** run ffmpeg in a sandbox as well: its own unprivileged user, no network,
+  a read-only file system except its temp folder (for example a container with `--network none --read-only`, or
+  `bwrap` or `systemd-run` with `PrivateNetwork=yes`). The in-code limits are a second wall, not the first.
 - Cost: about 300 to 500 times faster than real time, so a 5-minute recording takes under a second of CPU
   and an hour-long discourse a few seconds. No extra storage: two floats and a timestamp per recording.

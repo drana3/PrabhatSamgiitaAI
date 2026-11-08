@@ -28,6 +28,8 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.services.recording_storage import sniff_audio
+
 logger = logging.getLogger(__name__)
 _warned_missing = False
 
@@ -37,6 +39,25 @@ LUFS_FLOOR = -70.0
 LUFS_RANGE = (-69.9, 0.0)
 PEAK_RANGE = (-120.0, 6.0)
 FFMPEG_TIMEOUT = 180.0
+# Hard ceiling on one run, whatever the caller asks for.
+FFMPEG_TIMEOUT_CAP = 900.0
+# ffmpeg reads at most this much audio (3 hours); a longer file is measured on its first 3 hours.
+MAX_INPUT_SECONDS = 3 * 3600
+# Only the tail of stderr is kept (the Summary block is last), so a chatty file cannot fill memory.
+MAX_CAPTURE_BYTES = 64 * 1024
+
+# The uploaded file is somebody else's bytes. ffmpeg must never pick its own demuxer from them (a
+# playlist or `concat` file can make it read other files or open network addresses), so the
+# demuxer is fixed from the type we sniffed ourselves. Anything not listed here is not measured.
+FFMPEG_DEMUXERS: dict[str, str] = {
+    "mp3": "mp3",
+    "aac": "aac",
+    "m4a": "mov",
+    "wav": "wav",
+    "ogg": "ogg",
+    "flac": "flac",
+    "webm": "matroska",
+}
 
 _I_LINE = re.compile(r"^\s*I:\s+(-?\d+(?:\.\d+)?|-?inf)\s+LUFS", re.MULTILINE)
 _LRA_LINE = re.compile(r"^\s*LRA:\s+(-?\d+(?:\.\d+)?)\s+LU", re.MULTILINE)
@@ -115,10 +136,70 @@ def ffmpeg_available(path: str = "ffmpeg") -> bool:
     return shutil.which(path) is not None
 
 
+def sniff_container(path: Path) -> str | None:
+    """The audio type named by the first bytes of the file itself, or None (or unreadable)."""
+    try:
+        with path.open("rb") as handle:
+            head = handle.read(16)
+    except OSError:
+        return None
+    return sniff_audio(head)
+
+
+def ffmpeg_input_arguments(path: Path, container: str | None = None) -> list[str] | None:
+    """The safe way to hand ffmpeg an untrusted audio file, as arguments up to and including `-i`.
+
+    - `-protocol_whitelist file`: no network, no `concat:`, `subfile:` or `data:` inputs;
+    - `-f <demuxer>`: fixed from the sniffed type, no format auto-probe;
+    - `file:<absolute path>`: a name like `http:...` or `concat:...` is a file name, not a protocol;
+    - `-threads 1`, `-t`: a small footprint and a ceiling on the audio read.
+    None when the type is not one we allow: then ffmpeg must not be started at all.
+    """
+    kind = container if container is not None else sniff_container(path)
+    demuxer = FFMPEG_DEMUXERS.get(kind or "")
+    if demuxer is None:
+        return None
+    return [
+        "-protocol_whitelist",
+        "file",
+        "-threads",
+        "1",
+        "-t",
+        str(MAX_INPUT_SECONDS),
+        "-f",
+        demuxer,
+        "-i",
+        f"file:{path.resolve()}",
+    ]
+
+
+def ffmpeg_environment() -> dict[str, str]:
+    """A clean environment for ffmpeg: none of ours (keys, tokens, database addresses) is passed."""
+    return {"PATH": "/usr/bin:/bin", "LC_ALL": "C"}
+
+
+async def _read_tail(stream: asyncio.StreamReader, limit: int) -> bytes:
+    tail = bytearray()
+    while chunk := await stream.read(65536):
+        tail += chunk
+        if len(tail) > limit:
+            del tail[:-limit]
+    return bytes(tail)
+
+
 async def measure_loudness(
-    path: Path, ffmpeg_path: str = "ffmpeg", *, timeout: float = FFMPEG_TIMEOUT
+    path: Path,
+    ffmpeg_path: str = "ffmpeg",
+    *,
+    timeout: float = FFMPEG_TIMEOUT,
+    container: str | None = None,
 ) -> Loudness | None:
-    """Run ffmpeg's EBU R128 meter over the whole file. None when it cannot be measured."""
+    """Run ffmpeg's EBU R128 meter over the whole file. None when it cannot be measured.
+
+    The file is untrusted: see `ffmpeg_input_arguments`. A file whose type is not on the allow-list
+    is not given to ffmpeg at all. Run ffmpeg in a sandbox on the server (no network, read-only file
+    system, its own user): docs/loudness-leveling.md, "Server".
+    """
     global _warned_missing
     binary = shutil.which(ffmpeg_path)
     if binary is None:
@@ -130,33 +211,45 @@ async def measure_loudness(
                 "RECORDING_FFMPEG_PATH."
             )
         return None
+    source = ffmpeg_input_arguments(path, container)
+    if source is None:
+        logger.info("loudness not measured: the file is not an allowed audio type")
+        return None
     try:
         process = await asyncio.create_subprocess_exec(
             binary,
             "-hide_banner",
             "-nostats",
             "-nostdin",
-            "-i",
-            str(path),
+            *source,
             "-vn",
+            "-sn",
+            "-dn",
             "-af",
             "ebur128=peak=true:dualmono=true:framelog=quiet",
             "-f",
             "null",
             "-",
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
+            env=ffmpeg_environment(),
         )
     except OSError:
         return None
+    assert process.stderr is not None
+    reader = asyncio.create_task(_read_tail(process.stderr, MAX_CAPTURE_BYTES))
     try:
-        _, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+        await asyncio.wait_for(process.wait(), timeout=min(timeout, FFMPEG_TIMEOUT_CAP))
     except TimeoutError:
         process.kill()
         await process.wait()
+        reader.cancel()
         return None
     except OSError:
+        reader.cancel()
         return None
+    stderr = await reader
     if process.returncode != 0:
         return None
     return parse_ebur128_summary(stderr.decode("utf-8", errors="replace"))
