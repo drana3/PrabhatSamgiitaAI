@@ -218,6 +218,7 @@ async def test_a_new_page_shows_no_numbers_only_when_counting_started(world: Wor
         "counting_since": None,
         "monthly_listeners": None,
         "total_plays": None,
+        "weeks": None,
     }
     for i in range(stats.MIN_PUBLIC_PLAYS - 1):
         await send(world, [event(rid)], device=f"device-200{i}")
@@ -295,6 +296,116 @@ async def test_the_page_counts_the_plays_of_its_own_recordings_only(world: World
     a = (await world.get("madhu-vrata")).json()["stats"]
     b = (await world.get("bhakti-music")).json()["stats"]
     assert (a["total_plays"], b["total_plays"]) == (12, 20)
+
+
+# --------------------------------------------------------------------------- the weekly line
+
+
+async def _fresh(world: World, slug: str = "madhu-vrata") -> dict:
+    """The public page after the cached numbers were worked out again."""
+    async with world.sessions() as session:
+        snap = await session.get(AuthorStatsSnapshot, (await world.profile(slug)).id)
+        if snap:
+            snap.computed_at = datetime.now(UTC) - timedelta(hours=1)
+            await session.commit()
+    return (await world.get(slug)).json()["stats"]
+
+
+def _day(ago: int) -> Any:
+    return datetime.now(UTC).date() - timedelta(days=ago)
+
+
+async def test_the_weekly_line_has_zero_weeks_and_starts_when_counting_started(
+    world: World,
+) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await world.listen(rid, 5, day=_day(30))
+    await world.listen(rid, 4, day=_day(8))
+    await world.listen(rid, 3, day=_day(0))
+    weeks = (await _fresh(world))["weeks"]
+    # twelve blocks of seven days end today; the ones that ended before counting began are left out
+    assert [w["plays"] for w in weeks] == [5, 0, 0, 4, 3]
+    assert all(set(w) == {"start", "plays"} for w in weeks)  # totals only, nothing about people
+    starts = [datetime.fromisoformat(w["start"]).date() for w in weeks]
+    assert all((b - a).days == 7 for a, b in zip(starts, starts[1:], strict=False))
+    assert starts[-1] + timedelta(days=6) == _day(0)
+    assert sum(w["plays"] for w in weeks) == 12
+
+
+async def test_the_weekly_line_is_at_most_twelve_weeks(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await world.listen(rid, 6, day=_day(200))  # counting began long ago
+    await world.listen(rid, 6, day=_day(0))
+    weeks = (await _fresh(world))["weeks"]
+    assert len(weeks) == stats.PUBLIC_WEEKS == 12
+    assert [w["plays"] for w in weeks] == [0] * 11 + [6]  # the old plays are outside the window
+
+
+async def test_the_weekly_line_appears_exactly_at_the_threshold(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await world.listen(rid, stats.MIN_PUBLIC_PLAYS - 1)
+    below = await _fresh(world)
+    assert below["enough_data"] is False and below["weeks"] is None
+    assert below["total_plays"] is None  # nothing else leaks below the threshold either
+    await world.listen(rid, 1)
+    at = await _fresh(world)
+    assert at["enough_data"] is True and at["total_plays"] == stats.MIN_PUBLIC_PLAYS
+    assert [w["plays"] for w in at["weeks"]] == [stats.MIN_PUBLIC_PLAYS]
+
+
+async def test_the_weekly_line_is_gone_when_the_owner_hides_the_numbers(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await world.listen(rid, 12)
+    assert (await _fresh(world))["weeks"]
+    await world.client.patch(f"{URL}/me", headers=AS["a"], json={"show_stats": False})
+    for headers in ({}, AS["b"], AS["a"]):
+        page = (await world.client.get(f"{URL}/madhu-vrata", headers=headers)).json()
+        assert page["stats"] is None
+        assert "weeks" not in str(page)
+    # the owner's own page keeps the daily series
+    mine = (await world.client.get(f"{URL}/me/stats", headers=AS["a"])).json()
+    assert mine["total_plays"] == 12 and mine["series"]
+
+
+async def test_the_weekly_line_counts_only_the_pages_own_public_recordings(world: World) -> None:
+    await world.create()
+    await world.create(who="b", slug="bhakti-music", display_name="Bhakti Music")
+    mine = await world.recording(MEMBER_A)
+    hidden = await world.recording(MEMBER_A, title="Taken down", status="removed")
+    theirs = await world.recording(MEMBER_B)
+    await world.listen(mine, 11)
+    await world.listen(hidden, 50)  # a recording that is not public adds nothing
+    await world.listen(theirs, 20)
+    a = await _fresh(world, "madhu-vrata")
+    b = await _fresh(world, "bhakti-music")
+    assert sum(w["plays"] for w in a["weeks"]) == 11
+    assert sum(w["plays"] for w in b["weeks"]) == 20
+
+
+async def test_the_weekly_line_follows_the_daily_caps(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A play over a cap is stored but never reaches the counters, so it is not in the line."""
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_RECORDING_DAY", 6)
+    monkeypatch.setattr(stats, "UNSIGNED_PLAYS_PER_CLIENT_PER_DAY", 9)
+    monkeypatch.setattr(stats, "MIN_PUBLIC_PLAYS", 5)
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    for i in range(20):
+        await send(world, [event(rid)], device=f"forged-device-{i:04d}")
+    weeks = (await _fresh(world))["weeks"]
+    assert [w["plays"] for w in weeks] == [6]
+
+
+async def test_the_author_does_not_count_in_their_own_weekly_line(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await send(world, [event(rid)], who="a", device=None)
+    assert await counts(world) == (0, 0)  # the owner's own listening is not counted at all
 
 
 # --------------------------------------------------------------------------- the owner's numbers

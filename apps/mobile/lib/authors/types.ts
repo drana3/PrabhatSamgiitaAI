@@ -30,11 +30,16 @@ export type DirectoryQuery = { q?: string; sort?: DirectorySort; kind?: Director
 export type AuthorLink = { kind: LinkKind; url: string }
 export type PublicLink = AuthorLink & { rel: string }
 
+/** Plays of a page in one week of seven days; `start` is its first day (YYYY-MM-DD). */
+export type WeekPlays = { start: string; plays: number }
+
 export type PublicStats = {
   enough_data: boolean
   counting_since: string | null
   monthly_listeners: number | null
   total_plays: number | null
+  /** up to 12 weeks, oldest first; only when `enough_data`. Absent from an older server. */
+  weeks?: WeekPlays[] | null
 }
 
 export type KindCount = { kind: string; count: number }

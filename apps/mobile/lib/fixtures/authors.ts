@@ -12,6 +12,12 @@ export type DemoAuthor = {
   authorText: string
 }
 
+/** Plays per week for the sample pages: `plays` oldest first, the last week ending on `end` (the preview's "today"). */
+function weeks(end: string, plays: number[]): { start: string; plays: number }[] {
+  const last = Date.parse(`${end}T00:00:00Z`)
+  return plays.map((n, i) => ({ start: new Date(last - (7 * (plays.length - i) - 1) * 86_400_000).toISOString().slice(0, 10), plays: n }))
+}
+
 const BASE = {
   links: [] as AuthorProfilePublic["links"],
   collections_count: 0,
@@ -41,7 +47,7 @@ export const DEMO_AUTHORS: readonly DemoAuthor[] = [
       ],
       recordings_count: 4,
       photo_url: null,
-      stats: { enough_data: true, counting_since: "2026-09-01", monthly_listeners: 312, total_plays: 1840 },
+      stats: { enough_data: true, counting_since: "2026-09-01", monthly_listeners: 312, total_plays: 1840, weeks: weeks("2026-11-01", [90, 110, 140, 160, 190, 230, 270, 300, 350]) },
     },
   },
   {
@@ -60,7 +66,7 @@ export const DEMO_AUTHORS: readonly DemoAuthor[] = [
       kinds: [{ kind: "kiirtan", count: 2 }],
       recordings_count: 2,
       photo_url: null,
-      stats: { enough_data: true, counting_since: "2026-08-12", monthly_listeners: 954, total_plays: 5210 },
+      stats: { enough_data: true, counting_since: "2026-08-12", monthly_listeners: 954, total_plays: 5210, weeks: weeks("2026-11-01", [200, 260, 310, 350, 380, 420, 450, 470, 500, 520, 560, 790]) },
     },
   },
   {
@@ -98,7 +104,8 @@ export const DEMO_AUTHORS: readonly DemoAuthor[] = [
       kinds: [{ kind: "kiirtan", count: 2 }],
       recordings_count: 2,
       photo_url: null,
-      stats: { enough_data: true, counting_since: "2026-09-20", monthly_listeners: 128, total_plays: 604 },
+      // counting began two weeks ago: too short for a line, so the page falls back to one text line
+      stats: { enough_data: true, counting_since: "2026-10-20", monthly_listeners: 128, total_plays: 604, weeks: weeks("2026-11-01", [180, 424]) },
     },
   },
 ]

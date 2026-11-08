@@ -1,25 +1,31 @@
+import { useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
+import Svg, { Circle, Path } from "react-native-svg"
 
 import { DemoBadge, SIDE } from "@/components/authors/AuthorsUi"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { countryName, formatDay } from "@/lib/authors/format"
 import { say } from "@/lib/authors/text"
+import { areaPath, linePath, sparkPoints, statsMode } from "@/lib/authors/statsView"
 import type { OwnerStats, PublicStats } from "@/lib/authors/types"
 import { useLanguage, useT } from "@/lib/i18n"
 import { kindLabelPlural } from "@/lib/kirtan/kind"
 import type { RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * The numbers on a public page. Honest by rule: with too little listening there are NO numbers, only "counting since
- * <date>" (never a zero that looks like a measurement). In the preview the strip says Demo, because the figures are invented.
+ * The numbers on a public page, in the variant Dada chose (board "автор-статистика-варианты"): A, falling back to D.
+ * Honest by rule: with too little listening there are NO numbers, only "counting since <date>" (never a zero that looks
+ * like a measurement); with enough listening but too short a history, one plain line (D) instead of a line that says
+ * nothing. In the preview the block says Demo, because the figures are invented.
  */
 export function PublicStatsStrip({ theme, stats, demo }: { theme: SongsTheme; stats: PublicStats | null; demo: boolean }) {
   const t = useT()
   const locale = useLanguage()
-  if (!stats) return null
+  const mode = statsMode(stats)
+  if (!stats || mode === "none") return null
   const since = stats.counting_since ? formatDay(stats.counting_since, locale) : null
-  if (!stats.enough_data || stats.monthly_listeners == null || stats.total_plays == null) {
+  if (mode === "quiet") {
     return (
       <View style={[styles.strip, { backgroundColor: theme.inner, borderColor: theme.line }]} accessibilityRole="summary">
         <Text style={[styles.quiet, { color: theme.textBody }]}>{since ? t("authors.stats.notEnough", { date: since }) : t("authors.stats.notStarted")}</Text>
@@ -27,18 +33,80 @@ export function PublicStatsStrip({ theme, stats, demo }: { theme: SongsTheme; st
       </View>
     )
   }
-  return (
-    <View style={[styles.strip, { backgroundColor: theme.inner, borderColor: theme.line }]} accessibilityRole="summary">
-      <View style={styles.numbers}>
-        <Figure theme={theme} value={stats.monthly_listeners} label={t("authors.stats.listeners")} />
-        <Figure theme={theme} value={stats.total_plays} label={t("authors.stats.plays")} />
-      </View>
-      <View style={styles.foot}>
-        <Text style={[styles.since, { color: theme.textMuted }]}>{since ? t("authors.stats.since", { date: since }) : ""}</Text>
+  const listeners = stats.monthly_listeners ?? 0
+  const plays = stats.total_plays ?? 0
+  if (mode === "line") {
+    return (
+      <View style={styles.lineRow} accessibilityRole="summary">
+        <Text style={[styles.lineText, { color: theme.textBody }]}>
+          {t("authors.stats.lineListeners", { count: listeners })} · {t("authors.stats.linePlays", { count: plays })}
+        </Text>
         {demo ? <DemoBadge theme={theme} /> : null}
       </View>
+    )
+  }
+  return <StatsChart theme={theme} stats={stats} listeners={listeners} plays={plays} since={since} demo={demo} />
+}
+
+const CHART_HEIGHT = 64
+
+/** Variant A: the big number, a weekly line under it, one quiet sentence about monthly listeners. */
+function StatsChart({ theme, stats, listeners, plays, since, demo }: { theme: SongsTheme; stats: PublicStats; listeners: number; plays: number; since: string | null; demo: boolean }) {
+  const t = useT()
+  const locale = useLanguage()
+  const [width, setWidth] = useState(0)
+  const weeks = stats.weeks ?? []
+  const points = sparkPoints(weeks, width, CHART_HEIGHT)
+  const end = points[points.length - 1]
+  const people = t("authors.stats.peopleListen", { count: listeners })
+  const countText = formatCount(listeners, locale)
+  const at = people.indexOf(countText)
+  return (
+    <View style={styles.chart} accessibilityRole="summary">
+      <Text style={[styles.eyebrow, { color: theme.textMuted }]}>{t("authors.stats.listening")}</Text>
+      <Text style={[styles.hero, { color: theme.textHeading }]}>{formatCount(plays, locale)}</Text>
+      <Text style={[styles.heroLabel, { color: theme.textBody }]}>{since ? t("authors.stats.playsSince", { date: since }) : t("authors.stats.plays")}</Text>
+      <View
+        style={styles.spark}
+        onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))}
+        accessibilityRole="image"
+        accessibilityLabel={t("authors.stats.weeksA11y", { list: weeks.map((w) => w.plays).join(", ") })}
+      >
+        {width > 0 && end ? (
+          <Svg width={width} height={CHART_HEIGHT} accessibilityElementsHidden>
+            <Path d={areaPath(points, CHART_HEIGHT)} fill={theme.accentBright} fillOpacity={0.16} />
+            <Path d={linePath(points)} stroke={theme.textHeading} strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" fill="none" />
+            <Circle cx={end.x} cy={end.y} r={4.5} fill={theme.accentBright} stroke={theme.inner} strokeWidth={1.5} />
+          </Svg>
+        ) : null}
+      </View>
+      <View style={styles.axis}>
+        <Text style={[styles.axisText, { color: theme.textMuted }]}>{t("authors.stats.weeksAgo", { count: weeks.length })}</Text>
+        <Text style={[styles.axisText, { color: theme.textMuted }]}>{t("authors.stats.thisWeek")}</Text>
+      </View>
+      <View style={[styles.rule, { backgroundColor: theme.line }]} />
+      <Text style={[styles.people, { color: theme.textBody }]}>
+        {at >= 0 ? (
+          <>
+            {people.slice(0, at)}
+            <Text style={[styles.peopleNum, { color: theme.textHeading }]}>{countText}</Text>
+            {people.slice(at + countText.length)}
+          </>
+        ) : (
+          people
+        )}
+      </Text>
+      {demo ? <DemoBadge theme={theme} /> : null}
     </View>
   )
+}
+
+function formatCount(value: number, locale: string): string {
+  try {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)
+  } catch {
+    return String(value)
+  }
 }
 
 function Figure({ theme, value, label }: { theme: SongsTheme; value: number; label: string }) {
@@ -141,6 +209,18 @@ const styles = StyleSheet.create({
   figure: { gap: 2 },
   big: { fontFamily: amFonts.display, fontSize: 34, lineHeight: 38, letterSpacing: -0.8 },
   label: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  lineRow: { marginHorizontal: SIDE, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  lineText: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
+  chart: { marginHorizontal: SIDE, gap: 4 },
+  eyebrow: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.6, textTransform: "uppercase" },
+  hero: { fontFamily: amFonts.display, fontSize: 64, lineHeight: 68, letterSpacing: -2 },
+  heroLabel: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22 },
+  spark: { height: CHART_HEIGHT, marginTop: 16 },
+  axis: { flexDirection: "row", justifyContent: "space-between" },
+  axisText: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
+  rule: { height: StyleSheet.hairlineWidth, marginTop: 12 },
+  people: { fontFamily: amFonts.regular, fontSize: 16, lineHeight: 22, marginTop: 8 },
+  peopleNum: { fontFamily: amFonts.bold },
   foot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   since: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
   owner: { gap: 18 },

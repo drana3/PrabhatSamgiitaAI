@@ -76,6 +76,17 @@ Retention: `play_events` rows are deleted after 400 days. `play_daily` (per reco
 
 Public numbers: monthly listeners (distinct listeners in the last 30 days) and total plays. Shown only when the page has at least 10 counted plays and the author has not switched numbers off. Below that the page says "Not enough listening yet" and the date counting started; it never shows a zero as if it were a measurement. In mock data the app labels every number "Demo".
 
+Weekly series (`PublicStats.weeks`, `weekly_plays` in `author_stats.py`): the last 12 blocks of seven days ending today, each `{start, plays}`, oldest first. It is only the plays of the page's own public recordings (the same set as the page lists), summed per week from `play_daily`, so the daily caps above already apply and the author's own listening is not in it. It carries no listener, device or country. Weeks before counting started are left out; weeks since then with no plays are present with `plays: 0`. It is `null` when the owner has switched the numbers off, and `null` below 10 counted plays (exactly 10 gives a series, 9 does not). Author blocks (`AuthorBlock`) hide a page from one viewer's directory only and the public page response is cached for everyone, so the series is a page-level aggregate and does not change per viewer. No migration was needed.
+
+Statistics block on the page (variant A falling back to D; `PublicStatsStrip` in `components/authors/StatsViews.tsx`, rules in `lib/authors/statsView.ts`, tests in `__tests__/authorStatsView.test.ts`). `statsMode` picks one of four views:
+
+- `none`: the owner hid the numbers; the page has no block at all.
+- `quiet`: under 10 counted plays; one sentence "counting since <date>", never a number.
+- `line` (variant D): 10 or more plays but fewer than 3 weeks of data (`MIN_CHART_WEEKS`) or plays in fewer than 2 of the weeks (`MIN_ACTIVE_WEEKS`), or an older server that sends no series; one plain line, "312 listeners a month · 3.3K plays".
+- `chart` (variant A): the total plays big, "plays since <date>", a 12-week line with a soft fill and one orange dot for this week, "9 weeks ago" to "this week", then "312 people listen every month".
+
+Variants B and C of the board were never built. Tests cover exactly 10 and 9 plays, no weeks, one week short of the chart, one active week only, hidden numbers (API and screen helper), and the line geometry.
+
 Owner numbers (`GET /authors/me/stats?days=7|30|90`): plays and listeners per day, top recordings, plays by kind, monthly listeners, total plays, and countries. Countries come from the device region (two letters), which the app does not send unless the member allows it. A country is listed only with at least 5 listeners, and only when the whole sample is at least 20 listeners; otherwise the answer is hidden. The response carries `notes` that the app shows as plain sentences: how a play is counted, that own plays are excluded, that the listener count is an estimate, and when there is no or not enough data.
 
 Not counted: plays on the web page (the audio element there is a plain player). This is a decision for Dada.
@@ -196,7 +207,7 @@ The public author page has one layout, "Showcase" (Dada chose it; the other two 
 
 ### Hiding the numbers
 
-The setting "Show my listening statistics on my public page" (`show_stats`, default on) is the switch. When it is off the public page shows no number at all: no monthly listeners, no total plays, no "Most played" shelf, and `GET /authors/{slug}/recordings` returns `plays: null` for every recording (`AuthorRecordingOut`). The owner still sees every number on "Your author page". Tests: `test_author_stats.py::test_switched_off_numbers_show_nowhere_on_the_public_page` (signed out, another member, the owner) and `__tests__/authorDemo.test.ts`. Boards of redesigns of the statistics block: `Для-Дады/автор-статистика-варианты/index.html` (A to D, recommendation A; it needs a public weekly series in the API, not built).
+The setting "Show my listening statistics on my public page" (`show_stats`, default on) is the switch. When it is off the public page shows no number at all: no monthly listeners, no total plays, no "Most played" shelf, and `GET /authors/{slug}/recordings` returns `plays: null` for every recording (`AuthorRecordingOut`). The owner still sees every number on "Your author page". Tests: `test_author_stats.py::test_switched_off_numbers_show_nowhere_on_the_public_page` (signed out, another member, the owner) and `__tests__/authorDemo.test.ts`. Board of the statistics block: `Для-Дады/автор-статистика-варианты/index.html` (A to D; Dada chose A with a fallback to D, built, with real 390 px screenshots at the top).
 
 ## The catalog
 
@@ -254,12 +265,12 @@ Decided by the authors owner (change any of them by one constant; each is record
 12. Caps against scripts: 10 new listeners per recording and 30 per day per client; 200 plays per recording per day and 1000 per day per client. A sangha hall of 300 phones on one wifi would have its last plays held out of the public number. The proxy address is not trusted for caps beyond that.
 13. Team members' own pages are exempt from nothing: a page that uses a staff word or an owner's name is held for the team until verified, so a team member's page needs the team's verification once.
 14. Upload language rule (Dada's): required for Bhajan and Spiritual song, none for Kiirtan, optional for Prabhat Samgiita, and for Dance music the dance is required and the language optional. Owned by the upload code, not by the author pages.
+15. Statistics block: variant A (big number and a 12-week line), falling back to variant D (one text line) when the history is too short (Dada, 2026-11). The weekly series is public, aggregate and per page only.
 
 Needs Dada (changes what people see):
 
-1. Which statistics block (A to D on the board); A needs a public weekly series in the API.
-2. Whether the catalog also gets a door on Today (built: Kiirtan tab shelf and the search block).
-3. Universal links for `/author/*` (https links opening in the app; needs a new native build).
+1. Whether the catalog also gets a door on Today (built: Kiirtan tab shelf and the search block).
+2. Universal links for `/author/*` (https links opening in the app; needs a new native build).
 
 ## Not verified
 

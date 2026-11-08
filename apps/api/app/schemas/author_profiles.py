@@ -85,14 +85,23 @@ class SlugCheck(BaseModel):
     suggestions: list[str] = Field(default_factory=list)
 
 
+class WeekPlays(BaseModel):
+    """Plays of a page in one week of seven days (`start` is its first day): a total only."""
+
+    start: date
+    plays: int
+
+
 class PublicStats(BaseModel):
-    """The numbers on a public page. `enough_data` false: the app shows "counting since <date>" and
-    no numbers at all (never a zero that looks like a measurement)."""
+    """The numbers on a public page. `enough_data` false: the app shows "counting since <date>"
+    and no numbers at all (never a zero that looks like a measurement). `weeks` is the line under
+    the big number: up to 12 weeks, oldest first, only with enough data; null otherwise."""
 
     enough_data: bool
     counting_since: date | None = None
     monthly_listeners: int | None = None
     total_plays: int | None = None
+    weeks: list[WeekPlays] | None = None
 
 
 class AuthorCard(BaseModel):

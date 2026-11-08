@@ -61,6 +61,7 @@ COUNTRY_MIN_TOTAL = 20
 # Below this many counted plays the PUBLIC page shows "counting since ..." instead of numbers.
 MIN_PUBLIC_PLAYS = 10
 MONTH_DAYS = 30
+PUBLIC_WEEKS = 12  # weeks in the public weekly line, the last one ending today
 SNAPSHOT_TTL_SECONDS = 15 * 60
 PRUNE_EVERY_HOURS = 24
 # Signed-out listeners are only a made-up device id, so one client (an address bucket) may add only
@@ -521,6 +522,39 @@ async def daily_series(
         out.append(
             {"day": day.isoformat(), "plays": plays.get(day, 0), "listeners": listeners.get(day, 0)}
         )
+    return out
+
+
+async def weekly_plays(
+    session: AsyncSession,
+    recording_ids: Select[Any],
+    *,
+    today: date,
+    since: date | None,
+    weeks: int = PUBLIC_WEEKS,
+) -> list[dict[str, Any]]:
+    """Plays per week for the public line: `weeks` blocks of seven days, the last one ending
+    `today`, oldest first, empty weeks as zero. Weeks that ended before counting started
+    (`since`) are left out, so the line never starts with a flat stretch of "nothing" that was only
+    "not counted yet". Only totals: no listeners, no countries, no recordings. Plays above the
+    daily caps never reach `play_daily` (see `ingest_plays`), so they are not here either."""
+    first = today - timedelta(days=7 * weeks - 1)
+    rows = (
+        await session.execute(
+            select(PlayDaily.day, func.sum(PlayDaily.plays).label("n"))
+            .where(PlayDaily.recording_id.in_(recording_ids), PlayDaily.day >= first)
+            .group_by(PlayDaily.day)
+        )
+    ).all()
+    per_day = {row.day: int(row.n) for row in rows}
+    out: list[dict[str, Any]] = []
+    for i in range(weeks):
+        start = first + timedelta(days=7 * i)
+        end = start + timedelta(days=6)
+        if since is not None and end < since:
+            continue
+        total = sum(per_day.get(start + timedelta(days=k), 0) for k in range(7))
+        out.append({"start": start.isoformat(), "plays": total})
     return out
 
 

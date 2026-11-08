@@ -58,6 +58,7 @@ from app.schemas.author_profiles import (
     PublicLink,
     PublicStats,
     TopRecording,
+    WeekPlays,
 )
 from app.services import author_rules as rules
 from app.services import author_stats as stats
@@ -540,7 +541,10 @@ async def owner_out(session: AsyncSession, profile: AuthorProfile) -> AuthorProf
 
 
 def public_stats(
-    profile: AuthorProfile, snapshot: AuthorStatsSnapshot, since: date | None
+    profile: AuthorProfile,
+    snapshot: AuthorStatsSnapshot,
+    since: date | None,
+    weeks: list[WeekPlays] | None = None,
 ) -> PublicStats | None:
     """None = the owner switched the numbers off. Otherwise numbers only once there are enough
     plays:
@@ -554,6 +558,7 @@ def public_stats(
         counting_since=since,
         monthly_listeners=snapshot.monthly_listeners,
         total_plays=snapshot.total_plays,
+        weeks=weeks,
     )
 
 
@@ -561,6 +566,15 @@ async def public_out(session: AsyncSession, profile: AuthorProfile) -> AuthorPro
     await session.refresh(profile)
     snapshot = await refresh_snapshot(session, profile)
     since = await stats.stats_since(session)
+    weeks: list[WeekPlays] | None = None
+    # the weekly line exists only where the numbers do: shown by the owner and past the threshold
+    if profile.show_stats and snapshot.total_plays >= stats.MIN_PUBLIC_PLAYS:
+        weeks = [
+            WeekPlays(**row)
+            for row in await stats.weekly_plays(
+                session, recording_ids(profile), today=now_utc().date(), since=since
+            )
+        ]
     collections = await collections_of(session, profile)
     return AuthorProfilePublic(
         slug=profile.slug,
@@ -579,7 +593,7 @@ async def public_out(session: AsyncSession, profile: AuthorProfile) -> AuthorPro
         photo_url=photo_url(profile),
         published_at=profile.published_at,
         updated_at=profile.updated_at,
-        stats=public_stats(profile, snapshot, since),
+        stats=public_stats(profile, snapshot, since, weeks),
         indexable=is_indexable(profile, snapshot.recordings_count),
     )
 
