@@ -1,3 +1,4 @@
+import { instrumentLabel, isInstrumentId, OTHER_INSTRUMENT } from "@/lib/kirtan/instruments"
 import { isPerformance, isRecordingType, isTempo, performanceLabel, recordingTypeLabel, tempoLabel } from "@/lib/kirtan/recordingInfo"
 import { artistKey, splitAuthors } from "@/lib/kirtan/artists"
 import { kindLabelPlural } from "@/lib/kirtan/kind"
@@ -41,14 +42,17 @@ export function menuKind(k: Pick<Kirtan, "kind">): string {
 
 /**
  * The tags a recording carries: any the library already sent, plus the three recording fields (docs/kiirtan-recording-info.md):
- * `recorded` (studio, live, home, ai), `tempo` (slow, medium, fast) and `performance` (solo, group). A recording without a field
- * simply has no such tag, so no empty shelf appears.
+ * `recorded` (studio, live, home, ai), `tempo` (slow, medium, fast), `performance` (solo, group) and `instrument` (the main
+ * instrument: a listed one, or a word the team accepted; a word still waiting for the team gives no shelf). A recording without a
+ * field simply has no such tag, so no empty shelf appears.
  */
 export function menuTags(k: MenuKirtan): Readonly<Record<string, readonly string[]>> | null {
   const out: Record<string, readonly string[]> = { ...(k.tags ?? {}) }
   if (k.recordingType) out.recorded = [k.recordingType]
   if (k.tempo) out.tempo = [k.tempo]
   if (k.performance) out.performance = [k.performance]
+  if (k.leadInstrument && isInstrumentId(k.leadInstrument)) out.instrument = [k.leadInstrument]
+  else if (k.leadInstrument === OTHER_INSTRUMENT && k.leadInstrumentChecked && k.leadInstrumentOther?.trim()) out.instrument = [k.leadInstrumentOther.trim()]
   return Object.keys(out).length ? out : null
 }
 
@@ -174,6 +178,9 @@ function recordingInfoTitle(id: string | undefined): string | null {
   if (facet === "recorded" && isRecordingType(value)) return recordingTypeLabel(value)
   if (facet === "tempo" && isTempo(value)) return tempoLabel(value)
   if (facet === "performance" && isPerformance(value)) return performanceLabel(value)
+  // the facet value is a slug ("bass-guitar"); the instrument ids use underscores
+  const instrument = (value ?? "").replace(/-/g, "_")
+  if (facet === "instrument" && isInstrumentId(instrument)) return instrumentLabel(instrument)
   return null
 }
 

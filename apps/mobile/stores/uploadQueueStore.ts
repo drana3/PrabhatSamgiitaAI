@@ -45,10 +45,13 @@ export type QueueDraft = {
   recordingType: string | null
   tempo: string | null
   performance: string | null
+  /** the main instrument (an id or "other" with its word): lib/kirtan/instruments.ts; optional */
+  leadInstrument: string | null
+  leadInstrumentOther: string
   byAuthor: boolean
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, recordingType: null, tempo: null, performance: null, byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false }
 
 type QueueState = {
   items: QueueItem[]
@@ -136,6 +139,8 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       recordingType: effectiveRecordingType(item.recordingType, draft.recordingType, draft.kind),
       tempo: draft.tempo,
       performance: draft.performance,
+      leadInstrument: draft.leadInstrument,
+      leadInstrumentOther: draft.leadInstrumentOther,
     }
     if (validateSubmission(input)) return { status: "failed", failure: { code: "gone" } }
     const added = useKirtanStore.getState().submit(input).added

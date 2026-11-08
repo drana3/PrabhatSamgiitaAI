@@ -350,9 +350,9 @@ through `tags` (section 10.1) without a change to the rules.
 | `moods` | yes | no | mood chips |
 | `tempo` | yes (Kiirtan, Dance music; `docs/kiirtan-recording-info.md`) | no | tempo shelf (slow, medium, fast), arrives as `tags.tempo` |
 | `performance` (solo or group) | yes (Kiirtan, Bhajan) | no | "Solo" and "Group" shelves, arrives as `tags.performance`; singers by name stay unbuilt |
-| `instruments` | no | no | an instrument shelf, when 3+ share one |
+| `lead_instrument` (+ typed name) | yes (every kind of music except Baba's Audio Discourses; `docs/kiirtan-recording-info.md`) | no | an instrument shelf ("Kiirtans for piano"), when 3+ share one, arrives as `tags.instrument`. A typed word reaches the shelf only after the team accepts it or merges it into a listed instrument |
 | `occasion` or `event` | no (a playlist already names an event) | no | an occasion shelf |
 | `recording_type` (studio, live, home, ai) | yes (Kiirtan required; Dance music, Bhajan, Spiritual song optional; `ai` not for a Bhajan) | Kiirtan | "Studio", "Live", "At home" and "Made by AI" shelves, arrives as `tags.recorded`. An AI shelf is titled plainly "Made by AI": the listener always knows |
 
-`tempo`, `performance` and `recording_type` were added with `docs/kiirtan-recording-info.md`; `moods`, `instruments` and `occasion`
+`tempo`, `performance`, `recording_type` and `lead_instrument` were added with `docs/kiirtan-recording-info.md`; `moods` and `occasion`
 or `event` stay unbuilt until Dada decides the upload steps (board `Для-Дады/мастер-загрузки-киртана`).

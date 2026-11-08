@@ -3,8 +3,7 @@
 Every upload of every kind (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio Discourse), single, queue
 or playlist, goes through the same check. API: `apps/api/app/services/recording_matches.py` (the rules) and `library_matches()` in
 `apps/api/app/services/recordings.py` (the search); tests `tests/test_recording_matches.py`. This file is the logic. The phone card
-that shows the match is part of the upload steps (board `Для-Дады/мастер-загрузки-киртана`) and is not built yet; the existing
-"similar" row of the queue and playlist keeps working in the meantime.
+that shows the match is built (see "What the phone shows" below).
 
 ## Layers
 
@@ -30,8 +29,23 @@ check is weaker, never wrongly strong.
 * Never offered: removed recordings, those under review, those of an author the uploader blocked, pairs already confirmed "different".
 * In a queue or playlist the check runs per row or track; the others carry on.
 
-## What the phone shows (proposal, in the board)
+## What the phone shows
 
-"Is this the song you want to upload?" with a small player (stops on close, the normal player policy `docs/player-visibility.md`).
-"Yes, this is it": "This recording is already here. Upload a different one." and back to choosing a file. "No, mine is different":
-continues and the recording is flagged "confirmed different" for the team.
+The card "Is this the song you want to upload?" (`apps/mobile/components/kirtan/add/DuplicateCard.tsx`). It is the same for every kind
+and every way of uploading: the single form, a queue row and a playlist track all use it through `QueueRow`.
+
+* It lists up to three matches (title, author, length). Each has a small **Play** button; a second tap, or the same button now
+  reading **Stop**, stops it.
+* **Its own player.** The preview (`lib/kirtan/preview.ts`, logic in `lib/kirtan/previewCore.ts`, tested without a phone in
+  `__tests__/kirtanPreview.test.ts`) is not the app's player: it does not touch the queue, the radio, the mini-player or the
+  playing song's place in the list. It only asks other sound (a song, the radio) to pause while the clip plays. One clip at a time.
+  Every start takes a ticket, so a file that finishes loading after the person answered or tapped another one is thrown away and
+  never sounds. The sound stops when the card closes (answer, remove the row, leave the screen) and when the person answers.
+* **An honest note.** When no listed match was found by sound (`reasons` has no `sound`: the server has no `fpcalc`, or the
+  match is by title and length), the card says so: the check compares the sound only where the server can. It never claims more
+  than the check did.
+* **"Yes, this is it"**: the file is not uploaded and the server copy is deleted. The person is told "This recording is already
+  here. Upload a different one." and goes back to choosing a file (the single form focuses the file field; a playlist goes back to
+  its first step when no track is left).
+* **"No, mine is different"**: the upload goes on and the pair is recorded as "confirmed different" for the team.
+* In the demo preview (no server) there is no similar answer, only the exact-copy one, so the card is seen with a real API.

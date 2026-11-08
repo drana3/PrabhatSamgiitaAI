@@ -1,6 +1,7 @@
 import { addFiles, effectiveFields, effectivePractice, patchItem, queueCounts, removeItem, requeue, requeueAll, runQueue, setRowFields, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
 import { cleanStyle } from "@/lib/kirtan/styles"
-import { cleanRecordingInfo, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
+import { cleanInstrument } from "@/lib/kirtan/instruments"
+import { cleanRecordingInfo, kindHasByAuthor, performanceMissing, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { kindHasDance, kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther } from "@/lib/kirtan/languages"
 import { missingKindFields, type MissingField } from "@/lib/kirtan/uploadForm"
@@ -78,7 +79,13 @@ export type SetDraft = {
   /** Kiirtan only, REQUIRED: how every Kiirtan track was recorded (lib/kirtan/recordingInfo.ts); tempo and solo or group are optional */
   defaultRecordingType: string | null
   defaultTempo: string | null
+  /** Kiirtan only, REQUIRED: solo or group, for every Kiirtan track */
   defaultPerformance: string | null
+  /** the main instrument every music track gets (lib/kirtan/instruments.ts); optional; "other" comes with its word */
+  defaultLeadInstrument: string | null
+  defaultLeadInstrumentOther: string
+  /** the person is the author of the recordings (not offered for Prabhat Samgiita or Baba's Audio Discourses); sent only on the tracks of a type that has it */
+  defaultByAuthor: boolean
   /** the person confirmed the content rules once for the whole set */
   confirmed: boolean
   /** the playlist exists on the server (the create was answered) */
@@ -89,7 +96,7 @@ export type SetDraft = {
   createdAt: string
 }
 
-export type SetDetailsError = "title" | "year" | "future" | "style" | "recordingType"
+export type SetDetailsError = "title" | "year" | "future" | "style" | "recordingType" | "performance" | "instrument"
 
 /* ------------------------------------------------------------------ dates */
 
@@ -137,6 +144,9 @@ export function newSetDraft(id: string, now: Date = new Date()): SetDraft {
     defaultRecordingType: null,
     defaultTempo: null,
     defaultPerformance: null,
+    defaultLeadInstrument: null,
+    defaultLeadInstrumentOther: "",
+    defaultByAuthor: false,
     confirmed: false,
     created: false,
     finished: false,
@@ -168,6 +178,11 @@ export function trackFields(track: SetTrack, draft: SetDraft) {
     practice: effectivePractice(track, kind, draft.defaultPractice ?? null),
     /** how it was recorded, the tempo, solo or group: the playlist's choice, kept for the kinds that carry each */
     ...cleanRecordingInfo(kind, { recordingType: draft.defaultRecordingType, tempo: draft.defaultTempo, performance: draft.defaultPerformance }),
+    /** the main instrument: the playlist's choice, kept for the kinds of music */
+    leadInstrument: cleanInstrument(kind, draft.defaultLeadInstrument, draft.defaultLeadInstrumentOther).instrument,
+    leadInstrumentOther: cleanInstrument(kind, draft.defaultLeadInstrument, draft.defaultLeadInstrumentOther).instrumentOther,
+    /** "I am the author of the recordings": the playlist's tick, kept for the kinds that carry it (not Prabhat Samgiita) */
+    byAuthor: kindHasByAuthor(kind) && Boolean(draft.defaultByAuthor),
   }
 }
 
@@ -225,12 +240,20 @@ export function hasSetRecordingType(draft: Pick<SetDraft, "defaultRecordingType"
   return !recordingTypeMissing("kiirtan", draft.defaultRecordingType)
 }
 
+/** The playlist says solo or group (required once it holds a Kiirtan). */
+export function hasSetPerformance(draft: Pick<SetDraft, "defaultPerformance">): boolean {
+  return !performanceMissing("kiirtan", draft.defaultPerformance)
+}
+
 export function validateSetDetails(draft: SetDraft, now: Date = new Date()): SetDetailsError | null {
   if (!draft.title.trim()) return "title"
   const date = checkEventDate(draft.eventYear, draft.eventMonth, now)
   if (date) return date
   if (setNeedsStyle(draft) && !hasSetStyle(draft)) return "style"
   if (setNeedsStyle(draft) && !hasSetRecordingType(draft)) return "recordingType"
+  if (setNeedsStyle(draft) && !hasSetPerformance(draft)) return "performance"
+  // "Add your own" needs a word of at least two letters
+  if (cleanInstrument(draft.defaultKind, draft.defaultLeadInstrument, draft.defaultLeadInstrumentOther).tooShort) return "instrument"
   return null
 }
 
@@ -435,5 +458,5 @@ export function restoreDraft(draft: SetDraft): SetDraft {
   })
   // a cover picked in the browser is a blob address that does not survive a reload: choosing it again is one tap
   const lostCover = draft.coverUri.startsWith("blob:")
-  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", defaultPractice: draft.defaultPractice ?? null, defaultRecordingType: draft.defaultRecordingType ?? null, defaultTempo: draft.defaultTempo ?? null, defaultPerformance: draft.defaultPerformance ?? null, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
+  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", defaultPractice: draft.defaultPractice ?? null, defaultRecordingType: draft.defaultRecordingType ?? null, defaultTempo: draft.defaultTempo ?? null, defaultPerformance: draft.defaultPerformance ?? null, defaultLeadInstrument: draft.defaultLeadInstrument ?? null, defaultLeadInstrumentOther: draft.defaultLeadInstrumentOther ?? "", defaultByAuthor: draft.defaultByAuthor ?? false, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
 }

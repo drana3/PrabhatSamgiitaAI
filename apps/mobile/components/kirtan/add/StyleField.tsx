@@ -6,6 +6,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
+import { NEW_WORDS_PER_WEEK } from "@/lib/kirtan/instruments"
 import { OTHER_STYLE, STYLE_OTHER_MAX, styleChoices } from "@/lib/kirtan/styles"
 
 export type StyleValue = { style: string | null; styleOther: string }
@@ -49,6 +50,7 @@ export function StyleField({ theme, kind, value, onChange, invalid, errorText, d
       </View>
       {errorText ? <FieldError theme={theme} text={errorText} /> : null}
       {current === OTHER_STYLE ? (
+        <>
         <TextInput
           value={value.styleOther}
           onChangeText={(text) => onChange({ style: OTHER_STYLE, styleOther: text.slice(0, STYLE_OTHER_MAX) })}
@@ -59,6 +61,8 @@ export function StyleField({ theme, kind, value, onChange, invalid, errorText, d
           editable={!disabled}
           style={[s.input, { color: theme.textHeading, backgroundColor: theme.card, borderColor: theme.line }]}
         />
+        <Text style={[s.hint, { color: theme.textBody }]}>{t("instrument.newNote", { count: NEW_WORDS_PER_WEEK })}</Text>
+        </>
       ) : null}
     </View>
   )

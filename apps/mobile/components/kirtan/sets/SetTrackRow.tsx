@@ -9,7 +9,6 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
 import { kindLabel } from "@/lib/kirtan/kind"
-import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { parseDay, type SetTrack } from "@/lib/kirtan/sets"
 import { RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
 
@@ -38,7 +37,6 @@ export type SetTrackHandlers = {
   onPractice: (id: string, on: boolean) => void
   onSimilarYes: (id: string) => void
   onSimilarNo: (id: string) => void
-  onPlaySimilar: (brief: RemoteBrief) => void
   onHear: (track: SetTrack) => void
 }
 
@@ -77,7 +75,6 @@ export function SetTrackRow({ theme, track, position, total, fields, firstDay, l
           onHear={(row) => handlers.onHear(row as SetTrack)}
           onSimilarYes={handlers.onSimilarYes}
           onSimilarNo={handlers.onSimilarNo}
-          onPlaySimilar={handlers.onPlaySimilar}
         />
         {track.status === "waiting" ? (
           <>

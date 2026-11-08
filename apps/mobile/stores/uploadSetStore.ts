@@ -259,6 +259,7 @@ export const useUploadSetStore = create<SetStoreState>()(
       // The drafts of version 1 were test uploads in the preview, so they go (docs/kiirtan-sets.md).
       // 3: a draft also holds how its Kiirtans were recorded, the tempo and solo or group (lib/kirtan/recordingInfo.ts).
       // Nothing to convert: `restoreDraft` fills the new fields, so the drafts of version 2 stay.
+      // (The main instrument and the author tick came later still: `restoreDraft` fills them too, so the version stays 3.)
       version: 3,
       migrate: (persisted, fromVersion) => (fromVersion >= 2 ? (persisted as { drafts: never[]; archive: never[] }) : { drafts: [], archive: [] }),
       partialize: (state) => ({ drafts: state.drafts, archive: state.archive }),

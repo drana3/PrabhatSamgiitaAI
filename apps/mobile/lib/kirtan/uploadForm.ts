@@ -1,5 +1,6 @@
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
-import { cleanRecordingInfo } from "@/lib/kirtan/recordingInfo"
+import { cleanInstrument, OTHER_INSTRUMENT } from "@/lib/kirtan/instruments"
+import { cleanRecordingInfo, kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
 import { kindHasCredits, kindHasDance, kindHasDiscourse, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 
@@ -32,6 +33,11 @@ type TypeFields = {
   recordingType?: string | null
   tempo?: string | null
   performance?: string | null
+  /** the main instrument (lib/kirtan/instruments.ts); forms without it leave it out */
+  leadInstrument?: string | null
+  leadInstrumentOther?: string
+  /** the tick "I am the author of the recording" (not offered for Prabhat Samgiita or Baba's Audio Discourses) */
+  byAuthor?: boolean
 }
 
 /** The draft after `patch`: the type's own rules applied, whatever the patch said. */
@@ -65,6 +71,20 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
     if ("tempo" in next) fields.tempo = clean.tempo
     if ("performance" in next) fields.performance = clean.performance
   }
+  // the main instrument: only music has one; "other" keeps its word, a listed instrument does not
+  if ("leadInstrument" in next) {
+    const fields = next as TypeFields
+    if (next.kind !== draft.kind) {
+      fields.leadInstrument = null
+      fields.leadInstrumentOther = ""
+    }
+    const clean = cleanInstrument(next.kind, fields.leadInstrument, fields.leadInstrumentOther ?? "")
+    fields.leadInstrument = clean.instrument
+    // while the person types the word the field keeps it as it is (no trimming under the finger)
+    if (fields.leadInstrument !== OTHER_INSTRUMENT) fields.leadInstrumentOther = ""
+  }
+  // the author tick is not offered for Prabhat Samgiita or Baba's Audio Discourses
+  if ("byAuthor" in next && !kindHasByAuthor(next.kind)) (next as TypeFields).byAuthor = false
   return next
 }
 

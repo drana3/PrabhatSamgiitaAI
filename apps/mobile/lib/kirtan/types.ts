@@ -174,6 +174,11 @@ export type Kirtan = {
   tempo?: string
   /** solo or group, when named */
   performance?: string
+  /** the main (lead) instrument: a listed id (lib/kirtan/instruments.ts) or "other" (then `leadInstrumentOther` names it) */
+  leadInstrument?: string
+  /** the author's own word for the instrument; everyone else sees it once the team accepted it (`leadInstrumentChecked`) */
+  leadInstrumentOther?: string
+  leadInstrumentChecked?: boolean
   /** Dance music: which dance (a DANCES id) */
   dance?: DanceId
   /** Baba's Audio Discourses: where it was given (optional) */

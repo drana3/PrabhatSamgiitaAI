@@ -65,5 +65,25 @@ How it is checked. For the listed files the test fails if a vertical spacing val
 `<BlockStack gap>` or `<Section top>` is off the scale or under 8, if the file does not use `Section`, or if it brings
 back the old `SectionTitle` heading.
 
+### Forms: the playlist's details step (8 Nov 2026)
+
+What went wrong. On step 2 of the playlist ("Details"; step 1 of the form itself, after the files) the place and the year sat 16
+apart from the title and from each other, the same as a label and its field are 8 to 10 apart. Everything on the step looked
+like one block, and the year and place seemed glued to the block above them (Dada's words: "2026 and the place are too close to
+the block above").
+
+The rule for a form (a long page of fields):
+
+1. A FIELD (label, hint, the choice or the input, the error) is one block: its parts are 8 apart (`gap: 8`, not 10).
+2. The fields of a form are 24 apart (`styles.details` of `app/upload-set.tsx`, `styles.group` of the add form). Not 16.
+3. A field and the tick that belongs to it ("I am the author of this recording" under the performer) are 16 apart
+   (`styles.pair`).
+4. Two fields that the person reads as one question may sit in one row (year and month), 12 apart.
+
+How it is checked. `layoutRules.test.ts`, "Space between blocks: the upload forms": the form components are on the scale, the
+details step is drawn with a gap of at least 24, and the label-to-field gap is 8. The two big screens (`add-kirtan.tsx`,
+`upload-set.tsx`) are not yet converted to `Section` and `BlockStack`, so they are not in `SPACING_FILES`; the guard above covers the
+part that broke.
+
 Adding a page: build it from `Section` and `BlockStack`, add the file to `SPACING_FILES`, and look at it at 390 px: no two
 blocks may touch.

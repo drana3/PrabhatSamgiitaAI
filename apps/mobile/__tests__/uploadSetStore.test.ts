@@ -57,7 +57,7 @@ function fake(script: Script) {
 
 function ready(...names: string[]) {
   const id = store().begin()
-  store().details(id, { title: "Dhanbad retreat", eventYear: 2026, performer: "Priya Devi", defaultStyle: "bengali", defaultRecordingType: "studio", confirmed: true })
+  store().details(id, { title: "Dhanbad retreat", eventYear: 2026, performer: "Priya Devi", defaultStyle: "bengali", defaultRecordingType: "studio", defaultPerformance: "solo", confirmed: true })
   pick(id, ...names)
   return id
 }
@@ -151,7 +151,7 @@ describe("uploading", () => {
     setSetPorts(ports)
     const id = store().begin()
     expect(await store().upload(id)).toBe("details")
-    store().details(id, { title: "T", eventYear: 2026, performer: "P", defaultStyle: "bengali", defaultRecordingType: "studio" })
+    store().details(id, { title: "T", eventYear: 2026, performer: "P", defaultStyle: "bengali", defaultRecordingType: "studio", defaultPerformance: "solo" })
     expect(await store().upload(id)).toBe("rules")
     store().confirm(id, true)
     expect(await store().upload(id)).toBe("nothing")

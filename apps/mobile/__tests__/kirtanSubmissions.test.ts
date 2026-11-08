@@ -27,7 +27,7 @@ const input: SubmissionInput = {
   title: "  Baba   Nam Kevalam ",
   author: "Group",
   style: "bengali",
-  recordingType: "studio",
+  recordingType: "studio", performance: "solo",
   byAuthor: true,
   addedBy: "Dada",
   termsAccepted: true,

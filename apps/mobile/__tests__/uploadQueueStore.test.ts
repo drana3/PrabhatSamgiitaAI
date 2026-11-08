@@ -44,7 +44,7 @@ beforeEach(() => {
   forgetChords.mockClear()
   useKirtanStore.getState().reset()
   queue().reset()
-  queue().setDraft({ performer: "Priya Devi", style: "bengali", recordingType: "studio" })
+  queue().setDraft({ performer: "Priya Devi", style: "bengali", recordingType: "studio", performance: "solo" })
 })
 
 describe("the form of the queue", () => {

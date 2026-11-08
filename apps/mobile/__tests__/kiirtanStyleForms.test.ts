@@ -5,7 +5,7 @@ import { newSetDraft } from "@/lib/kirtan/sets"
 import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import type { QueueDraft } from "@/stores/uploadQueueStore"
 
-const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, recordingType: null, tempo: null, performance: null, byAuthor: false }
+const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false }
 const base: SubmissionInput = { kind: "kiirtan", fileName: "a.mp3", fileUri: "file:///a.mp3", fileSize: 1000, fileType: "audio/mpeg", title: "Baba Nam Kevalam", author: "Priya", addedBy: "You", byAuthor: false, termsAccepted: true }
 
 describe("the optional Kiirtan style in the upload forms", () => {
@@ -29,8 +29,8 @@ describe("the optional Kiirtan style in the upload forms", () => {
   it("a Kiirtan without a style is refused: the field is required", () => {
     expect(validateSubmission(base)).toBe("style")
     expect(validateSubmission({ ...base, style: "other", styleOther: " " })).toBe("style")
-    expect(validateSubmission({ ...base, style: "other", styleOther: "Manipuri", recordingType: "studio" })).toBeNull()
-    expect(validateSubmission({ ...base, style: "folk", recordingType: "studio" })).toBeNull()
+    expect(validateSubmission({ ...base, style: "other", styleOther: "Manipuri", recordingType: "studio", performance: "solo" })).toBeNull()
+    expect(validateSubmission({ ...base, style: "folk", recordingType: "studio", performance: "solo" })).toBeNull()
   })
 
   it("the other types are never asked for a style", () => {

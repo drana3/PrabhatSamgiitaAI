@@ -1,4 +1,5 @@
 import { t } from "@/lib/i18n"
+import { instrumentLabel, isInstrumentId, OTHER_INSTRUMENT } from "@/lib/kirtan/instruments"
 import { normalizeKind } from "@/lib/kirtan/kind"
 
 /**
@@ -9,9 +10,11 @@ import { normalizeKind } from "@/lib/kirtan/kind"
  * only, so no migration is needed. Rules and sources: docs/kiirtan-recording-info.md.
  *
  *  - type of recording: `studio`, `live` (at a programme), `home` (at home, on a phone or a voice recorder) and `ai` (made by an
- *    AI tool). REQUIRED for a Kiirtan; optional for Dance music, a Bhajan and a Spiritual song. `ai` is not taken as a Bhajan.
+ *    AI tool). REQUIRED for a Kiirtan; optional for Dance music, a Bhajan and a Spiritual song. Every kind that carries it takes
+ *    `ai`, a Bhajan too (Dada, 8 Nov 2026: the earlier ban on an AI Bhajan is gone); the listener is always told.
  *  - tempo: `slow`, `medium`, `fast`. Optional, Kiirtan and Dance music.
- *  - performance: `solo` or `group` (a group or a choir). Optional, Kiirtan and Bhajan.
+ *  - performance: `solo` or `group` (a group or a choir). REQUIRED for a Kiirtan, optional for a Bhajan.
+ *  - "I am the author of the recording" (`byAuthor`): every kind but Prabhat Samgiita (it has one author) and Baba's Audio Discourses.
  *
  * Also here: the title of a Kiirtan is written in English (Latin letters), so one alphabet serves the search.
  */
@@ -24,7 +27,7 @@ export type PerformanceId = (typeof PERFORMANCES)[number]
 export const AI_TYPE: RecordingTypeId = "ai"
 
 /** What a form, a row or a stored recording says about these three. `undefined` and `null` both mean "not said". */
-export type RecordingInfo = { recordingType?: string | null; tempo?: string | null; performance?: string | null }
+export type RecordingInfo = { recordingType?: string | null; tempo?: string | null; performance?: string | null; leadInstrument?: string | null; leadInstrumentOther?: string | null }
 export type CleanInfo = { recordingType: RecordingTypeId | null; tempo: TempoId | null; performance: PerformanceId | null }
 export const NO_INFO: CleanInfo = { recordingType: null, tempo: null, performance: null }
 
@@ -49,10 +52,21 @@ export function kindHasRecordingType(kind: string | null | undefined): boolean {
 export function kindRequiresRecordingType(kind: string | null | undefined): boolean {
   return normalizeKind(kind) === "kiirtan"
 }
-/** May this kind be an AI recording? Not a Bhajan. */
+/** May this kind be an AI recording? Every kind that says how it was recorded, a Bhajan too. */
 export function kindAllowsAi(kind: string | null | undefined): boolean {
+  return kindHasRecordingType(kind)
+}
+/** Is solo or group REQUIRED? A Kiirtan only. */
+export function kindRequiresPerformance(kind: string | null | undefined): boolean {
+  return normalizeKind(kind) === "kiirtan"
+}
+/**
+ * Does the form show "I am the author of the recording"? Every kind that names a performer, except Prabhat Samgiita: it has
+ * one author, so the tick is not shown for it and the server does not take it.
+ */
+export function kindHasByAuthor(kind: string | null | undefined): boolean {
   const k = normalizeKind(kind)
-  return k === "kiirtan" || k === "dance_song" || k === "spiritual_song"
+  return k !== "prabhat_samgiita" && k !== "baba_audio"
 }
 export function kindHasTempo(kind: string | null | undefined): boolean {
   const k = normalizeKind(kind)
@@ -84,6 +98,11 @@ export function cleanRecordingInfo(kind: string | null | undefined, info: Record
   }
 }
 
+/** Is solo or group still missing for this kind? */
+export function performanceMissing(kind: string | null | undefined, performance: string | null | undefined): boolean {
+  return kindRequiresPerformance(kind) && !isPerformance(performance)
+}
+
 /** Is the type of recording still missing for this kind? */
 export function recordingTypeMissing(kind: string | null | undefined, recordingType: string | null | undefined): boolean {
   return kindRequiresRecordingType(kind) && !isRecordingType(recordingType)
@@ -111,12 +130,15 @@ export function isAiRecording(item: { recordingType?: string | null } | null | u
   return !!item && item.recordingType === AI_TYPE
 }
 
-/** The tags a recording page shows: type of recording, tempo, solo or group, in that order, only the ones that are known. */
+/** The tags a recording page shows: type of recording, tempo, solo or group, main instrument, in that order, only the ones that are known. */
 export function infoTags(item: RecordingInfo): { id: string; label: string; ai: boolean }[] {
   const out: { id: string; label: string; ai: boolean }[] = []
   if (isRecordingType(item.recordingType)) out.push({ id: `type-${item.recordingType}`, label: recordingTypeLabel(item.recordingType), ai: item.recordingType === AI_TYPE })
   if (isTempo(item.tempo)) out.push({ id: `tempo-${item.tempo}`, label: tempoLabel(item.tempo), ai: false })
   if (isPerformance(item.performance)) out.push({ id: `performance-${item.performance}`, label: performanceLabel(item.performance), ai: false })
+  // the main instrument: a listed one, or the word the person wrote (the server shows others that word once the team accepted it)
+  if (isInstrumentId(item.leadInstrument)) out.push({ id: `instrument-${item.leadInstrument}`, label: instrumentLabel(item.leadInstrument), ai: false })
+  else if (item.leadInstrument === OTHER_INSTRUMENT && item.leadInstrumentOther?.trim()) out.push({ id: "instrument-other", label: item.leadInstrumentOther.trim(), ai: false })
   return out
 }
 

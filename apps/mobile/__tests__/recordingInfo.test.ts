@@ -36,12 +36,14 @@ describe("the lists (the same ids as the API and as anandamarga.org/music)", () 
     expect([...PERFORMANCES]).toEqual(["solo", "group"])
   })
 
-  it("asks for the type of recording on a Kiirtan only; AI is not offered for a Bhajan", () => {
+  it("asks for the type of recording on a Kiirtan only; AI is offered for every kind that carries the type, a Bhajan too", () => {
     expect(kindRequiresRecordingType("kiirtan")).toBe(true)
     expect(kindRequiresRecordingType("bhajan")).toBe(false)
-    expect(kindAllowsAi("bhajan")).toBe(false)
+    expect(kindAllowsAi("bhajan")).toBe(true)
+    expect(kindAllowsAi("baba_audio")).toBe(false)
     expect(recordingTypesFor("kiirtan")).toEqual(["studio", "live", "home", "ai"])
-    expect(recordingTypesFor("bhajan")).toEqual(["studio", "live", "home"])
+    expect(recordingTypesFor("bhajan")).toEqual(["studio", "live", "home", "ai"])
+    expect(recordingTypesFor("baba_audio")).toEqual(["studio", "live", "home"])
     expect(kindHasTempo("bhajan")).toBe(false)
     expect(kindHasPerformance("dance_song")).toBe(false)
   })
@@ -54,8 +56,9 @@ describe("cleaning", () => {
     expect(cleanRecordingInfo("baba_audio", { recordingType: "studio", tempo: "slow", performance: "solo" })).toEqual({ recordingType: null, tempo: null, performance: null })
   })
 
-  it("drops AI from a Bhajan and any word that is not in the list", () => {
-    expect(cleanRecordingInfo("bhajan", { recordingType: "ai" }).recordingType).toBeNull()
+  it("keeps AI on a Bhajan, drops it where the kind has no type, and drops any word that is not in the list", () => {
+    expect(cleanRecordingInfo("bhajan", { recordingType: "ai" }).recordingType).toBe("ai")
+    expect(cleanRecordingInfo("baba_audio", { recordingType: "ai" }).recordingType).toBeNull()
     expect(cleanRecordingInfo("kiirtan", { recordingType: "robot", tempo: "turbo" })).toEqual({ recordingType: null, tempo: null, performance: null })
   })
 
@@ -91,11 +94,13 @@ describe("the submission", () => {
   it("refuses a Kiirtan without a type of recording, after the style", () => {
     expect(validateSubmission({ ...base, style: undefined })).toBe("style")
     expect(validateSubmission(base)).toBe("recordingType")
-    expect(validateSubmission({ ...base, recordingType: "studio" })).toBeNull()
+    expect(validateSubmission({ ...base, recordingType: "studio" })).toBe("performance") // solo or group is required too
+    expect(validateSubmission({ ...base, recordingType: "studio", performance: "solo" })).toBeNull()
+    expect(validateSubmission({ ...base, kind: "bhajan", language: "en", recordingType: "ai" })).toBeNull() // an AI Bhajan is allowed
   })
 
   it("refuses a Kiirtan title that is not in English, and not a Bhajan's", () => {
-    expect(validateSubmission({ ...base, recordingType: "studio", title: "Баба Нам" })).toBe("titleEnglish")
+    expect(validateSubmission({ ...base, recordingType: "studio", performance: "solo", title: "Баба Нам" })).toBe("titleEnglish")
     expect(validateSubmission({ ...base, kind: "bhajan", language: "ru", title: "Баба Нам" })).toBeNull()
   })
 

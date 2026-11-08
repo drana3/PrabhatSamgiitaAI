@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native"
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated"
 import Svg, { Path } from "react-native-svg"
 
+import { DuplicateCard } from "@/components/kirtan/add/DuplicateCard"
 import { DanceChoices, RequiredMark } from "@/components/kirtan/add/KindFields"
 import { PracticeRowToggle } from "@/components/kirtan/add/PracticeField"
 import { ChordsPrompt } from "@/components/recording-extras/ChordsPrompt"
@@ -17,7 +18,6 @@ import { languageLabel } from "@/lib/kirtan/languages"
 import { isRetryable, queueProgress, type QueueItem, type QueueSummary } from "@/lib/kirtan/queue"
 import type { DanceId, RecordingKind } from "@/lib/kirtan/types"
 import type { MissingField } from "@/lib/kirtan/uploadForm"
-import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { uploadErrorText } from "@/lib/kirtan/rules"
 
 /**
@@ -145,7 +145,6 @@ export function QueueRow({
   onHear,
   onSimilarYes,
   onSimilarNo,
-  onPlaySimilar,
   titleInvalid,
 }: {
   theme: SongsTheme
@@ -164,7 +163,6 @@ export function QueueRow({
   onHear: (item: QueueItem) => void
   onSimilarYes: (id: string) => void
   onSimilarNo: (id: string) => void
-  onPlaySimilar: (brief: RemoteBrief) => void
   titleInvalid?: boolean
 }) {
   const t = useT()
@@ -232,28 +230,7 @@ export function QueueRow({
           </KPress>
         ) : null
       ) : null}
-      {item.status === "similar" && item.similar ? (
-        <View style={[styles.ask, { backgroundColor: theme.inner, borderColor: theme.line }]} accessibilityLiveRegion="polite">
-          <Text style={[styles.askTitle, { color: theme.textHeading }]}>{t("ugc.similar.title")}</Text>
-          <Text style={[styles.detail, { color: theme.textBody }]}>{t("ugc.similar.body")}</Text>
-          {item.similar.briefs.slice(0, 3).map((brief) => (
-            <View key={brief.id} style={styles.askRow}>
-              <Text style={[styles.askListed, { color: theme.textHeading }]} numberOfLines={2}>
-                {t("ugc.similar.listed", { title: brief.title })}
-              </Text>
-              <KPress accessibilityRole="button" accessibilityLabel={t("ugc.similar.playA11y", { title: brief.title })} onPress={() => onPlaySimilar(brief)} pressedScale={0.94} style={[styles.small, { backgroundColor: theme.peach }]}>
-                <Text style={[styles.smallText, { color: theme.accent }]}>{t("ugc.similar.play")}</Text>
-              </KPress>
-            </View>
-          ))}
-          <KPress accessibilityRole="button" accessibilityLabel={t("ugc.similar.yes")} onPress={() => onSimilarYes(item.id)} pressedScale={0.98} style={[styles.askButton, { backgroundColor: amColors.orange700 }]}>
-            <Text style={styles.askButtonText}>{t("ugc.similar.yes")}</Text>
-          </KPress>
-          <KPress accessibilityRole="button" accessibilityLabel={t("ugc.similar.no")} onPress={() => onSimilarNo(item.id)} pressedScale={0.98} style={[styles.askButton, { backgroundColor: theme.card, borderWidth: 1, borderColor: theme.line }]}>
-            <Text style={[styles.askButtonText, { color: theme.textHeading }]}>{t("ugc.similar.no")}</Text>
-          </KPress>
-        </View>
-      ) : null}
+      {item.status === "similar" && item.similar ? <DuplicateCard theme={theme} briefs={item.similar.briefs} onSame={() => onSimilarNo(item.id)} onDifferent={() => onSimilarYes(item.id)} /> : null}
     </View>
   )
 }

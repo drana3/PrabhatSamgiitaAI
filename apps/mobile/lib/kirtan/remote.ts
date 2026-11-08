@@ -1,7 +1,8 @@
 import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import { cleanPractice } from "@/lib/kirtan/practice"
-import { cleanRecordingInfo } from "@/lib/kirtan/recordingInfo"
+import { cleanInstrument } from "@/lib/kirtan/instruments"
+import { cleanRecordingInfo, kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
 import { cleanStyle } from "@/lib/kirtan/styles"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
@@ -56,6 +57,10 @@ export type RemoteRecording = {
   recording_type?: string | null
   tempo?: string | null
   performance?: string | null
+  /** the main instrument id or `other` (then `lead_instrument_other` is the word, for its author or once the team accepted it) */
+  lead_instrument?: string | null
+  lead_instrument_other?: string | null
+  lead_instrument_checked?: boolean
   /** Dance music: tandava or kaoshiki */
   dance?: string | null
   /** the playlist from an event this is a track of, and its place there */
@@ -242,6 +247,9 @@ export type PublishPayload = {
   recordingType?: string | null
   tempo?: string | null
   performance?: string | null
+  /** the main instrument: an id or `other` (then `leadInstrumentOther` is the word, 2 to 40 characters); optional */
+  leadInstrument?: string | null
+  leadInstrumentOther?: string | null
   /** required for the Dance music kind, refused for the others */
   dance?: string | null
   /** a track of a playlist from an event, and its place there; kind, language and dance left out come from the playlist */
@@ -266,7 +274,7 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     type: payload.type,
     title: payload.title,
     author: payload.author,
-    by_author: payload.byAuthor,
+    by_author: payload.byAuthor && kindHasByAuthor(payload.kind),
     terms_accepted: true,
     terms_version: payload.termsVersion,
     confirm_different: payload.confirmDifferent,
@@ -285,6 +293,10 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
         ...(info.tempo ? { tempo: info.tempo } : {}),
         ...(info.performance ? { performance: info.performance } : {}),
       }
+    })(),
+    ...(() => {
+      const instrument = cleanInstrument(payload.kind, payload.leadInstrument, payload.leadInstrumentOther)
+      return instrument.instrument && !instrument.tooShort ? { lead_instrument: instrument.instrument, ...(instrument.instrumentOther ? { lead_instrument_other: instrument.instrumentOther } : {}) } : {}
     })(),
     ...(payload.dance && kindHasDance(payload.kind) ? { dance: payload.dance } : {}),
     ...(payload.collectionId ? { collection_id: payload.collectionId, ...(payload.position ? { position: payload.position } : {}) } : {}),
@@ -327,6 +339,13 @@ export async function fetchPublished(cfg: RemoteConfig, query: { kind?: Recordin
   if (query.authorId) params.set("author_id", query.authorId)
   params.set("limit", String(query.limit ?? 100))
   return (await call<{ items: RemoteRecording[] }>(cfg, "GET", `?${params.toString()}`)).items
+}
+
+/** The words the team accepted under "Add your own" (a main instrument or a style), for the form to offer next to the fixed list. */
+export type ValueOptions = { accepted: { key: string; label: string }[]; newWordsPerWeek: number }
+export async function fetchValueOptions(cfg: RemoteConfig, field: "instrument" | "style"): Promise<ValueOptions> {
+  const out = await call<{ accepted: { key: string; label: string }[]; new_words_per_week: number }>(cfg, "GET", `/value-options?field=${field}`)
+  return { accepted: out.accepted ?? [], newWordsPerWeek: out.new_words_per_week }
 }
 
 export async function fetchMine(cfg: RemoteConfig): Promise<RemoteRecording[]> {
@@ -389,6 +408,8 @@ export function failureFromError(error: unknown): UploadFailure {
     if (error.status === 422 && /content rules/i.test(error.message)) return { code: "rules" }
     // the server refused for a missing language or dance (the form should have caught it first)
     if (error.status === 422 && /language|dance/i.test(error.message)) return { code: "fields", message: error.message }
+    // the server refused a written word (a main instrument or style): the team did not accept it, or this person already brought three new ones this week
+    if ((error.status === 422 && /word|instrument|style/i.test(error.message)) || (error.status === 429 && /new words/i.test(error.message))) return { code: "fields", message: error.message }
     if (error.status === 404 || error.status === 409) return { code: "gone", message: error.message }
     return { code: "server", message: error.message }
   }

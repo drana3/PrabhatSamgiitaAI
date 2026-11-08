@@ -4,7 +4,13 @@ import * as DocumentPicker from "expo-document-picker"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
+import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
+import { PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
+import { kindHasInstrument } from "@/lib/kirtan/instruments"
+import { kindHasByAuthor, kindHasRecordingType } from "@/lib/kirtan/recordingInfo"
+import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
@@ -28,7 +34,6 @@ import { formatDate, useT } from "@/lib/i18n"
 import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { missingCounts, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
-import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { isRulesAccepted, uploadErrorText } from "@/lib/kirtan/rules"
 import { SET_LIMITS, setCounts, setDay, setDefaults, setProgress, setState, trackMissing, setNeedsStyle, titleIsNotEnglish, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
 import { eventLabel } from "@/lib/kirtan/setDate"
@@ -52,6 +57,11 @@ import { effectiveFields, effectivePractice } from "@/lib/kirtan/queue"
 
 const STEPS = ["files", "details", "tracks", "send"] as const
 type Step = (typeof STEPS)[number]
+
+/** The kind whose "how it sounds" fields the details step shows: a Kiirtan's when the playlist holds one (they are required), else the playlist's own. */
+function soundKind(draft: SetDraft): RecordingKind {
+  return setNeedsStyle(draft) ? "kiirtan" : draft.defaultKind
+}
 
 function firstStep(draft: SetDraft): number {
   if (draft.created || draft.tracks.some((track) => track.status !== "waiting")) return 3
@@ -79,6 +89,8 @@ export default function UploadSetScreen() {
   const error = useUploadSetStore((s) => s.error)
   const store = useUploadSetStore.getState
   const form = useFormFocus()
+  // the words the team accepted under "Add your own" (main instrument), offered after the fixed list
+  const instrumentWords = useValueOptions("instrument")
 
   const [activeId, setActiveId] = useState<string | null>(typeof params.set === "string" ? params.set : null)
   const [step, setStep] = useState(0)
@@ -202,6 +214,8 @@ export default function UploadSetScreen() {
         dance: t("ugc.form.error.dance"),
         style: t("ugc.form.error.style"),
         recordingType: t("ugc.form.error.recordingType"),
+        performance: t("ugc.form.error.performance"),
+        instrument: t("ugc.form.error.instrument"),
         language: defaultsMissing.includes("languageName") ? t("ugc.form.error.languageName") : t("ugc.form.error.language"),
       }
       const missingKeys = [
@@ -210,6 +224,8 @@ export default function UploadSetScreen() {
         ...(defaultsMissing.includes("dance") ? ["dance"] : []),
         ...(detailsError === "style" ? ["style"] : []),
         ...(detailsError === "recordingType" ? ["recordingType"] : []),
+        ...(detailsError === "performance" ? ["performance"] : []),
+        ...(detailsError === "instrument" ? ["instrument"] : []),
         ...(defaultsMissing.includes("language") || defaultsMissing.includes("languageName") ? ["language"] : []),
       ]
       if (missingKeys.length) {
@@ -415,7 +431,7 @@ export default function UploadSetScreen() {
   const detailsStep = (d: SetDraft) => {
     const languageValue: LanguageValue = { language: d.defaultLanguage, languageOther: d.defaultLanguageOther }
     return (
-      <Reveal index={1} style={styles.stack}>
+      <Reveal index={1} style={styles.details}>
         {textField("title", t("set.d.title"), d.title, (text) => store().details(d.id, { title: text }), { placeholder: t("set.d.titlePlaceholder"), max: 200 })}
         {textField("place", t("set.d.place"), d.place, (text) => store().details(d.id, { place: text }), { placeholder: t("set.d.placePlaceholder"), optional: true, max: 200 })}
         <View {...form.field("year")}>
@@ -435,6 +451,8 @@ export default function UploadSetScreen() {
           />
         </View>
         {kindHasPerformer(d.defaultKind) ? textField("performer", t("set.d.performer"), d.performer, (text) => store().details(d.id, { performer: text }), { hint: t("set.d.performerHint"), optional: true, max: 80 }) : null}
+        {/* "I am the author of the recordings": with the performer; Prabhat Samgiita has no tick */}
+        {kindHasPerformer(d.defaultKind) ? <AuthorTick theme={theme} kind={d.defaultKind} on={d.defaultByAuthor} onChange={(on) => store().details(d.id, { defaultByAuthor: on })} disabled={locked} /> : null}
         <CoverField theme={theme} uri={d.coverUri} state={d.coverState} disabled={locked} onChange={(uri) => store().cover(d.id, uri)} />
 
         <View style={styles.field}>
@@ -451,7 +469,7 @@ export default function UploadSetScreen() {
                   onActivate={() => {
                     if (locked) return
                     const clear = kindHasLanguage(kind) ? {} : { defaultLanguage: null, defaultLanguageOther: "" }
-                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "", defaultPractice: null }), ...(kind === d.defaultKind ? {} : { defaultRecordingType: null, defaultTempo: null, defaultPerformance: null }) })
+                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "", defaultPractice: null }), ...(kind === d.defaultKind ? {} : { defaultRecordingType: null, defaultTempo: null, defaultPerformance: null, defaultLeadInstrument: null, defaultLeadInstrumentOther: "" }), ...(kindHasByAuthor(kind) ? {} : { defaultByAuthor: false }) })
                   }}
                   pressedScale={0.96}
                   style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
@@ -471,13 +489,27 @@ export default function UploadSetScreen() {
         ) : null}
         {/* a Kiirtan's style is required; the playlist gives it once to all its Kiirtans. The Avarta tick is optional (a track can say otherwise). */}
         {setNeedsStyle(d) ? (
-          <View style={styles.field}>
+          <View style={styles.group}>
             <View {...form.field("style")} style={styles.field}>
               <StyleField theme={theme} kind="kiirtan" value={{ style: d.defaultStyle, styleOther: d.defaultStyleOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultStyle: next.style, defaultStyleOther: next.styleOther }) }} invalid={!!form.error("style")} errorText={form.error("style")} disabled={locked} />
             </View>
             <PracticeField theme={theme} kind="kiirtan" on={d.defaultPractice === AVARTA} onChange={(on) => store().details(d.id, { defaultPractice: on ? AVARTA : null })} disabled={locked} />
-            <View {...form.field("recordingType")} style={styles.field}>
-              <RecordingTypeField theme={theme} kind="kiirtan" value={d.defaultRecordingType} onChange={(next) => { form.clear(); store().details(d.id, { defaultRecordingType: next }) }} invalid={!!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
+          </View>
+        ) : null}
+        {/* how it sounds: how it was recorded, solo or group, the tempo and the main instrument (the fields of a Kiirtan when the playlist holds one) */}
+        {setNeedsStyle(d) || kindHasInstrument(d.defaultKind) ? (
+          <View style={styles.group}>
+            {kindHasRecordingType(soundKind(d)) ? (
+              <View {...form.field("recordingType")} style={styles.field}>
+                <RecordingTypeField theme={theme} kind={soundKind(d)} value={d.defaultRecordingType} onChange={(next) => { form.clear(); store().details(d.id, { defaultRecordingType: next }) }} invalid={!!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
+              </View>
+            ) : null}
+            <View {...form.field("performance")} style={styles.field}>
+              <PerformanceField theme={theme} kind={soundKind(d)} value={d.defaultPerformance} onChange={(next) => { form.clear(); store().details(d.id, { defaultPerformance: next }) }} invalid={!!form.error("performance")} errorText={form.error("performance")} disabled={locked} />
+            </View>
+            <TempoField theme={theme} kind={soundKind(d)} value={d.defaultTempo} onChange={(next) => store().details(d.id, { defaultTempo: next })} disabled={locked} />
+            <View {...form.field("instrument")} style={styles.field}>
+              <InstrumentField theme={theme} kind={soundKind(d)} value={{ instrument: d.defaultLeadInstrument, instrumentOther: d.defaultLeadInstrumentOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultLeadInstrument: next.instrument, defaultLeadInstrumentOther: next.instrumentOther }) }} accepted={instrumentWords.accepted} newWordsPerWeek={instrumentWords.newWordsPerWeek} invalid={!!form.error("instrument")} errorText={form.error("instrument")} disabled={locked} />
             </View>
           </View>
         ) : null}
@@ -504,8 +536,12 @@ export default function UploadSetScreen() {
       onRowDance: (id, dance) => store().fields(d.id, id, { dance }),
       onPractice: (id, on) => store().fields(d.id, id, { practice: on ? AVARTA : null }),
       onSimilarYes: (id) => void store().decideSimilar(d.id, id, true),
-      onSimilarNo: (id) => void store().decideSimilar(d.id, id, false),
-      onPlaySimilar: (brief: RemoteBrief) => listenTo({ id: brief.id, title: brief.title, author: brief.author, audioUrl: brief.audio_url, kind: brief.kind }),
+      // "Yes, this is it": the track leaves, the person is told and picks another file; with no track left, back to choosing files
+      onSimilarNo: (id) => {
+        void store().decideSimilar(d.id, id, false)
+        actions.flash(t("ugc.similar.already"))
+        if (!(store().drafts.find((x) => x.id === d.id)?.tracks.length ?? 0)) setStep(0)
+      },
       onHear: (track) => track.original && listenTo(track.original as OriginalRef),
     }
     const settled = counts ? counts.total - counts.waiting - counts.uploading : 0
@@ -708,11 +744,15 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 24, gap: 22, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   stack: { gap: 16 },
+  /** the details step (title, place, date, performer, cover, type, how it sounds): the blocks are 24 apart, never touching (docs/layout-rules.md, "Space between blocks") */
+  details: { gap: 24 },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },
   h1: { fontFamily: amFonts.display, fontSize: 40, lineHeight: 42, letterSpacing: -0.8, textTransform: "uppercase" },
   dots: { flexDirection: "row", gap: 6, marginTop: 12 },
   dot: { height: 6, flex: 1, borderRadius: 3 },
-  field: { gap: 10 },
+  field: { gap: 8 },
+  /** fields of one group of the form (style, how it sounds, instrument): 24 apart, so no two fields touch */
+  group: { gap: 24 },
   labelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },

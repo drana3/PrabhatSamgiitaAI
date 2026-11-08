@@ -8,10 +8,15 @@ import Svg, { Path } from "react-native-svg"
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
+import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
+import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
+import { PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
-import { effectiveRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
+import { kindHasInstrument } from "@/lib/kirtan/instruments"
+import { effectiveRecordingType, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
+import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
 import { ModerationNotice } from "@/components/common/ModerationNotice"
@@ -30,7 +35,6 @@ import { formatDate, useT } from "@/lib/i18n"
 import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { effectiveFields, effectivePractice, hasWork, practiceCounts, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
-import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
 import { PS_SONG_COUNT, RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
@@ -96,6 +100,8 @@ export default function AddKirtanScreen() {
   const store = useUploadQueueStore.getState
   // Upload with something missing jumps to the first empty required field and says which one (lib/forms/focusInvalid.ts)
   const form = useFormFocus()
+  // the words the team accepted under "Add your own" (main instrument): offered after the fixed list
+  const instrumentWords = useValueOptions("instrument", draft.kind !== "baba_audio")
 
   const [agree, setAgree] = useState(false)
   const [problem, setProblem] = useState<Problem | null>(null)
@@ -235,6 +241,15 @@ export default function AddKirtanScreen() {
     addPicked(files)
   }
 
+  /** "Yes, this is it" on the duplicate card: the file is dropped, the person is told and goes back to choosing a file. */
+  const sameAsLibrary = (id: string) => {
+    void store().decideSimilar(id, false)
+    const message = t("ugc.similar.already")
+    actions.flash(message)
+    // nothing left to send: the file field says it too and takes the person there
+    if (!store().items.length) void form.focusFirst(["file"], { file: message })
+  }
+
   /* ------------------------------------------------------------------ starting */
 
   /** The sentence for a problem code (the same words as under the field). */
@@ -283,6 +298,10 @@ export default function AddKirtanScreen() {
       style: draft.style,
       styleOther: draft.styleOther,
       recordingType: effectiveRecordingType(first.recordingType, draft.recordingType, kind),
+      tempo: draft.tempo,
+      performance: draft.performance,
+      leadInstrument: draft.leadInstrument,
+      leadInstrumentOther: draft.leadInstrumentOther,
       byAuthor: draft.byAuthor,
       addedBy: "You",
       termsAccepted: rulesOk || agree,
@@ -461,7 +480,7 @@ export default function AddKirtanScreen() {
             ) : null}
 
             {kindHasPerformer(kind) ? (
-            <Reveal index={3} style={styles.field}>
+            <Reveal index={3} style={styles.pair}>
               <View {...form.field("performer")} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>{t("ugc.add.authorLabel")}</Text>
               <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: formError === "author" ? amColors.danger : theme.line }]}>
@@ -480,18 +499,35 @@ export default function AddKirtanScreen() {
               {form.error("performer") ? <FieldError theme={theme} text={form.error("performer")!} /> : null}
               {items.length > 1 ? <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.shared.hint")}</Text> : null}
               </View>
+              {/* "I am the author of this recording" sits with the performer; Prabhat Samgiita has one author, so it has no tick */}
+              <AuthorTick theme={theme} kind={kind} on={draft.byAuthor} onChange={(byAuthor) => store().setDraft({ byAuthor })} disabled={locked} />
             </Reveal>
             ) : null}
 
             {/* Kiirtan only: the style is required (ticks nothing by itself), the Avarta tick is optional and covers the whole queue */}
             {kind === "kiirtan" ? (
-              <Reveal index={3} style={styles.field}>
+              <Reveal index={3} style={styles.group}>
                 <View {...form.field("style")} style={styles.field}>
                   <StyleField theme={theme} kind={kind} value={{ style: draft.style, styleOther: draft.styleOther }} onChange={(next) => store().setDraft({ style: next.style, styleOther: next.styleOther })} invalid={formError === "style" || !!form.error("style")} errorText={form.error("style")} disabled={locked} />
                 </View>
                 <PracticeField theme={theme} kind={kind} on={draft.practice === AVARTA} onChange={(on) => store().setDraft({ practice: on ? AVARTA : null })} disabled={locked} />
-                <View {...form.field("recordingType")} style={styles.field}>
-                  <RecordingTypeField theme={theme} kind={kind} value={draft.recordingType} onChange={(next) => store().setDraft({ recordingType: next })} invalid={formError === "recordingType" || !!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
+              </Reveal>
+            ) : null}
+
+            {/* How it sounds: how it was recorded, solo or group, the tempo and the main instrument. Each shows for the kinds that carry it. */}
+            {kindHasRecordingType(kind) || kindHasInstrument(kind) ? (
+              <Reveal index={3} style={styles.group}>
+                {kindHasRecordingType(kind) ? (
+                  <View {...form.field("recordingType")} style={styles.field}>
+                    <RecordingTypeField theme={theme} kind={kind} value={draft.recordingType} onChange={(next) => store().setDraft({ recordingType: next })} invalid={formError === "recordingType" || !!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
+                  </View>
+                ) : null}
+                <View {...form.field("performance")} style={styles.field}>
+                  <PerformanceField theme={theme} kind={kind} value={draft.performance} onChange={(next) => store().setDraft({ performance: next })} invalid={formError === "performance" || !!form.error("performance")} errorText={form.error("performance")} disabled={locked} />
+                </View>
+                <TempoField theme={theme} kind={kind} value={draft.tempo} onChange={(next) => store().setDraft({ tempo: next })} disabled={locked} />
+                <View {...form.field("instrument")} style={styles.field}>
+                  <InstrumentField theme={theme} kind={kind} value={{ instrument: draft.leadInstrument, instrumentOther: draft.leadInstrumentOther }} onChange={(next) => store().setDraft({ leadInstrument: next.instrument, leadInstrumentOther: next.instrumentOther })} accepted={instrumentWords.accepted} newWordsPerWeek={instrumentWords.newWordsPerWeek} invalid={formError === "instrument" || !!form.error("instrument")} errorText={form.error("instrument")} disabled={locked} />
                 </View>
               </Reveal>
             ) : null}
@@ -563,8 +599,7 @@ export default function AddKirtanScreen() {
                     onRetry={(id) => void store().retry(id)}
                     onHear={(row) => row.original && listenTo(row.original as OriginalRef)}
                     onSimilarYes={(id) => void store().decideSimilar(id, true)}
-                    onSimilarNo={(id) => void store().decideSimilar(id, false)}
-                    onPlaySimilar={(s: RemoteBrief) => listenTo({ id: s.id, title: s.title, author: s.author, audioUrl: s.audio_url, kind: s.kind })}
+                    onSimilarNo={sameAsLibrary}
                   />
                   {form.error(`row-${item.id}`) ? <FieldError theme={theme} text={form.error(`row-${item.id}`)!} /> : null}
                   </View>
@@ -590,7 +625,6 @@ export default function AddKirtanScreen() {
               {moreOpen ? <MoreDetails theme={theme} kind={kind} locked={locked} yearInvalid={formError === "year"} yearMessage={form.error("year")} languageMessage={form.error("language")} fieldProps={form.field} onOpenLanguage={() => setLangFor("form")} /> : null}
             </View>
 
-            {kindHasPerformer(kind) ? <Check theme={theme} on={draft.byAuthor} label={t("ugc.add.byAuthor")} onToggle={() => !locked && store().setDraft({ byAuthor: !store().draft.byAuthor })} /> : null}
             {rulesOk ? (
               <Text style={[styles.hint, { color: theme.textBody }]}>{t("ugc.add.termsAgreed", { date: formatDate(rules.acceptedAt ?? "", "medium") })}</Text>
             ) : (
@@ -737,7 +771,11 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 24, gap: 22, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
-  field: { gap: 10 },
+  field: { gap: 8 },
+  /** a field and the tick that belongs to it (performer and "I am the author") */
+  pair: { gap: 16 },
+  /** fields of one group of the form (style, how it sounds, instrument): 24 apart, so no two fields touch */
+  group: { gap: 24 },
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   inputBox: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingLeft: 16, paddingRight: 8, flexDirection: "row", alignItems: "center", gap: 10 },
   yearBox: { width: 140 },

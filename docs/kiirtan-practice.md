@@ -22,7 +22,7 @@ Tests pin the two lists together (`__tests__/kirtanPractice.test.ts`, `tests/tes
 
 ## Where a person marks it
 
-All three places use one optional tick, "This is a recording for Avarta Kiirtan", with one line of explanation under it. Nothing is
+All three places use one optional tick, "This is a recording for Avarta Kiirtan practice" (ru: "Это запись для практики Аварта Киртан"), with one line of explanation under it. Nothing is
 required and nothing is guessed from a file name.
 
 1. **One recording** (`/add-kirtan`, type Kiirtan): the tick sits under the style.

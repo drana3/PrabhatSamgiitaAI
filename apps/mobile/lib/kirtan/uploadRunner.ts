@@ -73,6 +73,8 @@ export async function runUpload(
       recordingType: item.recordingType ?? null,
       tempo: item.tempo ?? null,
       performance: item.performance ?? null,
+      leadInstrument: item.leadInstrument ?? null,
+      leadInstrumentOther: item.leadInstrumentOther ?? null,
       termsVersion: useContentRulesStore.getState().version ?? undefined,
       confirmDifferent: options.confirmDifferent,
       key: options.key,

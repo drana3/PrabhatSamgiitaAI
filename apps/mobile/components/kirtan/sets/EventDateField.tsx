@@ -59,7 +59,7 @@ export function EventDateField({ theme, year, month, onYear, onMonth, invalid, e
 }
 
 const styles = StyleSheet.create({
-  field: { gap: 10 },
+  field: { gap: 8 },
   title: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   row: { flexDirection: "row", gap: 12, alignItems: "flex-end" },

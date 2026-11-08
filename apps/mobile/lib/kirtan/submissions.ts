@@ -1,8 +1,9 @@
+import { cleanInstrument } from "@/lib/kirtan/instruments"
 import { kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { cleanPractice } from "@/lib/kirtan/practice"
-import { AI_TYPE, cleanRecordingInfo, kindAllowsAi, kindHasRecordingType, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
+import { AI_TYPE, cleanRecordingInfo, kindAllowsAi, kindHasByAuthor, kindHasRecordingType, performanceMissing, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { cleanStyle, isKiirtanStyle, OTHER_STYLE } from "@/lib/kirtan/styles"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
@@ -70,14 +71,17 @@ export type SubmissionInput = {
   recordingType?: string | null
   tempo?: string | null
   performance?: string | null
-  /** the person is the author, or performs it themselves */
+  /** the main instrument: an id or "other" with its word (lib/kirtan/instruments.ts); optional */
+  leadInstrument?: string | null
+  leadInstrumentOther?: string | null
+  /** the person is the author of the recording (the tick is not offered for Prabhat Samgiita) */
   byAuthor: boolean
   addedBy: string
   /** the person agreed to the content rules (now, or on an earlier upload) */
   termsAccepted?: boolean
 }
 
-export type SubmissionError = "file" | FileProblem | "title" | "titleEnglish" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "recordingType" | "year" | "terms"
+export type SubmissionError = "file" | FileProblem | "title" | "titleEnglish" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "recordingType" | "performance" | "instrument" | "year" | "terms"
 
 /** Is this a song number of the Prabhat Samgiita catalogue (a whole number from 1 to 5018)? */
 export function isPsSongNumber(value: unknown): value is number {
@@ -111,6 +115,10 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   // how a Kiirtan was recorded is required; an AI recording is not taken as a Bhajan
   if (recordingTypeMissing(input.kind, input.recordingType)) return "recordingType"
   if (input.recordingType === AI_TYPE && kindHasRecordingType(input.kind) && !kindAllowsAi(input.kind)) return "recordingType"
+  // solo or group is required for a Kiirtan
+  if (performanceMissing(input.kind, input.performance)) return "performance"
+  // "Add your own" instrument needs a word of at least two letters
+  if (cleanInstrument(input.kind, input.leadInstrument, input.leadInstrumentOther).tooShort) return "instrument"
   if (input.year != null && !isRecordableYear(input.year)) return "year"
   if (!input.termsAccepted) return "terms"
   return null
@@ -142,6 +150,13 @@ function infoOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "record
   return { ...(clean.recordingType ? { recordingType: clean.recordingType } : {}), ...(clean.tempo ? { tempo: clean.tempo } : {}), ...(clean.performance ? { performance: clean.performance } : {}) }
 }
 
+/** The main instrument a form named, for the kinds of music (a word that IS a listed instrument becomes its id). */
+function instrumentOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "leadInstrument" | "leadInstrumentOther"> {
+  const clean = cleanInstrument(kind, input.leadInstrument, input.leadInstrumentOther)
+  if (!clean.instrument || clean.tooShort) return {}
+  return { leadInstrument: clean.instrument, ...(clean.instrumentOther ? { leadInstrumentOther: clean.instrumentOther } : {}) }
+}
+
 /** A new Kiirtan or Bhajan, on its way up. The id is stable per title and time. */
 export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
   const kind = normalizeKind(input.kind)
@@ -152,7 +167,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     author: kindHasPerformer(kind) ? tidy(input.author) : BABA_AUTHOR,
     durationSec: null,
     type: DEFAULT_SUBMISSION_TYPE,
-    byAuthor: kindHasPerformer(kind) && Boolean(input.byAuthor),
+    byAuthor: kindHasPerformer(kind) && kindHasByAuthor(kind) && Boolean(input.byAuthor),
     ...(input.year ? { year: input.year } : {}),
     ...(input.language && kindHasLanguage(kind) ? { language: input.language } : {}),
     ...(input.language === OTHER_LANGUAGE && kindHasLanguage(kind) && cleanLanguageOther(input.languageOther) ? { languageOther: cleanLanguageOther(input.languageOther)! } : {}),
@@ -167,6 +182,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...styleOfInput(kind, input),
     ...(cleanPractice(kind, input.practice) ? { practice: cleanPractice(kind, input.practice) as string } : {}),
     ...infoOfInput(kind, input),
+    ...instrumentOfInput(kind, input),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
@@ -307,6 +323,15 @@ function infoOfRemote(remote: RemoteRecording, kind: string, base?: Kirtan): Pic
   return { ...(clean.recordingType ? { recordingType: clean.recordingType } : {}), ...(clean.tempo ? { tempo: clean.tempo } : {}), ...(clean.performance ? { performance: clean.performance } : {}) }
 }
 
+/** The main instrument of a server row: the server is the truth when it says. The author's own word comes with it (others get it once accepted). */
+function instrumentOfRemote(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kirtan, "leadInstrument" | "leadInstrumentOther" | "leadInstrumentChecked"> {
+  const id = remote.lead_instrument === undefined ? base?.leadInstrument : remote.lead_instrument
+  const clean = cleanInstrument(kind, id, remote.lead_instrument_other ?? base?.leadInstrumentOther)
+  if (!clean.instrument) return {}
+  const word = clean.instrumentOther ?? (id === "other" ? (remote.lead_instrument_other ?? base?.leadInstrumentOther ?? "").trim() : "")
+  return { leadInstrument: clean.instrument, ...(word ? { leadInstrumentOther: word } : {}), ...(remote.lead_instrument_checked ? { leadInstrumentChecked: true } : {}) }
+}
+
 /** A server recording as the app's `Kirtan`. `base` keeps the phone's own id and time when the item is already here. */
 export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
   const removed = remote.status === "removed"
@@ -335,6 +360,7 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     ...styleOf(remote, kind, base),
     ...practiceOf(remote, kind, base),
     ...infoOfRemote(remote, kind, base),
+    ...instrumentOfRemote(remote, kind, base),
     ...(isDance(remote.dance) ? { dance: remote.dance } : base?.dance ? { dance: base.dance } : {}),
     ...(remote.collection_id ? { collectionId: remote.collection_id } : base?.collectionId ? { collectionId: base.collectionId } : {}),
     ...(remote.position ? { position: remote.position } : base?.position ? { position: base.position } : {}),

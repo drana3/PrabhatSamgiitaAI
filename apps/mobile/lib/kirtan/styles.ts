@@ -13,7 +13,9 @@ import { titleCase } from "@/lib/searchMenu/facets"
 export const KIIRTAN_STYLES = ["bengali", "hindi", "brajabuli", "dhrupad", "folk"] as const
 export type KiirtanStyleId = (typeof KIIRTAN_STYLES)[number]
 export const OTHER_STYLE = "other"
-export const STYLE_OTHER_MAX = 80
+/** a written style name is 2 to 40 characters (the API's OTHER_MIN and OTHER_MAX, shared with the main instrument) */
+export const STYLE_OTHER_MIN = 2
+export const STYLE_OTHER_MAX = 40
 
 export function isKiirtanStyle(value: unknown): value is KiirtanStyleId {
   return typeof value === "string" && (KIIRTAN_STYLES as readonly string[]).includes(value)
@@ -32,7 +34,7 @@ export function styleLabel(id: string | null | undefined, other?: string | null)
 }
 
 /**
- * What the form sends: only a Kiirtan keeps a style; "other" needs its name (cut to STYLE_OTHER_MAX), a listed style
+ * What the form sends: only a Kiirtan keeps a style; "other" needs its name (2 to STYLE_OTHER_MAX characters), a listed style
  * drops the name. Returns the problem as `null` when the pair is fine.
  */
 export function cleanStyle(
@@ -43,5 +45,8 @@ export function cleanStyle(
   if (kind !== "kiirtan" || !style) return { style: null, styleOther: null, missingName: false }
   if (style !== OTHER_STYLE) return { style: isKiirtanStyle(style) ? style : null, styleOther: null, missingName: false }
   const name = (other ?? "").trim().replace(/\s+/g, " ").slice(0, STYLE_OTHER_MAX)
-  return { style: OTHER_STYLE, styleOther: name || null, missingName: !name }
+  // a name needs at least two letters; a name that IS a listed style ("Hindi") becomes that style (the API does the same)
+  if (name.replace(/[^\p{L}\p{N}]/gu, "").length < STYLE_OTHER_MIN) return { style: OTHER_STYLE, styleOther: null, missingName: true }
+  const listed = KIIRTAN_STYLES.find((id) => id === name.toLowerCase())
+  return listed ? { style: listed, styleOther: null, missingName: false } : { style: OTHER_STYLE, styleOther: name, missingName: false }
 }

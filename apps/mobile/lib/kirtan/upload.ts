@@ -57,6 +57,9 @@ export type UploadSource = {
   recordingType?: string | null
   tempo?: string | null
   performance?: string | null
+  /** the main instrument: an id or "other" with its word (lib/kirtan/instruments.ts) */
+  leadInstrument?: string | null
+  leadInstrumentOther?: string | null
   /** the version of the content rules the person accepted */
   termsVersion?: string
   /** the author saw the "sounds like a recording already in the library" question and said theirs is different */
@@ -133,6 +136,8 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       recordingType: source.recordingType,
       tempo: source.tempo,
       performance: source.performance,
+      leadInstrument: source.leadInstrument,
+      leadInstrumentOther: source.leadInstrumentOther,
       confirmDifferent: Boolean(source.confirmDifferent),
     })
     return { status: "published", recording }

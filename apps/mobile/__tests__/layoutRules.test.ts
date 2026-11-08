@@ -130,6 +130,7 @@ describe("Space between blocks: the converted screens", () => {
     "app/my-author.tsx",
     "app/kirtan-artist.tsx",
     "components/authors/ClaimsCard.tsx",
+    "app/recording/[id].tsx",
   ]
 
   const VERTICAL = /\b(gap|rowGap|paddingTop|paddingBottom|paddingVertical|marginTop|marginBottom|marginVertical)\s*:\s*(\d+)\b/g
@@ -195,5 +196,43 @@ describe("Space between blocks: the converted screens", () => {
     expect(doc).toContain("Safe area")
     expect(doc).toContain("Space between blocks")
     expect(relative(ROOT, join(ROOT, "lib/layout.ts"))).toBe("lib/layout.ts")
+  })
+})
+
+describe("Space between blocks: the upload forms", () => {
+  // The form fields of the add-recording and playlist screens. Their vertical spacing is on the scale (the legacy numbers of the two
+  // screens themselves are not checked line by line, but the blocks of the playlist's details step are).
+  const FORM_FILES = [
+    "components/kirtan/sets/EventDateField.tsx",
+    "components/kirtan/add/InstrumentField.tsx",
+    "components/kirtan/add/SoundFields.tsx",
+    "components/kirtan/add/AuthorTick.tsx",
+  ]
+  const VERTICAL = /\b(gap|rowGap|paddingTop|paddingBottom|paddingVertical|marginTop|marginBottom|marginVertical)\s*:\s*(\d+)\b/g
+  const TEXT_NUDGE = new Set([0, 1, 2, 3, 6])
+
+  for (const file of FORM_FILES) {
+    it(`${file}: vertical spacing is on the 4/8/12/16/24/32/48/64/96/128 scale`, () => {
+      const off: string[] = []
+      for (const match of read(file).matchAll(VERTICAL)) {
+        const value = Number(match[2])
+        if (!isOnScale(value) && !TEXT_NUDGE.has(value)) off.push(`${match[1]}: ${value}`)
+      }
+      expect(off).toEqual([])
+    })
+  }
+
+  it("the playlist's details step keeps its blocks 24 apart (title, place and date had stuck to each other at 16)", () => {
+    const source = read("app/upload-set.tsx")
+    const gap = /\bdetails:\s*\{\s*gap:\s*(\d+)\s*\}/.exec(source)
+    expect(gap, "styles.details is missing").not.toBeNull()
+    expect(Number(gap![1])).toBeGreaterThanOrEqual(24)
+    // the step is drawn with that style, not with the 16 of the other steps
+    expect(source).toMatch(/<Reveal index=\{1\} style=\{styles\.details\}>\s*\{textField\("title"/)
+  })
+
+  it("a label and its field are 8 apart in the playlist's fields (not 10)", () => {
+    expect(read("app/upload-set.tsx")).toMatch(/\bfield:\s*\{\s*gap:\s*8\s*\}/)
+    expect(read("components/kirtan/sets/EventDateField.tsx")).toMatch(/\bfield:\s*\{\s*gap:\s*8\s*\}/)
   })
 })
