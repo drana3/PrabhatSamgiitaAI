@@ -45,7 +45,21 @@ Not done, on purpose:
 
 The web preview shows the card, the PNG download and the copy; it cannot show the native capture or the system sheet. Check on a phone: the PNG is 1080 px wide whatever the screen density, the photo is not blank (the card is captured while it sits under the sheet), fonts are the display face and not a fallback, the system sheet lists Instagram and Save Image, and "Share image" works on iOS and Android. If a device captures a blank picture, the first thing to try is `renderInContext` in `captureRef` (iOS) or moving the capture view out from under the sheet into a full-size modal.
 
-## 4. The server side: a picture for the link (not built)
+## 4. The server side: a picture for the link (songs built, recordings not yet)
+
+### Song page preview: built (2026-11-09)
+
+- `GET /share/song/{n}` (a trailing `.png` is accepted) answers a PNG: 1200 x 630 by default, `?format=story` 1080 x 1920, `?format=square` 1080 x 1080 (`apps/web/app/share/song/[number]/route.tsx`, `ImageResponse`). Unknown song number: 404.
+- The song page (`apps/web/app/songs/[number]/page.tsx`) has `generateMetadata`: title `Title · Prabhat Samgiita {n}`, a one-line description (the first line of the song, theme and language, never more lyrics, never an address), `og:image` and `twitter:image` pointing at the route, `twitter:card` `summary_large_image`, a canonical address. An unknown song gets "Song not found".
+- The picture is drawn from the same photo list and the same stable hash as the author cards (`apps/web/lib/author-card.ts`), so one song always has one photo. Fonts are the project's Gloock and DM Mono (`apps/web/public/fonts`, OFL texts alongside). Text in a script those fonts cannot draw (Devanagari, Bengali) is left out of the picture, not drawn as empty boxes; the title falls back to "Song {n}".
+- Cache: one hour in browsers, one day on the CDN, stale allowed another day. Chat apps keep their own copy for days: a changed card shows only for links shared after that.
+- Tests: `apps/web/tests/song-card.test.ts` (text rules, photo choice, clipping) and `tests/song-card-render.test.ts` (a real PNG of the right size).
+
+Check after the web deploy: paste a song link into WhatsApp, Telegram and iMessage, and into the Facebook Sharing Debugger (https://developers.facebook.com/tools/debug/) with "Scrape again". Check that the picture is under 5 MB and that the title is readable at small preview size. The photo rules used for author cards (no children, no close faces) apply because the same list is used. **Not verified in a real chat app**; the route and the tags are tested here only.
+
+**Recording previews are not built.** A Kiirtan or Bhajan has no public page, so there is nothing for a link to open on the web and no safe place for tags. Needed first: a public read-only page for approved recordings that shows no uploader name or email, then a `/share/recording/{id}` picture. This also depends on the licence decision in `docs/recording-licence.md` (a 30-second preview clip is only allowed under option 2).
+
+### The original plan (kept for the recording part)
 
 Goal: when `https://www.prabhatasamgiita.org/songs/123` is pasted into WhatsApp, Telegram, Facebook, iMessage or Slack, the preview shows the song's card and its title, instead of the generic site picture. The in-app card is a 1080 px picture for people to post; the link preview is a 1200 x 630 picture that a chat app fetches by itself. They share the look and the rules, not the size.
 
