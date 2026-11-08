@@ -148,3 +148,13 @@ export function chartBody(lines: ReadonlyArray<{ text: string; placements: Reado
     })
     .join("\n")
 }
+
+/**
+ * The chart form is three steps in a fixed order: 1 the words (nothing else is shown until the member has words), 2 the
+ * chords above the words (instrument, key, the line editor), 3 check and send. `showChords` is false while the words are
+ * missing or being changed, so the chords can never be placed on text that is not there yet.
+ */
+export function chartFormSteps(state: { hasText: boolean; askingForText: boolean }): { current: 1 | 2; showChords: boolean } {
+  const showChords = state.hasText && !state.askingForText
+  return { current: showChords ? 2 : 1, showChords }
+}

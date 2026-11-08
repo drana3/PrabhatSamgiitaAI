@@ -24,6 +24,7 @@ import { sheetFailure, sheetsBackend } from "@/lib/recordingChords/backend"
 import {
   chartDraftFromOther,
   chartDraftFromSheet,
+  chartFormSteps,
   chartProblems,
   chartWordCounts,
   chordsLostBy,
@@ -148,6 +149,7 @@ export default function RecordingChartScreen() {
   const [pasteProblem, setPasteProblem] = useState<PasteProblem | null>(null)
   const [pendingText, setPendingText] = useState<string[] | null>(null)
   const askingForText = !hasText || changingText
+  const { showChords } = chartFormSteps({ hasText, askingForText })
 
   const applyText = (text: string[]) => {
     setDraft((d) => retext(d, text))
@@ -317,6 +319,7 @@ export default function RecordingChartScreen() {
         {/* 1. the words of the song */}
         <Reveal index={2} style={s.field}>
           <View {...form.field("text")} style={s.field}>
+            <Text style={[s.step, { color: theme.accent }]}>{t("recChart.step.lyrics")}</Text>
             <Label theme={theme}>{t("recChart.text.label")}</Label>
             {askingForText ? (
               <>
@@ -357,10 +360,11 @@ export default function RecordingChartScreen() {
           </View>
         </Reveal>
 
-        {hasText && !askingForText ? (
+        {showChords ? (
           <>
-            {/* 2. instrument */}
+            {/* step 2: the chords above the words */}
             <Reveal index={3} style={s.field}>
+              <Text style={[s.step, { color: theme.accent }]}>{t("recChart.step.chords")}</Text>
               <InstrumentField theme={theme} draft={draft} locked={locked} patch={patch} />
             </Reveal>
 
@@ -395,8 +399,9 @@ export default function RecordingChartScreen() {
               <OptionalFields theme={theme} form={form} draft={draft} patch={patch} fieldError={errorFor} open={moreOpen} onOpen={() => setMoreOpen(true)} onFocus={closeSheet} />
             </View>
 
-            {/* 7. confirm and send */}
+            {/* step 3: confirm and send */}
             <View style={s.field}>
+              <Text style={[s.step, { color: theme.accent }]}>{t("recChart.step.send")}</Text>
               <ConfirmFields theme={theme} form={form} draft={draft} patch={patch} fieldError={errorFor} name={name} />
               {failure ? (
                 <View accessibilityLiveRegion="polite">
@@ -467,6 +472,7 @@ const s = StyleSheet.create({
   field: { gap: 12 },
   box: { minHeight: 160, borderRadius: CORNER, borderWidth: 1.5, paddingHorizontal: 16, paddingVertical: 4 },
   input: { minHeight: 150, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, textAlignVertical: "top", outlineStyle: "none" as never },
+  step: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase" },
   count: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   banner: { borderWidth: 1.5, borderRadius: CORNER, padding: 16, gap: 8 },
   reason: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22 },

@@ -3084,7 +3084,10 @@
     "volume.note.phone": false,
     "volume.note.web": false,
     "volume.note.speech": false,
-    "volume.note.unmeasured": false
+    "volume.note.unmeasured": false,
+    "recChart.step.lyrics": false,
+    "recChart.step.chords": false,
+    "recChart.step.send": false
   },
   "es": {
     "unit.kb": false,
@@ -5987,6 +5990,9 @@
     "volume.note.phone": false,
     "volume.note.web": false,
     "volume.note.speech": false,
-    "volume.note.unmeasured": false
+    "volume.note.unmeasured": false,
+    "recChart.step.lyrics": false,
+    "recChart.step.chords": false,
+    "recChart.step.send": false
   }
 }
