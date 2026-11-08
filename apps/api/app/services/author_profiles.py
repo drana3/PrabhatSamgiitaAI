@@ -453,8 +453,27 @@ class Resolved:
     slug: str | None = None
 
 
+def profile_id_of(raw: str) -> UUID | None:
+    """The page id written in a public address, or None when it is a slug."""
+    text = (raw or "").strip()
+    if len(text) != 36:
+        return None
+    try:
+        return UUID(text)
+    except ValueError:
+        return None
+
+
 async def resolve_slug(session: AsyncSession, raw: str) -> Resolved:
     """What a public address means: a page, a 301 to a new address, a 410 (deleted), or nothing."""
+    # A page can also be addressed by its id (the share link while the page link is hidden). An id
+    # has 36 characters and a slug at most 30, so the two never collide.
+    by_id = profile_id_of(raw)
+    if by_id is not None:
+        found = await session.get(AuthorProfile, by_id)
+        if found is None or found.status != "published":
+            return Resolved("missing")
+        return Resolved("profile", found)
     slug = rules.normalize_slug(raw)
     if not slug:
         return Resolved("missing")
@@ -577,6 +596,7 @@ async def public_out(session: AsyncSession, profile: AuthorProfile) -> AuthorPro
         ]
     collections = await collections_of(session, profile)
     return AuthorProfilePublic(
+        id=str(profile.id),
         slug=profile.slug,
         display_name=profile.display_name,
         author_type=profile.author_type,  # type: ignore[arg-type]

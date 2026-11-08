@@ -149,6 +149,8 @@ class PublicLink(BaseModel):
 
 
 class AuthorProfilePublic(BaseModel):
+    # the page's own id: a share link can use it while the page link (slug) is not offered
+    id: str
     slug: str
     display_name: str
     author_type: AuthorType

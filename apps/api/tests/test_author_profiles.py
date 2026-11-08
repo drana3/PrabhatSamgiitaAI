@@ -303,6 +303,27 @@ async def test_publishing_puts_the_page_on_the_public_address(world: World) -> N
     assert "public" in page.headers["cache-control"]
 
 
+async def test_a_published_page_answers_to_its_id_as_well_as_its_address(world: World) -> None:
+    """The share link uses the page id while the page link is hidden: public reads work by id."""
+    await world.create(bio="Kiirtan from Warsaw")
+    by_slug = (await world.get("madhu-vrata")).json()
+    page_id = by_slug["id"]
+    assert UUID(page_id) and len(page_id) == 36 > 30  # a slug is at most 30 characters
+    by_id = await world.get(page_id)
+    assert by_id.status_code == 200 and by_id.json()["slug"] == "madhu-vrata"
+    for path in ("/recordings", "/collections"):
+        assert (await world.get(page_id, path)).status_code == 200
+    # the owner sees the same id
+    assert (await world.client.get(f"{URL}/me", headers=AS["a"])).json()["profile"]["id"] == page_id
+
+
+async def test_an_id_of_a_draft_or_of_nothing_is_not_found(world: World) -> None:
+    assert (await world.get(str(uuid4()))).status_code == 404
+    await world.create(publish=False)
+    mine = (await world.client.get(f"{URL}/me", headers=AS["a"])).json()["profile"]["id"]
+    assert (await world.get(mine)).status_code == 404  # a draft is private, by id as by address
+
+
 async def test_the_public_page_has_no_private_data(world: World) -> None:
     await world.create(bio="hello")
     await world.recording(MEMBER_A)

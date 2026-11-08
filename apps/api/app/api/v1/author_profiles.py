@@ -393,7 +393,7 @@ async def read_photo(slug: str, session: DatabaseSession, member: OptionalMember
     private = False
     if profile is None and member is not None:
         mine = await service.profile_of_member(session, member.id)
-        if mine is not None and mine.slug == slug:
+        if mine is not None and slug in (mine.slug, str(mine.id)):
             profile, private = mine, True
     if profile is None or not profile.photo_version:
         raise HTTPException(status_code=404, detail="No picture")
