@@ -19,6 +19,7 @@ from app.models.author_profiles import (
     PlayDaily,
     PlayEvent,
 )
+from app.models.app_telemetry import AppEvent, FeatureFlag
 from app.models.base import Base
 from app.models.chunk import SongChunk
 from app.models.domain import (
@@ -84,6 +85,8 @@ from app.models.song_comments import SongComment, SongCommentReport
 from app.models.song_plays import SongPlayDaily, SongPlayEvent
 
 __all__ = [
+    "AppEvent",
+    "FeatureFlag",
     "AiDailyUsage",
     "AuthorAlias",
     "AuthorBlock",
