@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { BellOff, BellRing, ChevronLeft, Plus } from "lucide-react-native"
 
 import { HOME_INSET } from "@/components/home/HomeBlocks"
+import { PushRepliesRow } from "@/components/notifications/PushRepliesRow"
 import { Toggle } from "@/components/notifications/Toggle"
 import { TimePickerSheet, type PickerTarget } from "@/components/notifications/TimePickerSheet"
 import { Group, SheetNote, SheetTitle } from "@/components/profile-v2/SheetBlocks"
@@ -321,6 +322,10 @@ export default function NotificationSettingsScreen() {
             <ToggleRow p={p} label={t("notif.streak")} sub={t("notif.streak.sub")} on={st.streak.on} disabled={off} onChange={kind("streak")} />
           </Group>
           </View>
+        </Reveal>
+
+        <Reveal index={reveal++}>
+          <PushRepliesRow p={p} />
         </Reveal>
 
         <Reveal index={reveal++}>

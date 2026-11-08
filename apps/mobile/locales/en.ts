@@ -24,6 +24,7 @@ import { opsEn } from "./ops"
 import { languagesEn } from "./languages"
 import { assistantErrorsEn } from "./assistantErrors"
 import { recordingExtrasEn } from "./recordingExtras"
+import { pushEn } from "./push"
 import { songCommentsEn } from "./songComments"
 import { chordProposalsEn } from "./chordProposals"
 import { pronunciationEn } from "./pronunciation"
@@ -1302,6 +1303,7 @@ export const en = {
   ...languagesEn,
   ...assistantErrorsEn,
   ...songCommentsEn,
+  ...pushEn,
   ...recordingExtrasEn,
   ...chordProposalsEn,
   ...pronunciationEn,

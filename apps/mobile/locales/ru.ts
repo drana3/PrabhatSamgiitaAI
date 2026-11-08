@@ -25,6 +25,7 @@ import { opsRu } from "./ops"
 import { languagesRu } from "./languages"
 import { assistantErrorsRu } from "./assistantErrors"
 import { recordingExtrasRu } from "./recordingExtras"
+import { pushRu } from "./push"
 import { songCommentsRu } from "./songComments"
 import { chordProposalsRu } from "./chordProposals"
 import { pronunciationRu } from "./pronunciation"
@@ -1382,6 +1383,7 @@ export const ru: Dictionary = {
   ...languagesRu,
   ...assistantErrorsRu,
   ...songCommentsRu,
+  ...pushRu,
   ...recordingExtrasRu,
   ...chordProposalsRu,
   ...pronunciationRu,

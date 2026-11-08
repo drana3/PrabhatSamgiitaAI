@@ -25,6 +25,7 @@ import { opsEs } from "./ops"
 import { languagesEs } from "./languages"
 import { assistantErrorsEs } from "./assistantErrors"
 import { recordingExtrasEs } from "./recordingExtras"
+import { pushEs } from "./push"
 import { songCommentsEs } from "./songComments"
 import { chordProposalsEs } from "./chordProposals"
 import { pronunciationEs } from "./pronunciation"
@@ -1296,6 +1297,7 @@ export const es: Dictionary = {
   ...languagesEs,
   ...assistantErrorsEs,
   ...songCommentsEs,
+  ...pushEs,
   ...recordingExtrasEs,
   ...chordProposalsEs,
   ...pronunciationEs,

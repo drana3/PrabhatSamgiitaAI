@@ -34,6 +34,7 @@ import { useNotificationHealthStore } from "@/stores/notificationHealthStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useNotificationsStore } from "@/stores/notificationsStore"
 import { href } from "@/utils/href"
+import { PushRegistration } from "@/components/notifications/PushRegistration"
 import { ReplyNoticeSync } from "@/components/notifications/ReplyNoticeSync"
 import { useLanguage } from "@/lib/i18n"
 
@@ -259,6 +260,11 @@ export function NotificationsHost() {
     return () => clearTimeout(timer)
   }, [booted, openTarget])
 
-  // replies to the member's comments come from the server's notices
-  return <ReplyNoticeSync />
+  // replies to the member's comments come from the server's notices; push (off unless the build says so) wakes the phone
+  return (
+    <>
+      <ReplyNoticeSync />
+      <PushRegistration />
+    </>
+  )
 }

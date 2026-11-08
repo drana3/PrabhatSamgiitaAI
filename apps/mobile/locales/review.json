@@ -3108,7 +3108,11 @@
     "language.stub": false,
     "recChart.step.lyrics": false,
     "recChart.step.chords": false,
-    "recChart.step.send": false
+    "recChart.step.send": false,
+    "push.section": false,
+    "push.replies": false,
+    "push.replies.sub": false,
+    "push.failed": false
   },
   "es": {
     "unit.kb": false,
@@ -6035,7 +6039,11 @@
     "language.stub": false,
     "recChart.step.lyrics": false,
     "recChart.step.chords": false,
-    "recChart.step.send": false
+    "recChart.step.send": false,
+    "push.section": false,
+    "push.replies": false,
+    "push.replies.sub": false,
+    "push.failed": false
   },
   "_languages": {
     "hi": "не переведено",
