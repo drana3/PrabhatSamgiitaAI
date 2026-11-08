@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 import { nextRepeatMode, type RepeatMode } from "@/lib/playerV2/controller"
 import type { PlayMode } from "@/lib/playerV2/versionMode"
 import { FOLLOW_APP, migratePlayerLanguages, normalizeLyricChoice } from "@/lib/songPage/lyricLanguages"
-import { SLEEP_OFF, startSleepEndOfSong, startSleepMinutes, type SleepTimer } from "@/lib/playerV2/sleepTimer"
+import { SLEEP_OFF, startSleepEndOfList, startSleepEndOfSong, startSleepMinutes, type SleepTimer } from "@/lib/playerV2/sleepTimer"
 
 export type LyricScript = "roman" | "devanagari"
 /**
@@ -36,6 +36,7 @@ type PlayerV2State = {
   setShuffleOriginal: (queue: number[] | null) => void
   startSleepMinutes: (minutes: number, now?: number) => void
   startSleepEndOfSong: (songNumber: number) => void
+  startSleepEndOfList: (lastNumber: number) => void
   cancelSleep: () => void
 }
 
@@ -65,6 +66,7 @@ export const usePlayerV2Store = create<PlayerV2State>()(
       setShuffleOriginal: (shuffleOriginal) => set({ shuffleOriginal }),
       startSleepMinutes: (minutes, now = Date.now()) => set({ sleep: startSleepMinutes(minutes, now) }),
       startSleepEndOfSong: (songNumber) => set({ sleep: startSleepEndOfSong(songNumber) }),
+      startSleepEndOfList: (lastNumber) => set({ sleep: startSleepEndOfList(lastNumber) }),
       cancelSleep: () => set({ sleep: SLEEP_OFF }),
     }),
     {

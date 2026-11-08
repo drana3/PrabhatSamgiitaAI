@@ -139,3 +139,9 @@ It is the engine for one, and the reference for a native engine with overlap.
   `bwrap` or `systemd-run` with `PrivateNetwork=yes`). The in-code limits are a second wall, not the first.
 - Cost: about 300 to 500 times faster than real time, so a 5-minute recording takes under a second of CPU
   and an hour-long discourse a few seconds. No extra storage: two floats and a timestamp per recording.
+
+## Track-join fade (added with the Radio redesign)
+
+The effective volume is now `user volume x leveling gain x fade`. The fade is the equal-power fade-out and fade-in at a track join
+(0 to 6 s, default 2 s in the Radio, Off in playlists). Switching leveling off does not switch the fade off, and the other way round.
+See `docs/smooth-transitions.md`.

@@ -26,6 +26,8 @@ export const PROFILE_ROUTES = {
   editProfile: "/edit-profile",
   /** the switch for volume leveling: app/volume-leveling.tsx */
   volumeLeveling: "/volume-leveling",
+  /** how long the sound fades between two tracks: app/transitions.tsx */
+  transitions: "/transitions",
   /** the rules for a Kiirtan or a Bhajan: app/content-rules.tsx */
   contentRules: "/content-rules",
   /** what the app may count and report: app/usage-data.tsx */
@@ -50,6 +52,7 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/edit-profile": true,
   "/content-rules": true,
   "/volume-leveling": true,
+  "/transitions": true,
   "/usage-data": true,
   "/admin": true,
 }

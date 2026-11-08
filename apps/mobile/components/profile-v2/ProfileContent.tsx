@@ -46,6 +46,7 @@ import { effectiveTranslations } from "@/lib/songPage/lyricLanguages"
 import { useAiConsentStore } from "@/stores/aiConsentStore"
 import { useAnalyticsConsentStore } from "@/stores/analyticsConsentStore"
 import { useAuthStore } from "@/stores/authStore"
+import { usePlaybackPrefsStore } from "@/stores/playbackPrefsStore"
 import { useChatStore } from "@/stores/chatStore"
 import { useNotificationSettingsStore } from "@/stores/notificationSettingsStore"
 import { useSongPageStore } from "@/stores/songPageStore"
@@ -103,7 +104,10 @@ export function useProfileContent(theme: AmTheme) {
   const setAppearance = useAppearanceStore((st) => st.setAppearance)
   const reviewStyle = useAppearanceStore((st) => st.reviewStyle)
   const levelingOn = useLoudnessStore((st) => st.enabled)
+  const radioFade = usePlaybackPrefsStore((st) => st.transitionRadioSeconds)
+  const listFade = usePlaybackPrefsStore((st) => st.transitionListSeconds)
   const t = useT()
+  const transitionsValue = radioFade <= 0 && listFade <= 0 ? t("common.off") : t("transitions.seconds", { seconds: String(Math.max(radioFade, listFade)) })
   const languagePref = useLanguageStore((st) => st.language)
   const script = useSongPageStore((st) => st.script)
   const storedTranslations = useSongPageStore((st) => st.translations)
@@ -265,6 +269,13 @@ export function useProfileContent(theme: AmTheme) {
           value={levelingOn ? t("common.on") : t("common.off")}
           chevron
           onPress={() => go(PROFILE_ROUTES.volumeLeveling)}
+        />
+        <SetRow
+          p={p}
+          label={t("profile.transitions")}
+          value={transitionsValue}
+          chevron
+          onPress={() => go(PROFILE_ROUTES.transitions)}
         />
         <SetRow
           p={p}

@@ -218,6 +218,10 @@ export default function RootLayout() {
               options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
             />
             <Stack.Screen
+            <Stack.Screen
+              name="transitions"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
               name="usage-data"
               options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
             />

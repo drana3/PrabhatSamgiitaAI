@@ -23,6 +23,7 @@ import { profileRowsRu } from "./profileRows"
 import { volumeRu } from "./volume"
 import { opsRu } from "./ops"
 import { languagesRu } from "./languages"
+import { playbackControlsRu } from "./playbackControls"
 import { assistantErrorsRu } from "./assistantErrors"
 import { recordingExtrasRu } from "./recordingExtras"
 import { pushRu } from "./push"
@@ -1384,6 +1385,7 @@ export const ru: Dictionary = {
   ...assistantErrorsRu,
   ...songCommentsRu,
   ...pushRu,
+  ...playbackControlsRu,
   ...recordingExtrasRu,
   ...chordProposalsRu,
   ...pronunciationRu,

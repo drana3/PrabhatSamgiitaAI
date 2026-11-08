@@ -61,11 +61,11 @@ describe("engine additions for the redesigned player", () => {
     setTrackEndHook(null)
   })
 
-  it("setRate clamps to 0.5x to 1.5x and tells the native player", async () => {
+  it("setRate clamps to 0.5x to 2x and tells the native player", async () => {
     const { usePlayerStore } = await import("@/stores/playerStore")
     const TrackPlayer = await catalogPlayer()
-    usePlayerStore.getState().setRate(2)
-    expect(usePlayerStore.getState().rate).toBe(1.5)
+    usePlayerStore.getState().setRate(3)
+    expect(usePlayerStore.getState().rate).toBe(2)
     usePlayerStore.getState().setRate(0.1)
     expect(usePlayerStore.getState().rate).toBe(0.5)
     await vi.waitFor(() => expect(TrackPlayer.setRate).toHaveBeenCalledWith(0.5))

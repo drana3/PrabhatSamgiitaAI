@@ -1,4 +1,4 @@
-import type { SleepTimer } from "@/lib/playerV2/sleepTimer"
+import { sleepWaitsForTrack, type SleepTimer } from "@/lib/playerV2/sleepTimer"
 
 /**
  * What the sleep timer does to the real player, kept apart from the stores so it can be tested.
@@ -25,10 +25,20 @@ export type SleepRuntimeDeps = {
 
 export function createSleepRuntime(deps: SleepRuntimeDeps) {
   let lastFactor = 1
+  /** The native queue was emptied of upcoming tracks for a timer that waits for a track end. */
+  let held = false
 
-  const endOfSongActive = () => {
-    const timer = deps.getTimer()
-    return timer.kind === "endOfSong" && timer.songNumber === deps.currentSongNumber()
+  /** "End of track" waits for its track; "end of playlist" for the last track of the list (earlier tracks play on). */
+  const endOfSongActive = () => sleepWaitsForTrack(deps.getTimer(), deps.currentSongNumber())
+  const holdIfDue = (timer: SleepTimer = deps.getTimer()) => {
+    if (held || !sleepWaitsForTrack(timer, deps.currentSongNumber())) return
+    held = true
+    deps.holdNative()
+  }
+  const releaseIfHeld = () => {
+    if (!held) return
+    held = false
+    deps.releaseNative()
   }
 
   return {
@@ -50,10 +60,29 @@ export function createSleepRuntime(deps: SleepRuntimeDeps) {
       deps.setNativeVolume(deps.getVolume() * factor)
     },
 
+    /** The track that plays changed: an "end of playlist" timer takes hold when the last track starts. */
+    onSongChange: () => {
+      const timer = deps.getTimer()
+      if (timer.kind === "endOfList") {
+        if (endOfSongActive()) holdIfDue()
+        else releaseIfHeld()
+      } else if (timer.kind === "endOfSong" && held && !endOfSongActive()) {
+        // the engine moved on to another track: nothing to hold any more
+        releaseIfHeld()
+      }
+    },
+
     /** Called whenever the timer changes. */
     onTimerChange: (previous: SleepTimer, next: SleepTimer) => {
-      if (previous.kind !== "endOfSong" && next.kind === "endOfSong") deps.holdNative()
-      if (previous.kind === "endOfSong" && next.kind !== "endOfSong") deps.releaseNative()
+      const waits = next.kind === "endOfSong" || next.kind === "endOfList"
+      if (waits) {
+        // a new "end of ..." may replace another one: the hold has to belong to the track it waits for
+        if (held && !sleepWaitsForTrack(next, deps.currentSongNumber())) releaseIfHeld()
+        else holdIfDue(next)
+      } else if (held || previous.kind === "endOfSong") {
+        held = false
+        deps.releaseNative()
+      }
       if (next.kind === "off" && lastFactor !== 1) {
         lastFactor = 1
         deps.setNativeVolume(deps.getVolume())

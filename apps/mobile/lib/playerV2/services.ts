@@ -24,6 +24,11 @@ import { ensureUpcomingRadioTrack } from "@/lib/playback/radioAdvance"
 import { nativeRemoveUpcomingTracks, nativeSetRepeatTrack, nativeSetVolume } from "@/lib/playback/nativeCatalogPlayer"
 import { selectedVersionIndex, versionsFromSong } from "@/lib/playerV2/versions"
 import { setTransportDeps } from "@/lib/playerV2/transport"
+import { setTransitionContext } from "@/lib/playback/levelingBridge"
+import { createLongResumeRecorder } from "@/lib/playerV2/longResume"
+import { useLongResumeOffer } from "@/lib/playerV2/longResumeOffer"
+import { isRadioRunning, trackKeyOf, transitionSecondsFor } from "@/lib/playerV2/playbackPrefs"
+import { startRateOf, usePlaybackPrefsStore } from "@/stores/playbackPrefsStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePlayerV2Store } from "@/stores/playerV2Store"
 import { useResumeStore } from "@/stores/resumeStore"
@@ -141,6 +146,48 @@ export function startPlayerV2Services(): void {
     if (state.sleep !== previous.sleep) sleepRuntime.onTimerChange(previous.sleep, state.sleep)
   })
 
+  // The sleep timer needs to know when another track starts (an "end of playlist" timer waits for the last one).
+  usePlayerStore.subscribe((state, previous) => {
+    if (state.currentSong?.number !== previous.currentSong?.number) sleepRuntime.onSongChange()
+  })
+
+  // Each recording starts at its own speed (or the listener's default), see stores/playbackPrefsStore.ts.
+  usePlayerStore.subscribe((state, previous) => {
+    const song = state.currentSong
+    if (!song || song.number === previous.currentSong?.number) return
+    const wanted = startRateOf(trackKeyOf(song))
+    if (Math.abs(wanted - state.rate) > 1e-9) state.setRate(wanted)
+  })
+
+  // Smooth transitions: the fade lengths are in the playback settings; the radio has its own.
+  setTransitionContext({
+    getSeconds: () => {
+      const prefs = usePlaybackPrefsStore.getState()
+      return transitionSecondsFor({
+        radio: isRadioRunning(usePlayerStore.getState()),
+        radioSeconds: prefs.transitionRadioSeconds,
+        listSeconds: prefs.transitionListSeconds,
+      })
+    },
+    hasNext: () => {
+      const s = usePlayerStore.getState()
+      if (isRadioRunning(s)) return true
+      const repeat = usePlayerV2Store.getState().repeatMode
+      if (repeat === "one") return false
+      if (repeat === "all") return true
+      const numbers = activeQueue({
+        currentSong: s.currentSong,
+        queue: s.queue,
+        playbackMode: s.playbackMode,
+        playlistBounds: s.playlistBounds,
+        position: s.position,
+      })
+      const at = numbers.indexOf(s.currentSong?.number ?? -1)
+      return at >= 0 && at < numbers.length - 1
+    },
+    getRate: () => usePlayerStore.getState().rate,
+  })
+
   const syncRepeat = createRepeatSync({
     getRepeatMode: () => usePlayerV2Store.getState().repeatMode,
     getEngineLoop: () => usePlayerStore.getState().repeat,
@@ -187,6 +234,27 @@ export function startPlayerV2Services(): void {
   }
   usePlayerStore.subscribe(feed)
   feed()
+
+  // Long recordings (a Kiirtan of half an hour): remember the place and offer "Continue from ...", never jump.
+  const observeLong = createLongResumeRecorder({
+    getEntry: (n) => useResumeStore.getState().get(n),
+    record: (n, position, duration) => useResumeStore.getState().record(n, position, duration, null),
+    offer: (n, at) => useLongResumeOffer.getState().show(n, at),
+    clearOffer: () => useLongResumeOffer.getState().clear(),
+  })
+  const feedLong = () => {
+    const s = usePlayerStore.getState()
+    const long = s.currentSong && s.currentSong.kind === "kiirtan" ? s.currentSong : null
+    observeLong({
+      songNumber: long ? long.number : null,
+      position: s.position,
+      duration: s.duration,
+      isPlaying: s.isPlaying,
+      isBuffering: s.isBuffering,
+    })
+  }
+  usePlayerStore.subscribe(feedLong)
+  feedLong()
 
   setInterval(() => {
     tickSleep({

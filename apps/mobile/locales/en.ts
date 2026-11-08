@@ -22,6 +22,7 @@ import { profileRowsEn } from "./profileRows"
 import { volumeEn } from "./volume"
 import { opsEn } from "./ops"
 import { languagesEn } from "./languages"
+import { playbackControlsEn } from "./playbackControls"
 import { assistantErrorsEn } from "./assistantErrors"
 import { recordingExtrasEn } from "./recordingExtras"
 import { pushEn } from "./push"
@@ -1304,6 +1305,7 @@ export const en = {
   ...assistantErrorsEn,
   ...songCommentsEn,
   ...pushEn,
+  ...playbackControlsEn,
   ...recordingExtrasEn,
   ...chordProposalsEn,
   ...pronunciationEn,

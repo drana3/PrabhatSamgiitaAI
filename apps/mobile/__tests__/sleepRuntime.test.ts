@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createTrackEndHook, type ControllerDeps } from "@/lib/playerV2/controller"
 import { createSleepRuntime } from "@/lib/playerV2/sleepRuntime"
-import { SLEEP_OFF, startSleepEndOfSong, startSleepMinutes, type SleepTimer } from "@/lib/playerV2/sleepTimer"
+import { SLEEP_OFF, startSleepEndOfList, startSleepEndOfSong, startSleepMinutes, type SleepTimer } from "@/lib/playerV2/sleepTimer"
 
 function setup(initial: SleepTimer = SLEEP_OFF, song: number | null = 7) {
   const state = { timer: initial, song, volume: 0.8 }
@@ -93,5 +93,30 @@ describe("sleep runtime: fade", () => {
     calls.setNativeVolume.mockClear()
     runtime.onTimerChange(SLEEP_OFF, SLEEP_OFF)
     expect(calls.setNativeVolume).not.toHaveBeenCalled()
+  })
+})
+
+describe("sleep runtime: end of playlist", () => {
+  it("holds the queue only once the last track plays, and gives it back when cancelled", () => {
+    const { runtime, calls, state } = setup(SLEEP_OFF, 5)
+    state.timer = startSleepEndOfList(9)
+    runtime.onTimerChange(SLEEP_OFF, state.timer)
+    // an earlier track plays: the queue is left alone
+    expect(calls.holdNative).not.toHaveBeenCalled()
+    state.song = 9
+    runtime.onSongChange()
+    expect(calls.holdNative).toHaveBeenCalledTimes(1)
+    runtime.onSongChange()
+    expect(calls.holdNative).toHaveBeenCalledTimes(1)
+    state.timer = SLEEP_OFF
+    runtime.onTimerChange(startSleepEndOfList(9), SLEEP_OFF)
+    expect(calls.releaseNative).toHaveBeenCalledTimes(1)
+  })
+
+  it("is active for the last track only", () => {
+    const { runtime, state } = setup(startSleepEndOfList(9), 5)
+    expect(runtime.controllerSleep.endOfSongActive()).toBe(false)
+    state.song = 9
+    expect(runtime.controllerSleep.endOfSongActive()).toBe(true)
   })
 })

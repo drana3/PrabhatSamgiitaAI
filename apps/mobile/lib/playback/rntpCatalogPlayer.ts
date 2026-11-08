@@ -3,6 +3,9 @@ import type { Track } from "react-native-track-player"
 import { toPlayableLocalUri } from "@/lib/offlineAudio"
 import type { CatalogTrack } from "@/lib/playback/catalogTrack"
 import { attachLevelingListeners, levelNoteUpcoming, levelReset, levelSetUserVolume, levelStartTrack } from "@/lib/playback/levelingBridge"
+import { pitchChoiceFor, pitchEnumValue } from "@/lib/playback/pitchAlgorithm"
+import { SPEED_MAX, SPEED_MIN } from "@/lib/playerV2/playbackSpeed"
+import { usePlaybackPrefsStore } from "@/stores/playbackPrefsStore"
 import { getTrackPlayer, loadTrackPlayerModule } from "@/lib/playback/trackPlayerBridge"
 
 /** The photograph the design shows on the lock screen (SysIosLock), used when a song has no artwork of its own. */
@@ -19,7 +22,9 @@ function defaultArtwork(): string | undefined {
 function trackForNativePlayer(track: CatalogTrack): Track {
   const url =
     typeof toPlayableLocalUri === "function" ? toPlayableLocalUri(track.url) : track.url
-  return { ...track, url, artwork: track.artwork ?? defaultArtwork() } as Track
+  // How the speed is stretched (iOS only, set per track): keep the tone unless the listener turned "Keep pitch" off.
+  const pitchAlgorithm = pitchEnumValue(loadTrackPlayerModule() as { PitchAlgorithm?: Record<string, unknown> }, pitchChoiceFor({ keepPitch: usePlaybackPrefsStore.getState().keepPitch, cls: track.loudnessClass }))
+  return { ...track, url, artwork: track.artwork ?? defaultArtwork(), ...(pitchAlgorithm === undefined ? {} : { pitchAlgorithm }) } as Track
 }
 
 let setupPromise: Promise<void> | null = null
@@ -161,7 +166,7 @@ export async function nativeSetVolume(volume: number): Promise<void> {
 }
 
 export async function nativeSetRate(rate: number): Promise<void> {
-  await getTrackPlayer().setRate(Math.min(1.5, Math.max(0.5, rate)))
+  await getTrackPlayer().setRate(Math.min(SPEED_MAX, Math.max(SPEED_MIN, rate)))
 }
 
 export async function nativeSkipToNext(): Promise<void> {

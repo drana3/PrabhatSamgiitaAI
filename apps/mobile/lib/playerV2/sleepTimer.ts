@@ -1,11 +1,13 @@
 import { t } from "@/lib/i18n"
-/** Sleep timer (PLR-09): 5, 15, 30, 60 minutes, or the end of the song. */
-export const SLEEP_PRESET_MINUTES = [5, 15, 30, 60] as const
+/** Sleep timer: 5, 10, 15, 30, 45, 60 minutes, the end of this track, or the end of the playlist. */
+export const SLEEP_PRESET_MINUTES = [5, 10, 15, 30, 45, 60] as const
 
 export type SleepTimer =
   | { kind: "off" }
   | { kind: "minutes"; minutes: number; endsAt: number }
   | { kind: "endOfSong"; songNumber: number }
+  /** Stops after the last track of the list that plays now (`lastNumber`); earlier tracks play on. */
+  | { kind: "endOfList"; lastNumber: number }
 
 export const SLEEP_OFF: SleepTimer = { kind: "off" }
 
@@ -15,6 +17,18 @@ export function startSleepMinutes(minutes: number, now: number): SleepTimer {
 
 export function startSleepEndOfSong(songNumber: number): SleepTimer {
   return { kind: "endOfSong", songNumber }
+}
+
+export function startSleepEndOfList(lastNumber: number): SleepTimer {
+  return { kind: "endOfList", lastNumber }
+}
+
+/** The track whose end this timer waits for, or null (a minutes timer, no timer, a list not yet at its last track). */
+export function sleepWaitsForTrack(timer: SleepTimer, songNumber: number | null): boolean {
+  if (songNumber == null) return false
+  if (timer.kind === "endOfSong") return timer.songNumber === songNumber
+  if (timer.kind === "endOfList") return timer.lastNumber === songNumber
+  return false
 }
 
 export function sleepRemainingMs(timer: SleepTimer, now: number): number | null {
@@ -47,6 +61,10 @@ export function sleepVerdict(timer: SleepTimer, snap: SleepSnapshot): SleepVerdi
     const remaining = snap.duration - snap.position
     if (snap.duration > 1 && snap.position > 0 && remaining <= END_MARGIN_SECONDS) return "pause"
   }
+  if (timer.kind === "endOfList" && snap.songNumber === timer.lastNumber) {
+    const remaining = snap.duration - snap.position
+    if (snap.duration > 1 && snap.position > 0 && remaining <= END_MARGIN_SECONDS) return "pause"
+  }
   return "keep-going"
 }
 
@@ -59,8 +77,8 @@ export function sleepFade(timer: SleepTimer, snap: SleepSnapshot): number {
   let window = SLEEP_FADE_SECONDS
   if (timer.kind === "minutes") {
     remainingSeconds = (timer.endsAt - snap.now) / 1000
-  } else if (timer.kind === "endOfSong") {
-    if (snap.songNumber !== timer.songNumber || !(snap.duration > 1) || !(snap.position > 0)) return 1
+  } else if (timer.kind === "endOfSong" || timer.kind === "endOfList") {
+    if (!sleepWaitsForTrack(timer, snap.songNumber) || !(snap.duration > 1) || !(snap.position > 0)) return 1
     remainingSeconds = snap.duration - snap.position
     window = SLEEP_FADE_SONG_SECONDS
   }
@@ -78,6 +96,7 @@ export function formatSleepRemaining(ms: number): string {
 export function sleepLabel(timer: SleepTimer, now: number): string {
   if (timer.kind === "off") return t("common.off")
   if (timer.kind === "endOfSong") return t("player.sleep.endOfSong")
+  if (timer.kind === "endOfList") return t("player.sleep.endOfList")
   return formatSleepRemaining(sleepRemainingMs(timer, now) ?? 0)
 }
 
@@ -92,5 +111,6 @@ export function nextSleepStep(timer: SleepTimer, songNumber: number, now: number
 export function sleepToast(timer: SleepTimer): string {
   if (timer.kind === "off") return t("player.sleep.toastOff")
   if (timer.kind === "endOfSong") return t("player.sleep.toastEnd")
+  if (timer.kind === "endOfList") return t("player.sleep.toastEndList")
   return t("player.sleep.toastMin", { minutes: timer.minutes })
 }

@@ -25,3 +25,9 @@ export function miniRadioLine(selected: readonly RadioCategory[], counts: RadioC
   const { all, text } = listText(selected, counts)
   return all ? t("radio.mini.all") : t("radio.mini.list", { list: text })
 }
+
+/** The eyebrow of the Radio player: "All categories", one category's name, or a short list for a mix. */
+export function radioChannelLabel(selected: readonly RadioCategory[], counts: RadioCounts): string {
+  const { all, text } = listText(selected, counts)
+  return all ? t("radio.channel.all.a11y") : text
+}

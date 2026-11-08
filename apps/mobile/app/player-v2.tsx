@@ -111,17 +111,32 @@ import {
   buildActionRows,
   collectionForSong,
   queueAddMessage,
-  repeatMessage,
   type ActionId,
 } from "@/lib/playerV2/playerActions"
 import { runShare } from "@/lib/playerV2/playerActionsIO"
 import type { SaveItem } from "@/lib/save/saveToSheet"
 import { buildSharePayload, shareToast, type SharePayload, type ShareTargetId } from "@/lib/playerV2/playerShare"
-import { formatRate, nextRate } from "@/lib/playerV2/playbackSpeed"
+import { formatRate } from "@/lib/playerV2/playbackSpeed"
+import { trackKeyOf } from "@/lib/playerV2/playbackPrefs"
+import { longOfferVisible } from "@/lib/playerV2/longResume"
+import { useLongResumeOffer } from "@/lib/playerV2/longResumeOffer"
+import { usePlaybackPrefsStore } from "@/stores/playbackPrefsStore"
+import { ContinueOffer } from "@/components/player-v2/ContinueOffer"
+import { SleepChip } from "@/components/player-v2/SleepChip"
+import { SleepSheet } from "@/components/player-v2/SleepSheet"
+import { SpeedSheet } from "@/components/player-v2/SpeedSheet"
+import { RadioChannelStrip } from "@/components/radio/RadioChannelStrip"
+import { RadioBabaFrame, RadioHero } from "@/components/radio/RadioHero"
+import { RadioMixSheet } from "@/components/radio/RadioMixSheet"
+import { RadioPlayerBody } from "@/components/radio/RadioPlayerBody"
+import { useRadioPools } from "@/hooks/useRadioPools"
+import { radioChannelLabel } from "@/lib/radio/labels"
+import { radioArtFor, radioHeroLayout } from "@/lib/radio/radioArt"
+import { isRadioRunning } from "@/lib/playerV2/playbackPrefs"
 import { sourceLabel } from "@/lib/playerV2/queueOps"
 import { useResumeNotice, resumeNoticeVisible } from "@/lib/playerV2/resumeNotice"
 import { realControllerDeps, realQueueActions, startPlayerV2Services, startSongOver } from "@/lib/playerV2/services"
-import { nextSleepStep, sleepLabel, sleepToast } from "@/lib/playerV2/sleepTimer"
+import { sleepLabel } from "@/lib/playerV2/sleepTimer"
 import {
   activeSourceKey,
   MINE_SOURCE_ID,
@@ -142,7 +157,7 @@ import { usePreferencesStore } from "@/stores/preferencesStore"
 import { openSaveSheet } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
 
-type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "source" | "playlist" | "actions" | "share" | "about"
+type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "speed" | "sleep" | "mix" | "source" | "playlist" | "actions" | "share" | "about"
 
 /**
  * Player (prototype PLAYER, Main.dc.html). Dark forest ground in both themes, the
@@ -207,6 +222,21 @@ export default function PlayerV2Screen() {
   const isK = isKiirtanSong(song)
   const resumeNotice = useResumeNotice()
   const resumeVisible = !isK && resumeNoticeVisible(resumeNotice, song?.number ?? null, position)
+  // Long recordings (a Kiirtan of half an hour) offer "Continue from 12:40" instead of jumping there by themselves.
+  const longOffer = useLongResumeOffer()
+  const continueVisible = isK && longOfferVisible(longOffer, song?.number ?? null, position)
+  const prefs = usePlaybackPrefsStore()
+  // The Radio (design variant D): channels on top, the picture, the dark block with the big buttons. "Normal view" in the menu
+  // shows the usual player while the Radio keeps playing.
+  const radioOn = usePlayerStore((s) => isRadioRunning(s) && s.currentSong != null)
+  const exitDriveMode = usePlayerStore((s) => s.exitDriveMode)
+  const [radioNormal, setRadioNormal] = useState(false)
+  const radioView = radioOn && !radioNormal
+  const radioPools = useRadioPools()
+  useEffect(() => {
+    if (!radioOn) setRadioNormal(false)
+  }, [radioOn])
+  const trackKey = song ? trackKeyOf(song) : null
   /** a Kiirtan or a Bhajan: same screen, the words differ */
   const recKind = recordingKindOfSong(song)
   const kiirtanId = song?.kiirtan?.id ?? null
@@ -486,9 +516,10 @@ export default function PlayerV2Screen() {
   }
   const onNext = () => skipToNextSong()
   const onPrevious = () => skipToPreviousSong()
+  // No pop-up text here: it covered the buttons. The button itself shows the state (gold icon, "1" badge,
+  // accessibility label and selected state), see __tests__/playerNoToastOnModes.test.ts.
   const onRepeat = () => {
-    const next = v2.cycleRepeat()
-    toast.show(repeatMessage(next, source))
+    v2.cycleRepeat()
   }
   const onShuffle = () => {
     queueActions.toggleShuffle()
@@ -715,6 +746,19 @@ export default function PlayerV2Screen() {
     closePlayer()
     router.push(href(`/kirtan-artist?id=${encodeURIComponent(artist.id)}`))
   }
+  const radioArt = song
+    ? radioArtFor({
+        recordingKind: isK ? recKind : null,
+        coverUrl: song.thumbnailUrl || null,
+        authorPhotoUrl: artist?.photoUrl ?? null,
+        seed: isK ? (song.kiirtan?.id ?? String(song.id)) : `ps-${song.number}`,
+      })
+    : null
+  // the picture ends where the text starts: header (status bar, title row, channels) + a gap that is 0 on a short screen
+  const radioHeroHeight = Math.round(windowHeight * 0.46)
+  const radioHeader = (insets.top || playerSize.topBand) + playerSize.topBar + 52
+  const radioGap = Math.max(0, radioHeroHeight - radioHeader - 56)
+  const radioChannel = radioChannelLabel(radioPools.chosen, radioPools.counts)
   const coverSize = Math.max(180, Math.min(windowWidth - 56, windowHeight * 0.36, 340))
   const chip = versionChipText(selectedVersion ? versionSummary(selectedVersion) : "", versions.length, mode, versionIndex)
   const closePlayer = closeNow
@@ -724,6 +768,10 @@ export default function PlayerV2Screen() {
   return (
     <View style={styles.root}>
       <Animated.View style={[styles.flex, dragStyle, { backgroundColor: playerColors.ground }]}>
+      {radioView && radioArt && radioArt.kind !== "baba" ? (
+        <RadioHero art={radioArt} title={song?.title ?? ""} durationSec={song?.durationSeconds || null} height={radioHeroHeight} />
+      ) : null}
+      {!radioView ? (
       <Animated.View pointerEvents="none" style={[styles.photo, photoStyle]}>
         <Image
           source={heroPhoto.cover}
@@ -738,7 +786,9 @@ export default function PlayerV2Screen() {
           style={StyleSheet.absoluteFill}
         />
       </Animated.View>
+      ) : null}
 
+      {!radioView ? (
       <CrossfadeGradient
         colors={
           isK
@@ -749,6 +799,7 @@ export default function PlayerV2Screen() {
         duration={400}
         style={StyleSheet.absoluteFill}
       />
+      ) : null}
 
       <View style={[styles.column, { paddingTop: insets.top || playerSize.topBand, paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
         <GestureDetector gesture={headGesture}>
@@ -763,6 +814,15 @@ export default function PlayerV2Screen() {
                 >
                   <PlayerIcon name="chevronDown" size={30} color={amColors.white} />
                 </TouchButton>
+                {radioView ? (
+                  <View style={styles.sourceHit}>
+                    <View style={styles.sourceChip}>
+                      <Text style={styles.sourceText} numberOfLines={1} accessibilityRole="header">
+                        {t("radio.player.label")}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
                 <TouchButton
                   accessibilityRole="button"
                   accessibilityLabel={`${drive ? "Radio" : `Playing from ${source}`}. Open the queue`}
@@ -774,7 +834,30 @@ export default function PlayerV2Screen() {
                     {drive ? "Radio" : source}
                   </Text>
                 </TouchButton>
-                {song ? (
+                )}
+                {radioView ? (
+                  <TouchButton
+                    accessibilityRole="button"
+                    accessibilityLabel={t("radio.player.stop")}
+                    onAction={() => {
+                      exitDriveMode()
+                      closePlayer()
+                    }}
+                    style={styles.stopPill}
+                  >
+                    <PlayerIcon name="stop" size={22} color={playerColors.gold} />
+                  </TouchButton>
+                ) : null}
+                {song && radioView ? (
+                  <TouchButton
+                    accessibilityRole="button"
+                    accessibilityLabel={t("radio.player.menu")}
+                    onAction={() => setSheet("playback")}
+                    style={styles.topButton}
+                  >
+                    <PlayerIcon name="more" size={playerSize.topIcon} color={amColors.white} />
+                  </TouchButton>
+                ) : song ? (
                   <TouchButton
                     accessibilityRole="button"
                     accessibilityLabel={isK ? "More actions: share, save, queue" : "More actions: share, save, add to playlist, queue, song page"}
@@ -791,7 +874,29 @@ export default function PlayerV2Screen() {
           </View>
         </GestureDetector>
 
-        {song ? (
+        {radioView ? <RadioChannelStrip /> : null}
+
+        {song && radioView ? (
+          <Animated.View style={[bodyStyle, styles.flex]}>
+            {radioArt && radioHeroLayout(radioArt) === "baba-clean" ? <RadioBabaFrame height={Math.round(windowHeight * 0.3)} /> : null}
+            <RadioPlayerBody
+              channel={radioChannel}
+              title={song.title}
+              subtitle={isK ? subtitleText : sentenceCaseLine(selectedVersion ? versionSummary(selectedVersion) : "")}
+              position={position}
+              duration={knownLength}
+              onSeek={seekTo}
+              playState={playState}
+              canNext={canAdvance}
+              onPlayPause={onPlayPause}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              onMix={() => setSheet("mix")}
+              extra={v2.sleep.kind !== "off" ? <SleepChip text={sleepValue} onCancel={v2.cancelSleep} /> : null}
+              topGap={radioGap}
+            />
+          </Animated.View>
+        ) : song ? (
           <Animated.View style={bodyStyle}>
             {isK && !drive ? (
               <GestureDetector gesture={coverGesture}>
@@ -893,6 +998,16 @@ export default function PlayerV2Screen() {
                 <Reveal index={3}>
                   <ThinScrubber position={position} duration={knownLength} onSeek={seekTo} />
                   {resumeVisible ? <ResumeNotice from={resumeNotice.from} onStartOver={startSongOver} /> : null}
+                  {continueVisible ? (
+                    <ContinueOffer
+                      at={longOffer.at}
+                      onContinue={() => {
+                        seekTo(longOffer.at)
+                        longOffer.clear()
+                      }}
+                    />
+                  ) : null}
+                  {v2.sleep.kind !== "off" ? <SleepChip text={sleepValue} onCancel={v2.cancelSleep} /> : null}
                 </Reveal>
                 <Reveal index={4}>
                   <TransportRow
@@ -1023,17 +1138,67 @@ export default function PlayerV2Screen() {
         theme={theme}
         rate={rate}
         sleepValue={sleepValue}
-        onCycleSpeed={() => setRate(nextRate(rate))}
-        onCycleSleep={() => {
-          const next = nextSleepStep(v2.sleep, song?.number ?? 0, Date.now())
-          if (next.kind === "off") v2.cancelSleep()
-          else if (next.kind === "minutes") v2.startSleepMinutes(next.minutes)
-          else v2.startSleepEndOfSong(next.songNumber)
-          toast.show(sleepToast(next))
-        }}
+        onOpenSpeed={() => setSheet("speed")}
+        onOpenSleep={() => setSheet("sleep")}
+        radio={
+          radioOn
+            ? {
+                radioView,
+                onToggleView: () => {
+                  setSheet(null)
+                  setRadioNormal(radioView)
+                },
+              }
+            : undefined
+        }
         onDrive={() => {
           setSheet(null)
           setDrive(true)
+        }}
+        onClose={() => setSheet(null)}
+      />
+      <RadioMixSheet visible={sheet === "mix"} theme={theme} onClose={() => setSheet(null)} />
+      <SpeedSheet
+        visible={sheet === "speed"}
+        theme={theme}
+        rate={rate}
+        onRate={(next) => {
+          setRate(next)
+          // a speed saved for this recording follows the change
+          if (trackKey && prefs.rateByTrack[trackKey]) prefs.setTrackRate(trackKey, next)
+        }}
+        keepPitch={prefs.keepPitch}
+        onKeepPitch={prefs.setKeepPitch}
+        remembered={trackKey != null && prefs.rateByTrack[trackKey] != null}
+        onRemember={(on) => {
+          if (trackKey) prefs.setTrackRate(trackKey, on ? rate : null)
+        }}
+        defaultRate={prefs.defaultRate}
+        onMakeDefault={() => prefs.setDefaultRate(rate)}
+        onClose={() => setSheet(null)}
+      />
+      <SleepSheet
+        visible={sheet === "sleep"}
+        theme={theme}
+        timer={v2.sleep}
+        now={now}
+        canEndOfList={list.length > 1}
+        onMinutes={(minutes) => {
+          v2.startSleepMinutes(minutes)
+          setSheet(null)
+        }}
+        onEndOfTrack={() => {
+          if (song) v2.startSleepEndOfSong(song.number)
+          setSheet(null)
+        }}
+        onEndOfList={() => {
+          const last = list[list.length - 1]
+          if (last != null) v2.startSleepEndOfList(last)
+          setSheet(null)
+        }}
+        onCancel={() => {
+          v2.cancelSleep()
+          setSheet(null)
         }}
         onClose={() => setSheet(null)}
       />
@@ -1124,6 +1289,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingLeft: playerSize.topBarInsetLeft,
     paddingRight: playerSize.topBarInsetRight,
+  },
+  stopPill: {
+    width: playerSize.topButton,
+    height: playerSize.topButton,
+    borderRadius: 9999,
+    borderWidth: 1.5,
+    borderColor: playerColors.gold,
+    backgroundColor: playerColors.glassDark,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 4,
   },
   topButton: { width: playerSize.topButton, height: playerSize.topButton, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
   sourceHit: { flex: 1, minWidth: 0 },

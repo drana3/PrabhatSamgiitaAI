@@ -16,7 +16,10 @@ type Props = {
   onPlayPause: () => void
   onPrevious: () => void
   onNext: () => void
-  onExit: () => void
+  /** Absent in the Radio view: there the stop button in the top bar ends the Radio. */
+  onExit?: () => void
+  /** Radio view: skip pills 64 high, play pill 80 high (the design's sizes), no Exit pill. */
+  compact?: boolean
 }
 
 /**
@@ -24,7 +27,7 @@ type Props = {
  * can hit a control without looking. Previous and next are 72px pills side by side,
  * play/pause is a full-width 96px pill under them, and one pill leaves the mode.
  */
-export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onNext, onExit }: Props) {
+export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onNext, onExit, compact }: Props) {
   const t = useT()
   return (
     <View>
@@ -34,7 +37,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
           accessibilityLabel={t("player.prev")}
           onAction={onPrevious}
           containerStyle={styles.skipHit}
-          style={styles.skip}
+          style={[styles.skip, compact && styles.skipCompact]}
         >
           <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
           <View pointerEvents="none" style={styles.ring} />
@@ -46,7 +49,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
           accessibilityState={{ disabled: !canNext }}
           onAction={canNext ? onNext : undefined}
           containerStyle={styles.skipHit}
-          style={[styles.skip, !canNext && styles.disabled]}
+          style={[styles.skip, compact && styles.skipCompact, !canNext && styles.disabled]}
         >
           <Frost intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
           <View pointerEvents="none" style={styles.ring} />
@@ -60,7 +63,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
         onAction={onPlayPause}
         pressedScale={0.985}
         containerStyle={styles.playHit}
-        style={styles.play}
+        style={[styles.play, compact && styles.playCompact]}
       >
         {playState === "spinner" ? (
           <ActivityIndicator size="large" color={playerColors.onBrand} />
@@ -69,6 +72,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
         )}
       </TouchButton>
 
+      {onExit ? (
       <TouchButton
         accessibilityRole="button"
         accessibilityLabel={t("player.drive.exit.a11y")}
@@ -81,6 +85,7 @@ export function DriveControls({ playState, canNext, onPlayPause, onPrevious, onN
         <PlayerIcon name="drive" size={18} color={playerColors.gold} />
         <Text style={styles.exitText}>{t("player.drive.exit")}</Text>
       </TouchButton>
+      ) : null}
     </View>
   )
 }
@@ -107,6 +112,8 @@ const styles = StyleSheet.create({
     borderColor: playerColors.glassEdge,
   },
   ringGold: { borderColor: playerColors.gold },
+  skipCompact: { height: 64 },
+  playCompact: { height: 80 },
   disabled: { opacity: 0.35 },
   playHit: { marginTop: 10, marginHorizontal: 10 },
   play: {

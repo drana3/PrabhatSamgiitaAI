@@ -118,17 +118,18 @@ describe("sleep timer", () => {
 })
 
 describe("playback speed", () => {
-  it("stays between 0.5x and 1.5x", () => {
+  it("stays between 0.5x and 2x", () => {
     expect(clampRate(0.1)).toBe(0.5)
-    expect(clampRate(3)).toBe(1.5)
+    expect(clampRate(3)).toBe(2)
     expect(clampRate(Number.NaN)).toBe(1)
     expect(clampRate(1.254)).toBe(1.25)
   })
 
   it("cycles through the steps", () => {
-    expect(SPEED_STEPS).toEqual([0.5, 0.75, 1, 1.25, 1.5])
+    expect(SPEED_STEPS).toEqual([0.5, 0.75, 1, 1.25, 1.5, 1.75, 2])
     expect(nextRate(1)).toBe(1.25)
-    expect(nextRate(1.5)).toBe(0.5)
+    expect(nextRate(1.5)).toBe(1.75)
+    expect(nextRate(2)).toBe(0.5)
     expect(nextRate(0.9)).toBe(1)
     expect(formatRate(1)).toBe("1x")
     expect(formatRate(0.75)).toBe("0.75x")

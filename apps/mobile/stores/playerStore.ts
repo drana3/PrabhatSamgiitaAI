@@ -69,6 +69,7 @@ import {
 import { clearTransition, inTransition, markTransition } from "@/lib/playback/transition"
 import { runTrackEndHook } from "@/lib/playback/trackEndHook"
 import { resolveStartPosition } from "@/lib/playback/startPosition"
+import { SPEED_MAX, SPEED_MIN } from "@/lib/playerV2/playbackSpeed"
 import { songDetailToMockSong } from "@/lib/songMap"
 import { driveBlurDecision } from "@/lib/radio/keepPlaying"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -739,7 +740,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   setRate: (rate) => {
-    const clamped = Math.min(1.5, Math.max(0.5, rate))
+    const clamped = Math.min(SPEED_MAX, Math.max(SPEED_MIN, rate))
     set({ rate: clamped })
     void nativeSetRate(clamped).catch(() => undefined)
   },

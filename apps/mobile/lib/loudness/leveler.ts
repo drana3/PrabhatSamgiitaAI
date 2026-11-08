@@ -55,6 +55,8 @@ export type Leveler = {
   onProgress: (id: string | null, position: number, duration: number) => void
   /** The volume slider. Applied at once. */
   setUserVolume: (volume: number) => void
+  /** A transition fade (0..1) multiplied on top of the levelled volume; 1 = none (lib/playback/transitionFade.ts). */
+  setFade: (factor: number) => void
   /** The switch was flipped or the engine changed: apply the gain of the active track again. */
   refresh: () => void
   /** The gain now applied, in dB (0 when leveling is off). */
@@ -87,6 +89,7 @@ export function createLeveler(deps: LevelerDeps): Leveler {
   let appliedGainDb = 0
   let activeId: string | null = null
   let ducked = false
+  let fade = 1
   let timer: TimerHandle | null = null
 
   const canBoost = () => deps.canBoost?.() ?? false
@@ -98,7 +101,7 @@ export function createLeveler(deps: LevelerDeps): Leveler {
   const targetDb = (id: string | null) => levelFor(id)?.gainDb ?? 0
 
   function push() {
-    deps.setVolume(clampVolume(userVolume * dbToGain(appliedGainDb)))
+    deps.setVolume(clampVolume(userVolume * dbToGain(appliedGainDb) * fade))
   }
 
   function stopRamp() {
@@ -181,6 +184,11 @@ export function createLeveler(deps: LevelerDeps): Leveler {
       push()
     },
 
+    setFade(factor) {
+      fade = clampVolume(factor)
+      push()
+    },
+
     refresh() {
       stopRamp()
       ducked = false
@@ -198,6 +206,7 @@ export function createLeveler(deps: LevelerDeps): Leveler {
       activeId = null
       lastRegistered = null
       ducked = false
+      fade = 1
       appliedGainDb = 0
       push()
     },

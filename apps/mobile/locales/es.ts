@@ -23,6 +23,7 @@ import { profileRowsEs } from "./profileRows"
 import { volumeEs } from "./volume"
 import { opsEs } from "./ops"
 import { languagesEs } from "./languages"
+import { playbackControlsEs } from "./playbackControls"
 import { assistantErrorsEs } from "./assistantErrors"
 import { recordingExtrasEs } from "./recordingExtras"
 import { pushEs } from "./push"
@@ -1298,6 +1299,7 @@ export const es: Dictionary = {
   ...assistantErrorsEs,
   ...songCommentsEs,
   ...pushEs,
+  ...playbackControlsEs,
   ...recordingExtrasEs,
   ...chordProposalsEs,
   ...pronunciationEs,
