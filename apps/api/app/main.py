@@ -19,12 +19,15 @@ from app.core.db import SessionLocal, engine
 from app.core.middleware import RequestContextMiddleware
 from app.logging import configure_logging
 from app.models import Base
+from app.observability import harden_logging, init_sentry
 from app.services.ai_quota_report import EXPOSED_HEADERS
 from app.services.bootstrap import BootstrapService
 from app.services.embedding_index import build_embedding_indexes, load_faiss_snapshot
 
 settings = get_settings()
 configure_logging(settings.log_level)
+harden_logging()
+init_sentry(settings)
 scheduler = AsyncIOScheduler()
 DATA_DIR = Path(__file__).resolve().parents[4] / "data"
 logger = logging.getLogger(__name__)

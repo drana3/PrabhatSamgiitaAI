@@ -132,6 +132,14 @@ class Settings(BaseSettings):
         default=None, alias="RECORDING_S3_SECRET_ACCESS_KEY"
     )
     recording_public_base_url: str | None = Field(default=None, alias="RECORDING_PUBLIC_BASE_URL")
+    # Crash reports (docs/observability.md). Off while SENTRY_DSN is empty.
+    sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+    sentry_environment: str | None = Field(default=None, alias="SENTRY_ENVIRONMENT")
+    sentry_release: str | None = Field(default=None, alias="SENTRY_RELEASE")
+    sentry_traces_sample_rate: float = Field(
+        default=0.0, alias="SENTRY_TRACES_SAMPLE_RATE", ge=0.0, le=1.0
+    )
+
 
 
 @lru_cache(maxsize=1)
