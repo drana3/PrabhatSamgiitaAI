@@ -1,4 +1,5 @@
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
+import { cleanRecordingInfo } from "@/lib/kirtan/recordingInfo"
 import { kindHasCredits, kindHasDance, kindHasDiscourse, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 
@@ -27,6 +28,10 @@ type TypeFields = {
   styleOther?: string
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan (lib/kirtan/practice.ts); forms without it leave it out */
   practice?: string | null
+  /** how it was recorded, the tempo, solo or group (lib/kirtan/recordingInfo.ts); forms without them leave them out */
+  recordingType?: string | null
+  tempo?: string | null
+  performance?: string | null
 }
 
 /** The draft after `patch`: the type's own rules applied, whatever the patch said. */
@@ -46,6 +51,20 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
     ;(next as TypeFields).styleOther = ""
   }
   if (next.kind !== "kiirtan" && "practice" in next) (next as TypeFields).practice = null
+  // the recording info follows the type too: a field the new type does not carry goes, and an AI recording is not a Bhajan
+  if ("recordingType" in next || "tempo" in next || "performance" in next) {
+    const fields = next as TypeFields
+    // switching the type starts these afresh: how a Kiirtan was recorded says nothing about the Bhajan chosen next
+    if (next.kind !== draft.kind) {
+      fields.recordingType = null
+      fields.tempo = null
+      fields.performance = null
+    }
+    const clean = cleanRecordingInfo(next.kind, fields)
+    if ("recordingType" in next) fields.recordingType = clean.recordingType
+    if ("tempo" in next) fields.tempo = clean.tempo
+    if ("performance" in next) fields.performance = clean.performance
+  }
   return next
 }
 

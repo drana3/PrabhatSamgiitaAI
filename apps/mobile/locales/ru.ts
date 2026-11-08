@@ -3,6 +3,7 @@ import { songPageRu } from "./songPage"
 import { appShellRu } from "./appShell"
 import { ugcRu } from "./ugc"
 import { duplicatesRu } from "./duplicates"
+import { recordingInfoRu } from "./recordingInfo"
 import { recordingsRu } from "./recordings"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
@@ -1355,6 +1356,7 @@ export const ru: Dictionary = {
   ...appShellRu,
   ...ugcRu,
   ...duplicatesRu,
+  ...recordingInfoRu,
   ...recordingsRu,
   ...offlineRu,
   ...accountRu,

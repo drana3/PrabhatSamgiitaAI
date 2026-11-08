@@ -49,6 +49,8 @@ export type QueueItem = {
   dance?: DanceId | null
   /** Kiirtan only: this row's own practice ("avarta", or null for "no"); undefined means the form's tick for the whole queue */
   practice?: string | null
+  /** this row's own type of recording; undefined means the form's choice (lib/kirtan/recordingInfo.ts) */
+  recordingType?: string | null
 }
 
 export type PickedFile = { name: string; uri: string; size: number | null; type: string | null }
@@ -186,7 +188,7 @@ export function practiceCounts(items: readonly QueueItem[], kind: string, formPr
   return { avarta: open.filter((item) => effectivePractice(item, kind, formPractice) === AVARTA).length, total: open.length }
 }
 
-export type RowFieldsPatch = { language?: string | null; languageOther?: string; dance?: DanceId | null; practice?: string | null }
+export type RowFieldsPatch = { language?: string | null; languageOther?: string; dance?: DanceId | null; practice?: string | null; recordingType?: string | null }
 
 /** Sets one row's own language and/or dance. Choosing a language other than "other" forgets the name. */
 export function setRowFields(items: readonly QueueItem[], id: string, patch: RowFieldsPatch): QueueItem[] {
@@ -201,8 +203,36 @@ export function setRowFields(items: readonly QueueItem[], id: string, patch: Row
     }
     if ("dance" in patch) next.dance = patch.dance
     if ("practice" in patch) next.practice = patch.practice
+    if ("recordingType" in patch) next.recordingType = patch.recordingType
     return next
   })
+}
+
+/**
+ * The type changed: what a row said on its own about the OLD type (its language, dance, Avarta, type of recording) no longer
+ * means anything, so every row that can still be sent follows the form again. The files stay (docs/kiirtan-publishing.md,
+ * "Changing the type").
+ */
+export function withoutKindBoundChoices(items: readonly QueueItem[]): QueueItem[] {
+  return items.map((item) => {
+    if (item.status === "uploading" || item.status === "done" || item.status === "duplicate") return item
+    const next: QueueItem = { ...item }
+    delete next.language
+    delete next.languageOther
+    delete next.dance
+    delete next.practice
+    delete next.recordingType
+    return next
+  })
+}
+
+/**
+ * Opening the Add screen: is there nothing here worth keeping? A queue that only holds files that were picked and never sent
+ * (or nothing at all) is a leftover draft of an earlier visit, and it starts empty. A queue with a recording that is going up,
+ * waits for an answer, hit the limit, failed or is done is shown as it is, so the person sees where it is.
+ */
+export function isLeftoverDraft(items: readonly QueueItem[], running: boolean): boolean {
+  return !running && items.every((item) => item.status === "waiting")
 }
 
 /**

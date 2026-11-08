@@ -2,6 +2,7 @@ import { kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, norm
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { cleanPractice } from "@/lib/kirtan/practice"
+import { AI_TYPE, cleanRecordingInfo, kindAllowsAi, kindHasRecordingType, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { cleanStyle, isKiirtanStyle, OTHER_STYLE } from "@/lib/kirtan/styles"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
@@ -65,6 +66,10 @@ export type SubmissionInput = {
   styleOther?: string | null
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
   practice?: string | null
+  /** how it was recorded (REQUIRED for a Kiirtan), the tempo, solo or group (lib/kirtan/recordingInfo.ts) */
+  recordingType?: string | null
+  tempo?: string | null
+  performance?: string | null
   /** the person is the author, or performs it themselves */
   byAuthor: boolean
   addedBy: string
@@ -72,7 +77,7 @@ export type SubmissionInput = {
   termsAccepted?: boolean
 }
 
-export type SubmissionError = "file" | FileProblem | "title" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "year" | "terms"
+export type SubmissionError = "file" | FileProblem | "title" | "titleEnglish" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "recordingType" | "year" | "terms"
 
 /** Is this a song number of the Prabhat Samgiita catalogue (a whole number from 1 to 5018)? */
 export function isPsSongNumber(value: unknown): value is number {
@@ -93,6 +98,7 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   const problem = validateAudioFile({ name: input.fileName, size: input.fileSize ?? null, type: input.fileType })
   if (problem) return problem
   if (!input.title.trim()) return "title"
+  if (titleNeedsEnglish(input.kind, input.title)) return "titleEnglish"
   if (kindHasPerformer(input.kind) && !input.author.trim()) return "author"
   const missing = missingKindFields({ kind: normalizeKind(input.kind), language: input.language, languageOther: input.languageOther, dance: input.dance })
   if (missing.length) return missing[0]!
@@ -102,6 +108,9 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
     const style = cleanStyle("kiirtan", input.style, input.styleOther)
     if (!style.style || style.missingName) return "style"
   }
+  // how a Kiirtan was recorded is required; an AI recording is not taken as a Bhajan
+  if (recordingTypeMissing(input.kind, input.recordingType)) return "recordingType"
+  if (input.recordingType === AI_TYPE && kindHasRecordingType(input.kind) && !kindAllowsAi(input.kind)) return "recordingType"
   if (input.year != null && !isRecordableYear(input.year)) return "year"
   if (!input.termsAccepted) return "terms"
   return null
@@ -125,6 +134,12 @@ function styleOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "style
   const clean = cleanStyle(kind, input.style, input.styleOther)
   if (!clean.style || clean.missingName) return {}
   return { style: clean.style, ...(clean.styleOther ? { styleOther: clean.styleOther } : {}) }
+}
+
+/** The type of recording, tempo and solo or group a form named, for the kinds that carry them. */
+function infoOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "recordingType" | "tempo" | "performance"> {
+  const clean = cleanRecordingInfo(kind, input)
+  return { ...(clean.recordingType ? { recordingType: clean.recordingType } : {}), ...(clean.tempo ? { tempo: clean.tempo } : {}), ...(clean.performance ? { performance: clean.performance } : {}) }
 }
 
 /** A new Kiirtan or Bhajan, on its way up. The id is stable per title and time. */
@@ -151,6 +166,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),
     ...styleOfInput(kind, input),
     ...(cleanPractice(kind, input.practice) ? { practice: cleanPractice(kind, input.practice) as string } : {}),
+    ...infoOfInput(kind, input),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
@@ -281,6 +297,16 @@ function practiceOf(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<
   return clean ? { practice: clean } : {}
 }
 
+/** The server is the truth when it says (even "none"); an older server says nothing and the phone's own value stays. */
+function infoOfRemote(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kirtan, "recordingType" | "tempo" | "performance"> {
+  const clean = cleanRecordingInfo(kind, {
+    recordingType: remote.recording_type === undefined ? base?.recordingType : remote.recording_type,
+    tempo: remote.tempo === undefined ? base?.tempo : remote.tempo,
+    performance: remote.performance === undefined ? base?.performance : remote.performance,
+  })
+  return { ...(clean.recordingType ? { recordingType: clean.recordingType } : {}), ...(clean.tempo ? { tempo: clean.tempo } : {}), ...(clean.performance ? { performance: clean.performance } : {}) }
+}
+
 /** A server recording as the app's `Kirtan`. `base` keeps the phone's own id and time when the item is already here. */
 export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
   const removed = remote.status === "removed"
@@ -306,6 +332,7 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     ...languageOf(remote, base),
     ...styleOf(remote, kind, base),
     ...practiceOf(remote, kind, base),
+    ...infoOfRemote(remote, kind, base),
     ...(isDance(remote.dance) ? { dance: remote.dance } : base?.dance ? { dance: base.dance } : {}),
     ...(remote.collection_id ? { collectionId: remote.collection_id } : base?.collectionId ? { collectionId: base.collectionId } : {}),
     ...(remote.position ? { position: remote.position } : base?.position ? { position: base.position } : {}),

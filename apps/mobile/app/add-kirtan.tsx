@@ -9,7 +9,9 @@ import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
+import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
+import { effectiveRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
@@ -80,6 +82,12 @@ export default function AddKirtanScreen() {
   const rules = useMemo(() => ({ acceptedAt, version: acceptedVersion }), [acceptedAt, acceptedVersion])
   const rulesOk = isRulesAccepted(rules)
 
+  // Opening the screen: files picked on an earlier visit and never sent are not shown again (an old file must not follow a new type).
+  const opened = useRef(false)
+  if (!opened.current) {
+    opened.current = true
+    useUploadQueueStore.getState().openFresh()
+  }
   const draft = useUploadQueueStore((s) => s.draft)
   const items = useUploadQueueStore((s) => s.items)
   const running = useUploadQueueStore((s) => s.running)
@@ -237,7 +245,7 @@ export default function AddKirtanScreen() {
   /** Shows the problem and jumps to the field it is about: scrolls there, puts the cursor in it, says which one. */
   const fail = (code: SubmissionError, row?: string) => {
     setProblem({ form: code, row })
-    const key = row ? `row-${row}` : code === "author" ? "performer" : code === "languageName" ? "language" : code === "format" || code === "size" ? "file" : code
+    const key = row ? `row-${row}` : code === "author" ? "performer" : code === "titleEnglish" ? "title" : code === "languageName" ? "language" : code === "format" || code === "size" ? "file" : code
     const message = messageFor(code)
     const go = () =>
       void form.focusFirst([key], { [key]: message }).then((went) => {
@@ -273,6 +281,7 @@ export default function AddKirtanScreen() {
       year: yearOf(draft.year),
       style: draft.style,
       styleOther: draft.styleOther,
+      recordingType: effectiveRecordingType(first.recordingType, draft.recordingType, kind),
       byAuthor: draft.byAuthor,
       addedBy: "You",
       termsAccepted: rulesOk || agree,
@@ -304,6 +313,12 @@ export default function AddKirtanScreen() {
     const untitled = open.find((item) => !item.title.trim())
     if (untitled) {
       fail("title", untitled.id)
+      return
+    }
+    // the title of a Kiirtan is in English: the row that is not is marked and nothing goes up
+    const notEnglish = open.find((item) => titleNeedsEnglish(kind, item.title))
+    if (notEnglish) {
+      fail("titleEnglish", notEnglish.id)
       return
     }
     if (!rulesOk) useContentRulesStore.getState().accept()
@@ -474,6 +489,9 @@ export default function AddKirtanScreen() {
                   <StyleField theme={theme} kind={kind} value={{ style: draft.style, styleOther: draft.styleOther }} onChange={(next) => store().setDraft({ style: next.style, styleOther: next.styleOther })} invalid={formError === "style" || !!form.error("style")} errorText={form.error("style")} disabled={locked} />
                 </View>
                 <PracticeField theme={theme} kind={kind} on={draft.practice === AVARTA} onChange={(on) => store().setDraft({ practice: on ? AVARTA : null })} disabled={locked} />
+                <View {...form.field("recordingType")} style={styles.field}>
+                  <RecordingTypeField theme={theme} kind={kind} value={draft.recordingType} onChange={(next) => store().setDraft({ recordingType: next })} invalid={formError === "recordingType" || !!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
+                </View>
               </Reveal>
             ) : null}
 
@@ -527,6 +545,7 @@ export default function AddKirtanScreen() {
                     {practiceSummary.avarta === practiceSummary.total ? t("practice.queue.all") : t("practice.queue.some", { count: practiceSummary.avarta, total: practiceSummary.total })}
                   </Text>
                 ) : null}
+                {kind === "kiirtan" ? <Text style={[styles.hint, { color: theme.textBody }]}>{t("recinfo.title.hint")}</Text> : null}
                 {items.map((item, index) => (
                   <View key={item.id} {...form.field(`row-${item.id}`)} style={styles.rowWrap}>
                   <QueueRow

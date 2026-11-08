@@ -165,6 +165,12 @@ export type Kirtan = {
   styleOther?: string
   /** Kiirtan only: the practice it is for ("avarta" = Avarta Kiirtan), when marked (lib/kirtan/practice.ts) */
   practice?: string
+  /** how it was recorded: studio, live, home or ai (lib/kirtan/recordingInfo.ts); required for a new Kiirtan, absent on older items */
+  recordingType?: string
+  /** slow, medium or fast, when named */
+  tempo?: string
+  /** solo or group, when named */
+  performance?: string
   /** Dance music: which dance (a DANCES id) */
   dance?: DanceId
   /** Baba's Audio Discourses: where it was given (optional) */

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { AVARTA } from "@/lib/kirtan/practice"
+import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { DanceField, FieldError, LanguageField, LanguagePicker, RequiredMark, type LanguageValue } from "@/components/kirtan/add/KindFields"
@@ -28,7 +29,7 @@ import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { missingCounts, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import type { RemoteBrief } from "@/lib/kirtan/remote"
 import { isRulesAccepted, uploadErrorText } from "@/lib/kirtan/rules"
-import { SET_LIMITS, setCounts, setDay, setDefaults, setProgress, setState, trackMissing, setNeedsStyle, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
+import { SET_LIMITS, setCounts, setDay, setDefaults, setProgress, setState, trackMissing, setNeedsStyle, titleIsNotEnglish, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
 import { eventLabel } from "@/lib/kirtan/setDate"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
 import { RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
@@ -199,6 +200,7 @@ export default function UploadSetScreen() {
         year: detailsError === "future" ? t("set.err.future") : t("set.err.year"),
         dance: t("ugc.form.error.dance"),
         style: t("ugc.form.error.style"),
+        recordingType: t("ugc.form.error.recordingType"),
         language: defaultsMissing.includes("languageName") ? t("ugc.form.error.languageName") : t("ugc.form.error.language"),
       }
       const missingKeys = [
@@ -206,6 +208,7 @@ export default function UploadSetScreen() {
         ...(detailsError === "year" || detailsError === "future" ? ["year"] : []),
         ...(defaultsMissing.includes("dance") ? ["dance"] : []),
         ...(detailsError === "style" ? ["style"] : []),
+        ...(detailsError === "recordingType" ? ["recordingType"] : []),
         ...(defaultsMissing.includes("language") || defaultsMissing.includes("languageName") ? ["language"] : []),
       ]
       if (missingKeys.length) {
@@ -232,11 +235,11 @@ export default function UploadSetScreen() {
     // a track that still misses something: go to the tracks and bring the first such row on screen
     if (result === "fields") {
       const open = draft.tracks.filter((track) => track.status === "waiting")
-      const bad = open.filter((track) => !track.title.trim() || trackMissing(track, draft).length > 0)
+      const bad = open.filter((track) => !track.title.trim() || titleIsNotEnglish(track, draft) || trackMissing(track, draft).length > 0)
       setTried(true)
       setStep(2)
       const messages: Record<string, string> = {}
-      for (const track of bad) messages[`track-${track.id}`] = t("set.block.fields")
+      for (const track of bad) messages[`track-${track.id}`] = titleIsNotEnglish(track, draft) ? t("ugc.form.error.titleEnglish") : t("set.block.fields")
       setTimeout(() => void form.focusFirst(bad.map((track) => `track-${track.id}`), messages), 80)
     }
     if (result === "details") {
@@ -447,7 +450,7 @@ export default function UploadSetScreen() {
                   onActivate={() => {
                     if (locked) return
                     const clear = kindHasLanguage(kind) ? {} : { defaultLanguage: null, defaultLanguageOther: "" }
-                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "", defaultPractice: null }) })
+                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "", defaultPractice: null }), ...(kind === d.defaultKind ? {} : { defaultRecordingType: null, defaultTempo: null, defaultPerformance: null }) })
                   }}
                   pressedScale={0.96}
                   style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
@@ -472,6 +475,9 @@ export default function UploadSetScreen() {
               <StyleField theme={theme} kind="kiirtan" value={{ style: d.defaultStyle, styleOther: d.defaultStyleOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultStyle: next.style, defaultStyleOther: next.styleOther }) }} invalid={!!form.error("style")} errorText={form.error("style")} disabled={locked} />
             </View>
             <PracticeField theme={theme} kind="kiirtan" on={d.defaultPractice === AVARTA} onChange={(on) => store().details(d.id, { defaultPractice: on ? AVARTA : null })} disabled={locked} />
+            <View {...form.field("recordingType")} style={styles.field}>
+              <RecordingTypeField theme={theme} kind="kiirtan" value={d.defaultRecordingType} onChange={(next) => { form.clear(); store().details(d.id, { defaultRecordingType: next }) }} invalid={!!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
+            </View>
           </View>
         ) : null}
         {kindHasLanguage(d.defaultKind) ? (

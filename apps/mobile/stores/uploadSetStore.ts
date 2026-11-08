@@ -257,8 +257,10 @@ export const useUploadSetStore = create<SetStoreState>()(
       storage: createJSONStorage(() => AsyncStorage),
       // 2: a playlist draft now holds the approximate date (year and month) and a cover instead of first and last day.
       // The drafts of version 1 were test uploads in the preview, so they go (docs/kiirtan-sets.md).
-      version: 2,
-      migrate: () => ({ drafts: [], archive: [] }),
+      // 3: a draft also holds how its Kiirtans were recorded, the tempo and solo or group (lib/kirtan/recordingInfo.ts).
+      // Nothing to convert: `restoreDraft` fills the new fields, so the drafts of version 2 stay.
+      version: 3,
+      migrate: (persisted, fromVersion) => (fromVersion >= 2 ? (persisted as { drafts: never[]; archive: never[] }) : { drafts: [], archive: [] }),
       partialize: (state) => ({ drafts: state.drafts, archive: state.archive }),
       // the run never survives a restart: a track that was going goes back to waiting (lib/kirtan/sets.ts restoreDraft)
       merge: (persisted, current) => {

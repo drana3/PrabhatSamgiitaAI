@@ -6,6 +6,7 @@ import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { AuthorLine } from "@/components/authors/AuthorLine"
 import { AddLanguagePrompt } from "@/components/kirtan/AddLanguagePrompt"
 import { PracticeBlock, PracticeTag } from "@/components/kirtan/PracticeBlock"
+import { RecordingInfoTags } from "@/components/kirtan/RecordingInfoTags"
 import { RecordingFacts } from "@/components/kirtan/RecordingFacts"
 import { CommentsView } from "@/components/comments/CommentsView"
 import { useComments } from "@/components/comments/useComments"
@@ -114,6 +115,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
           {recording.author ? <Text style={[styles.author, { color: theme.textHeading }]}>{recording.author}</Text> : null}
           <AuthorLine theme={theme} recordingId={apiId} />
           <PracticeTag theme={theme} kirtan={recording} />
+          <RecordingInfoTags theme={theme} kirtan={recording} />
           <RecordingFacts theme={theme} kirtan={recording} />
           <View style={styles.row}>
             <SpPress onPress={() => actions.open(recording, [recording], recording.title)} accessibilityLabel={tr("recPage.play")} style={[styles.play, { backgroundColor: t.action }]}>

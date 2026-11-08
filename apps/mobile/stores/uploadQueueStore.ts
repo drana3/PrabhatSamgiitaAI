@@ -1,9 +1,10 @@
 import { create } from "zustand"
 
-import { addFiles, applyOutcome, applyToAll, effectiveFields, effectivePractice, incompleteRows, patchItem, queueCounts, removeItem, requeue, requeueAll, rowMissing, runQueue, setItemTitle, setRowFields, withoutFinished, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
+import { addFiles, applyOutcome, applyToAll, effectiveFields, effectivePractice, incompleteRows, isLeftoverDraft, patchItem, queueCounts, removeItem, requeue, requeueAll, rowMissing, runQueue, setItemTitle, setRowFields, withoutFinished, withoutKindBoundChoices, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
 import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import { validateSubmission } from "@/lib/kirtan/submissions"
 import { kindHasChords, kindHasLanguage } from "@/lib/kirtan/kind"
+import { effectiveRecordingType } from "@/lib/kirtan/recordingInfo"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { useKirtanStore } from "@/stores/kirtanStore"
@@ -40,10 +41,14 @@ export type QueueDraft = {
   styleOther: string
   /** Kiirtan only, optional: "avarta" marks the whole queue as Avarta Kiirtan; a row may say otherwise (QueueItem.practice) */
   practice: string | null
+  /** how it was recorded (REQUIRED for a Kiirtan), the tempo, solo or group: lib/kirtan/recordingInfo.ts; a row may say another type (QueueItem.recordingType) */
+  recordingType: string | null
+  tempo: string | null
+  performance: string | null
   byAuthor: boolean
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, recordingType: null, tempo: null, performance: null, byAuthor: false }
 
 type QueueState = {
   items: QueueItem[]
@@ -52,6 +57,8 @@ type QueueState = {
   /** why the last run ended early (the daily limit, or not being signed in); null otherwise */
   stopped: QueueStop
   setDraft: (patch: Partial<QueueDraft>) => void
+  /** the Add screen was opened: files left over from an earlier visit that was never sent are dropped; a queue that has work in it stays */
+  openFresh: () => void
   addFiles: (files: readonly PickedFile[]) => { added: number; skipped: number }
   setTitle: (id: string, title: string) => void
   /** one row's own language and/or dance */
@@ -126,6 +133,9 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       style: draft.style,
       styleOther: draft.styleOther,
       practice: effectivePractice(item, draft.kind, draft.practice),
+      recordingType: effectiveRecordingType(item.recordingType, draft.recordingType, draft.kind),
+      tempo: draft.tempo,
+      performance: draft.performance,
     }
     if (validateSubmission(input)) return { status: "failed", failure: { code: "gone" } }
     const added = useKirtanStore.getState().submit(input).added
@@ -158,7 +168,18 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     running: false,
     stopped: null,
     // the type decides which optional fields exist: changing it clears the ones the new type does not have
-    setDraft: (change) => set({ draft: draftWithPatch(get().draft, change) }),
+    // The picked files stay when the type changes (they are the same files); what the old type's fields and rows said does not.
+    setDraft: (change) => {
+      const before = get().draft
+      const draft = draftWithPatch(before, change)
+      set({ draft, ...(draft.kind !== before.kind ? { items: withoutKindBoundChoices(get().items) } : {}) })
+    },
+    openFresh: () => {
+      const { items, running } = get()
+      if (!isLeftoverDraft(items, running)) return
+      for (const item of items) useRecordingChordsPendingStore.getState().forget(item.id)
+      set({ items: [], draft: EMPTY_DRAFT, stopped: null })
+    },
     addFiles: (files) => {
       const result = addFiles(get().items, files, newId)
       set({ items: result.items })

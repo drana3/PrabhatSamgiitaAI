@@ -1,6 +1,7 @@
 import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import { cleanPractice } from "@/lib/kirtan/practice"
+import { cleanRecordingInfo } from "@/lib/kirtan/recordingInfo"
 import { cleanStyle } from "@/lib/kirtan/styles"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
@@ -48,6 +49,10 @@ export type RemoteRecording = {
   style_other?: string | null
   /** Kiirtan only: "avarta" for an Avarta Kiirtan */
   practice?: string | null
+  /** studio, live, home or ai; slow, medium or fast; solo or group (lib/kirtan/recordingInfo.ts) */
+  recording_type?: string | null
+  tempo?: string | null
+  performance?: string | null
   /** Dance music: tandava or kaoshiki */
   dance?: string | null
   /** the playlist from an event this is a track of, and its place there */
@@ -65,7 +70,8 @@ export type RemoteRecording = {
   removed_duplicate_of?: string | null
 }
 
-export type RemoteBrief = { id: string; kind: RecordingKind; title: string; author: string; audio_url: string }
+/** A recording the check found: `reasons` are the layers that matched (title, duration, sound), `duration_sec` its length (docs/duplicate-check.md). */
+export type RemoteBrief = { id: string; kind: RecordingKind; title: string; author: string; audio_url: string; duration_sec?: number | null; reasons?: string[] }
 
 export type UploadTarget = {
   key: string
@@ -229,6 +235,10 @@ export type PublishPayload = {
   styleOther?: string | null
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
   practice?: string | null
+  /** how it was recorded (required for a Kiirtan), the tempo and solo or group; each only for the kinds that carry it */
+  recordingType?: string | null
+  tempo?: string | null
+  performance?: string | null
   /** required for the Dance music kind, refused for the others */
   dance?: string | null
   /** a track of a playlist from an event, and its place there; kind, language and dance left out come from the playlist */
@@ -265,6 +275,14 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
       return st.style && !st.missingName ? { style: st.style, ...(st.styleOther ? { style_other: st.styleOther } : {}) } : {}
     })(),
     ...(cleanPractice(payload.kind, payload.practice) ? { practice: cleanPractice(payload.kind, payload.practice) } : {}),
+    ...(() => {
+      const info = cleanRecordingInfo(payload.kind, payload)
+      return {
+        ...(info.recordingType ? { recording_type: info.recordingType } : {}),
+        ...(info.tempo ? { tempo: info.tempo } : {}),
+        ...(info.performance ? { performance: info.performance } : {}),
+      }
+    })(),
     ...(payload.dance && kindHasDance(payload.kind) ? { dance: payload.dance } : {}),
     ...(payload.collectionId ? { collection_id: payload.collectionId, ...(payload.position ? { position: payload.position } : {}) } : {}),
     ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),

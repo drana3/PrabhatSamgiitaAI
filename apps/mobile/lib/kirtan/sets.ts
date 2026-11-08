@@ -1,5 +1,6 @@
 import { addFiles, effectiveFields, effectivePractice, patchItem, queueCounts, removeItem, requeue, requeueAll, runQueue, setRowFields, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
 import { cleanStyle } from "@/lib/kirtan/styles"
+import { cleanRecordingInfo, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { kindHasDance, kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther } from "@/lib/kirtan/languages"
 import { missingKindFields, type MissingField } from "@/lib/kirtan/uploadForm"
@@ -74,6 +75,10 @@ export type SetDraft = {
   defaultStyleOther: string
   /** Kiirtan only, optional: "avarta" marks every Kiirtan track as Avarta Kiirtan; a track may say otherwise (SetTrack.practice) */
   defaultPractice: string | null
+  /** Kiirtan only, REQUIRED: how every Kiirtan track was recorded (lib/kirtan/recordingInfo.ts); tempo and solo or group are optional */
+  defaultRecordingType: string | null
+  defaultTempo: string | null
+  defaultPerformance: string | null
   /** the person confirmed the content rules once for the whole set */
   confirmed: boolean
   /** the playlist exists on the server (the create was answered) */
@@ -84,7 +89,7 @@ export type SetDraft = {
   createdAt: string
 }
 
-export type SetDetailsError = "title" | "year" | "future" | "style"
+export type SetDetailsError = "title" | "year" | "future" | "style" | "recordingType"
 
 /* ------------------------------------------------------------------ dates */
 
@@ -129,6 +134,9 @@ export function newSetDraft(id: string, now: Date = new Date()): SetDraft {
     defaultStyle: null,
     defaultStyleOther: "",
     defaultPractice: null,
+    defaultRecordingType: null,
+    defaultTempo: null,
+    defaultPerformance: null,
     confirmed: false,
     created: false,
     finished: false,
@@ -158,7 +166,14 @@ export function trackFields(track: SetTrack, draft: SetDraft) {
     dance: kindHasDance(kind) ? fields.dance : null,
     /** Avarta Kiirtan: the track's own choice, else the playlist's; only a Kiirtan has one */
     practice: effectivePractice(track, kind, draft.defaultPractice ?? null),
+    /** how it was recorded, the tempo, solo or group: the playlist's choice, kept for the kinds that carry each */
+    ...cleanRecordingInfo(kind, { recordingType: draft.defaultRecordingType, tempo: draft.defaultTempo, performance: draft.defaultPerformance }),
   }
+}
+
+/** A Kiirtan track whose title is not in English (the title of a Kiirtan is written with Latin letters). */
+export function titleIsNotEnglish(track: SetTrack, draft: SetDraft): boolean {
+  return titleNeedsEnglish(trackKind(track, draft), track.title)
 }
 
 /** What this track still needs (a Spiritual song needs its language, a Dance music its dance). */
@@ -205,11 +220,17 @@ export function hasSetStyle(draft: Pick<SetDraft, "defaultStyle" | "defaultStyle
  * it), place, performer and cover are optional; a date that is given must be real. The style is required when the
  * playlist holds a Kiirtan (the rule of a single Kiirtan upload).
  */
+/** The playlist says how its Kiirtans were recorded (required once it holds a Kiirtan). */
+export function hasSetRecordingType(draft: Pick<SetDraft, "defaultRecordingType">): boolean {
+  return !recordingTypeMissing("kiirtan", draft.defaultRecordingType)
+}
+
 export function validateSetDetails(draft: SetDraft, now: Date = new Date()): SetDetailsError | null {
   if (!draft.title.trim()) return "title"
   const date = checkEventDate(draft.eventYear, draft.eventMonth, now)
   if (date) return date
   if (setNeedsStyle(draft) && !hasSetStyle(draft)) return "style"
+  if (setNeedsStyle(draft) && !hasSetRecordingType(draft)) return "recordingType"
   return null
 }
 
@@ -346,7 +367,7 @@ export function startBlock(draft: SetDraft, now: Date = new Date()): StartBlock 
   if (!draft.confirmed) return "rules"
   const waiting = draft.tracks.filter((track) => track.status === "waiting")
   if (!waiting.length) return "nothing"
-  if (waiting.some((track) => !track.title.trim() || trackMissing(track, draft).length > 0)) return "fields"
+  if (waiting.some((track) => !track.title.trim() || titleIsNotEnglish(track, draft) || trackMissing(track, draft).length > 0)) return "fields"
   return null
 }
 
@@ -387,7 +408,7 @@ export async function runSet(deps: SetRunDeps): Promise<SetRunStop> {
       }
       deps.patch(id, patch as Partial<SetTrack>)
     },
-    ready: (track) => !offline && trackMissing(track as SetTrack, deps.draft()).length === 0 && Boolean(track.title.trim()),
+    ready: (track) => !offline && trackMissing(track as SetTrack, deps.draft()).length === 0 && Boolean(track.title.trim()) && !titleIsNotEnglish(track as SetTrack, deps.draft()),
     upload: async (track) => {
       const outcome = await deps.upload(track as SetTrack, positionOf(deps.draft().tracks, track.id))
       if (outcome.status === "published" && outcome.recordingId) deps.patch(track.id, { recordingId: outcome.recordingId, similar: undefined })
@@ -414,5 +435,5 @@ export function restoreDraft(draft: SetDraft): SetDraft {
   })
   // a cover picked in the browser is a blob address that does not survive a reload: choosing it again is one tap
   const lostCover = draft.coverUri.startsWith("blob:")
-  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", defaultPractice: draft.defaultPractice ?? null, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
+  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", defaultPractice: draft.defaultPractice ?? null, defaultRecordingType: draft.defaultRecordingType ?? null, defaultTempo: draft.defaultTempo ?? null, defaultPerformance: draft.defaultPerformance ?? null, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
 }

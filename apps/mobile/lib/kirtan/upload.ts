@@ -53,6 +53,10 @@ export type UploadSource = {
   styleOther?: string | null
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
   practice?: string | null
+  /** how it was recorded, the tempo, solo or group (lib/kirtan/recordingInfo.ts) */
+  recordingType?: string | null
+  tempo?: string | null
+  performance?: string | null
   /** the version of the content rules the person accepted */
   termsVersion?: string
   /** the author saw the "sounds like a recording already in the library" question and said theirs is different */
@@ -126,6 +130,9 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       style: source.style,
       styleOther: source.styleOther,
       practice: source.practice,
+      recordingType: source.recordingType,
+      tempo: source.tempo,
+      performance: source.performance,
       confirmDifferent: Boolean(source.confirmDifferent),
     })
     return { status: "published", recording }

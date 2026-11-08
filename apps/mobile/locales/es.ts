@@ -3,6 +3,7 @@ import { songPageEs } from "./songPage"
 import { appShellEs } from "./appShell"
 import { ugcEs } from "./ugc"
 import { duplicatesEs } from "./duplicates"
+import { recordingInfoEs } from "./recordingInfo"
 import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
@@ -1269,6 +1270,7 @@ export const es: Dictionary = {
   ...appShellEs,
   ...ugcEs,
   ...duplicatesEs,
+  ...recordingInfoEs,
   ...recordingsEs,
   ...offlineEs,
   ...accountEs,

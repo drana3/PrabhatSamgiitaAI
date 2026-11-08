@@ -348,10 +348,11 @@ through `tags` (section 10.1) without a change to the rules.
 | `dance` | yes | Dance music | Tandava / Kaushiki shelves |
 | `practice` = `"avarta"` | yes (Kiirtan only) | no | "Avarta Kiirtan" choice inside the Kiirtan tab, only when data exists (`docs/kiirtan-practice.md`) |
 | `moods` | yes | no | mood chips |
-| `tempo` | no | no | tempo shelf (slow, medium, fast) |
-| `performance` (solo or group) and singers | no | no | "Solo" and "Group" shelves |
+| `tempo` | yes (Kiirtan, Dance music; `docs/kiirtan-recording-info.md`) | no | tempo shelf (slow, medium, fast), arrives as `tags.tempo` |
+| `performance` (solo or group) | yes (Kiirtan, Bhajan) | no | "Solo" and "Group" shelves, arrives as `tags.performance`; singers by name stay unbuilt |
 | `instruments` | no | no | an instrument shelf, when 3+ share one |
 | `occasion` or `event` | no (a playlist already names an event) | no | an occasion shelf |
-| `recorded` (live or studio) | no | no | "Live" and "Studio" |
+| `recording_type` (studio, live, home, ai) | yes (Kiirtan required; Dance music, Bhajan, Spiritual song optional; `ai` not for a Bhajan) | Kiirtan | "Studio", "Live", "At home" and "Made by AI" shelves, arrives as `tags.recorded`. An AI shelf is titled plainly "Made by AI": the listener always knows |
 
-Only `practice` was added in this round. The others stay unbuilt until Dada picks an upload variant.
+`tempo`, `performance` and `recording_type` were added with `docs/kiirtan-recording-info.md`; `moods`, `instruments` and `occasion`
+or `event` stay unbuilt until Dada decides the upload steps (board `Для-Дады/мастер-загрузки-киртана`).

@@ -12,9 +12,11 @@ import type { Kirtan, KirtanStatus } from "@/lib/kirtan/types"
  * v3 -> v4: there is one mantra in the library, so the draft fields `mantra` and `mantraId` of a stored item are dropped.
  * v4 -> v5: the uploads made while the upload chain was being built and tested in the preview are cleared (see
  *   `migrateKirtanStore`); saved, reported and blocked lists stay.
+ * v5 -> v6: a stored upload may also carry `recordingType`, `tempo` and `performance` (lib/kirtan/recordingInfo.ts). They are
+ *   optional, so there is nothing to convert; the version moves so the shape is on record.
  * Pure: the store passes in whatever AsyncStorage held.
  */
-export const KIRTAN_STORE_VERSION = 5
+export const KIRTAN_STORE_VERSION = 6
 
 type Persisted = { submissions?: unknown; savedIds?: unknown; reportedIds?: unknown; blockedAuthorIds?: unknown; blockedNames?: unknown }
 

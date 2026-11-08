@@ -214,7 +214,7 @@ describe("filtering by kind", () => {
 
 describe("old stored data (migration v1 to v4)", () => {
   it("gives stored submissions the kind Kiirtan and keeps the rest", () => {
-    expect(KIRTAN_STORE_VERSION).toBe(5)
+    expect(KIRTAN_STORE_VERSION).toBe(6)
     const old = {
       submissions: [{ id: "sub-a-1", title: "A", author: "X", durationSec: null, type: "bnk", audioUrl: null, thumbnailUrl: null, addedBy: "You", status: "pending", addedAt: 1 }],
       savedIds: ["k-bnk-morning", 7],
@@ -258,7 +258,7 @@ describe("submissions carry the kind", () => {
     expect(validateSubmission(base)).toBe("language") // a Bhajan names its language
     expect(validateSubmission({ ...base, language: "bn" })).toBeNull()
     expect(validateSubmission({ ...base, kind: "kiirtan" })).toBe("style") // a Kiirtan names its style
-    expect(validateSubmission({ ...base, kind: "kiirtan", style: "hindi" })).toBeNull()
+    expect(validateSubmission({ ...base, kind: "kiirtan", style: "hindi", recordingType: "studio" })).toBeNull()
     expect(buildSubmission({ ...base, kind: "kiirtan" }, 1).type).toBe("other")
   })
 

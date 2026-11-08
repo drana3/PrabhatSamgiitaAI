@@ -1,3 +1,4 @@
+import { isPerformance, isRecordingType, isTempo, performanceLabel, recordingTypeLabel, tempoLabel } from "@/lib/kirtan/recordingInfo"
 import { artistKey, splitAuthors } from "@/lib/kirtan/artists"
 import { kindLabelPlural } from "@/lib/kirtan/kind"
 import { languageLabel } from "@/lib/kirtan/languages"
@@ -38,6 +39,19 @@ export function menuKind(k: Pick<Kirtan, "kind">): string {
   return normalizeKindId(k.kind as string)
 }
 
+/**
+ * The tags a recording carries: any the library already sent, plus the three recording fields (docs/kiirtan-recording-info.md):
+ * `recorded` (studio, live, home, ai), `tempo` (slow, medium, fast) and `performance` (solo, group). A recording without a field
+ * simply has no such tag, so no empty shelf appears.
+ */
+export function menuTags(k: MenuKirtan): Readonly<Record<string, readonly string[]>> | null {
+  const out: Record<string, readonly string[]> = { ...(k.tags ?? {}) }
+  if (k.recordingType) out.recorded = [k.recordingType]
+  if (k.tempo) out.tempo = [k.tempo]
+  if (k.performance) out.performance = [k.performance]
+  return Object.keys(out).length ? out : null
+}
+
 export function toMenuRecording(k: MenuKirtan): MenuRecording {
   return {
     kind: k.kind as string,
@@ -51,7 +65,7 @@ export function toMenuRecording(k: MenuKirtan): MenuRecording {
     styleOther: k.styleOther ?? null,
     dance: k.dance ?? null,
     moods: k.moods ?? null,
-    tags: k.tags ?? null,
+    tags: menuTags(k),
   }
 }
 
@@ -153,10 +167,22 @@ export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stat
   return []
 }
 
+/** The translated name of a shelf made from one of the recording fields (type of recording, tempo, solo or group), else null. */
+function recordingInfoTitle(id: string | undefined): string | null {
+  const [head, facet, value] = (id ?? "").split(":")
+  if (head !== "facet") return null
+  if (facet === "recorded" && isRecordingType(value)) return recordingTypeLabel(value)
+  if (facet === "tempo" && isTempo(value)) return tempoLabel(value)
+  if (facet === "performance" && isPerformance(value)) return performanceLabel(value)
+  return null
+}
+
 /** The visible name of a shelf. */
 export function shelfTitle(shelf: Pick<MenuShelf, "label"> & { id?: string }): string {
   const own = shelf.id ? MENU_LABEL_OVERRIDES[shelf.id] : undefined
   if (own) return own
+  const info = recordingInfoTitle(shelf.id)
+  if (info) return info
   const l = shelf.label
   switch (l.type) {
     case "key":
