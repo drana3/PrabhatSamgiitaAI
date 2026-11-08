@@ -46,6 +46,8 @@ export type ChordSheetProps = {
   onClose: () => void
   /** how much of the bottom of the screen the sheet covers now (0 when it is away); the screen scrolls to keep the word clear of it */
   onHeight?: (covered: number) => void
+  /** a screen that has no words (the chord cycle ring) names the place in its own words: the small heading and the title, shown as given */
+  place?: { over: string; title: string }
 }
 
 type Page = "main" | "more" | "type"
@@ -57,7 +59,7 @@ const AWAY = 48
 const GUTTER = 16
 const GAP = 8
 
-export function ChordSheet({ theme, open, word, current, keyName, used, onPick, onClear, onPrevious, onNext, onClose, onHeight }: ChordSheetProps) {
+export function ChordSheet({ theme, open, word, current, keyName, used, onPick, onClear, onPrevious, onNext, onClose, onHeight, place }: ChordSheetProps) {
   const t = useT()
   const reduce = useReducedMotion()
   const insets = useSafeAreaInsets()
@@ -216,10 +218,10 @@ export function ChordSheet({ theme, open, word, current, keyName, used, onPick, 
                 <View style={s.head}>
                   <View style={s.titles}>
                     <Text style={[s.over, { color: theme.accent }]} numberOfLines={1}>
-                      {t("chordOffer.sheet.over")}
+                      {place ? place.over : t("chordOffer.sheet.over")}
                     </Text>
                     <Text style={[s.word, { color: theme.textHeading }]} numberOfLines={1} accessibilityRole="header" accessibilityLiveRegion="polite">
-                      {t("chordOffer.sheet.title", { word })}
+                      {place ? place.title : t("chordOffer.sheet.title", { word })}
                     </Text>
                     <Text style={[s.now, { color: current ? theme.textHeading : theme.textBody }]} numberOfLines={1} accessibilityLiveRegion="polite">
                       {current ? t("chordOffer.sheet.now", { chord: current }) : t("chordOffer.sheet.empty")}

@@ -3,6 +3,7 @@ import { splitWords } from "@/lib/songPage/chordChart"
 import { cleanDraft } from "@/lib/songComments/rules"
 
 import { chartBody } from "./chart"
+import { CYCLE_MAX_FORMS, CYCLE_MAX_SLOTS, CYCLE_MIN_SLOTS, type CyclePayload } from "./cycle"
 import { OPEN_PER_RECORDING_INSTRUMENT, cleanSheet, draftProblem, provesAChart } from "./rules"
 import type { RecordingSheet, SheetChartPayload, SheetDraft, SheetFailure, SheetReportReason, SheetsBackend } from "./types"
 
@@ -33,13 +34,22 @@ const CHART_SAMPLE: RecordingSheet["lines"] = [
   { text: "Ananda Marga Jaya", placements: [{ word: 0, chord: "G" }, { word: 2, chord: "Em" }] },
 ]
 
+/** Made-up chords for the preview of a Kiirtan: two forms, a slow round and a fast one. Only an example. */
+const CYCLE_SAMPLE: NonNullable<RecordingSheet["cycle"]> = {
+  forms: [
+    { name: "Slow", chords: ["Em", "C", "G", "D"], start: 0, times: 4 },
+    { name: "Fast", chords: ["Am", "G", "C", "F"], start: 2, times: null },
+  ],
+}
+const CYCLE_SAMPLE_BODY = "Form 1 (Slow): Em - C - G - D (starts on Em, x4)\nForm 2 (Fast): Am - G - C - F (starts on C)"
+
 const SAMPLE = ["        Em           C", "Baba Nam Kevalam", "        Am           D", "Prema Mayi Dhyana", "", "   G         Em", "Ananda Marga Jaya"].join("\n")
 
 function sameKey(body: string): string {
   return body.split("\n").map((l) => l.split(/\s+/).filter(Boolean).join(" ")).join("\n")
 }
 
-export function createSheetsMock(options: { me: () => string; now?: () => number; chartKind?: (recordingId: string) => boolean } = { me: () => "You" }): SheetsBackend {
+export function createSheetsMock(options: { me: () => string; now?: () => number; chartKind?: (recordingId: string) => boolean; cycleKind?: (recordingId: string) => boolean } = { me: () => "You" }): SheetsBackend {
   const clock = options.now ?? Date.now
   const sheets = new Map<string, RecordingSheet>()
   const reported = new Set<string>()
@@ -51,13 +61,15 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
     counter += 1
     const id = `mock-sheet-${counter}`
     const chart = options.chartKind?.(recordingId) ?? false
+    const cycle = !chart && (options.cycleKind?.(recordingId) ?? false)
     sheets.set(id, {
       id,
       recordingId,
       instrument: "guitar",
       chartKey: chart ? "G" : "Em",
-      body: chart ? chartBody(CHART_SAMPLE as NonNullable<typeof CHART_SAMPLE>) : SAMPLE,
+      body: chart ? chartBody(CHART_SAMPLE as NonNullable<typeof CHART_SAMPLE>) : cycle ? CYCLE_SAMPLE_BODY : SAMPLE,
       lines: chart ? CHART_SAMPLE : null,
+      cycle: cycle ? { forms: CYCLE_SAMPLE.forms.map((f) => ({ ...f, chords: [...f.chords] })) } : null,
       capo: 0,
       strum: chart ? "D DU UDU" : null,
       chordsCount: chart ? 6 : 8,
@@ -144,6 +156,50 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
       recordingTitle: null,
     }
   }
+  /** A cycle as the server would keep it (it checks the same things, and has the last word). */
+  const buildCycle = (id: string, recordingId: string, cycle: CyclePayload, status: RecordingSheet["status"]): RecordingSheet => {
+    if (options.cycleKind && !options.cycleKind(recordingId)) throw new SheetMockFailure("invalid")
+    if (!cycle.playedIt) throw new SheetMockFailure("invalid")
+    const forms = cycle.cycle.forms
+    if (forms.length < 1 || forms.length > CYCLE_MAX_FORMS) throw new SheetMockFailure("invalid")
+    for (const f of forms) {
+      if (f.chords.length < CYCLE_MIN_SLOTS || f.chords.length > CYCLE_MAX_SLOTS || f.start < 0 || f.start >= f.chords.length) throw new SheetMockFailure("invalid")
+      if (f.chords.some((name) => !isChordName(name))) throw new SheetMockFailure("invalid")
+    }
+    const found = forms.flatMap((f) => f.chords)
+    if (!provesAChart(found)) throw new SheetMockFailure("fewChords")
+    if (new Set(forms.map((f) => JSON.stringify([f.chords, f.start, f.times]))).size < forms.length) throw new SheetMockFailure("duplicate")
+    const old = cycle.replacesId ? sheets.get(cycle.replacesId) : undefined
+    const replaces = old && old.mine && old.status === "published" && old.recordingId === recordingId && old.instrument === cycle.instrument ? old.id : null
+    const original = cycle.basedOnId ? sheets.get(cycle.basedOnId) : undefined
+    const credited = original && !original.mine && original.status === "published" && original.recordingId === recordingId ? original : null
+    return {
+      id,
+      recordingId,
+      instrument: cycle.instrument,
+      chartKey: cycle.key,
+      body: forms.map((f, i) => `Form ${i + 1}${f.name ? ` (${f.name})` : ""}: ${f.chords.join(" - ")}`).join("\n"),
+      lines: null,
+      cycle: { forms: forms.map((f) => ({ ...f, chords: [...f.chords] })) },
+      capo: cycle.instrument === "guitar" ? cycle.capo : 0,
+      strum: null,
+      basedOn: credited ? { id: credited.id, name: credited.author?.name ?? null } : null,
+      archived: false,
+      replacedBy: null,
+      replaces,
+      chordsCount: found.length,
+      note: cleanDraft(cycle.note ?? "") || null,
+      playedIt: true,
+      createdAt: new Date(clock()).toISOString(),
+      isAnonymous: cycle.isAnonymous,
+      author: cycle.isAnonymous ? null : { name: options.me() },
+      mine: true,
+      status,
+      rejectedReason: null,
+      canReview: false,
+      recordingTitle: null,
+    }
+  }
   const sameChart = (a: RecordingSheet, b: RecordingSheet) => a.chartKey === b.chartKey && (a.capo ?? 0) === (b.capo ?? 0) && JSON.stringify(a.lines) === JSON.stringify(b.lines)
 
   return {
@@ -187,6 +243,23 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
       if (old.status === "published") throw new SheetMockFailure("notEditable")
       if (old.instrument !== chart.instrument || !old.lines) throw new SheetMockFailure("invalid")
       const next = { ...buildChart(sheetId, old.recordingId, chart, "pending"), replaces: old.replaces ?? null, createdAt: old.createdAt }
+      sheets.set(sheetId, next)
+      return next
+    },
+    async offerCycle(recordingId, cycle) {
+      const sheet = buildCycle(`mock-sheet-${(counter += 1)}`, recordingId, cycle, "pending")
+      const mine = live(recordingId, cycle.instrument)
+      if (mine.filter((s) => s.id !== sheet.replaces).length >= OPEN_PER_RECORDING_INSTRUMENT) throw new SheetMockFailure("tooMany")
+      if (mine.some((s) => JSON.stringify(s.cycle) === JSON.stringify(sheet.cycle))) throw new SheetMockFailure("duplicate")
+      sheets.set(sheet.id, sheet)
+      return sheet
+    },
+    async updateCycle(sheetId, cycle) {
+      const old = get(sheetId)
+      if (!old.mine) throw new SheetMockFailure("forbidden")
+      if (old.status === "published") throw new SheetMockFailure("notEditable")
+      if (old.instrument !== cycle.instrument || !old.cycle) throw new SheetMockFailure("invalid")
+      const next = { ...buildCycle(sheetId, old.recordingId, cycle, "pending"), replaces: old.replaces ?? null, createdAt: old.createdAt }
       sheets.set(sheetId, next)
       return next
     },

@@ -30,6 +30,7 @@ const FINALS: { file: string; kind: "recording" | "chords"; send: RegExp }[] = [
   { file: "app/upload-set.tsx", kind: "recording", send: /<Primary theme=\{theme\} label=\{label\} onPress=\{\(\) => void send\(\)\}/ },
   { file: "app/upload-chords.tsx", kind: "chords", send: /<ActionButton theme=\{theme\} label=\{sendLabel\}/ },
   { file: "app/recording-chart.tsx", kind: "chords", send: /<ActionButton theme=\{theme\} label=\{sendLabel\}/ },
+  { file: "app/recording-cycle.tsx", kind: "chords", send: /<ActionButton theme=\{theme\} label=\{sendLabel\}/ },
   { file: "app/recording-chords.tsx", kind: "chords", send: /<ActionButton theme=\{theme\} label=\{busy \?/ },
 ]
 

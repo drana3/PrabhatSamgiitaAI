@@ -1,7 +1,7 @@
 import { NetworkError, RemoteError, type RemoteConfig } from "@/lib/kirtan/remote"
 import { callFor } from "@/lib/recordingExtras/http"
 
-import type { VideoFailure, VideoLink, VideoList, VideoProvider, VideoReportReason, VideoTarget, VideosBackend } from "./types"
+import type { VideoFailure, VideoLink, VideoLinkStatus, VideoList, VideoProvider, VideoReportReason, VideoTarget, VideosBackend } from "./types"
 
 /** The phone's side of the video links API (apps/api `/api/v1/video-links`). */
 const call = callFor("/api/v1/video-links")
@@ -17,6 +17,7 @@ export type WireVideo = {
   author: { name: string; avatar_url: string | null } | null
   mine: boolean
   can_remove: boolean
+  link_status?: VideoLinkStatus
 }
 
 /** Wire to app. An anonymous link keeps `author: null` whatever else the answer carries. */
@@ -31,6 +32,7 @@ export function videoFromWire(w: WireVideo): VideoLink {
     author: w.is_anonymous || !w.author ? null : { name: w.author.name, avatarUrl: w.author.avatar_url ?? null },
     mine: Boolean(w.mine),
     canRemove: Boolean(w.can_remove),
+    linkStatus: w.link_status === "ok" || w.link_status === "no_embed" || w.link_status === "unavailable" ? w.link_status : "unknown",
   }
 }
 

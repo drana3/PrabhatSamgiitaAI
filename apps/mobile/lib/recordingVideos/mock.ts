@@ -42,6 +42,7 @@ export function createVideosMock(options: { me: () => string; now?: () => number
           author: { name: "Preview member", avatarUrl: null },
           mine: false,
           canRemove: false,
+          linkStatus: "ok",
         },
       ]
       lists.set(key, items)
@@ -74,6 +75,7 @@ export function createVideosMock(options: { me: () => string; now?: () => number
         author: draft.isAnonymous ? null : { name: options.me(), avatarUrl: null },
         mine: true,
         canRemove: false,
+        linkStatus: "unknown",
       }
       items.push(video)
       return video

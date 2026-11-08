@@ -14,9 +14,13 @@ import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
+import { useSendVideoLink } from "@/components/kirtan/add/useSendVideoLink"
+import { VideoLinkField } from "@/components/kirtan/add/VideoLinkField"
 import { kindHasInstrument } from "@/lib/kirtan/instruments"
 import { effectiveRecordingType, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
+import { offersVideoLink } from "@/lib/recordingVideos/uploadLink"
+import { videoFailureText } from "@/lib/recordingVideos/words"
 import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
 import { ModerationNotice } from "@/components/common/ModerationNotice"
@@ -104,6 +108,8 @@ export default function AddKirtanScreen() {
   const instrumentWords = useValueOptions("instrument", draft.kind !== "baba_audio")
 
   const [agree, setAgree] = useState(false)
+  // an optional video link of a Kiirtan (docs/kiirtan-video.md): sent once the recording is up
+  const [videoLink, setVideoLink] = useState("")
   const [problem, setProblem] = useState<Problem | null>(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const [chooser, setChooser] = useState(false)
@@ -152,6 +158,12 @@ export default function AddKirtanScreen() {
   const finished = !running && counts.total > 0 && !hasWork(items)
   const summary = queueSummary(items)
   const kind = draft.kind
+  useSendVideoLink({
+    rows: items,
+    link: videoLink,
+    onSent: () => setVideoLink(""),
+    onFailed: (failure) => actions.flash(t("recVideos.field.after", { reason: videoFailureText(t, failure) })),
+  })
   const defaults = defaultsOf(draft)
   const formMissing = missingKindFields({ kind, language: draft.language, languageOther: draft.languageOther, dance: draft.dance })
   const rowsIncomplete = incompleteRows(items, defaults)
@@ -529,6 +541,12 @@ export default function AddKirtanScreen() {
                 <View {...form.field("instrument")} style={styles.field}>
                   <InstrumentField theme={theme} kind={kind} value={{ instrument: draft.leadInstrument, instrumentOther: draft.leadInstrumentOther }} onChange={(next) => store().setDraft({ leadInstrument: next.instrument, leadInstrumentOther: next.instrumentOther })} accepted={instrumentWords.accepted} newWordsPerWeek={instrumentWords.newWordsPerWeek} invalid={formError === "instrument" || !!form.error("instrument")} errorText={form.error("instrument")} disabled={locked} />
                 </View>
+              </Reveal>
+            ) : null}
+
+            {offersVideoLink(kind, items.length) ? (
+              <Reveal index={3} style={styles.field}>
+                <VideoLinkField theme={theme} value={videoLink} onChange={setVideoLink} disabled={locked} />
               </Reveal>
             ) : null}
 

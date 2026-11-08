@@ -5,6 +5,7 @@ import { ugcEs } from "./ugc"
 import { duplicatesEs } from "./duplicates"
 import { recordingInfoEs } from "./recordingInfo"
 import { recordingChartsEs } from "./recordingCharts"
+import { recordingCycleEs } from "./recordingCycle"
 import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
@@ -1279,6 +1280,7 @@ export const es: Dictionary = {
   ...duplicatesEs,
   ...recordingInfoEs,
   ...recordingChartsEs,
+  ...recordingCycleEs,
   ...recordingsEs,
   ...offlineEs,
   ...accountEs,

@@ -1,3 +1,5 @@
+import type { CyclePayload } from "./cycle"
+
 /**
  * Chord sheets of recordings (apps/api `/api/v1/recording-chords`, docs/recording-extras.md).
  *
@@ -17,6 +19,15 @@ export type SheetChartLine = { text: string; placements: Array<{ word: number; c
 /** "Based on a chart by <name>": `name` is null when that chart was anonymous, `id` is null once the original is gone. */
 export type SheetCredit = { id: string | null; name: string | null }
 
+/** One way a Kiirtan is played in the recording: a ring of chords, the slot it starts on, how many rounds (optional). */
+export type SheetCycleForm = { name: string | null; chords: string[]; start: number; times: number | null }
+
+/** The chord cycle of a Kiirtan (docs/kiirtan-cycle.md): one ring per form. */
+export type SheetCycle = { forms: SheetCycleForm[] }
+
+/** A form while it is being entered: empty slots are null, the number of rounds is what was typed. */
+export type SheetCycleFormDraft = { name: string; slots: Array<string | null>; start: number; times: string }
+
 export type RecordingSheet = {
   id: string
   recordingId: string
@@ -30,6 +41,8 @@ export type RecordingSheet = {
    * SOUND, in `chartKey`; a guitar capo is a hint). Null or missing for a plain-text sheet, which `body` carries.
    */
   lines?: SheetChartLine[] | null
+  /** The chord cycle of a Kiirtan (rings of chords, one per form). Null or missing for a plain-text sheet and for a chart. */
+  cycle?: SheetCycle | null
   capo?: number
   strum?: string | null
   /** set when the chords were copied from another member's chart ("Start from this chart") */
@@ -114,6 +127,9 @@ export interface SheetsBackend {
   /** a chart over pasted text (Bhajan, Spiritual song): offered, or fixed and sent again (same recording and instrument) */
   offerChart(recordingId: string, chart: SheetChartPayload): Promise<RecordingSheet>
   updateChart(sheetId: string, chart: SheetChartPayload): Promise<RecordingSheet>
+  /** the chord cycle of a Kiirtan: offered, or fixed and sent again (same recording and instrument) */
+  offerCycle(recordingId: string, cycle: CyclePayload): Promise<RecordingSheet>
+  updateCycle(sheetId: string, cycle: CyclePayload): Promise<RecordingSheet>
   remove(sheetId: string): Promise<void>
   report(sheetId: string, reason: SheetReportReason): Promise<{ status: "received" | "already_reported" }>
 }

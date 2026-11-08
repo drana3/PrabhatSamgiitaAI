@@ -32,10 +32,25 @@ export function chartFormHref(input: { recordingId: string; title?: string; edit
 }
 
 /**
+ * The "Add the chord cycle" screen of a Kiirtan (docs/kiirtan-cycle.md). Same ids as the chart screen: `edit` a waiting or rejected
+ * cycle of the member's own, `copy` a live one of their own (the new one replaces it), `from` somebody else's published cycle.
+ */
+export function cycleFormHref(input: { recordingId: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string }): string {
+  const parts = [`recording=${encodeURIComponent(input.recordingId)}`]
+  if (input.title) parts.push(`title=${encodeURIComponent(input.title.slice(0, 120))}`)
+  if (input.edit) parts.push(`edit=${encodeURIComponent(input.edit)}`)
+  else if (input.copy) parts.push(`copy=${encodeURIComponent(input.copy)}`)
+  else if (input.from) parts.push(`from=${encodeURIComponent(input.from)}`)
+  if (input.instrument && !input.edit && !input.copy) parts.push(`instrument=${encodeURIComponent(input.instrument)}`)
+  return `/recording-cycle?${parts.join("&")}`
+}
+
+/**
  * Where "add chords" or "change this chart" goes: a Bhajan or a Spiritual song takes a chart over pasted words, every other
  * recording the plain-text sheet. `chart` says which; a Kiirtan is never a chart (lib/recordingChords/kinds.ts).
  */
-export function sheetFormHref(input: { chart: boolean; recordingId: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string }): string {
+export function sheetFormHref(input: { chart: boolean; /** a Kiirtan: the chord cycle screen */ cycle?: boolean; recordingId: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string }): string {
+  if (input.cycle && !input.chart) return cycleFormHref(input)
   return input.chart ? chartFormHref(input) : chordsFormHref({ recordingId: input.recordingId, title: input.title, edit: input.edit })
 }
 

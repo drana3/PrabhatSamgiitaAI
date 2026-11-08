@@ -4,6 +4,7 @@ import { ugcEn } from "./ugc"
 import { duplicatesEn } from "./duplicates"
 import { recordingInfoEn } from "./recordingInfo"
 import { recordingChartsEn } from "./recordingCharts"
+import { recordingCycleEn } from "./recordingCycle"
 import { recordingsEn } from "./recordings"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
@@ -1285,6 +1286,7 @@ export const en = {
   ...duplicatesEn,
   ...recordingInfoEn,
   ...recordingChartsEn,
+  ...recordingCycleEn,
   ...recordingsEn,
   ...offlineEn,
   ...accountEn,

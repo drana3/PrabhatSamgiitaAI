@@ -18,3 +18,17 @@ export function recordingHasCharts(recordingId: string): boolean {
   const found = allKirtans().find((k) => k.serverId === recordingId || k.id === recordingId)
   return kindHasCharts(found?.kind)
 }
+
+/**
+ * Which recordings take a chord CYCLE (docs/kiirtan-cycle.md): a Kiirtan, whose chords go round and round with no lines of
+ * words. The API refuses a cycle for any other kind. A Kiirtan's old plain-text sheets stay and are still shown.
+ */
+export function kindHasCycle(kind: RecordingKind | string | null | undefined): boolean {
+  return normalizeKind(kind) === "kiirtan"
+}
+
+/** The cycle rule for a recording named by the id the API knows it by (the preview's in-memory server asks this). */
+export function recordingHasCycle(recordingId: string): boolean {
+  const found = allKirtans().find((k) => k.serverId === recordingId || k.id === recordingId)
+  return kindHasCycle(found?.kind)
+}

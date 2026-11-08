@@ -13,6 +13,7 @@ import { formatDate, useT } from "@/lib/i18n"
 import { openExternal } from "@/lib/openLink"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { authHeadersFromStore } from "@/lib/memberAuth"
+import { videoEmbed } from "@/lib/recordingVideos/embed"
 import { VIDEO_REPORT_REASONS, providerHost, safeToOpen } from "@/lib/recordingVideos/rules"
 import type { VideoLink } from "@/lib/recordingVideos/types"
 import { videoFailureText } from "@/lib/recordingVideos/words"
@@ -23,6 +24,8 @@ import { href } from "@/utils/href"
 import { DeletePanel, ReportPanel } from "./Panels"
 import { Note, R_CARD, R_FIELD } from "./ui"
 import type { VideosController } from "./useVideos"
+import { useVideoWatch, type VideoWatch } from "./useVideoWatch"
+import { WatchPlayer } from "./WatchPlayer"
 
 type Panel = null | "menu" | "report" | "delete"
 
@@ -32,8 +35,29 @@ type Panel = null | "menu" | "report" | "delete"
  * youtube.com"), the site, who added it ("a member" when anonymous), and Watch. The menu: report (not your own),
  * delete (your own), remove (the team). The list is read by everyone; adding needs sign-in (the gate says so).
  */
-export function VideosSection({ t, videos, onAdd, onFlash }: { t: SpTheme; videos: VideosController; onAdd: () => void; onFlash: (text: string) => void }) {
+export function VideosSection({
+  t,
+  videos,
+  onAdd,
+  onFlash,
+  watch,
+  title,
+  skipId,
+}: {
+  t: SpTheme
+  videos: VideosController
+  onAdd: () => void
+  onFlash: (text: string) => void
+  /** the page's one "which video is open" (so the headline video and this list never play together); this list keeps its own when none is given */
+  watch?: VideoWatch
+  /** the heading; "Videos" when none */
+  title?: string
+  /** a video that is already shown above (the headline video of the page) and is left out of the list */
+  skipId?: string | null
+}) {
   const tr = useT()
+  const own = useVideoWatch()
+  const player = watch ?? own
   const router = useRouter()
   const mode = useAuthStore((s) => s.mode)
   const access = postingAccess({ preview: MOCKUP_DATA, signedIn: mode === "signed_in", canProve: Object.keys(authHeadersFromStore()).length > 0 })
@@ -41,10 +65,10 @@ export function VideosSection({ t, videos, onAdd, onFlash }: { t: SpTheme; video
   const full = state.status === "ready" && state.room === 0
   return (
     <View testID="recording-videos">
-      <SectionTitle t={t}>{tr("recVideos.title")}</SectionTitle>
+      <SectionTitle t={t}>{title ?? tr("recVideos.title")}</SectionTitle>
       <View style={styles.pad}>
-        <Note t={t} tone="body">{tr("recVideos.intro")}</Note>
-        <Note t={t}>{tr("recVideos.note")}</Note>
+        <Note t={t} tone="body">{tr("recVideos.intro.watch")}</Note>
+        <Note t={t}>{tr("recVideos.note.watch")}</Note>
         {MOCKUP_DATA ? <Note t={t}>{tr("recVideos.preview")}</Note> : null}
       </View>
 
@@ -62,9 +86,11 @@ export function VideosSection({ t, videos, onAdd, onFlash }: { t: SpTheme; video
           </View>
         ) : null}
         {state.status === "ready" && state.items.length === 0 ? <Text style={[styles.empty, { color: t.ink500 }]}>{tr("recVideos.empty")}</Text> : null}
-        {state.items.map((video) => (
-          <VideoRow key={video.id} t={t} video={video} videos={videos} onFlash={onFlash} />
-        ))}
+        {state.items
+          .filter((video) => video.id !== skipId)
+          .map((video) => (
+            <VideoRow key={video.id} t={t} video={video} videos={videos} onFlash={onFlash} watch={player} />
+          ))}
       </View>
 
       <View style={styles.pad}>
@@ -100,22 +126,26 @@ function whenText(tr: ReturnType<typeof useT>, createdAt: string): string {
   }
 }
 
-function VideoRow({ t, video, videos, onFlash }: { t: SpTheme; video: VideoLink; videos: VideosController; onFlash: (text: string) => void }) {
+function VideoRow({ t, video, videos, onFlash, watch }: { t: SpTheme; video: VideoLink; videos: VideosController; onFlash: (text: string) => void; watch: VideoWatch }) {
   const tr = useT()
   const [panel, setPanel] = useState<Panel>(null)
   const site = providerHost(video.provider)
   const title = video.title ?? tr("recVideos.untitled", { site })
   const by = video.mine ? tr("recVideos.by.you") : video.author ? tr("recVideos.by", { name: video.author.name }) : tr("recVideos.by.anonymous")
   const openable = safeToOpen(video.url)
-  const watch = async () => {
+  const embed = videoEmbed(video)
+  const playing = Boolean(embed) && watch.openId === video.id
+  const openOnSite = async () => {
     if (!openable) return onFlash(tr("recVideos.openFailed"))
     if (!(await openExternal(video.url))) onFlash(tr("recVideos.openFailed"))
   }
+  // a link the site lets us show plays here; any other one opens on its own site
+  const press = () => (embed ? (playing ? watch.close() : watch.open(video.id)) : void openOnSite())
   const mineOrTeam = video.mine || video.canRemove
   return (
     <View style={[styles.card, { backgroundColor: t.white, borderColor: t.sand400 }]}>
       <View style={styles.head}>
-        <SpPress onPress={() => void watch()} disabled={!openable} accessibilityRole="link" accessibilityLabel={tr("recVideos.open.a11y", { title, site })} style={styles.main}>
+        <SpPress onPress={press} disabled={!openable} accessibilityRole={embed ? "button" : "link"} accessibilityLabel={embed ? tr("recVideos.watch.a11y", { title }) : tr("recVideos.open.a11y", { title, site })} style={styles.main}>
           <View style={[styles.play, { backgroundColor: t.action }]}>
             <SpIcon name="play" size={18} color={t.onAction} />
           </View>
@@ -124,7 +154,7 @@ function VideoRow({ t, video, videos, onFlash }: { t: SpTheme; video: VideoLink;
               {title}
             </Text>
             <Text style={[styles.sub, { color: t.accentText }]} numberOfLines={1}>
-              {tr("recVideos.open", { site })}
+              {embed ? tr("recVideos.watch") : tr("recVideos.openSite", { site })}
             </Text>
           </View>
         </SpPress>
@@ -133,6 +163,14 @@ function VideoRow({ t, video, videos, onFlash }: { t: SpTheme; video: VideoLink;
         </SpPress>
       </View>
       <Note t={t}>{`${by}  ·  ${whenText(tr, video.createdAt)}`}</Note>
+      {video.linkStatus === "no_embed" ? <Note t={t} tone="body">{tr("recVideos.status.noEmbed", { site })}</Note> : null}
+      {video.linkStatus === "unavailable" ? <Note t={t} tone="body">{tr("recVideos.status.unavailable")}</Note> : null}
+      {playing && embed ? <WatchPlayer t={t} embed={embed} title={title} onClose={watch.close} /> : null}
+      {embed && !playing ? (
+        <View style={styles.actions}>
+          <Button t={t} variant="quiet" label={tr("recVideos.openSite", { site })} onPress={() => void openOnSite()} />
+        </View>
+      ) : null}
 
       {panel === "menu" ? (
         <View style={styles.actions}>

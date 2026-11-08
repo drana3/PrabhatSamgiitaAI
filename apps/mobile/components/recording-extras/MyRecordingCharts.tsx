@@ -11,6 +11,7 @@ import { sheetFailure, sheetsBackend } from "@/lib/recordingChords/backend"
 import type { RecordingSheet } from "@/lib/recordingChords/types"
 import { sheetFailureText } from "@/lib/recordingChords/words"
 import { isChart } from "@/lib/recordingChords/chart"
+import { isCycle } from "@/lib/recordingChords/cycle"
 import { recordingPageHref, sheetFormHref } from "@/lib/recordingExtras/links"
 import { href } from "@/utils/href"
 
@@ -79,7 +80,7 @@ export function MyRecordingCharts({ theme, reloadKey }: { theme: SongsTheme; rel
           {sheet.status === "rejected" && sheet.rejectedReason ? <Hint theme={theme} tone="danger">{t("recChords.reason", { reason: sheet.rejectedReason })}</Hint> : null}
           <View style={s.actions}>
             <Mini theme={theme} label={t("recChordsHub.open")} onPress={() => router.push(href(recordingPageHref(sheet.recordingId)))} />
-            {sheet.status !== "published" ? <Mini theme={theme} label={t("recChords.change")} onPress={() => router.push(href(sheetFormHref({ chart: isChart(sheet), recordingId: sheet.recordingId, title: sheet.recordingTitle ?? undefined, edit: sheet.id })))} /> : null}
+            {sheet.status !== "published" ? <Mini theme={theme} label={t("recChords.change")} onPress={() => router.push(href(sheetFormHref({ chart: isChart(sheet), cycle: isCycle(sheet), recordingId: sheet.recordingId, title: sheet.recordingTitle ?? undefined, edit: sheet.id })))} /> : null}
             {asking === sheet.id ? (
               <>
                 <Mini theme={theme} tone="danger" label={t("recChords.delete.yes")} onPress={() => void remove(sheet.id)} />

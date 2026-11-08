@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import { useRouter } from "expo-router"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
-import { recordingHasCharts } from "@/lib/recordingChords/kinds"
+import { isCycle } from "@/lib/recordingChords/cycle"
+import { recordingHasCharts, recordingHasCycle } from "@/lib/recordingChords/kinds"
 import type { RecordingSheet } from "@/lib/recordingChords/types"
 import { sheetFormHref } from "@/lib/recordingExtras/links"
 import { href } from "@/utils/href"
@@ -32,12 +33,14 @@ function Loaded({ t, recordingId, title, visible, onClose, beforeNavigate }: { t
 export function Viewer({ t, sheets, recordingId, title, visible, onClose, beforeNavigate }: { t: SpTheme; sheets: SheetsController; recordingId: string; title: string; visible: boolean; onClose: () => void; beforeNavigate?: () => void }) {
   const router = useRouter()
   // a Bhajan and a Spiritual song take a chart over pasted words, every other recording the plain-text sheet
-  const go = (target: { chart: boolean; edit?: string; copy?: string; from?: string; instrument?: string }) => {
+  const go = (target: { chart: boolean; cycle?: boolean; edit?: string; copy?: string; from?: string; instrument?: string }) => {
     onClose()
     beforeNavigate?.()
     router.push(href(sheetFormHref({ recordingId, title, ...target })))
   }
   const hasCharts = recordingHasCharts(recordingId)
+  // a Kiirtan takes a chord cycle (docs/kiirtan-cycle.md); its older plain-text sheets stay readable here
+  const hasCycle = recordingHasCycle(recordingId)
   const chartOf = (sheet: RecordingSheet) => Boolean(sheet.lines && sheet.lines.length > 0)
   return (
     <ChordsViewer
@@ -45,8 +48,8 @@ export function Viewer({ t, sheets, recordingId, title, visible, onClose, before
       visible={visible}
       onClose={onClose}
       sheets={sheets}
-      onAdd={() => go({ chart: hasCharts })}
-      onChange={(sheet) => go({ chart: chartOf(sheet), edit: sheet.id })}
+      onAdd={() => go({ chart: hasCharts, cycle: hasCycle })}
+      onChange={(sheet) => go({ chart: chartOf(sheet), cycle: isCycle(sheet), edit: sheet.id })}
       onCopy={(sheet) => go({ chart: true, copy: sheet.id })}
       onFrom={(sheet) => go({ chart: true, from: sheet.id, instrument: sheet.instrument })}
     />
