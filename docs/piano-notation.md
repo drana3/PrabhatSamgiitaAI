@@ -1,13 +1,90 @@
 # Piano notes for Kiirtans and Prabhat Samgiita: proposal
 
-Status: **proposal, nothing built.** Dada asked (2026-11-08): notes for the piano, for Kiirtans and for Prabhat Samgiita (PS); how to play
-on the piano; a way for people to add notes; and a section "Kiirtans for piano". The data model is not obvious, so this document lays
-out four options with a recommendation. Dada picks one before any code is written. The board for Dada (Russian, mock-ups at 390 px) is
-`Для-Дады/ноты-для-пианино/index.html` in the Carousel folder.
+Status (2026-11-09): **Variant A is decided and built (Stages 0, 1 and 2, section 0).** Sections 1 to 9 below are the research and the options
+that led to it; they are kept as the record. Dada asked (2026-11-08): notes for the piano, for Kiirtans and for Prabhat Samgiita (PS);
+how to play on the piano; a way for people to add notes; and a section "Kiirtans for piano". The board for Dada (Russian, 390 px
+screenshots of the built screens on top, the old proposals below as an archive) is `Для-Дады/ноты-для-пианино/index.html` in the
+Carousel folder.
 
 Every claim carries a tag: **[source]** a page on the internet (links in section 9), **[code]** this repository (path given),
 **[assumption]** my inference, to be checked. No text or notes of anyone's composition are copied here; all examples are made-up scale
 exercises.
+
+## 0. Decisions and what is built
+
+Dada chose on 2026-11-09:
+
+| Question | Decision |
+|---|---|
+| Which variant | **A, the on-screen keyboard with swaras.** No staff notation (B), no falling keys (D). A link to notes kept elsewhere is allowed (C), as a link only |
+| Easy keys | **On by default.** Sa sits on C, so the plain notes (shuddha swaras) are the white keys. The reader can switch it off and pick another Sa |
+| Stages | 0, 1 and 2 |
+| Who adds notes | Any signed-in member, for a recording and for a PS song. The author of the recording (the account that uploaded it) goes live at once; everybody else, and everybody for PS songs, waits for the team, like chords. A link always waits unless the team posted it |
+| Shelf | **One** shelf "Kiirtan for piano": recordings with accepted piano notes **or** whose lead instrument is the piano. One recording is enough; no pinning; never empty |
+| Sound | Piano samples under CC BY 3.0 with the credit in About. If this could not be done reliably the harmonium sound would stay |
+
+What was built (branch `redesign/v2`):
+
+* **Stage 0**: "Play on the piano" for PS songs 1, 2 and 27 from the booklet data that is already in the app
+  (`lib/pianoNotes/booklet.ts`). No server needed.
+* **Stage 1**: table `piano_sheets` and `piano_sheet_reports` (migration `0050_piano_sheets`), the API `/api/v1/piano-notes`
+  (`apps/api/app/api/v1/piano_sheets.py`), the input screen (`app/piano-notes-edit.tsx`), the reader (`app/piano-notes.tsx`,
+  `components/piano/PianoReader.tsx`), the team's review screen (`app/piano-review.tsx`, entered from the team review desk) and
+  the blocks on the recording page and on the song page.
+* **Stage 2**: versions (`replaces_id`, `archived_at`), "start from these notes" with the credit (`based_on_id`), levels (one
+  finger, or two hands when a row has `hand: "left"`; the level is worked out from the rows, never taken from the request),
+  piano sound, and the link field.
+
+### The sheet
+
+A sheet is rows of steps. A step is `{k: [semitones above Sa], b: beats}`; beats come in quarters (0 < b <= 16); an empty `k` is a
+rest; up to 6 keys in a step (a chord). A row has an optional label, `repeat` (1 to 16) and `hand` (`right` or `left`). A sheet is
+independent of the key: `sa_key` only records where Sa sat when it was written; the reader picks Sa and the keyboard lights the
+keys. Limits: 24 rows, 128 steps per row, 600 steps in all, keys from two octaves below Sa to three above, at least two sounding
+steps.
+
+The input accepts typed sargam: `Sa Re Ga Ma Pa Dha Ni`; small `re ga dha ni` (and `Reb Gab Dhab Nib`) are komal, `Ma#` is tivra;
+the one-letter forms `S R G M P D N` also work (`M` is tivra, `m` is the plain Ma, `r g d n` are komal); `'` goes an octave up and a
+leading `.` or `_` an octave down; `:2` sets the length, `-` holds the previous step, `0` or `0:2` is a rest, `(Sa Ga Pa):2` is a
+chord, `|` is ignored. The keys can also be tapped on the keyboard (a "Chord" toggle collects several keys into one step; real
+multi-touch is not used).
+
+Playback follows the rows: a right-hand row starts a group and the left-hand rows after it join it at the same time; rows repeat on
+their own; keys at the same time are one "moment"; "one finger" leaves the left hand out. Speed 40 to 140 beats a minute.
+
+### Rules the server keeps
+
+* Publishing as above. A team member's sheet is live at once. Team review: approve, reject (with a reason, the member gets a notice
+  `piano_rejected`) or restore (`piano_published`).
+* Limits: 10 sheets a day and 6 an hour per member (team: 120 an hour, no daily limit); the daily count is read from the table, so
+  deleting a sheet gives the place back; 3 open (waiting or rejected) sheets per member and target. The same notes twice are
+  refused by a fingerprint (409 `piano_duplicate`).
+* Reports: anyone may report live notes, once per person; reports show in the team's queue.
+* Privacy: the public list is `Cache-Control: private, no-store` because it holds the viewer's own waiting sheets; an anonymous sheet
+  carries no author (the team sees the author in review).
+* Error codes the phone has words for: `piano_daily_limit`, `piano_duplicate`, `piano_open_limit`, `piano_not_editable`.
+
+### Sound and licence
+
+Salamander Grand Piano V2 (Yamaha C5) recorded by Alexander Holm, **CC BY 3.0** (https://creativecommons.org/licenses/by/3.0/).
+The licence was read in two places: the sfzinstruments repository page and the README of Tonejs/audio (`salamander`: "Licence:
+CC-by ... Author: Alexander Holm"). The app carries 14 MP3 files taken unchanged from
+https://github.com/Tonejs/audio/tree/master/salamander: A2 C3 Ds3 Fs3 A3 C4 Ds4 Fs4 A4 C5 Ds5 Fs5 A5 C6, 932 KB in all
+(`apps/mobile/assets/audio/piano/`, with `LICENSE.txt`). Other keys are made by playing the nearest sample at most three semitones
+faster or slower. The credit is in About, "Credits". If a sample cannot load, the harmonium sound plays instead.
+
+### The shelf
+
+`kiirtan:piano` in the Kiirtan block of the Search menu, rule `MENU_RULES.kiirtanPiano = {on: 1, off: 1}`, and a row on the Kiirtan
+tab with "See all". The ids come from `GET /piano-notes/recordings` (read at most every two minutes); the lead instrument is read
+defensively, so the shelf works before the upload form's field exists. Only Kiirtans count. See docs/search-menu.md section 9.3b.
+
+### Not done, and not checked
+
+* Not tried on a real phone: touch on the keyboard (one finger at a time), sound latency, the sound with the silent switch.
+* The migration was run on SQLite in the tests; **not on PostgreSQL**.
+* Staff notation, falling keys, MusicXML import and a notation file upload are not built (B, D and a stored file were not chosen).
+* ru and es words are listed as unreviewed in `locales/review.json`.
 
 ## 1. What the app has today
 
