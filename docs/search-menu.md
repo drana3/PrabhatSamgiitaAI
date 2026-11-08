@@ -333,3 +333,25 @@ titles: a translated word when the app has one, otherwise the value's own words,
 `newstyle` (nobaba plus 3 Kiirtans of a style nobody listed ("Baul") and a sample solo or group tag: new shelves appear).
 Tests: `__tests__/searchMenuFacets.test.ts` (no Baba items means no shelf, 3 show it, removal, new style, thresholds and hold,
 caps, the preview library).
+
+## 11. Fields feeding categories (upload side)
+
+Which recording field becomes which browse category. "Exists" means the API and the upload form carry it today. The rest is
+a proposal for Kiirtan uploads (board `Для-Дады/киртан-загрузка-поля`) and is not built; the menu would pick each one up
+through `tags` (section 10.1) without a change to the rules.
+
+| Field (API name) | Exists | Required at upload | Becomes |
+|---|---|---|---|
+| `kind` | yes | yes | the type chips and the type shelves |
+| `style` (+ typed name) | yes | yes for a Kiirtan | "Indian kiirtan / style" shelves, "Other styles" |
+| `language` | yes | Bhajan, Spiritual song, Baba's discourse | the language filter and language shelves |
+| `dance` | yes | Dance music | Tandava / Kaushiki shelves |
+| `practice` = `"avarta"` | yes (Kiirtan only) | no | "Avarta Kiirtan" choice inside the Kiirtan tab, only when data exists (`docs/kiirtan-practice.md`) |
+| `moods` | yes | no | mood chips |
+| `tempo` | no | no | tempo shelf (slow, medium, fast) |
+| `performance` (solo or group) and singers | no | no | "Solo" and "Group" shelves |
+| `instruments` | no | no | an instrument shelf, when 3+ share one |
+| `occasion` or `event` | no (a playlist already names an event) | no | an occasion shelf |
+| `recorded` (live or studio) | no | no | "Live" and "Studio" |
+
+Only `practice` was added in this round. The others stay unbuilt until Dada picks an upload variant.

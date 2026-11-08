@@ -1,7 +1,7 @@
 # Playlists from an event (Kiirtan sets)
 
-A concert, a retreat or a satsang goes up as ONE playlist: a title, an approximate date (year and month), the place,
-an optional cover picture and the recordings in order. Each recording is still a normal recording of the library (same checks, same duplicate rules,
+A concert, a retreat or a satsang goes up as ONE playlist: a title (the only required field), then an optional approximate
+date (year and month), place, performer and cover picture, and the recordings in order. Each recording is still a normal recording of the library (same checks, same duplicate rules,
 same reports); the playlist only groups them and gives them an order. Entry point in the app: "Upload a playlist from
 an event" on the add screen (`/upload-set`), and "My event playlists" (`/my-sets`).
 
@@ -13,9 +13,9 @@ Related: `docs/kiirtan-publishing.md` (the five types, languages and dances, dup
 Server (`apps/api`, migration `0032_recording_sets_and_categories`):
 
 - `recording_collections`: the playlist. `id` (the phone makes it, so a create sent twice is the same playlist),
-  `owner_id`, `title`, `description`, `place`, `event_year`, `event_month` (migration `0041`; the month may be empty),
-  `starts_on` (NOT NULL, filled from the year and month: the first of the month, or 1 January), `ends_on` (old
-  column, kept, not shown), `cover_version`, defaults (`default_kind`,
+  `owner_id`, `title`, `description`, `place`, `event_year`, `event_month` (migration `0041`; both may be empty since
+  `0044`), `starts_on` (NULL when the year is not known since `0044`; otherwise the first of the month, or 1 January),
+  `ends_on` (old column, kept, not shown), `cover_version`, defaults (`default_kind`,
   `default_language`, `default_language_other`, `default_dance`), `tracks_expected`, `finished_at`, `status`
   (`active` or `removed`), removal fields.
 - `recordings.collection_id`, `position` (1 first), `recorded_on`: a track says which playlist it is in, its place and
@@ -40,10 +40,12 @@ Phone (`apps/mobile`):
 
 1. **Files.** Pick many audio files (system picker; the browser has a multi-file input). A file already in the set
    (same name and size) is left out, and so is every file beyond the room left; the screen says how many.
-2. **Details.** Title of the event (required), place, approximate date as a YEAR (required) and a MONTH (optional,
-   "Month not known"), performer or group (optional, only for kinds that have a performer; empty means the uploader's
-   name), an optional cover picture, and the defaults for the tracks: type, and the language or dance that
-   the type needs. Errors are inline and the step does not move on until they are fixed.
+2. **Details.** Title of the event (the only required field), place, approximate date as a YEAR and a MONTH (both
+   optional; "Not given" and "Month not known" are plain choices; a month without a year is dropped), performer or group
+   (optional, only for kinds that have a performer; empty means the uploader's name), an optional cover picture,
+   and the defaults for the tracks: type, and what the type needs (language, dance, and for a Kiirtan the style, which
+   is required). A Kiirtan playlist may also carry the optional "Avarta Kiirtan" tick (`docs/kiirtan-practice.md`);
+   Dance music and Baba's Audio Discourses have no chords block, the other four types do (`kindHasChords`). Errors are inline and the step does not move on until they are fixed.
 3. **Tracks.** The list in the order the files were picked, with "Sort by file name" (numbers read as numbers: "2"
    before "10"). Each track has an editable title, up and down buttons, a remove button, its own date, its own type,
    and its own language and dance. A track without its own value inherits the playlist's. "Apply to all" sets the
@@ -127,7 +129,9 @@ app, dry run by default.
 
 - The same set id sent twice (app killed before the answer): the server returns the one that exists.
 - A file picked twice, or two files with the same name and size: one track.
-- The event date is a year and an optional month; the API refuses a year before 1900, a year or month ahead of today.
+- The event date is optional: a year and an optional month, or nothing. A playlist with no date sorts after the dated ones
+  (`nulls_last`) and its page shows no date line. `PATCH` with `event_year: null` clears a date already set. The API
+  refuses a year before 1900 and a year or month ahead of today.
   A track's own date is read only as a real calendar day (`2026-02-30` is refused).
 - Reordering while the run goes on: the position of a track is read from the list at the moment it is sent, and the
   final order is sent at the end, so a move made during the run is kept.
