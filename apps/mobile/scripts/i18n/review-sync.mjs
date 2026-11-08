@@ -41,6 +41,9 @@ for (const language of ["ru", "es"]) {
   for (const key of keysOf(language)) next[language][key] = old[key] === true
 }
 
+// Stub languages (hi, zh-TW, pt-BR, ko) are not synced key by key; their mark is kept as it is.
+if (review._languages) next._languages = review._languages
+
 const listIndex = process.argv.indexOf("--list")
 if (listIndex !== -1) {
   const language = process.argv[listIndex + 1] ?? "ru"

@@ -3101,6 +3101,11 @@
     "usageData.note.never": false,
     "usageData.note.crash": false,
     "usageData.note.change": false,
+    "language.name.hi": false,
+    "language.name.zh-TW": false,
+    "language.name.pt-BR": false,
+    "language.name.ko": false,
+    "language.stub": false,
     "recChart.step.lyrics": false,
     "recChart.step.chords": false,
     "recChart.step.send": false
@@ -6023,8 +6028,19 @@
     "usageData.note.never": false,
     "usageData.note.crash": false,
     "usageData.note.change": false,
+    "language.name.hi": false,
+    "language.name.zh-TW": false,
+    "language.name.pt-BR": false,
+    "language.name.ko": false,
+    "language.stub": false,
     "recChart.step.lyrics": false,
     "recChart.step.chords": false,
     "recChart.step.send": false
+  },
+  "_languages": {
+    "hi": "не переведено",
+    "zh-TW": "не переведено",
+    "pt-BR": "не переведено",
+    "ko": "не переведено"
   }
 }

@@ -9,10 +9,13 @@ import { protoFor } from "@/constants/tokens/amToday"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
-import { LANGUAGES, LANGUAGE_NATIVE_NAMES, useT, type LanguagePreference } from "@/lib/i18n"
+import { LANGUAGE_NATIVE_NAMES, languageEntry, selectableLanguages, useT, type LanguagePreference } from "@/lib/i18n"
 import { useLanguageStore } from "@/stores/languageStore"
 import { href } from "@/utils/href"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
+
+/** Development builds list the languages that are still stubs; release builds never do (docs/localization.md). */
+const SHOW_UNFINISHED_LANGUAGES = __DEV__ || process.env.EXPO_PUBLIC_SHOW_ALL_LANGUAGES === "1"
 
 /**
  * "Language" sheet: the language of the app's own buttons, menus and messages. Automatic follows the
@@ -34,12 +37,14 @@ export default function LanguageScreen() {
     else router.replace(href(NAV_V2_HOME_ROUTE))
   }, [router])
 
-  const options: readonly { id: LanguagePreference; name: string; sub: string }[] = [
+  const options: readonly { id: LanguagePreference; name: string; sub: string; unfinished?: boolean }[] = [
     { id: "auto", name: t("language.auto"), sub: t("language.autoSub") },
-    ...LANGUAGES.map((id) => {
+    ...selectableLanguages(SHOW_UNFINISHED_LANGUAGES).map((id) => {
       // the language's name in the current interface language, shown under its own name unless identical
       const inCurrent = t(`language.name.${id}`)
-      return { id, name: LANGUAGE_NATIVE_NAMES[id], sub: inCurrent === LANGUAGE_NATIVE_NAMES[id] ? "" : inCurrent }
+      const unfinished = !languageEntry(id).complete
+      const base = inCurrent === LANGUAGE_NATIVE_NAMES[id] ? "" : inCurrent
+      return { id, name: LANGUAGE_NATIVE_NAMES[id], sub: unfinished ? [base, t("language.stub")].filter(Boolean).join(". ") : base, unfinished }
     }),
   ]
 
@@ -61,6 +66,7 @@ export default function LanguageScreen() {
               name={option.name}
               sub={option.sub}
               control="radio"
+              wrap={option.unfinished}
               on={preference === option.id}
               onPress={() => setLanguage(option.id)}
             />

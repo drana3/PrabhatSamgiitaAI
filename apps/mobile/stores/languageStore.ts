@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import { getDeviceLanguageCodes } from "@/lib/i18n/device"
 import {
+  DEFAULT_LANGUAGE_PREFERENCE,
   normalizeLanguagePreference,
   resolveLanguage,
   setActiveLanguage,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/i18n/core"
 
 type LanguageStoreState = {
-  /** 'auto' follows the device; otherwise a fixed language */
+  /** 'auto' follows the device; otherwise a fixed language. A new install starts in English. */
   language: LanguagePreference
   setLanguage: (value: LanguagePreference) => void
 }
@@ -28,7 +29,7 @@ export function applyLanguagePreference(preference: LanguagePreference): void {
 export const useLanguageStore = create<LanguageStoreState>()(
   persist(
     (set) => ({
-      language: "auto",
+      language: DEFAULT_LANGUAGE_PREFERENCE,
       setLanguage: (value) => {
         const next = normalizeLanguagePreference(value)
         set({ language: next })
@@ -45,7 +46,7 @@ export const useLanguageStore = create<LanguageStoreState>()(
         language: normalizeLanguagePreference((persisted as { language?: unknown } | undefined)?.language),
       }),
       onRehydrateStorage: () => (state) => {
-        applyLanguagePreference(state?.language ?? "auto")
+        applyLanguagePreference(state?.language ?? DEFAULT_LANGUAGE_PREFERENCE)
       },
     },
   ),

@@ -143,9 +143,10 @@ describe("language resolution", () => {
     expect(resolveLanguage("auto", [])).toBe("en")
     expect(resolveLanguage("es", ["ru"])).toBe("es")
   })
-  it("normalizes stored garbage to auto", () => {
-    expect(normalizeLanguagePreference("fr")).toBe("auto")
-    expect(normalizeLanguagePreference(undefined)).toBe("auto")
+  it("normalizes stored garbage to English, the default, and keeps a real choice", () => {
+    expect(normalizeLanguagePreference("fr")).toBe("en")
+    expect(normalizeLanguagePreference(undefined)).toBe("en")
+    expect(normalizeLanguagePreference("auto")).toBe("auto")
     expect(normalizeLanguagePreference("ru")).toBe("ru")
   })
 })

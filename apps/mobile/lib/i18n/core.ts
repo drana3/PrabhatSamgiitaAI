@@ -1,5 +1,16 @@
 import { dictionaries, type Dictionary } from "@/locales"
 import type { en } from "@/locales/en"
+import {
+  ALL_LANGUAGES,
+  COMPLETE_LANGUAGES,
+  DEFAULT_LANGUAGE,
+  LANGUAGE_REGISTRY,
+  entryFor,
+  isRegisteredLanguage,
+  matchDeviceLanguage,
+  type Language,
+  type PluralRule,
+} from "@/lib/i18n/registry"
 
 /**
  * The translation core. Pure TypeScript: no React, no storage, no native modules, so every
@@ -10,37 +21,49 @@ import type { en } from "@/locales/en"
  * app (or a test) calls `setActiveLanguage`, the language is English, which is what tests rely on.
  */
 
-export type Language = "en" | "ru" | "es"
+export type { Language } from "@/lib/i18n/registry"
 export type LanguagePreference = "auto" | Language
 
-export const LANGUAGES: readonly Language[] = ["en", "ru", "es"]
-export const FALLBACK_LANGUAGE: Language = "en"
-export const LANGUAGE_PREFERENCES: readonly LanguagePreference[] = ["auto", "en", "ru", "es"]
+/**
+ * The LANGUAGES with a finished translation, in the order the sheet lists them. Stubs are in
+ * `ALL_LANGUAGES` (registry.ts) and are not here, so every test that walks LANGUAGES holds only
+ * finished languages to full key coverage.
+ */
+export const LANGUAGES: readonly Language[] = COMPLETE_LANGUAGES
+export const FALLBACK_LANGUAGE: Language = DEFAULT_LANGUAGE
+export const LANGUAGE_PREFERENCES: readonly LanguagePreference[] = ["auto", ...ALL_LANGUAGES]
+
+/**
+ * What a new install starts with. ALWAYS English, whatever the phone speaks: the person chooses
+ * another language (or "Automatic") in Profile, Language. An old saved "auto" is kept as chosen.
+ */
+export const DEFAULT_LANGUAGE_PREFERENCE: LanguagePreference = DEFAULT_LANGUAGE
 
 /** Each language in its own script. Never translated. */
-export const LANGUAGE_NATIVE_NAMES: Record<Language, string> = {
-  en: "English",
-  ru: "Русский",
-  es: "Español",
-}
+export const LANGUAGE_NATIVE_NAMES = Object.fromEntries(
+  LANGUAGE_REGISTRY.map((entry) => [entry.id, entry.native]),
+) as Record<Language, string>
 
 /** BCP 47 tags handed to Intl. */
-export const LOCALE_TAGS: Record<Language, string> = { en: "en", ru: "ru", es: "es" }
+export const LOCALE_TAGS = Object.fromEntries(LANGUAGE_REGISTRY.map((entry) => [entry.id, entry.tag])) as Record<
+  Language,
+  string
+>
 
 export function isLanguage(value: unknown): value is Language {
-  return typeof value === "string" && (LANGUAGES as readonly string[]).includes(value)
+  return isRegisteredLanguage(value)
 }
 
 export function normalizeLanguagePreference(value: unknown): LanguagePreference {
-  return value === "auto" || isLanguage(value) ? value : "auto"
+  return value === "auto" || isLanguage(value) ? value : DEFAULT_LANGUAGE_PREFERENCE
 }
 
-/** First supported language among the device's preferred languages, else English. */
+/** The language for a preference. Under "auto": the first device language we have finished, else English. */
 export function resolveLanguage(preference: LanguagePreference, deviceCodes: readonly string[]): Language {
   if (preference !== "auto") return preference
   for (const code of deviceCodes) {
-    const base = code.toLowerCase().split(/[-_]/)[0]
-    if (isLanguage(base)) return base
+    const match = matchDeviceLanguage(code)
+    if (match) return match
   }
   return FALLBACK_LANGUAGE
 }
@@ -51,29 +74,44 @@ export type PluralForm = "zero" | "one" | "two" | "few" | "many" | "other"
 
 export const PLURAL_FORM_NAMES: readonly PluralForm[] = ["zero", "one", "two", "few", "many", "other"]
 
-/**
- * The plural forms a dictionary must provide for every counted string, per language (CLDR).
- * Russian: one, few, many, other (other is for fractions). English and Spanish: one, other.
- * We do not use `Intl.PluralRules`: Hermes does not ship it on every platform, and these three
- * rules are short enough to own.
- */
-export const REQUIRED_PLURAL_FORMS: Record<Language, readonly PluralForm[]> = {
+/** The forms a dictionary must provide for every counted string, per plural rule (CLDR). */
+const FORMS_BY_RULE: Record<PluralRule, readonly PluralForm[]> = {
   en: ["one", "other"],
-  es: ["one", "other"],
+  hi: ["one", "other"],
+  pt: ["one", "other"],
   ru: ["one", "few", "many", "other"],
+  none: ["other"],
 }
+
+/**
+ * Russian: one, few, many, other (other is for fractions). English and Spanish: one, other. Hindi and
+ * Portuguese: one, other (0 and 1 are "one"). Chinese and Korean: other only.
+ * We do not use `Intl.PluralRules`: Hermes does not ship it on every platform, and these rules
+ * are short enough to own.
+ */
+export const REQUIRED_PLURAL_FORMS = Object.fromEntries(
+  LANGUAGE_REGISTRY.map((entry) => [entry.id, FORMS_BY_RULE[entry.plural]]),
+) as Record<Language, readonly PluralForm[]>
 
 export function pluralForm(language: Language, count: number): PluralForm {
   const n = Math.abs(count)
-  if (language === "ru") {
-    if (!Number.isInteger(n)) return "other"
-    const mod10 = n % 10
-    const mod100 = n % 100
-    if (mod10 === 1 && mod100 !== 11) return "one"
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "few"
-    return "many"
+  switch (entryFor(language).plural) {
+    case "ru": {
+      if (!Number.isInteger(n)) return "other"
+      const mod10 = n % 10
+      const mod100 = n % 100
+      if (mod10 === 1 && mod100 !== 11) return "one"
+      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "few"
+      return "many"
+    }
+    case "hi":
+    case "pt":
+      return Math.floor(n) <= 1 ? "one" : "other"
+    case "none":
+      return "other"
+    default:
+      return n === 1 ? "one" : "other"
   }
-  return n === 1 ? "one" : "other"
 }
 
 /* ------------------------------------------------------------------ keys and params */
@@ -106,8 +144,6 @@ export type TranslateFn = <K extends MessageKey>(key: K, ...args: MessageArgs<K>
 
 /* ------------------------------------------------------------------ number formatting (also used by interpolation) */
 
-const GROUP_SEPARATOR: Record<Language, string> = { en: ",", ru: " ", es: "." }
-const DECIMAL_SEPARATOR: Record<Language, string> = { en: ".", ru: ",", es: "," }
 
 /** Locale-aware number; falls back to a hand-written grouping when Intl is missing or throws. */
 export function formatNumberFor(
@@ -132,8 +168,8 @@ export function formatNumberFor(
     fixed = frac ? `${whole}.${frac}` : whole
   }
   const [whole = "0", frac] = fixed.split(".")
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, GROUP_SEPARATOR[language])
-  const body = frac ? `${grouped}${DECIMAL_SEPARATOR[language]}${frac}` : grouped
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, entryFor(language).group)
+  const body = frac ? `${grouped}${entryFor(language).decimal}${frac}` : grouped
   return value < 0 ? `-${body}` : body
 }
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/i18n/core"
 
 export {
+  DEFAULT_LANGUAGE_PREFERENCE,
   FALLBACK_LANGUAGE,
   LANGUAGES,
   LANGUAGE_NATIVE_NAMES,
@@ -27,6 +28,13 @@ export {
   type MessageKey,
   type TranslateFn,
 } from "@/lib/i18n/core"
+export {
+  ALL_LANGUAGES,
+  COMPLETE_LANGUAGES,
+  STUB_LANGUAGES,
+  entryFor as languageEntry,
+  selectableLanguages,
+} from "@/lib/i18n/registry"
 export {
   formatBytes,
   formatDate,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import review from "@/locales/review.json"
 import { LANGUAGES, REQUIRED_PLURAL_FORMS, type Language } from "@/lib/i18n/core"
+import { ALL_LANGUAGES, STUB_LANGUAGES } from "@/lib/i18n/registry"
 import { dictionaries } from "@/locales"
 
 /**
@@ -37,7 +38,7 @@ function groupVars(group: Group): string[] {
 }
 
 const english = groups("en")
-const others = LANGUAGES.filter((l) => l !== "en")
+const others = ALL_LANGUAGES.filter((l) => l !== "en")
 
 describe("i18n dictionaries", () => {
   it("English has no key that is both plain and plural, and counted strings use {count}", () => {
@@ -47,7 +48,9 @@ describe("i18n dictionaries", () => {
     }
   })
 
-  for (const language of LANGUAGES) {
+  // Stubs are held to the structural rules too (no empty strings, no stray keys, right plural forms and
+  // variables), but not to full key coverage: what is missing falls back to English.
+  for (const language of ALL_LANGUAGES) {
     it(`${language}: plural groups carry exactly the forms the language needs`, () => {
       const need = REQUIRED_PLURAL_FORMS[language]
       for (const [base, group] of groups(language)) {
@@ -65,11 +68,13 @@ describe("i18n dictionaries", () => {
   }
 
   for (const language of others) {
-    it(`${language}: has every English key and no extra`, () => {
+    const complete = (LANGUAGES as readonly string[]).includes(language)
+
+    it(`${language}: ${complete ? "has every English key and no extra" : "has no key that English lacks (a stub may miss keys)"}`, () => {
       const mine = groups(language)
       const missing = [...english.keys()].filter((k) => !mine.has(k))
       const extra = [...mine.keys()].filter((k) => !english.has(k))
-      expect(missing, `missing in ${language}`).toEqual([])
+      if (complete) expect(missing, `missing in ${language}`).toEqual([])
       expect(extra, `not in English (${language})`).toEqual([])
     })
 
@@ -84,7 +89,7 @@ describe("i18n dictionaries", () => {
   }
 
   it("spelling rules for names that are never translated", () => {
-    for (const language of LANGUAGES) {
+    for (const language of ALL_LANGUAGES) {
       for (const [key, value] of Object.entries(dictionaries[language])) {
         // English and Spanish: Kiirtan with two i's; Russian uses the Russian word
         if (language !== "ru") expect(value, `${language}:${key}`).not.toMatch(/\bKirtan/i)
@@ -100,11 +105,18 @@ describe("i18n dictionaries", () => {
   })
 
   it("review.json only names real keys of real languages", () => {
-    const data = review as Record<string, Record<string, boolean>>
+    const data = review as unknown as Record<string, Record<string, boolean>>
     for (const [language, entries] of Object.entries(data)) {
+      if (language === "_languages") continue
       expect(["ru", "es"]).toContain(language)
       const mine = dictionaries[language as Language]
       for (const key of Object.keys(entries)) expect(key in mine, `${language}:${key}`).toBe(true)
     }
+  })
+
+  it("review.json marks every stub language as not translated, and only those", () => {
+    const marks = (review as unknown as { _languages?: Record<string, string> })._languages ?? {}
+    expect(Object.keys(marks).sort()).toEqual([...STUB_LANGUAGES].sort())
+    for (const language of STUB_LANGUAGES) expect(marks[language]).toBe("не переведено")
   })
 })
