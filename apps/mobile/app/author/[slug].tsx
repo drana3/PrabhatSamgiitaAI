@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { Stack, useLocalSearchParams, useRouter } from "expo-router"
 
-import { Chip, LoadingRows, PillButton, SectionTitle, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { Chip, LoadingRows, PillButton, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { Section } from "@/components/common/Layout"
 import { ShowcasePage, type ShowcaseProps } from "@/components/authors/AuthorShowcase"
 import { PublicStatsStrip } from "@/components/authors/StatsViews"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
@@ -309,8 +310,7 @@ function About({ profile, locale, own, signedIn }: { profile: AuthorProfilePubli
       {profile.languages.length ? <Fact theme={theme} label={t("authors.page.languages")} value={profile.languages.map((l) => say(t, `authors.language.${l}`)).join(", ")} /> : null}
       {profile.published_at ? <Fact theme={theme} label={t("authors.page.since")} value={formatDay(profile.published_at, locale)} /> : null}
       {profile.links.length ? (
-        <View style={styles.links}>
-          <SectionTitle theme={theme}>{t("authors.page.links")}</SectionTitle>
+        <Section title={t("authors.page.links")} side={0}>
           {profile.links
             .filter((l) => SAFE_LINK.test(l.url))
             .map((l) => (
@@ -319,7 +319,7 @@ function About({ profile, locale, own, signedIn }: { profile: AuthorProfilePubli
                 <Text style={[styles.linkHost, { color: theme.accentText }]} numberOfLines={1}>{linkHost(l.url)}</Text>
               </KPress>
             ))}
-        </View>
+        </Section>
       ) : null}
 
       <View style={styles.report}>
@@ -359,23 +359,21 @@ function Fact({ theme, label, value }: { theme: ReturnType<typeof useSongsTheme>
 const styles = StyleSheet.create({
   root: { flex: 1 },
   backRow: { paddingHorizontal: SIDE - 10, alignItems: "flex-start" },
-  actionsRow: { flexDirection: "row", gap: 10 },
-  block: { gap: 14, paddingHorizontal: SIDE, paddingTop: 16 },
-  tabs: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE, paddingTop: 20 },
+  actionsRow: { flexDirection: "row", gap: 12 },
+  block: { gap: 16, paddingHorizontal: SIDE },
   rows: { gap: 8 },
-  card: { borderRadius: 18, borderWidth: 1, padding: 14, gap: 6 },
-  cardHead: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
-  flexText: { flex: 1, gap: 2 },
+  card: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 12 },
+  cardHead: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44 },
+  flexText: { flex: 1, gap: 4 },
   cardTitle: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
   cardMeta: { fontFamily: amFonts.regular, fontSize: 13, lineHeight: 18 },
   cardActions: { flexDirection: "row" },
   lead: { fontFamily: amFonts.semi, fontSize: 19, lineHeight: 27 },
   body: { fontFamily: amFonts.regular, fontSize: 16, lineHeight: 25 },
-  fact: { gap: 2 },
+  fact: { gap: 4 },
   factLabel: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.6, textTransform: "uppercase" },
   factValue: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22 },
-  links: { gap: 8, marginHorizontal: -SIDE },
-  linkRow: { marginHorizontal: SIDE, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1 },
+  linkRow: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1 },
   linkKind: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   linkHost: { flexShrink: 1, fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   report: { gap: 12, paddingTop: 12 },

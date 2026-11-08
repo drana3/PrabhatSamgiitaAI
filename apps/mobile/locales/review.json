@@ -3006,7 +3006,8 @@
     "chordOffer.row.replaced": false,
     "notif.chords.replaced.title": false,
     "notif.chords.replaced.text": false,
-    "chordSong.basedOn.anonymous": false
+    "chordSong.basedOn.anonymous": false,
+    "authors.become.step1.bodyNoLink": false
   },
   "es": {
     "unit.kb": false,
@@ -5831,6 +5832,7 @@
     "chordOffer.row.replaced": false,
     "notif.chords.replaced.title": false,
     "notif.chords.replaced.text": false,
-    "chordSong.basedOn.anonymous": false
+    "chordSong.basedOn.anonymous": false,
+    "authors.become.step1.bodyNoLink": false
   }
 }

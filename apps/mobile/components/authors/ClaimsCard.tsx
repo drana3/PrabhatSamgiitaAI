@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
-import { PillButton, SectionTitle, SIDE } from "@/components/authors/AuthorsUi"
+import { PillButton } from "@/components/authors/AuthorsUi"
+import { Section, BlockStack } from "@/components/common/Layout"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAuthorRequest } from "@/hooks/useAuthorRequest"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -25,21 +26,18 @@ export function ClaimsCard() {
   const pending = data?.pending ?? 0
 
   return (
-    <View style={styles.pad}>
-      <SectionTitle theme={theme}>{t("authors.claims.card.title")}</SectionTitle>
+    <Section title={t("authors.claims.card.title")}>
       <Text style={[styles.body, { color: theme.textBody }]}>{suggested > 0 ? t("authors.claims.card.some", { count: suggested }) : t("authors.claims.card.none")}</Text>
       {pending > 0 ? <Text style={[styles.waiting, { color: theme.accentText }]}>{t("authors.claims.card.waiting", { count: pending })}</Text> : null}
-      <View style={styles.stack}>
+      <BlockStack>
         <PillButton theme={theme} tone={suggested > 0 ? "brand" : "line"} label={t("authors.claims.card.look")} onPress={() => router.push(href(AUTHOR_CLAIMS_HREF))} />
         <PillButton theme={theme} tone="line" label={t("authors.claims.card.find")} onPress={() => router.push(href(AUTHOR_FIND_HREF))} />
-      </View>
-    </View>
+      </BlockStack>
+    </Section>
   )
 }
 
 const styles = StyleSheet.create({
-  pad: { paddingHorizontal: SIDE, gap: 8 },
-  stack: { gap: 10, marginTop: 4 },
   body: { fontFamily: amFonts.regular, fontSize: 15, lineHeight: 22 },
   waiting: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
 })

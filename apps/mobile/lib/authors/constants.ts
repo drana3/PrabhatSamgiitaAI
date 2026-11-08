@@ -18,6 +18,14 @@ export const AUTHOR_CLAIMS_HREF = "/author-claims"
 export const AUTHOR_FIND_HREF = "/author-find"
 export const CONTENT_RULES_HREF = "/content-rules"
 
+/**
+ * TEMPORARY (Dada, 2026-11-08): the page link (the slug) is not offered in the interface: no field to change it, no
+ * link line on the author's own page, no word about it in the "become an author" step. The page still has its link (made
+ * from the name, kept by the API, used by Share and Copy) and nothing is deleted. Set to true to bring it all back.
+ * docs/author-profiles.md, "Page link hidden".
+ */
+export const SHOW_PAGE_LINK = false
+
 /** The public address of a page inside the app and on the web (the same path on both). */
 export function authorHref(slug: string): string {
   return `/author/${encodeURIComponent(slug)}`

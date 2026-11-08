@@ -14,7 +14,7 @@ import { useSlugCheck } from "@/hooks/useSlugCheck"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
 import { isSignedIn } from "@/lib/authors/session"
-import { AUTHORS_HREF, CONTENT_RULES_HREF, MY_AUTHOR_HREF } from "@/lib/authors/constants"
+import { AUTHORS_HREF, CONTENT_RULES_HREF, MY_AUTHOR_HREF, SHOW_PAGE_LINK } from "@/lib/authors/constants"
 import { emptyDraft, hasErrors, invalidFieldKeys, toCreateInput, validateDraft, type Draft } from "@/lib/authors/draft"
 import { errorKey as keyOfCode } from "@/lib/authors/slug"
 import { say } from "@/lib/authors/text"
@@ -127,7 +127,7 @@ export default function BecomeAuthorScreen() {
           <Text style={[styles.heading, { color: theme.textHeading }]} accessibilityRole="header">
             {t(`authors.become.step${step as 1 | 2 | 3 | 4}.title`)}
           </Text>
-          <Text style={[styles.lead, { color: theme.textBody }]}>{t(`authors.become.step${step as 1 | 2 | 3 | 4}.body`)}</Text>
+          <Text style={[styles.lead, { color: theme.textBody }]}>{step === 1 && !SHOW_PAGE_LINK ? t("authors.become.step1.bodyNoLink") : t(`authors.become.step${step as 1 | 2 | 3 | 4}.body`)}</Text>
         </View>
 
         <View style={styles.pad}>

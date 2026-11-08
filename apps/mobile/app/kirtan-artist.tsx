@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { Shuffle } from "lucide-react-native"
 
 import { artistGradient, ArtistAvatar } from "@/components/kirtan/ArtistParts"
+import { Section, BlockStack } from "@/components/common/Layout"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
 import { ChevronGlyph, KirtanRow, PlayFilled } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
@@ -128,19 +129,13 @@ export default function KirtanArtistScreen() {
       </View>
 
       {popular.length ? (
-        <View style={styles.block}>
-          <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">
-            {t("kt.artist.popular")}
-          </Text>
-          <View style={styles.rows}>{popular.map((k) => row(k, popular))}</View>
-        </View>
+        <Section title={t("kt.artist.popular")} size="page">
+          <BlockStack gap={8}>{popular.map((k) => row(k, popular))}</BlockStack>
+        </Section>
       ) : null}
 
-      <View style={styles.block}>
-        <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">
-          {t("kt.artist.all")}
-        </Text>
-      </View>
+      {/* no content: the rows of the list below follow, the same distance under the heading as in Popular */}
+      <Section title={t("kt.artist.all")} size="page" />
     </View>
   )
 
@@ -154,12 +149,9 @@ export default function KirtanArtistScreen() {
         renderItem={({ item }) => <View style={styles.rowSlot}>{row(item, all)}</View>}
         ListEmptyComponent={<Text style={[styles.body, styles.pad, { color: theme.textBody }]}>{t("kt.artist.empty")}</Text>}
         ListFooterComponent={
-          <View style={styles.block}>
-            <Text style={[styles.blockHead, { color: theme.textHeading }]} accessibilityRole="header">
-              {t("kt.artist.about")}
-            </Text>
+          <Section title={t("kt.artist.about")} size="page">
             <Text style={[styles.body, { color: theme.textBody }]}>{artist.about}</Text>
-          </View>
+          </Section>
         }
         contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
         showsVerticalScrollIndicator={false}
@@ -184,23 +176,20 @@ export default function KirtanArtistScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { alignItems: "center", justifyContent: "center", gap: 16 },
-  content: { paddingBottom: 220 },
+  content: { paddingBottom: 128 },
   hero: { overflow: "hidden", justifyContent: "flex-end" },
   heroPhoto: { position: "absolute", right: -40, top: 70, opacity: 0.38 },
   back: { position: "absolute", left: 16 },
   backDisc: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   flip: { transform: [{ scaleX: -1 }] },
-  heroText: { paddingHorizontal: 20, paddingBottom: 22, gap: 4 },
+  heroText: { paddingHorizontal: 20, paddingBottom: 24, gap: 4 },
   heroEyebrow: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 1.2, color: "rgba(255,255,255,0.86)" },
   heroName: { fontFamily: amFonts.display, fontSize: 52, lineHeight: 52, letterSpacing: -1.1, textTransform: "uppercase", color: "#FFFFFF" },
   heroMeta: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20, color: "rgba(255,255,255,0.9)" },
-  actions: { flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingTop: 18 },
+  actions: { flexDirection: "row", gap: 12, paddingHorizontal: 20, paddingTop: 24 },
   actionOuter: { flex: 1 },
   action: { height: 52, borderRadius: 70, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   actionText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
-  block: { paddingHorizontal: 20, paddingTop: 30, gap: 14 },
-  blockHead: { fontFamily: amFonts.display, fontSize: 28, lineHeight: 28, letterSpacing: -0.5, textTransform: "uppercase" },
-  rows: { gap: 8 },
   rowSlot: { paddingHorizontal: 20 },
   sep: { height: 8 },
   pad: { paddingHorizontal: 20 },

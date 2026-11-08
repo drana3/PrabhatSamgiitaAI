@@ -182,6 +182,8 @@ Done by the authors owner: the "Authors" shelf on the Kiirtan tab (`components/a
 
 ## The page link (what used to be called "address")
 
+**Hidden for now (2026-11-08, Dada):** the interface does not show the page link at all (no field, no "Change link", no link line on "Your author page", no word about it in the first step). The flag is `SHOW_PAGE_LINK` in `apps/mobile/lib/authors/constants.ts`; set it to `true` to bring everything below back. The link is still made from the name, kept by the API and used by Share and Copy; if the made-up link is taken, the next free suggestion is taken silently.
+
 The link is the public name of the page: `www.prabhatasamgiita.org/author/anna-rao`. People open it in a browser, search engines list it, and members send it to friends. It cannot be removed, because without it there is no page, so the form no longer asks for it as a main field.
 
 - It is made from the name while typing (`lib/authors/slug.ts`), checked against the server (free or taken, with two suggestions that take one tap), and shown as one line under the name field with the label "Your page link" and one sentence of explanation.

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Platform, StyleSheet, Switch, Text, TextInput, View } from "react-native"
 
 import { PillButton, Chip, SIDE, WEB_THUMB } from "@/components/authors/AuthorsUi"
@@ -7,7 +7,7 @@ import { KPress } from "@/components/kirtan/KPress"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { authorShareUrl } from "@/lib/authors/constants"
-import { ABOUT_MAX, BIO_MAX, LINK_KINDS, MAX_LINKS, NAME_MAX, PLACE_MAX, PROFILE_LANGUAGES, SLUG_MAX } from "@/lib/authors/constants"
+import { ABOUT_MAX, BIO_MAX, LINK_KINDS, MAX_LINKS, NAME_MAX, PLACE_MAX, PROFILE_LANGUAGES, SHOW_PAGE_LINK, SLUG_MAX } from "@/lib/authors/constants"
 import { type Draft, type DraftErrors, settleSlug, withName, withSlug } from "@/lib/authors/draft"
 import { say } from "@/lib/authors/text"
 import { problemKey } from "@/lib/authors/slug"
@@ -77,6 +77,13 @@ export function NameAndAddress({
   const trouble = slug.kind === "problem" || slug.kind === "error" || Boolean(errors.slug && draft.slugTouched)
   const editing = !slugLocked && (open || trouble)
   const shown = authorShareUrl(draft.slug).replace(/^https?:\/\//, "")
+  // With the link hidden (SHOW_PAGE_LINK) a taken link must not trap the person behind a field they cannot see:
+  // the next free suggestion is taken silently; only a problem with no suggestion is shown, as a plain line.
+  const hiddenSuggestion = !SHOW_PAGE_LINK && slug.kind === "problem" && slug.suggestions.length ? slug.suggestions[0] : null
+  useEffect(() => {
+    if (hiddenSuggestion) onChange({ ...draft, slug: hiddenSuggestion })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenSuggestion])
   return (
     <View style={styles.group}>
       <View {...(form ? form.field("name") : {})}>
@@ -97,45 +104,49 @@ export function NameAndAddress({
           error={touched && errors.name ? t(errors.name === "too_short" ? "authors.error.name_too_short" : "authors.error.name_too_long") : null}
         />
       </View>
-      <View style={styles.linkBlock} {...(form ? form.field("slug") : {})}>
-        {editing ? null : <Text style={[styles.label, { color: theme.textBody }]}>{t("authors.form.slug")}</Text>}
-        <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.form.linkHelp")}</Text>
-        {editing ? (
-          <>
-            <AccountField
-              ref={form ? (form.input("slug") as never) : undefined}
-              theme={theme}
-              label={t("authors.form.slug")}
-              value={draft.slug}
-              onChangeText={(v) => onChange(withSlug(draft, v))}
-              onBlur={() => onChange(settleSlug(draft))}
-              maxLength={SLUG_MAX}
-              autoCapitalize="none"
-              autoCorrect={false}
-              hint={t("authors.form.slugHint")}
-            />
-            <Text style={[styles.preview, { color: theme.textBody }]} selectable>
-              {shown}
-            </Text>
-            <SlugStatus theme={theme} state={slug} onPick={(s) => onChange(withSlug(draft, s))} />
-            {!trouble ? <PillButton theme={theme} tone="quiet" label={t("authors.form.linkKeep")} onPress={() => setOpen(false)} /> : null}
-          </>
-        ) : (
-          <>
-            <Text style={[styles.preview, { color: draft.slug ? theme.textHeading : theme.textMuted }]} selectable accessibilityLabel={draft.slug ? shown : t("authors.form.linkEmpty")}>
-              {draft.slug ? shown : t("authors.form.linkEmpty")}
-            </Text>
-            {draft.slug ? <SlugStatus theme={theme} state={slug} onPick={(s) => onChange(withSlug(draft, s))} /> : null}
-            {slugLocked ? (
-              <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.form.slugWait", { count: slugLocked })}</Text>
-            ) : !draft.slug ? null : (
-              <KPress accessibilityRole="button" onPress={() => setOpen(true)} pressedScale={0.97} style={styles.changeLink} hitSlop={12}>
-                <Text style={[styles.changeText, { color: theme.accentText }]}>{t("authors.form.linkChange")}</Text>
-              </KPress>
-            )}
-          </>
-        )}
-      </View>
+      {!SHOW_PAGE_LINK ? (
+        <View {...(form ? form.field("slug") : {})}>{slug.kind === "problem" || slug.kind === "error" ? <SlugStatus theme={theme} state={slug} onPick={(s) => onChange({ ...draft, slug: s })} /> : null}</View>
+      ) : (
+        <View style={styles.linkBlock} {...(form ? form.field("slug") : {})}>
+          {editing ? null : <Text style={[styles.label, { color: theme.textBody }]}>{t("authors.form.slug")}</Text>}
+          <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.form.linkHelp")}</Text>
+          {editing ? (
+            <>
+              <AccountField
+                ref={form ? (form.input("slug") as never) : undefined}
+                theme={theme}
+                label={t("authors.form.slug")}
+                value={draft.slug}
+                onChangeText={(v) => onChange(withSlug(draft, v))}
+                onBlur={() => onChange(settleSlug(draft))}
+                maxLength={SLUG_MAX}
+                autoCapitalize="none"
+                autoCorrect={false}
+                hint={t("authors.form.slugHint")}
+              />
+              <Text style={[styles.preview, { color: theme.textBody }]} selectable>
+                {shown}
+              </Text>
+              <SlugStatus theme={theme} state={slug} onPick={(s) => onChange(withSlug(draft, s))} />
+              {!trouble ? <PillButton theme={theme} tone="quiet" label={t("authors.form.linkKeep")} onPress={() => setOpen(false)} /> : null}
+            </>
+          ) : (
+            <>
+              <Text style={[styles.preview, { color: draft.slug ? theme.textHeading : theme.textMuted }]} selectable accessibilityLabel={draft.slug ? shown : t("authors.form.linkEmpty")}>
+                {draft.slug ? shown : t("authors.form.linkEmpty")}
+              </Text>
+              {draft.slug ? <SlugStatus theme={theme} state={slug} onPick={(s) => onChange(withSlug(draft, s))} /> : null}
+              {slugLocked ? (
+                <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.form.slugWait", { count: slugLocked })}</Text>
+              ) : !draft.slug ? null : (
+                <KPress accessibilityRole="button" onPress={() => setOpen(true)} pressedScale={0.97} style={styles.changeLink} hitSlop={12}>
+                  <Text style={[styles.changeText, { color: theme.accentText }]}>{t("authors.form.linkChange")}</Text>
+                </KPress>
+              )}
+            </>
+          )}
+        </View>
+      )}
     </View>
   )
 }
