@@ -1,9 +1,10 @@
 """Video links of recordings and of Prabhat Samgiita songs (docs/recording-extras.md).
 
 A member pastes a link; the server decides whether it is a single video on an allow-listed site,
-rebuilds the stored address from the site and the video's own id, and keeps nothing else. NOTHING is
-fetched: the server never opens the link (no download, no scraping, no preview request), so a link
-cannot make the API call an address of the sender's choosing.
+rebuilds the stored address from the site and the video's own id, and keeps nothing else. The
+pasted text is never fetched (no download, no scraping): the only requests the server makes are
+the ones of `services/video_checks.py`, to three fixed hosts, with an address built from the
+checked id, so a link cannot make the API call an address of the sender's choosing.
 
 The allow-list is short on purpose (see `PROVIDERS`):
 
@@ -210,6 +211,7 @@ def public_out(
         author=shown,
         mine=viewer_id is not None and video.member_id == viewer_id,
         can_remove=team,
+        link_status=video.link_status or "unknown",  # type: ignore[arg-type]
     )
 
 
@@ -229,6 +231,8 @@ def admin_out(video: VideoLink, author: UserAccount | None) -> AdminVideoOut:
         author_name=display_name(author),
         removed_reason=video.removed_reason,
         removed_by=video.removed_by,
+        link_status=video.link_status or "unknown",  # type: ignore[arg-type]
+        checked_at=video.checked_at,
     )
 
 

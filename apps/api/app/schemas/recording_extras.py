@@ -21,6 +21,7 @@ from app.models.recording_extras import (
     VIDEO_URL_MAX_LENGTH,
 )
 from app.schemas.song_chords import (
+    CHORD_PATTERN,
     KEY_PATTERN,
     STRUM_PATTERN,
     ChordBasedOn,
@@ -104,6 +105,57 @@ class SheetLineIn(ChordLineIn):
     text: str = Field(default="", max_length=SHEET_MAX_LINE_LENGTH + 80)
 
 
+# The chord cycle of a Kiirtan: forms (ways the Kiirtan is played), each a ring of chords.
+CYCLE_MAX_FORMS = 8
+CYCLE_MIN_CHORDS = 2
+CYCLE_MAX_CHORDS = 8
+CYCLE_NAME_MAX = 30
+CYCLE_TIMES_MAX = 99
+
+
+class CycleFormIn(BaseModel):
+    """One way the Kiirtan is played: the chords in a ring, the one the ring starts on, and
+    optionally how many rounds are played."""
+
+    name: str | None = Field(default=None, max_length=CYCLE_NAME_MAX + 40)
+    chords: list[str] = Field(min_length=CYCLE_MIN_CHORDS, max_length=CYCLE_MAX_CHORDS)
+    # The slot the ring starts on: required, so a listener never has to guess where a round begins.
+    start: int = Field(ge=0, lt=CYCLE_MAX_CHORDS)
+    times: int | None = Field(default=None, ge=1, le=CYCLE_TIMES_MAX)
+
+    @field_validator("chords")
+    @classmethod
+    def _chord_names(cls, value: list[str]) -> list[str]:
+        out: list[str] = []
+        for chord in value:
+            name = chord.strip()
+            if len(name) > 16 or not CHORD_PATTERN.fullmatch(name):
+                raise ValueError(f"'{chord}' is not a chord name")
+            out.append(name)
+        return out
+
+    @model_validator(mode="after")
+    def _start_in_ring(self) -> CycleFormIn:
+        if self.start >= len(self.chords):
+            raise ValueError("The start must be one of the chords of the cycle")
+        return self
+
+
+class CycleIn(BaseModel):
+    forms: list[CycleFormIn] = Field(min_length=1, max_length=CYCLE_MAX_FORMS)
+
+
+class CycleFormOut(BaseModel):
+    name: str | None = None
+    chords: list[str]
+    start: int
+    times: int | None = None
+
+
+class CycleOut(BaseModel):
+    forms: list[CycleFormOut]
+
+
 class SheetCreate(BaseModel):
     instrument: SheetInstrument
     # The key the chords are written in. Optional: many players do not know it. For a chart (see
@@ -117,6 +169,8 @@ class SheetCreate(BaseModel):
     lines: list[SheetLineIn] | None = Field(default=None, min_length=1, max_length=SHEET_MAX_LINES)
     capo: int = Field(default=0, ge=0, le=7)
     strum: str | None = Field(default=None, max_length=40)
+    # The chord cycle of a Kiirtan (one or more forms). Sent instead of `body` and `lines`.
+    cycle: CycleIn | None = None
     played_it: bool
     note: str | None = Field(default=None, max_length=300)
     is_anonymous: bool = False
@@ -155,8 +209,17 @@ class SheetCreate(BaseModel):
     def _whole(self) -> SheetCreate:
         if not self.played_it:
             raise ValueError("Please confirm that you played or checked these chords")
-        if (self.body is None) == (self.lines is None):
-            raise ValueError("Send either the chart text or the chart lines")
+        given = [x for x in (self.body, self.lines, self.cycle) if x is not None]
+        if len(given) != 1:
+            raise ValueError("Send either the chart text, the chart lines or the chord cycle")
+        if self.cycle is not None:
+            # a cycle is for the guitar or the harmonium like a sheet; a guitar may name its capo, a
+            # strum pattern belongs to a chart over words
+            if self.strum:
+                raise ValueError("A chord cycle has no strum pattern")
+            if self.instrument == "harmonium" and self.capo:
+                raise ValueError("A harmonium cycle has no capo")
+            return self
         if self.lines is None:
             if self.capo or self.strum or self.replaces_id or self.based_on_id:
                 raise ValueError("A capo, a strum pattern and versions belong to a chart")
@@ -185,6 +248,8 @@ class SheetOut(BaseModel):
     body: str
     # Set for a chart (Bhajan, Spiritual song): the lines with their chords; null for plain text
     lines: list[SheetLineOut] | None = None
+    # Set for the chord cycle of a Kiirtan; null for a plain sheet and for a chart
+    cycle: CycleOut | None = None
     capo: int = 0
     strum: str | None = None
     based_on: ChordBasedOn | None = None
@@ -240,6 +305,7 @@ class SheetRejectRequest(BaseModel):
 VideoProvider = Literal["youtube", "vimeo", "archive"]
 VideoReportReason = Literal["broken", "not_about_this", "offensive", "spam", "other"]
 VideoFilter = Literal["reported", "removed", "all"]
+VideoLinkStatus = Literal["unknown", "ok", "no_embed", "unavailable"]
 
 
 class VideoCreate(BaseModel):
@@ -260,6 +326,10 @@ class VideoOut(BaseModel):
     author: CommentAuthor | None
     mine: bool = False
     can_remove: bool = False
+    # What the last automatic look found: unknown, ok (may be shown inside the app), no_embed (its
+    # owner does not allow other apps to show it: offer Open), unavailable (gone or private). A
+    # hint.
+    link_status: VideoLinkStatus = "unknown"
 
 
 class VideoList(BaseModel):
@@ -284,6 +354,8 @@ class AdminVideoOut(BaseModel):
     author_name: str
     removed_reason: str | None = None
     removed_by: str | None = None
+    link_status: VideoLinkStatus = "unknown"
+    checked_at: datetime | None = None
 
 
 class AdminVideoList(BaseModel):

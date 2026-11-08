@@ -63,6 +63,9 @@ VIDEO_STATUSES = ("published", "removed")
 VIDEO_REPORT_REASONS = ("broken", "not_about_this", "offensive", "spam", "other")
 VIDEO_TITLE_MAX_LENGTH = 80
 VIDEO_URL_MAX_LENGTH = 300
+# What the last automatic look at a link found (services/video_checks.py). A soft hint, never a
+# block.
+VIDEO_LINK_STATUSES = ("unknown", "ok", "no_embed", "unavailable")
 
 
 class RecordingComment(Base, TimestampMixin):
@@ -218,6 +221,11 @@ class RecordingChordSheet(Base, TimestampMixin):
     # Guitar only: the fret of the capo the author played with (a hint; chords are as they sound).
     capo: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     strum: Mapped[str | None] = mapped_column(String(40))
+    # The chord cycle of a Kiirtan: one entry per way the Kiirtan is played in the recording
+    # ("form"): {"forms": [{"name": "Slow", "chords": ["Em", "C", "G", "D"], "start": 0, "times":
+    # 4}]}. Null for a plain sheet and for a chart. `body` is filled too (the cycle written as
+    # text).
+    cycle: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON, nullable=True)
     # A new version of the author's own live sheet: when this one goes live the old one is archived
     # (kept, hidden). Null when the old sheet is deleted.
     replaces_id: Mapped[UUID | None] = mapped_column(
@@ -322,6 +330,12 @@ class VideoLink(Base, TimestampMixin):
     removed_reason: Mapped[str | None] = mapped_column(Text)
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     removed_by: Mapped[str | None] = mapped_column(String(255))
+    # The automatic check: "unknown" until looked at; "unavailable" only after two looks in a row.
+    link_status: Mapped[str] = mapped_column(
+        String(16), default="unknown", server_default="unknown", nullable=False
+    )
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    check_fails: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
 
 class VideoLinkReport(Base, TimestampMixin):

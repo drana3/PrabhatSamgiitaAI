@@ -24,6 +24,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.v1 import extras_common
 from app.api.v1.recording_chords import router as chords_router
 from app.api.v1.recording_comments import router as comments_router
+from app.api.v1.video_links import get_session_factory as videos_session_factory
 from app.api.v1.video_links import router as videos_router
 from app.config import Settings, get_settings
 from app.core.db import get_session
@@ -142,6 +143,8 @@ def build_app(sessions: async_sessionmaker[AsyncSession], members: dict[str, UUI
     app.dependency_overrides[extras_common.get_member] = override_member
     app.dependency_overrides[extras_common.get_optional_member] = lookup
     app.dependency_overrides[get_settings] = lambda: settings
+    # the background look at a video link opens its own session: on the test database
+    app.dependency_overrides[videos_session_factory] = lambda: sessions
     return app
 
 

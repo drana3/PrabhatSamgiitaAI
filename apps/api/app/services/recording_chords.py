@@ -56,6 +56,7 @@ from app.schemas.recording_extras import (
     SheetOut,
 )
 from app.schemas.song_chords import CHORD_PATTERN, ChordBasedOn, ChordPlacementOut
+from app.services import kiirtan_cycles
 from app.services import song_chords as shared
 from app.services.extras_common import display_name, one_line
 from app.services.recordings import now_utc
@@ -203,6 +204,7 @@ class Cleaned:
     body: str
     chords: int
     chart: dict[str, Any] | None = None
+    cycle: dict[str, Any] | None = None
 
 
 def _line_text(raw: str) -> str:
@@ -287,8 +289,27 @@ def clean_chart(payload: SheetCreate) -> Cleaned:
     return Cleaned(body=body, chords=kept, chart=chart)
 
 
+def clean_cycle_payload(payload: SheetCreate) -> Cleaned:
+    """The chord cycle of a Kiirtan: the forms as stored, the text written from them, the number of
+    chord slots. A cycle that is only one lonely plain letter is no more a cycle than a chart is."""
+    assert payload.cycle is not None
+    cycle = kiirtan_cycles.clean_cycle(payload.cycle)
+    found = kiirtan_cycles.all_chords(cycle)
+    if not proves_a_chart(found):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "A single plain letter is not a chord chart. Add a second chord, "
+                "or write the chord in full, for example Am or G7."
+            ),
+        )
+    return Cleaned(body=kiirtan_cycles.cycle_body(cycle), chords=len(found), cycle=cycle)
+
+
 def clean_payload(payload: SheetCreate) -> Cleaned:
-    """The text rules for either kind of sheet."""
+    """The text rules for any kind of sheet."""
+    if payload.cycle is not None:
+        return clean_cycle_payload(payload)
     if payload.lines is not None:
         return clean_chart(payload)
     body, chords = clean_sheet(payload.body or "")
@@ -300,7 +321,13 @@ def fingerprint(chart: dict[str, Any]) -> str:
 
 
 async def check_kind(session: AsyncSession, recording_id: UUID, payload: SheetCreate) -> None:
-    """A chart over pasted text is for a Bhajan or a Spiritual song only."""
+    """A chart over pasted text is for a Bhajan or a Spiritual song only; a chord cycle for a
+    Kiirtan only."""
+    if payload.cycle is not None:
+        recording = await session.get(Recording, recording_id)
+        if recording is None or recording.kind not in kiirtan_cycles.CYCLE_KINDS:
+            raise HTTPException(status_code=422, detail="A chord cycle is for Kiirtans only.")
+        return
     if payload.lines is None:
         return
     recording = await session.get(Recording, recording_id)
@@ -323,6 +350,11 @@ def clean_note(raw: str | None) -> str | None:
     if note is not None and link_count(note) > 0:
         raise HTTPException(status_code=422, detail="Please leave web links out of the note.")
     return note
+
+
+def sheet_kind(chart: Any, cycle: Any) -> str:
+    """ "cycle", "chart" or "plain": the three kinds a sheet can be (it keeps its kind for good)."""
+    return "cycle" if cycle is not None else "chart" if chart is not None else "plain"
 
 
 def chart_lines(sheet: RecordingChordSheet) -> list[SheetLineOut] | None:
@@ -362,6 +394,7 @@ def public_out(
         chart_key=sheet.chart_key,
         body=sheet.body,
         lines=chart_lines(sheet),
+        cycle=kiirtan_cycles.cycle_out(sheet.cycle),
         capo=sheet.capo or 0,
         strum=sheet.strum,
         based_on=(credits or {}).get(sheet.id),
@@ -558,12 +591,26 @@ def _is_twin(row: RecordingChordSheet, payload: SheetCreate, cleaned: Cleaned) -
     """The same chart: a plain sheet by its text, a chart by its lines and its capo."""
     if row.chart_key != payload.chart_key:
         return False
+    if sheet_kind(row.chart, row.cycle) != sheet_kind(cleaned.chart, cleaned.cycle):
+        return False
+    if cleaned.cycle is not None:
+        return (
+            row.cycle is not None
+            and row.capo == payload.capo
+            and kiirtan_cycles.fingerprint(row.cycle) == kiirtan_cycles.fingerprint(cleaned.cycle)
+        )
     if cleaned.chart is None:
         return row.chart is None and same_sheet_key(row.body) == same_sheet_key(cleaned.body)
     return (
         row.chart is not None
         and row.capo == payload.capo
         and fingerprint(row.chart) == fingerprint(cleaned.chart)
+    )
+
+
+def _payload_kind(payload: SheetCreate) -> str:
+    return (
+        "cycle" if payload.cycle is not None else "chart" if payload.lines is not None else "plain"
     )
 
 
@@ -583,6 +630,7 @@ async def _replaceable(
         or old.archived_at is not None
         or old.recording_id != recording_id
         or old.instrument != payload.instrument
+        or sheet_kind(old.chart, old.cycle) != _payload_kind(payload)
     ):
         return None
     return old
@@ -602,7 +650,8 @@ async def _credit(
         or original.status != "published"
         or original.archived_at is not None
         or original.recording_id != recording_id
-        or original.chart is None
+        or (original.chart is None and original.cycle is None)
+        or sheet_kind(original.chart, original.cycle) != _payload_kind(payload)
     ):
         return None
     return original.id
@@ -655,9 +704,14 @@ async def create_sheet(
     cleaned = clean_payload(payload)
     note = clean_note(payload.note)
     await ensure_daily_allowance(session, member.id, team=team)
-    live = (
-        await session.scalars(_live_statement(member.id, recording_id, payload.instrument))
-    ).all()
+    live = [
+        row
+        for row in (
+            await session.scalars(_live_statement(member.id, recording_id, payload.instrument))
+        ).all()
+        # a plain sheet, a chart and a cycle do not use up each other's places
+        if sheet_kind(row.chart, row.cycle) == _payload_kind(payload)
+    ]
     replaced = await _replaceable(
         session, member_id=member.id, recording_id=recording_id, payload=payload
     )
@@ -686,7 +740,8 @@ async def create_sheet(
         chart_key=payload.chart_key,
         body=cleaned.body,
         chart=cleaned.chart,
-        capo=payload.capo if cleaned.chart is not None else 0,
+        cycle=cleaned.cycle,
+        capo=payload.capo if (cleaned.chart is not None or cleaned.cycle is not None) else 0,
         strum=payload.strum if cleaned.chart is not None else None,
         chords_count=cleaned.chords,
         played_it=payload.played_it,
@@ -730,7 +785,7 @@ async def update_sheet(
         )
     if payload.instrument != sheet.instrument:
         raise HTTPException(status_code=422, detail="A chart keeps its instrument.")
-    if (payload.lines is None) != (sheet.chart is None):
+    if _payload_kind(payload) != sheet_kind(sheet.chart, sheet.cycle):
         raise HTTPException(status_code=422, detail="A chart keeps its kind.")
     cleaned = clean_payload(payload)
     note = clean_note(payload.note)
@@ -741,7 +796,7 @@ async def update_sheet(
                 _live_statement(sheet.member_id, sheet.recording_id, sheet.instrument)
             )
         ).all()
-        if row.id != sheet.id
+        if row.id != sheet.id and sheet_kind(row.chart, row.cycle) == _payload_kind(payload)
     ]
     if any(_is_twin(row, payload, cleaned) for row in others):
         raise _duplicate()
@@ -755,7 +810,8 @@ async def update_sheet(
     sheet.chart_key = payload.chart_key
     sheet.body = cleaned.body
     sheet.chart = cleaned.chart
-    sheet.capo = payload.capo if cleaned.chart is not None else 0
+    sheet.cycle = cleaned.cycle
+    sheet.capo = payload.capo if (cleaned.chart is not None or cleaned.cycle is not None) else 0
     sheet.strum = payload.strum if cleaned.chart is not None else None
     sheet.chords_count = cleaned.chords
     sheet.played_it = payload.played_it

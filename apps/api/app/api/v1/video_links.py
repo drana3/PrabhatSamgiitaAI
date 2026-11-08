@@ -12,9 +12,18 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.v1.extras_common import (
     AppSettings,
@@ -28,6 +37,7 @@ from app.api.v1.extras_common import (
     get_optional_member,  # noqa: F401
     get_team_member,  # noqa: F401
 )
+from app.core.db import SessionLocal
 from app.models import UserAccount
 from app.models.recording_extras import VideoLink
 from app.schemas.recording_extras import (
@@ -41,12 +51,40 @@ from app.schemas.recording_extras import (
     VideoOut,
     VideoReportCreate,
 )
+from app.services import video_checks
 from app.services import video_links as service
 from app.services.extras_common import display_name, visible_recording
 from app.services.recordings import is_team_member
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/video-links", tags=["video-links"])
+
+
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Where the background look at a link gets its own database session (the request's closes with
+    the answer). A test overrides it."""
+    return SessionLocal
+
+
+SessionFactory = Annotated[async_sessionmaker[AsyncSession], Depends(get_session_factory)]
+
+
+async def _look_at_target(factory: async_sessionmaker[AsyncSession], target_key: str) -> None:
+    """After the answer: look at the links of this page that are due. Never raises: a failed look
+    is no reason to disturb anyone."""
+    try:
+        async with factory() as session:
+            await video_checks.check_target_if_due(session, target_key)
+    except Exception:  # noqa: BLE001
+        logger.warning("Video link check failed for %s", target_key, exc_info=True)
+
+
+async def _look_at_one(factory: async_sessionmaker[AsyncSession], video_id: UUID) -> None:
+    try:
+        async with factory() as session:
+            await video_checks.check_one(session, video_id)
+    except Exception:  # noqa: BLE001
+        logger.warning("Video link check failed for %s", video_id, exc_info=True)
 
 
 async def get_video(session: AsyncSession, video_id: UUID) -> VideoLink:
@@ -62,6 +100,8 @@ async def _list(
     member: UserAccount | None,
     settings: AppSettings,
     target_key: str,
+    background: BackgroundTasks,
+    factory: async_sessionmaker[AsyncSession],
 ) -> VideoList:
     # The answer depends on who asks (`mine`, `can_remove`): never share it between readers.
     response.headers["Cache-Control"] = "private, no-store"
@@ -69,6 +109,9 @@ async def _list(
     team = member is not None and is_team_member(member, settings)
     viewer = member.id if member else None
     items = [service.public_out(v, a, viewer_id=viewer, team=team) for v, a in rows]
+    # links whose last look is old are looked at after the answer (the next reader sees the result)
+    if any(video_checks.is_due(v) for v, _ in rows):
+        background.add_task(_look_at_target, factory, target_key)
     return VideoList(
         items=items, total=len(items), room=max(0, service.MAX_PER_TARGET - len(items))
     )
@@ -83,6 +126,8 @@ async def _add(
     target_key: str,
     song_id: int | None,
     recording_id: UUID | None,
+    background: BackgroundTasks,
+    factory: async_sessionmaker[AsyncSession],
 ) -> VideoOut:
     team = is_team_member(member, settings)
     # What is wrong with the link or the title is said before anything is counted.
@@ -109,6 +154,8 @@ async def _add(
         await session.rollback()
         logger.exception("Video link could not be stored")
         raise HTTPException(status_code=503, detail="Videos are temporarily unavailable") from exc
+    # a link that was just added is looked at after the answer: is it alive, may it be shown here?
+    background.add_task(_look_at_one, factory, video.id)
     return service.public_out(video, member, viewer_id=member.id, team=team)
 
 
@@ -122,8 +169,18 @@ async def list_for_song(
     session: DatabaseSession,
     member: OptionalMember,
     settings: AppSettings,
+    background: BackgroundTasks,
+    factory: SessionFactory,
 ) -> VideoList:
-    return await _list(session, response, member, settings, service.target_key_song(song_id))
+    return await _list(
+        session,
+        response,
+        member,
+        settings,
+        service.target_key_song(song_id),
+        background,
+        factory,
+    )
 
 
 @router.get("/recordings/{recording_id}", response_model=VideoList)
@@ -133,10 +190,18 @@ async def list_for_recording(
     session: DatabaseSession,
     member: OptionalMember,
     settings: AppSettings,
+    background: BackgroundTasks,
+    factory: SessionFactory,
 ) -> VideoList:
     await visible_recording(session, recording_id)
     return await _list(
-        session, response, member, settings, service.target_key_recording(recording_id)
+        session,
+        response,
+        member,
+        settings,
+        service.target_key_recording(recording_id),
+        background,
+        factory,
     )
 
 
@@ -150,6 +215,8 @@ async def add_to_song(
     session: DatabaseSession,
     member: Member,
     settings: AppSettings,
+    background: BackgroundTasks,
+    factory: SessionFactory,
 ) -> VideoOut:
     """Add a video to a song. Live at once. Signed-in members only."""
     return await _add(
@@ -160,6 +227,8 @@ async def add_to_song(
         target_key=service.target_key_song(song_id),
         song_id=song_id,
         recording_id=None,
+        background=background,
+        factory=factory,
     )
 
 
@@ -172,6 +241,8 @@ async def add_to_recording(
     session: DatabaseSession,
     member: Member,
     settings: AppSettings,
+    background: BackgroundTasks,
+    factory: SessionFactory,
 ) -> VideoOut:
     """Add a video to a recording. Live at once. Signed-in members only."""
     await visible_recording(session, recording_id)
@@ -183,6 +254,8 @@ async def add_to_recording(
         target_key=service.target_key_recording(recording_id),
         song_id=None,
         recording_id=recording_id,
+        background=background,
+        factory=factory,
     )
 
 
@@ -201,6 +274,17 @@ async def review_list(
     also of an anonymous link."""
     rows, total = await service.review_queue(session, which=filter, limit=limit, offset=offset)
     return AdminVideoList(items=[service.admin_out(v, a) for v, a in rows], total=total)
+
+
+@router.post("/review/recheck")
+async def recheck(
+    team: TeamMember,
+    session: DatabaseSession,
+    everything: bool = False,
+) -> dict[str, int]:
+    """Team only: look at the links that are due now (all of them with `everything=true`; at most
+    25 per call). Returns how many were found ok, not embeddable, gone, or unknown."""
+    return await video_checks.recheck_due(session, everything=everything)
 
 
 @router.post("/{video_id}/keep", response_model=AdminVideoOut)
@@ -255,9 +339,11 @@ async def report_video(
     request: Request,
     session: DatabaseSession,
     member: OptionalMember,
+    background: BackgroundTasks,
+    factory: SessionFactory,
 ) -> ReportResponse:
-    """Anyone may report, signed in or not. Nobody reports their own link: they delete it. One report
-    per person per link; rate limited."""
+    """Anyone may report, signed in or not. Nobody reports their own link: they delete it. One
+    report per person per link; rate limited."""
     host = client_host(request)
     service.limiter.hit("report", host, limit=30, window_seconds=3600)
     if member is not None:
@@ -291,6 +377,9 @@ async def report_video(
             status="already_reported",
             message="You already reported this one. The team will look at it.",
         )
+    if payload.reason == "broken":
+        # "this link does not work": look at it now, so the status says so before the team reads it
+        background.add_task(_look_at_one, factory, video.id)
     logger.warning(
         "Video link %s reported (%s), %s reports so far",
         video.id,
