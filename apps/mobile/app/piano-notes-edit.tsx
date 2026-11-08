@@ -209,9 +209,11 @@ export default function PianoNotesEditScreen() {
               <View style={s.rowTools}>
                 <Chip theme={theme} role="radio" label={t("piano.hand.right")} on={row.hand === "right"} onPress={() => setRow(index, { hand: "right" })} />
                 <Chip theme={theme} role="radio" label={t("piano.hand.left")} on={row.hand === "left"} onPress={() => setRow(index, { hand: "left" })} />
-                <Chip theme={theme} role="button" label="−" a11y={t("piano.edit.repeat.less")} onPress={() => setRow(index, { repeat: Math.max(1, row.repeat - 1) })} minWidth={44} />
-                <Text style={[s.repeat, { color: theme.textHeading }]}>{t("piano.repeat", { count: row.repeat })}</Text>
-                <Chip theme={theme} role="button" label="+" a11y={t("piano.edit.repeat.more")} onPress={() => setRow(index, { repeat: Math.min(16, row.repeat + 1) })} minWidth={44} />
+                <View style={s.repeatBox}>
+                  <Chip theme={theme} role="button" label="−" a11y={t("piano.edit.repeat.less")} onPress={() => setRow(index, { repeat: Math.max(1, row.repeat - 1) })} minWidth={44} />
+                  <Text style={[s.repeat, { color: theme.textHeading }]}>{t("piano.repeat", { count: row.repeat })}</Text>
+                  <Chip theme={theme} role="button" label="+" a11y={t("piano.edit.repeat.more")} onPress={() => setRow(index, { repeat: Math.min(16, row.repeat + 1) })} minWidth={44} />
+                </View>
                 {rows.length > 1 ? (
                   <Chip
                     theme={theme}
@@ -319,5 +321,6 @@ const s = StyleSheet.create({
   rowCard: { borderWidth: 1.5, borderRadius: 20, padding: 12, gap: 8 },
   rowHead: { flexDirection: "row", gap: 8, alignItems: "center" },
   rowTools: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
+  repeatBox: { flexDirection: "row", alignItems: "center", gap: 8 },
   repeat: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20, minWidth: 32, textAlign: "center" },
 })

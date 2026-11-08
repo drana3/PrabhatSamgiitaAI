@@ -1,3 +1,4 @@
+import { KIRTAN_FIXTURES } from "@/lib/fixtures/kirtan"
 import { remoteConfig } from "@/lib/kirtan/api"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { previewName } from "@/lib/songComments/backend"
@@ -11,7 +12,7 @@ let mock: PianoBackend | null = null
 
 export function pianoBackend(): PianoBackend {
   if (MOCKUP_DATA) {
-    mock ??= createPianoMock({ me: previewName })
+    mock ??= createPianoMock({ me: previewName, seedRecordings: KIRTAN_FIXTURES.filter((k) => k.kind === "kiirtan").slice(0, 2).map((k) => k.id) })
     return mock
   }
   return pianoRemote(remoteConfig())

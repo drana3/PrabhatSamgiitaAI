@@ -25,7 +25,7 @@ const OPEN_PER_TARGET = 3
 const key = (target: PianoTarget) => (target.kind === "recording" ? `recording:${target.id}` : `song:${target.number}`)
 const quick = (notes: number[], beats = 1) => notes.map((k) => ({ k: [k], b: beats }))
 
-export function createPianoMock(options: { me: () => string; now?: () => number; teamMember?: boolean } = { me: () => "You" }): PianoBackend {
+export function createPianoMock(options: { me: () => string; now?: () => number; teamMember?: boolean; seedRecordings?: readonly string[] } = { me: () => "You" }): PianoBackend {
   const clock = options.now ?? Date.now
   const sheets = new Map<string, PianoSheet>()
   const reported = new Set<string>()
@@ -64,6 +64,9 @@ export function createPianoMock(options: { me: () => string; now?: () => number;
       recordingTitle: null,
     })
   }
+
+  // the preview shows the shelf "Kiirtan for piano" from the start: these recordings already have notes
+  for (const id of options.seedRecordings ?? []) seedFor({ kind: "recording", id })
 
   const live = (member: boolean, target: PianoTarget) =>
     [...sheets.values()].filter((s) => key(s.target) === key(target) && s.mine === member && s.status !== "rejected" && !s.archived)
