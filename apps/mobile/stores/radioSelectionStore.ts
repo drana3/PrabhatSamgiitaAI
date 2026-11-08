@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 import {
   DEFAULT_RADIO_SELECTION,
+  LEGACY_DEFAULT_SELECTION,
   RADIO_SELECTION_VERSION,
   selectAll,
   toggleCategory,
@@ -48,9 +49,12 @@ export const useRadioSelectionStore = create<RadioSelectionState>()(
       storage: createJSONStorage(() => AsyncStorage),
       version: RADIO_SELECTION_VERSION,
       partialize: (state) => ({ selected: state.selected }),
-      migrate: (persisted) => {
+      migrate: (persisted, version) => {
         const old = (persisted ?? {}) as { selected?: unknown }
-        return { selected: sanitizeSelection(old.selected) }
+        const kept = sanitizeSelection(old.selected)
+        // version 1 stored "Prabhat Samgiita only" as its default: nobody chose that, the new default is all categories
+        const wasDefault = version < 2 && kept.length === LEGACY_DEFAULT_SELECTION.length && kept.every((c) => LEGACY_DEFAULT_SELECTION.includes(c))
+        return { selected: wasDefault ? [...DEFAULT_RADIO_SELECTION] : kept }
       },
     },
   ),

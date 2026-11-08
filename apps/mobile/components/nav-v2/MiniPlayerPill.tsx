@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react"
+import { usePathname, useRouter } from "expo-router"
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 import { Frost } from "@/components/common/Frost"
 import { MAX_FONT_SCALE } from "@/constants/fontScale"
@@ -33,6 +34,7 @@ import { songPlayback } from "@/lib/playback"
 import { skipToNextSong, skipToPreviousSong } from "@/lib/playerV2/transport"
 import type { SaveItem } from "@/lib/save/saveToSheet"
 import { usePlayerStore } from "@/stores/playerStore"
+import { href } from "@/utils/href"
 
 /**
  * Pill colours from the prototype (.mini): white 38% with a 60% edge in Light, neutral
@@ -87,6 +89,14 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
   // While the Radio runs, the second line says what it plays ("Radio · Kiirtan, Bhajan") instead of the track number.
   const radioRunning = usePlayerStore((s) => s.playbackMode === "random" && s.driveAutoAdvance)
   const radio = useRadioPools()
+  const exitDriveMode = usePlayerStore((s) => s.exitDriveMode)
+  // The Radio plays on while the person browses: a tap on the text goes back to its screen (navigate, so a Radio screen
+  // already in the stack is reused). On the Radio screen itself the tap opens the full player as before; a drag up always does.
+  const router = useRouter()
+  const pathname = usePathname()
+  const onRadioScreen = pathname === "/drive" || pathname.startsWith("/drive/")
+  const openRadio = useCallback(() => router.navigate(href("/drive")), [router])
+  const onOpenRadio = radioRunning && !onRadioScreen ? openRadio : null
   const isKiirtan = currentSong?.kind === "kiirtan"
   const kiirtanId = currentSong?.kiirtan?.id ?? null
 
@@ -179,8 +189,8 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
           <View style={styles.mainSlot}>
           <PressScale
             accessibilityRole="button"
-            accessibilityLabel={t("player.mini.open", { title: currentSong.title })}
-            onPress={onOpenPlayer}
+            accessibilityLabel={onOpenRadio ? t("radio.mini.open.a11y", { title: currentSong.title }) : t("player.mini.open", { title: currentSong.title })}
+            onPress={onOpenRadio ?? onOpenPlayer}
             pressedScale={0.985}
             style={styles.main}
           >
@@ -204,13 +214,25 @@ export function MiniPlayerPill({ visible, bottom, onOpenPlayer }: Props) {
           </PressScale>
           </View>
 
-          <SaveButton
-            item={saveItem}
-            size={24}
-            color={theme.textHeading}
-            title={currentSong.title}
-            style={styles.control}
-          />
+          {radioRunning ? (
+            // The only way out of the Radio besides its own screen: it plays on until the person stops it here.
+            <PressScale
+              accessibilityRole="button"
+              accessibilityLabel={t("radio.mini.stop.a11y")}
+              onPress={exitDriveMode}
+              style={styles.control}
+            >
+              <PlayerIcon name="stop" size={22} color={theme.textHeading} />
+            </PressScale>
+          ) : (
+            <SaveButton
+              item={saveItem}
+              size={24}
+              color={theme.textHeading}
+              title={currentSong.title}
+              style={styles.control}
+            />
+          )}
           <PressScale
             accessibilityRole="button"
             accessibilityLabel={showPause ? t("player.mini.pause", { title: currentSong.title }) : t("player.mini.play", { title: currentSong.title })}

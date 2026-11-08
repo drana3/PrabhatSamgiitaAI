@@ -100,12 +100,23 @@ describe("top played model", () => {
     expect(topReducer(s, { type: "more" })).toBe(s)
   })
 
-  it("'counting since' shows for the all-time list only", () => {
+  it("'counting since' shows on the all-time list (also while it is empty), and on a 7 or 30 day list only while counting is younger than the window", () => {
+    const now = Date.parse("2026-11-08T12:00:00Z")
     const ready = { status: "ready" as const, since: "2026-09-01" }
-    expect(showSince({ ...ready, period: "all" })).toBe(true)
-    expect(showSince({ ...ready, period: "7d" })).toBe(false)
-    expect(showSince({ ...ready, period: "all", since: null })).toBe(false)
-    expect(showSince({ status: "empty", since: "2026-09-01", period: "all" })).toBe(false)
+    expect(showSince({ ...ready, period: "all" }, now)).toBe(true)
+    expect(showSince({ ...ready, period: "all", since: null }, now)).toBe(false)
+    expect(showSince({ status: "empty", since: "2026-09-01", period: "all" }, now)).toBe(true)
+    expect(showSince({ status: "loading", since: "2026-09-01", period: "all" }, now)).toBe(false)
+    expect(showSince({ status: "error", since: "2026-09-01", period: "all" }, now)).toBe(false)
+    // counting began long ago: a full 7 or 30 day window needs no note
+    expect(showSince({ ...ready, period: "7d" }, now)).toBe(false)
+    expect(showSince({ ...ready, period: "30d" }, now)).toBe(false)
+    // counting began 3 days ago: both windows are still thin
+    expect(showSince({ ...ready, since: "2026-11-05", period: "7d" }, now)).toBe(true)
+    expect(showSince({ ...ready, since: "2026-11-05", period: "30d" }, now)).toBe(true)
+    // 20 days ago: the 7 day window is full, the 30 day one is not
+    expect(showSince({ ...ready, since: "2026-10-19", period: "7d" }, now)).toBe(false)
+    expect(showSince({ ...ready, since: "2026-10-19", period: "30d" }, now)).toBe(true)
   })
 
   it("groups thousands", () => {

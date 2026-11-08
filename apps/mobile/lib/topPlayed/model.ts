@@ -81,9 +81,19 @@ export function topReducer(state: TopState, action: TopAction): TopState {
   }
 }
 
-/** The "counting since" line shows for the all-time list only: a 7 or 30 day list counts whole days back from today anyway. */
-export function showSince(state: Pick<TopState, "period" | "since" | "status">): boolean {
-  return state.period === "all" && Boolean(state.since) && state.status === "ready"
+const DAY_MS = 24 * 60 * 60 * 1000
+const PERIOD_DAYS: Record<TopPeriod, number | null> = { all: null, "30d": 30, "7d": 7 }
+
+/**
+ * The "counting since <date>" line, while the list is thin: always on the all-time list, and on a 30 or 7 day list only when
+ * counting began inside that window (so the window is not full yet). Also shown when the list is still empty.
+ */
+export function showSince(state: Pick<TopState, "period" | "since" | "status">, now: number = Date.now()): boolean {
+  if (!state.since || (state.status !== "ready" && state.status !== "empty")) return false
+  const days = PERIOD_DAYS[state.period]
+  if (days == null) return true
+  const began = Date.parse(state.since)
+  return Number.isFinite(began) && began > now - days * DAY_MS
 }
 
 /** `1240` -> `1,240` (the device's own grouping); never throws. */

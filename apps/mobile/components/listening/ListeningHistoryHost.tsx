@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useEffect } from "react"
 
 import { PlayTracker } from "@/lib/authors/plays"
+import { watchRadioSelection } from "@/lib/radio/applyChange"
 import "@/lib/radio/live" // installs the Radio picker (the chosen categories); this host is mounted once at the root
 import { demoHistory } from "@/lib/fixtures/searchMenuDemo"
 import { kirtanById } from "@/lib/kirtan/catalog"
@@ -19,6 +20,10 @@ import { usePlayerStore } from "@/stores/playerStore"
 const SEEDED_KEY = "prabhat-listening-history-demo-seeded"
 
 export function ListeningHistoryHost() {
+  // A change of the chosen categories (or of the blocked authors) while the Radio plays reaches the track queued next, on
+  // whatever screen the person is: the Radio no longer stops when its screen is left.
+  useEffect(() => watchRadioSelection(), [])
+
   // Preview only: a sample history once, so the screen can be seen filled. Clearing it afterwards stays cleared.
   useEffect(() => {
     if (!MOCKUP_DATA) return undefined

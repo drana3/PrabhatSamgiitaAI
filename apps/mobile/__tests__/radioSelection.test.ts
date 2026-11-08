@@ -108,8 +108,8 @@ describe("radio categories", () => {
     it("keeps the chosen that have tracks", () => {
       expect(effectiveSelection(["kiirtan", "dance_song"], counts())).toEqual(["kiirtan"])
     })
-    it("falls back to the default, then to anything with tracks", () => {
-      expect(effectiveSelection(["dance_song"], counts())).toEqual(["prabhat_samgiita"])
+    it("falls back to the default (every category with tracks), and to nothing only when nothing can play", () => {
+      expect(effectiveSelection(["dance_song"], counts())).toEqual(["prabhat_samgiita", "kiirtan", "bhajan", "spiritual_song", "baba_audio"])
       expect(effectiveSelection(["dance_song"], counts({ prabhat_samgiita: 0 }))).toEqual([
         "kiirtan",
         "bhajan",
@@ -121,9 +121,11 @@ describe("radio categories", () => {
   })
 
   describe("All", () => {
-    it("ticks every category that has tracks and skips the empty one", () => {
+    it("ticks every category (an empty one is skipped when playing, and joins by itself once it has a track)", () => {
       const all = selectAll(counts())
-      expect(all).toEqual(["prabhat_samgiita", "kiirtan", "bhajan", "spiritual_song", "baba_audio"])
+      expect(all).toEqual([...RADIO_CATEGORIES])
+      expect(effectiveSelection(all, counts())).toEqual(["prabhat_samgiita", "kiirtan", "bhajan", "spiritual_song", "baba_audio"])
+      expect(effectiveSelection(all, counts({ dance_song: 2 }))).toContain("dance_song")
       expect(isAllSelected(all, counts())).toBe(true)
       expect(isAllSelected(["kiirtan"], counts())).toBe(false)
     })
@@ -150,11 +152,13 @@ describe("radio selection store", () => {
     useRadioSelectionStore.getState().reset()
   })
 
-  it("starts on Prabhat Samgiita, as the Radio always did", () => {
-    expect(useRadioSelectionStore.getState().selected).toEqual(["prabhat_samgiita"])
+  it("starts with every category ticked (Dada's decision)", () => {
+    expect(useRadioSelectionStore.getState().selected).toEqual([...RADIO_CATEGORIES])
+    expect(DEFAULT_RADIO_SELECTION).toEqual(RADIO_CATEGORIES)
   })
 
   it("toggles, guards the last tick and reports it", () => {
+    useRadioSelectionStore.getState().setSelected(["prabhat_samgiita"])
     const s = useRadioSelectionStore.getState()
     expect(s.toggle("kiirtan", counts())).toBe("added")
     expect(useRadioSelectionStore.getState().selected).toEqual(["prabhat_samgiita", "kiirtan"])
@@ -165,12 +169,14 @@ describe("radio selection store", () => {
     expect(useRadioSelectionStore.getState().selected).toEqual(["kiirtan"])
   })
 
-  it("All ticks every live category", () => {
+  it("All ticks every category", () => {
+    useRadioSelectionStore.getState().setSelected(["kiirtan"])
     useRadioSelectionStore.getState().chooseAll(counts())
-    expect(useRadioSelectionStore.getState().selected).toHaveLength(5)
+    expect(useRadioSelectionStore.getState().selected).toHaveLength(6)
   })
 
   it("is remembered: written under a versioned key", async () => {
+    useRadioSelectionStore.getState().setSelected(["prabhat_samgiita"])
     useRadioSelectionStore.getState().toggle("bhajan", counts())
     await Promise.resolve()
     const raw = memory.get("prabhat-radio-selection")
@@ -198,6 +204,15 @@ describe("radio selection store", () => {
     expect(useRadioSelectionStore.getState().selected).toEqual(["kiirtan", "bhajan"])
     memory.set("prabhat-radio-selection", JSON.stringify({ state: { selected: [] }, version: 0 }))
     await useRadioSelectionStore.persist.rehydrate()
-    expect(useRadioSelectionStore.getState().selected).toEqual(["prabhat_samgiita"])
+    expect(useRadioSelectionStore.getState().selected).toEqual([...RADIO_CATEGORIES])
+  })
+
+  it("version 1 stored Prabhat Samgiita only as its default: that becomes 'all'; a real choice is kept", async () => {
+    memory.set("prabhat-radio-selection", JSON.stringify({ state: { selected: ["prabhat_samgiita"] }, version: 1 }))
+    await useRadioSelectionStore.persist.rehydrate()
+    expect(useRadioSelectionStore.getState().selected).toEqual([...RADIO_CATEGORIES])
+    memory.set("prabhat-radio-selection", JSON.stringify({ state: { selected: ["kiirtan", "bhajan"] }, version: 1 }))
+    await useRadioSelectionStore.persist.rehydrate()
+    expect(useRadioSelectionStore.getState().selected).toEqual(["kiirtan", "bhajan"])
   })
 })

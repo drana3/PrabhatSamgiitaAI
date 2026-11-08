@@ -16,6 +16,7 @@ export type PlayerIconName =
   | "next"
   | "play"
   | "pause"
+  | "stop"
   | "repeat"
   | "drive"
   | "playlistAdd"
@@ -113,6 +114,7 @@ export function PlayerIcon({ name, size, color, filled, strokeWidth }: Props) {
             <Rect {...solid} x={13.5} y={5} width={4} height={14} />
           </>
         ) : null}
+        {name === "stop" ? <Rect {...solid} x={6} y={6} width={12} height={12} rx={2} /> : null}
         {name === "repeat" ? (
           <Path
             {...stroke}

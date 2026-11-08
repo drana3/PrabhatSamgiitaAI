@@ -19,10 +19,16 @@ export const RADIO_CATEGORIES: readonly RadioCategory[] = [
 ]
 
 /** Stored with the selection: bump it when the ids or the meaning of the stored value change. */
-export const RADIO_SELECTION_VERSION = 1
+export const RADIO_SELECTION_VERSION = 2
 
-/** Radio has always played Prabhat Samgiita songs; a first-time listener keeps that until they choose otherwise. */
-export const DEFAULT_RADIO_SELECTION: readonly RadioCategory[] = ["prabhat_samgiita"]
+/**
+ * A first-time listener hears everything the app has: every category is ticked (Dada's decision). A category with nothing
+ * to play is skipped by `effectiveSelection`, and one that gets its first recording later joins the Radio by itself.
+ */
+export const DEFAULT_RADIO_SELECTION: readonly RadioCategory[] = RADIO_CATEGORIES
+
+/** What version 1 stored as its default (Prabhat Samgiita only): it was never a choice, so version 2 turns it into "all". */
+export const LEGACY_DEFAULT_SELECTION: readonly RadioCategory[] = ["prabhat_samgiita"]
 
 export type RadioCounts = Readonly<Record<RadioCategory, number>>
 
@@ -89,10 +95,9 @@ export function toggleCategory(
   return { selected: RADIO_CATEGORIES.filter((c) => c === id || current.includes(c)), result: "added" }
 }
 
-/** The "All" shortcut: every category that has something to play. */
-export function selectAll(counts: RadioCounts): RadioCategory[] {
-  const all = RADIO_CATEGORIES.filter((c) => hasTracks(counts, c))
-  return all.length ? all : [...DEFAULT_RADIO_SELECTION]
+/** The "All" shortcut: every category, so one that gets its first recording later is included too (empty ones are skipped). */
+export function selectAll(_counts?: RadioCounts): RadioCategory[] {
+  return [...RADIO_CATEGORIES]
 }
 
 export function isAllSelected(selected: readonly RadioCategory[], counts: RadioCounts): boolean {

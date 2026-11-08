@@ -191,7 +191,8 @@ describe("radio picker", () => {
     const w = world({ selected: ["dance_song"] })
     const { out } = run(w, 4, 10)
     expect(out).toHaveLength(10)
-    expect(out.every((n) => n < 1_000_000_000)).toBe(true)
+    // the fallback is the default, which is every category that has tracks (it used to be Prabhat Samgiita only)
+    expect(out.every((n) => n > 0)).toBe(true)
   })
 
   it("returns null when nothing at all can play", () => {

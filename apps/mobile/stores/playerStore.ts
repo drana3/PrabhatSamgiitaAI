@@ -70,6 +70,7 @@ import { clearTransition, inTransition, markTransition } from "@/lib/playback/tr
 import { runTrackEndHook } from "@/lib/playback/trackEndHook"
 import { resolveStartPosition } from "@/lib/playback/startPosition"
 import { songDetailToMockSong } from "@/lib/songMap"
+import { driveBlurDecision } from "@/lib/radio/keepPlaying"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 
 type PlayerState = {
@@ -634,6 +635,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       driveBlurExitTimer = null
       if (!appIsActive()) return
       if (get().driveScreenFocused) return
+      // The Radio keeps playing when the person leaves its screen (lib/radio/keepPlaying.ts); only a drive playlist ends here.
+      const decision = driveBlurDecision(get())
+      if (decision === "keep") return
+      if (decision === "forget") {
+        set({ driveAutoAdvance: false, driveRepeat: false })
+        publishRadioSession()
+        return
+      }
       get().exitDriveMode()
     }, 1200)
   },

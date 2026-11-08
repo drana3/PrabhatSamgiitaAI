@@ -12,7 +12,8 @@ and its tests `apps/mobile/__tests__/radioMix.test.ts`.
 ### What you can do
 
 When the Radio starts you choose **what to play**: Prabhat Samgiita, Kiirtan, Bhajan, Spiritual
-song, Dance music, Baba's Audio Discourses. You can tick one, several, or press **All**.
+song, Dance music, Baba's Audio Discourses. **Every category is ticked the first time**, so the
+Radio plays everything the app has. You can untick some, tick only one, or press **All** again.
 
 - At least one stays on. If you try to switch off the last one, the screen says so gently and
   keeps it on.
@@ -22,6 +23,11 @@ song, Dance music, Baba's Audio Discourses. You can tick one, several, or press 
 - The Radio screen and the small player at the bottom say in words what is playing
   ("Radio · Kiirtan, Bhajan").
 - The choice is remembered on this phone.
+- **The Radio keeps playing until you stop it.** Leaving the Radio screen (to Top Played, Search,
+  a song page, anywhere) does not stop it. The small player at the bottom shows the radio line
+  ("Radio · all categories") with a **stop** button; tapping the text takes you back to the Radio
+  screen. Only the stop button, or stopping on the Radio screen, ends it. (Before, leaving the
+  screen stopped the Radio; this was changed on the owner's request.)
 
 ### How the next track is picked
 
@@ -51,7 +57,8 @@ A play is counted when you really listen: 30 seconds, or half of a short track, 
 listener per day. Seeking forward does not count. The same rule is used for authors'
 statistics. Top Played is the list of the tracks with the most counted plays (all time, last 30
 days, last 7 days), by category. A track appears only after 5 counted plays, so one person
-looping a song cannot put it on the list.
+looping a song cannot put it on the list. While the list is still thin the screen says
+"Counting since <date>".
 
 ### Privacy
 
@@ -74,7 +81,7 @@ public totals. Nothing about *your* list leaves the phone.
 | Picker that joins pool, selection, history and the mixer | `apps/mobile/lib/radio/picker.ts` |
 | Real wiring (stores in, `setRadioPicker` out) | `apps/mobile/lib/radio/live.ts` |
 | Live change of the choice (replace the queued next track) | `apps/mobile/lib/radio/applyChange.ts` |
-| Remembered choice, persist version 1 | `apps/mobile/stores/radioSelectionStore.ts` |
+| Remembered choice, persist version 2 (version 1 stored Prabhat Samgiita only as its default; that becomes "all") | `apps/mobile/stores/radioSelectionStore.ts` |
 | Popularity map | `apps/mobile/lib/radio/popularity.ts`, `lib/topPlayed/popularityLoad.ts` |
 | Server: counts and Top Played | `apps/api/app/services/song_plays.py`, `top_played.py`, `api/v1/top_played.py` |
 
@@ -94,8 +101,9 @@ random pick when there is none or it has nothing to offer.
 A track key is `ps:<number>` or `rec:<app id>`, the same keys the listening history uses. The
 counts shown on the chips are the pool sizes. The pool is rebuilt on every pick, so a library
 change is seen at once. Only the **selected** categories that have tracks go into the mixer.
-If every selected category is empty the picker falls back to Prabhat Samgiita, then to any
-category with tracks (`effectiveSelection`).
+If every selected category is empty the picker falls back to the default (all categories that
+have tracks) (`effectiveSelection`). A category that gets its first recording later joins by
+itself when the person has "all" ticked.
 
 ### 2. Fair mix between categories (with a floor)
 
@@ -198,6 +206,21 @@ one upcoming track queued (`radioAdvance.ts`). If that track was picked from a c
 been switched off, `applyRadioSelectionChange` removes it and queues a new pick; a still-allowed
 track stays. The track playing now is never touched. In the web preview there is no native queue,
 so the next pick simply follows the new choice.
+
+The same replacement runs when the person blocks an author while one of that author's recordings
+is the queued track. Blocked authors are left out of the pool everywhere (the library already
+did; Top Played rows, the preview samples and history replay now do too), see `lib/kirtan/blocked.ts`.
+
+### 8b. Keeping the Radio on when the screen is left
+
+`lib/radio/keepPlaying.ts` holds one flag, `RADIO_KEEPS_PLAYING_ON_LEAVE` (true). When the Radio
+screen loses focus, `scheduleDriveBlurExit` in the player store asks `driveBlurDecision`:
+`keep` (a running Radio: nothing happens), `forget` (another song replaced the Radio; only the
+drive flag is cleared, that song is never stopped) or `exit` (a drive playlist: ended as before).
+The watcher of the choice (`watchRadioSelection`) is mounted at the root, not on the Radio screen,
+so a change reaches the queued track on any screen. The mini-player shows the radio line and a
+stop button while the Radio runs; the stop button calls `exitDriveMode`. Set the flag to false to
+restore the old behaviour.
 
 ### 9. Counting plays and the Top Played endpoint
 

@@ -104,7 +104,7 @@ export function createDemoTopPlayedApi(): TopPlayedApi & { control: DemoControl 
       await new Promise((resolve) => setTimeout(resolve, 220))
       if (mode === "error") throw new NetworkError("demo offline")
       if (mode === "empty") {
-        return { period: query.period, kinds: [...query.kinds], items: [], total: 0, hasMore: false, since: null, minPlays: MIN_PLAYS }
+        return { period: query.period, kinds: [...query.kinds], items: [], total: 0, hasMore: false, since: "2026-09-01", minPlays: MIN_PLAYS }
       }
       return demoTopPage(query)
     },

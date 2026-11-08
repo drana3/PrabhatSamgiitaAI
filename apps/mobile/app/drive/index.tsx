@@ -20,6 +20,7 @@ import { DriveNowPlaying } from "@/components/drive/DriveNowPlaying"
 import { DrivePlaylistAccordion } from "@/components/drive/DrivePlaylistAccordion"
 import { DriveReorderableQueue } from "@/components/drive/DriveReorderableQueue"
 import { RadioCategoryStrip } from "@/components/radio/RadioCategoryStrip"
+import { useRadioPools } from "@/hooks/useRadioPools"
 import { PlaylistSyncBar } from "@/components/playlists/PlaylistSyncBar"
 import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
@@ -32,7 +33,6 @@ import { trackForNumber } from "@/lib/kirtan/mixPlayback"
 import { shouldAutoStartRandomOnDriveFocus } from "@/lib/driveAutoStart"
 import { randomPlayableSongNumber } from "@/lib/playableAudio"
 import { canStepPlaylist } from "@/lib/playbackQueue"
-import { watchRadioSelection } from "@/lib/radio/applyChange"
 import { startRadioMix } from "@/lib/radio/live"
 import { usePlaylistStore } from "@/stores/playlistStore"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -69,6 +69,7 @@ export default function DriveScreen() {
     current?.number ?? null,
     activePlaylist,
   )
+  const radioChosen = useRadioPools().chosen // the first card names what the Radio plays: songs only, or a mix of categories
   const [showPlaylists, setShowPlaylists] = useState(false)
   const [startingRandom, setStartingRandom] = useState(false)
   const drivePlaylistChosenRef = useRef(false)
@@ -150,9 +151,6 @@ export default function DriveScreen() {
     }, [startRandom]),
   )
 
-  // a change of the chosen categories while the radio plays reaches the track queued next (never the one playing)
-  useEffect(() => watchRadioSelection(), [])
-
   const driving =
     driveAutoAdvance &&
     driveScreenFocused &&
@@ -221,7 +219,7 @@ export default function DriveScreen() {
           <View style={styles.modeIcon}>
             <Shuffle size={22} color={colors.primaryDark} />
           </View>
-          <Text style={styles.modeTitle}>{t("radio.random.title")}</Text>
+          <Text style={styles.modeTitle}>{radioChosen.length === 1 && radioChosen[0] === "prabhat_samgiita" ? t("radio.random.title") : t("radio.mix.title")}</Text>
           <Text style={styles.modeBody}>
             {playbackMode === "random" && driveAutoAdvance
               ? t("radio.random.playing")
