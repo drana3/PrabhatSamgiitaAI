@@ -2,6 +2,7 @@ import type { Track } from "react-native-track-player"
 
 import { toPlayableLocalUri } from "@/lib/offlineAudio"
 import type { CatalogTrack } from "@/lib/playback/catalogTrack"
+import { attachLevelingListeners, levelNoteUpcoming, levelReset, levelSetUserVolume, levelStartTrack } from "@/lib/playback/levelingBridge"
 import { getTrackPlayer, loadTrackPlayerModule } from "@/lib/playback/trackPlayerBridge"
 
 /** The photograph the design shows on the lock screen (SysIosLock), used when a song has no artwork of its own. */
@@ -78,6 +79,7 @@ export async function setupNativeCatalogPlayer(): Promise<void> {
       /* already initialized */
     }
     await TrackPlayer.updateOptions(remoteOptions())
+    attachLevelingListeners()
     playerReady = true
   })()
   setupPromise = attempt
@@ -110,6 +112,8 @@ export async function playTrackNow(track: CatalogTrack, startAt = 0): Promise<vo
   await setupNativeCatalogPlayer()
   const TrackPlayer = getTrackPlayer()
   await TrackPlayer.reset()
+  // Volume leveling: this track's gain is set before it is heard (lib/loudness/leveler.ts).
+  levelStartTrack(track)
   await TrackPlayer.add(trackForNativePlayer(track))
   if (startAt > 0) {
     try {
@@ -123,6 +127,7 @@ export async function playTrackNow(track: CatalogTrack, startAt = 0): Promise<vo
 
 export async function enqueueTrack(track: CatalogTrack): Promise<void> {
   await setupNativeCatalogPlayer()
+  levelNoteUpcoming(track)
   await getTrackPlayer().add(trackForNativePlayer(track))
 }
 
@@ -136,6 +141,7 @@ export async function nativePause(): Promise<void> {
 }
 
 export async function nativeStop(): Promise<void> {
+  levelReset()
   const TrackPlayer = getTrackPlayer()
   try {
     await TrackPlayer.stop()
@@ -149,8 +155,9 @@ export async function nativeSeek(seconds: number): Promise<void> {
   await getTrackPlayer().seekTo(Math.max(0, seconds))
 }
 
+/** The listener's own volume (slider, sleep fade). The leveler multiplies its gain in and sets the real volume. */
 export async function nativeSetVolume(volume: number): Promise<void> {
-  await getTrackPlayer().setVolume(Math.min(1, Math.max(0, volume)))
+  levelSetUserVolume(Math.min(1, Math.max(0, volume)))
 }
 
 export async function nativeSetRate(rate: number): Promise<void> {

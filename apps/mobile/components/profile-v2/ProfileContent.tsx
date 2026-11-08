@@ -39,6 +39,7 @@ import { anyEnabled } from "@/lib/notifications/settings"
 import { completeMemberSignOut } from "@/lib/session"
 import { APPEARANCE_LABELS, APPEARANCE_PREFERENCES } from "@/lib/appearance"
 import { useAppearanceStore } from "@/stores/appearanceStore"
+import { useLoudnessStore } from "@/stores/loudnessStore"
 import { useLanguageStore } from "@/stores/languageStore"
 import { LANGUAGE_NATIVE_NAMES, formatNumber, useLanguage, useT } from "@/lib/i18n"
 import { effectiveTranslations } from "@/lib/songPage/lyricLanguages"
@@ -100,6 +101,7 @@ export function useProfileContent(theme: AmTheme) {
   const appearance = useAppearanceStore((st) => st.appearance)
   const setAppearance = useAppearanceStore((st) => st.setAppearance)
   const reviewStyle = useAppearanceStore((st) => st.reviewStyle)
+  const levelingOn = useLoudnessStore((st) => st.enabled)
   const t = useT()
   const languagePref = useLanguageStore((st) => st.language)
   const script = useSongPageStore((st) => st.script)
@@ -254,6 +256,13 @@ export function useProfileContent(theme: AmTheme) {
           label={t("profile.reviewStyle")}
           value={reviewStyleRowValue(reviewStyle)}
           onPress={() => go(PROFILE_ROUTES.reviewStyle)}
+        />
+        <SetRow
+          p={p}
+          label={t("profile.volumeLeveling")}
+          value={levelingOn ? t("common.on") : t("common.off")}
+          chevron
+          onPress={() => go(PROFILE_ROUTES.volumeLeveling)}
         />
         <SetRow
           p={p}

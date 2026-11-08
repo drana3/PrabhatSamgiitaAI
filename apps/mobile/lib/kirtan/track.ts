@@ -28,6 +28,9 @@ export type KiirtanSource = {
   /** performer or group, as the author wrote it */
   author: string
   durationSec: number | null
+  /** Measured loudness of the file (volume leveling); absent when not measured. */
+  loudnessLufs?: number
+  truePeakDb?: number
   type: string
   /** Kiirtan or Bhajan; missing means a Kiirtan */
   kind?: RecordingKind
@@ -108,6 +111,7 @@ function buildKiirtanSong(k: KiirtanSource, number: number): MockSong {
     lyrics: "",
     translation: "",
     durationSeconds: k.durationSec ?? 0,
+    ...(typeof k.loudnessLufs === "number" ? { loudness: { lufs: k.loudnessLufs, truePeakDb: typeof k.truePeakDb === "number" ? k.truePeakDb : null } } : {}),
     performer: k.author,
     videos: [],
     audioUrl: k.audioUrl,

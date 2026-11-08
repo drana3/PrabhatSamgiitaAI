@@ -317,6 +317,8 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     title: remote.title,
     author: remote.author,
     durationSec: remote.duration_sec ?? base?.durationSec ?? null,
+    ...(typeof remote.loudness_lufs === "number" ? { loudnessLufs: remote.loudness_lufs } : base?.loudnessLufs !== undefined ? { loudnessLufs: base.loudnessLufs } : {}),
+    ...(typeof remote.true_peak_db === "number" ? { truePeakDb: remote.true_peak_db } : base?.truePeakDb !== undefined ? { truePeakDb: base.truePeakDb } : {}),
     type: remote.type as KirtanTypeId,
     byAuthor: base?.byAuthor ?? remote.by_author,
     audioUrl: remote.audio_url,

@@ -81,6 +81,8 @@ type MediaLike = {
   embed_url?: string | null
   verification_status: string
   is_latest?: boolean
+  loudness_lufs?: number | null
+  true_peak_db?: number | null
 }
 
 export type PlayableAudio = {
@@ -89,6 +91,9 @@ export type PlayableAudio = {
   provider: string
   /** The API marks exactly one audio file per song as the best (`is_latest`). Absent when it does not. */
   isLatest?: boolean
+  /** Measured loudness of this file (volume leveling); absent when the server has not measured it. */
+  loudnessLufs?: number
+  truePeakDb?: number
 }
 
 function audioStreamUrl(item: MediaLike): string | null {
@@ -116,6 +121,8 @@ export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
       url,
       provider: item.provider,
       ...(item.is_latest ? { isLatest: true } : {}),
+      ...(typeof item.loudness_lufs === "number" ? { loudnessLufs: item.loudness_lufs } : {}),
+      ...(typeof item.true_peak_db === "number" ? { truePeakDb: item.true_peak_db } : {}),
     })
   }
   return items

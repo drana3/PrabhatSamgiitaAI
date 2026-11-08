@@ -44,6 +44,9 @@ export const songDetailSchema = songSummarySchema.extend({
         is_latest: z.boolean().optional().default(false),
         is_older: z.boolean().optional().default(false),
         is_low_quality: z.boolean().optional().default(false),
+        // Measured by the server for archive audio (volume leveling); absent or null when not measured.
+        loudness_lufs: z.number().nullable().optional(),
+        true_peak_db: z.number().nullable().optional(),
       }),
     )
     .default([]),

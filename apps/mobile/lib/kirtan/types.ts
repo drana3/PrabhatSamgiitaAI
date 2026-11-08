@@ -122,6 +122,9 @@ export type Kirtan = {
   author: string
   /** seconds; null while unknown (the server reads it from the file after the upload) */
   durationSec: number | null
+  /** Measured loudness of the audio file (volume leveling); absent when the server has not measured it. */
+  loudnessLufs?: number
+  truePeakDb?: number
   type: KirtanTypeId
   /**
    * The audio file the author uploaded. null for the preview samples (no real audio yet) and while a

@@ -202,6 +202,10 @@ export default function RootLayout() {
               name="review-style"
               options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
             />
+            <Stack.Screen
+              name="volume-leveling"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
             <Stack.Screen name="parity/index" options={{ presentation: "card" }} />
             {/* Kiirtans: audio files uploaded by their authors, played in the one player. */}
             <Stack.Screen name="add-kirtan" options={{ presentation: "modal" }} />

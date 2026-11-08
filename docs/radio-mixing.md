@@ -282,3 +282,12 @@ shares match the weights within a tolerance; the popularity boost never exceeds 
 avoidance, the stale choice fallback. `radioSelection.test.ts`: last-tick guard, count 0, All,
 persist and migrate. `topPlayed.test.ts`: the screen model, the remote mapping, the demo, the popularity load.
 `test_top_played.py` and `test_song_plays_migration.py`: counting, caps in both orders, the endpoint.
+
+### 13. Volume and the join between tracks
+
+Leveling (`docs/loudness-leveling.md`) does not change which track is picked: `lib/radio/mix.ts`, the
+anti-repeat window, the category shares and the one-stream behaviour are untouched. It changes how loud a
+picked track is played. The Radio already queues the next track natively (`ensureUpcomingRadioTrack`), so the
+join is gapless; the leveler (`lib/loudness/leveler.ts`) lowers the volume in the last 1.2 s when the next
+track is louder, and raises it over 280 ms when it is quieter. An overlapping crossfade needs a player that
+can play two tracks at once; the phone's cannot (the Web Audio engine can).

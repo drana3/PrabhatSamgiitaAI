@@ -20,6 +20,7 @@ import { homeStatesEs } from "./homeStates"
 import { homeFestivalsEs } from "./homeFestivals"
 import { festivalSongsEs } from "./festivalSongs"
 import { profileRowsEs } from "./profileRows"
+import { volumeEs } from "./volume"
 import { assistantErrorsEs } from "./assistantErrors"
 import { recordingExtrasEs } from "./recordingExtras"
 import { songCommentsEs } from "./songComments"
@@ -1288,6 +1289,7 @@ export const es: Dictionary = {
   ...homeFestivalsEs,
   ...festivalSongsEs,
   ...profileRowsEs,
+  ...volumeEs,
   ...assistantErrorsEs,
   ...songCommentsEs,
   ...recordingExtrasEs,

@@ -1,5 +1,7 @@
 import type { MockSong } from "@/data/mock"
 import { versionsFromSong, versionSummary } from "@/lib/playerV2/versions"
+import type { LoudnessClass } from "@/lib/loudness/levels"
+import { loudnessClassOf, songLoudness } from "@/lib/loudness/songLevel"
 
 export type CatalogTrack = {
   id: string
@@ -8,6 +10,10 @@ export type CatalogTrack = {
   artist?: string
   artwork?: string
   duration?: number
+  /** Measured loudness of the file (volume leveling, lib/loudness); absent when not measured. */
+  loudnessLufs?: number
+  truePeakDb?: number
+  loudnessClass?: LoudnessClass
 }
 
 /** "BANDHU HE NIYE CALO" to "Bandhu He Niye Calo" for the lock screen; mixed-case titles are kept. */
@@ -26,8 +32,27 @@ export function lockScreenArtist(song: MockSong, url: string): string {
   return version ? `PS ${song.number} · ${versionSummary(version)}` : `PS ${song.number}`
 }
 
+/** The measured loudness that goes with this URL: the one of its own recording, else the song's. */
+function loudnessFor(song: MockSong, url: string): Pick<CatalogTrack, "loudnessLufs" | "truePeakDb" | "loudnessClass"> {
+  const own = song.audioRecordings?.find((r) => r.url === url)
+  // A song can have several recordings: the numbers belong to the file being played, never to a sibling.
+  const found = own
+    ? typeof own.loudnessLufs === "number"
+      ? { lufs: own.loudnessLufs, truePeakDb: typeof own.truePeakDb === "number" ? own.truePeakDb : null }
+      : null
+    : songLoudness(song)
+  const cls = loudnessClassOf(song)
+  if (!found) return { loudnessClass: cls }
+  return {
+    loudnessLufs: found.lufs,
+    ...(found.truePeakDb === null ? {} : { truePeakDb: found.truePeakDb }),
+    loudnessClass: cls,
+  }
+}
+
 export function songToTrack(song: MockSong, url: string): CatalogTrack {
   return {
+    ...loudnessFor(song, url),
     id: `ps-${song.number}`,
     url,
     title: lockScreenTitle(song.title),

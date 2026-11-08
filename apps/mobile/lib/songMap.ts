@@ -333,6 +333,9 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
 export function songDetailToMockSong(detail: SongDetail): MockSong {
   const hero = scenicHeroFor(detail.number)
   const thumb = scenicThumbFor(detail.number)
+  const playable = listPlayableAudio(detail.media)
+  const preferredUrl = pickPreferredAudioUrl(detail.media)
+  const preferred = playable.find((item) => item.url === preferredUrl)
   const embeds = mediaVideosToEmbeds(detail.media, thumb, detail.number)
   const videos: SongVideo[] = embeds.map((item) => ({
     id: item.id,
@@ -396,8 +399,11 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos,
-    audioUrl: pickPreferredAudioUrl(detail.media),
-    audioRecordings: listPlayableAudio(detail.media).slice(0, 5),
+    audioUrl: preferredUrl,
+    audioRecordings: playable.slice(0, 5),
+    ...(preferred && typeof preferred.loudnessLufs === "number"
+      ? { loudness: { lufs: preferred.loudnessLufs, truePeakDb: typeof preferred.truePeakDb === "number" ? preferred.truePeakDb : null } }
+      : {}),
     notationSourceUrl: detail.notation_source_url?.trim() || null,
     mediaHydrated: true,
   }

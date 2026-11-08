@@ -3074,7 +3074,17 @@
     "recChart.startFrom": false,
     "recChart.editCopy": false,
     "recChart.replaces": false,
-    "recChart.wrongKind": false
+    "recChart.wrongKind": false,
+    "profile.volumeLeveling": false,
+    "volume.sheet.a11y": false,
+    "volume.title": false,
+    "volume.intro": false,
+    "volume.switch": false,
+    "volume.switch.sub": false,
+    "volume.note.phone": false,
+    "volume.note.web": false,
+    "volume.note.speech": false,
+    "volume.note.unmeasured": false
   },
   "es": {
     "unit.kb": false,
@@ -5967,6 +5977,16 @@
     "recChart.startFrom": false,
     "recChart.editCopy": false,
     "recChart.replaces": false,
-    "recChart.wrongKind": false
+    "recChart.wrongKind": false,
+    "profile.volumeLeveling": false,
+    "volume.sheet.a11y": false,
+    "volume.title": false,
+    "volume.intro": false,
+    "volume.switch": false,
+    "volume.switch.sub": false,
+    "volume.note.phone": false,
+    "volume.note.web": false,
+    "volume.note.speech": false,
+    "volume.note.unmeasured": false
   }
 }

@@ -24,6 +24,8 @@ export const PROFILE_ROUTES = {
   listeningHistory: "/listening-history",
   /** the avatar and name block opens this: app/edit-profile.tsx */
   editProfile: "/edit-profile",
+  /** the switch for volume leveling: app/volume-leveling.tsx */
+  volumeLeveling: "/volume-leveling",
   /** the rules for a Kiirtan or a Bhajan: app/content-rules.tsx */
   contentRules: "/content-rules",
   /** admins only: app/admin/index.tsx (it checks the role again) */
@@ -45,6 +47,7 @@ export const PROFILE_ROUTE_READY: Record<ProfileRoute, boolean> = {
   "/listening-history": true,
   "/edit-profile": true,
   "/content-rules": true,
+  "/volume-leveling": true,
   "/admin": true,
 }
 

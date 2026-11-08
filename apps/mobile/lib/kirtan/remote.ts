@@ -31,6 +31,9 @@ export type RemoteRecording = {
   by_author: boolean
   status: "published" | "removed" | "flagged"
   duration_sec: number | null
+  /** Measured by the server (ffmpeg, EBU R128): integrated loudness in LUFS and true peak in dBTP; null/absent when not measured. */
+  loudness_lufs?: number | null
+  true_peak_db?: number | null
   /** null on a public author page whose owner hides the listening statistics */
   plays: number | null
   audio_url: string
