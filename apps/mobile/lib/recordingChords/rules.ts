@@ -1,7 +1,7 @@
 import { isChordName } from "@/lib/songChords/chordName"
 import { linkCount, stripInvisible } from "@/lib/songComments/rules"
 
-import type { SheetDraft, SheetFailure } from "./types"
+import type { SheetChartPayload, SheetDraft, SheetFailure } from "./types"
 
 /** The same limits as the API (apps/api/app/models/recording_extras.py, services/recording_chords.py). */
 export const SHEET_MAX_LENGTH = 8000
@@ -132,5 +132,21 @@ export function draftToWire(draft: SheetDraft): Record<string, unknown> {
     played_it: draft.playedIt,
     note: draft.note.trim() || null,
     is_anonymous: draft.isAnonymous,
+  }
+}
+
+/** The request body of a chart (snake_case): the lines of the text with their chords, the key they sound in, the capo as a hint. */
+export function chartToWire(chart: SheetChartPayload): Record<string, unknown> {
+  return {
+    instrument: chart.instrument,
+    chart_key: chart.baseKey,
+    lines: chart.lines.map((line) => ({ text: line.text, placements: line.placements.map((p) => ({ word: p.word, chord: p.chord })) })),
+    capo: chart.instrument === "guitar" ? chart.capo : 0,
+    strum: chart.instrument === "guitar" ? chart.strum : null,
+    played_it: chart.playedIt,
+    note: chart.note?.trim() || null,
+    is_anonymous: chart.isAnonymous,
+    ...(chart.replacesId ? { replaces_id: chart.replacesId } : {}),
+    ...(chart.basedOnId ? { based_on_id: chart.basedOnId } : {}),
   }
 }

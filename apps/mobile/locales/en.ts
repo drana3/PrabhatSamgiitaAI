@@ -3,6 +3,7 @@ import { appShellEn } from "./appShell"
 import { ugcEn } from "./ugc"
 import { duplicatesEn } from "./duplicates"
 import { recordingInfoEn } from "./recordingInfo"
+import { recordingChartsEn } from "./recordingCharts"
 import { recordingsEn } from "./recordings"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
@@ -1277,6 +1278,7 @@ export const en = {
   ...ugcEn,
   ...duplicatesEn,
   ...recordingInfoEn,
+  ...recordingChartsEn,
   ...recordingsEn,
   ...offlineEn,
   ...accountEn,

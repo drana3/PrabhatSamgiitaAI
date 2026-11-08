@@ -29,7 +29,8 @@ import { allKirtans } from "@/lib/kirtan/catalog"
 import { kindHasChords } from "@/lib/kirtan/kind"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { apiIdOf, chordsFormHref } from "@/lib/recordingExtras/links"
+import { kindHasCharts } from "@/lib/recordingChords/kinds"
+import { apiIdOf, sheetFormHref } from "@/lib/recordingExtras/links"
 import { recordingCommentFailure, recordingCommentsBackend } from "@/lib/recordingComments/backend"
 import type { RecordingComment } from "@/lib/recordingComments/types"
 import { href } from "@/utils/href"
@@ -128,7 +129,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
         {/* chords: Kiirtan, Bhajan, Prabhat Samgiita and Spiritual song; not a Dance music or a Baba's Audio Discourse (lib/kirtan/kind.ts kindHasChords) */}
         {kindHasChords(recording.kind) ? (
           <Reveal index={1}>
-            <ChordsBlock t={t} sheets={sheets} onOpen={() => setViewing(true)} onAdd={() => router.push(href(chordsFormHref({ recordingId: apiId, title: recording.title })))} />
+            <ChordsBlock t={t} sheets={sheets} onOpen={() => setViewing(true)} onAdd={() => router.push(href(sheetFormHref({ chart: kindHasCharts(recording.kind), recordingId: apiId, title: recording.title })))} />
           </Reveal>
         ) : null}
         <Reveal index={2}>

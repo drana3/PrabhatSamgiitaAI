@@ -2,7 +2,9 @@ import { useEffect, useState } from "react"
 import { useRouter } from "expo-router"
 
 import type { SpTheme } from "@/constants/tokens/amSong"
-import { chordsFormHref } from "@/lib/recordingExtras/links"
+import { recordingHasCharts } from "@/lib/recordingChords/kinds"
+import type { RecordingSheet } from "@/lib/recordingChords/types"
+import { sheetFormHref } from "@/lib/recordingExtras/links"
 import { href } from "@/utils/href"
 
 import { ChordsViewer } from "./ChordsViewer"
@@ -29,10 +31,24 @@ function Loaded({ t, recordingId, title, visible, onClose, beforeNavigate }: { t
 /** The viewer wired to the "Add chords" screen; used by the page (with its own list) and by the player (above). `beforeNavigate` lets the player close itself first. */
 export function Viewer({ t, sheets, recordingId, title, visible, onClose, beforeNavigate }: { t: SpTheme; sheets: SheetsController; recordingId: string; title: string; visible: boolean; onClose: () => void; beforeNavigate?: () => void }) {
   const router = useRouter()
-  const go = (edit?: string) => {
+  // a Bhajan and a Spiritual song take a chart over pasted words, every other recording the plain-text sheet
+  const go = (target: { chart: boolean; edit?: string; copy?: string; from?: string; instrument?: string }) => {
     onClose()
     beforeNavigate?.()
-    router.push(href(chordsFormHref({ recordingId, title, edit })))
+    router.push(href(sheetFormHref({ recordingId, title, ...target })))
   }
-  return <ChordsViewer t={t} visible={visible} onClose={onClose} sheets={sheets} onAdd={() => go()} onChange={(sheet) => go(sheet.id)} />
+  const hasCharts = recordingHasCharts(recordingId)
+  const chartOf = (sheet: RecordingSheet) => Boolean(sheet.lines && sheet.lines.length > 0)
+  return (
+    <ChordsViewer
+      t={t}
+      visible={visible}
+      onClose={onClose}
+      sheets={sheets}
+      onAdd={() => go({ chart: hasCharts })}
+      onChange={(sheet) => go({ chart: chartOf(sheet), edit: sheet.id })}
+      onCopy={(sheet) => go({ chart: true, copy: sheet.id })}
+      onFrom={(sheet) => go({ chart: true, from: sheet.id, instrument: sheet.instrument })}
+    />
+  )
 }

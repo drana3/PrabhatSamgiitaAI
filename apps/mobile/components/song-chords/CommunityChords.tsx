@@ -1,26 +1,19 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
-import { SpChordTokens, SpKeyRow } from "@/components/song-v2/SpSections"
+import { ChartBody, ChartCreditLine, ChartMeta } from "@/components/song-chords/ChartBody"
 import { SpPill, SpPress } from "@/components/song-v2/SpUi"
 import { Eyebrow } from "@/components/song-page/ui"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useCommunityChords } from "@/hooks/useCommunityChords"
 import { useT } from "@/lib/i18n"
-import { chartTokens } from "@/components/song-chords/ChartPreview"
 import { editHref } from "@/lib/songChords/charts"
-import { chartOf, type ChordFailure, type ChordProposal, type ChordReportReason } from "@/lib/songChords/types"
-import { SP_NOTES, capoName, guitarKeyNote, harmoniumKeyNote, keyLabel, keyPitch, uniqueChords } from "@/lib/songPage/spChords"
-import { clampCapo } from "@/lib/songPage/chords"
+import { type ChordFailure, type ChordReportReason } from "@/lib/songChords/types"
 import { href } from "@/utils/href"
 
 const REASONS: readonly ChordReportReason[] = ["wrong_chords", "offensive", "spam", "other"]
-
-function nextNote(key: string, direction: 1 | -1): string {
-  return SP_NOTES[(keyPitch(key) + direction + 12) % 12]
-}
 
 /**
  * Charts members offered for this song, under the song page's own chords: one chip for each chart (instrument and
@@ -45,15 +38,6 @@ export function CommunityChords({
   const [chosen, setChosen] = useState<string | null>(null)
   const current = items.find((p) => p.id === chosen) ?? items[0] ?? null
 
-  // capo (guitar) and Sa (harmonium) start where the author played; moving them is the reader's own, local
-  const [capo, setCapo] = useState(0)
-  const [sa, setSa] = useState("C")
-  useEffect(() => {
-    if (!current) return
-    setCapo(current.capo)
-    setSa(current.baseKey)
-  }, [current?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const [reporting, setReporting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -63,18 +47,9 @@ export function CommunityChords({
     setMessage(null)
   }, [current?.id])
 
-  const tokens = useMemo(
-    () => (current && romanLines.length ? chartTokens({ romanLines, chart: chartOf(current), instrument: current.instrument, capo, harmoniumKey: sa }) : []),
-    [current, romanLines, capo, sa],
-  )
-
   const instrumentWord = { guitar: tr("chordOffer.instrument.guitar"), harmonium: tr("chordOffer.instrument.harmonium") }
   const failureText = (f: ChordFailure) => tr(`chordOffer.failure.${f}` as "chordOffer.failure.server")
   const offerHref = href(`/upload-chords?song=${songNumber}`)
-
-  // nothing to show and nothing wrong: only the invitation
-  const sounding = current ? uniqueChords(current.lines.flatMap((l) => l.placements.map((p) => p.chord))) : []
-  const guitar = current?.instrument === "guitar"
 
   return (
     <View style={s.root}>
@@ -113,27 +88,9 @@ export function CommunityChords({
             <Text style={[s.meta, { color: t.ink900 }]}>
               {current.mine ? tr("chordSong.byYou") : current.author ? tr("chordSong.by", { name: current.author.name }) : tr("chordSong.anonymous")}
             </Text>
-            {current.basedOn
-              ? (() => {
-                  const credit = current.basedOn.name ? tr("chordSong.basedOn", { name: current.basedOn.name }) : tr("chordSong.basedOn.anonymous")
-                  const original = current.basedOn.id ? items.find((p) => p.id === current.basedOn?.id) : undefined
-                  // linked to the original when it is on this page; plain words when it is not (deleted, or another instrument's tab)
-                  return original ? (
-                    <SpPress accessibilityLabel={`${credit}. ${tr("chordSong.basedOn.a11y")}`} onPress={() => setChosen(original.id)} style={s.link}>
-                      <Text style={[s.linkText, { color: t.accentText }]}>{credit}</Text>
-                    </SpPress>
-                  ) : (
-                    <Text style={[s.note, { color: t.ink500 }]}>{credit}</Text>
-                  )
-                })()
-              : null}
-            <Text style={[s.note, { color: t.ink500 }]}>
-              {current.instrument === "guitar"
-                ? current.capo > 0
-                  ? tr("chordOffer.meta.guitar", { capo: current.capo, key: keyLabel(current.baseKey) })
-                  : tr("chordOffer.meta.guitarNoCapo", { key: keyLabel(current.baseKey) })
-                : tr("chordOffer.meta.harmonium", { key: keyLabel(current.baseKey) })}
-            </Text>
+            {/* linked to the original when it is on this page; plain words when it is not (deleted, or another instrument's tab) */}
+            <ChartCreditLine t={t} chart={current} onOpenOriginal={items.some((p) => p.id === current.basedOn?.id) ? setChosen : undefined} />
+            <ChartMeta t={t} chart={current} />
             {current.status === "pending" ? <Text style={[s.pending, { color: t.accentText }]}>{tr("chordSong.pending")}</Text> : null}
             {current.status === "rejected" ? <Text style={[s.pending, { color: t.danger }]}>{tr("chordOffer.status.rejected")}</Text> : null}
             {current.mine && current.status === "rejected" && current.rejectedReason ? <Text style={[s.note, { color: t.ink800 }]}>{tr("chordOffer.rejectedWhy", { reason: current.rejectedReason })}</Text> : null}
@@ -155,41 +112,7 @@ export function CommunityChords({
             ) : null}
           </View>
 
-          <View style={s.pad}>
-            {guitar ? (
-              <SpKeyRow
-                t={t}
-                label={tr("chordSong.capo.label")}
-                noteText={guitarKeyNote(sounding, capo)}
-                value={capoName(capo)}
-                onDown={() => setCapo((c) => clampCapo(c - 1))}
-                onUp={() => setCapo((c) => clampCapo(c + 1))}
-                downLabel={tr("chordOffer.capo.lower")}
-                upLabel={tr("chordOffer.capo.raise")}
-              />
-            ) : (
-              <SpKeyRow
-                t={t}
-                label={tr("chordOffer.key.harmonium.label")}
-                noteText={harmoniumKeyNote(sa)}
-                value={keyLabel(sa)}
-                onDown={() => setSa((k) => nextNote(k, -1))}
-                onUp={() => setSa((k) => nextNote(k, 1))}
-                downLabel={tr("chordOffer.capo.lower")}
-                upLabel={tr("chordOffer.capo.raise")}
-              />
-            )}
-            <Text style={[s.note, { color: t.ink500 }]}>
-              {guitar ? tr("chordSong.capoShown", { capo: current.capo }) : tr("chordSong.keyShown", { key: keyLabel(current.baseKey) })}
-            </Text>
-          </View>
-
-          {tokens.length ? (
-            <View style={s.pad}>
-              {current.instrument === "guitar" && current.strum ? <Text style={[s.note, { color: t.ink500 }]}>{current.strum}</Text> : null}
-              <SpChordTokens t={t} tokens={tokens} wordFont={wordFont} />
-            </View>
-          ) : null}
+          <ChartBody t={t} chart={current} romanLines={romanLines} wordFont={wordFont} />
 
           <View style={s.pad}>
             {current.playedIt ? <Text style={[s.note, { color: t.ink500 }]}>{tr("chordSong.playedIt")}</Text> : null}

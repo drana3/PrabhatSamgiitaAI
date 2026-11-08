@@ -11,6 +11,12 @@ export type SheetStatus = "pending" | "published" | "rejected"
 
 export type SheetAuthor = { name: string }
 
+/** One line of a chart (a Bhajan or a Spiritual song): the words it holds and the chords over them, by word number. */
+export type SheetChartLine = { text: string; placements: Array<{ word: number; chord: string }> }
+
+/** "Based on a chart by <name>": `name` is null when that chart was anonymous, `id` is null once the original is gone. */
+export type SheetCredit = { id: string | null; name: string | null }
+
 export type RecordingSheet = {
   id: string
   recordingId: string
@@ -19,6 +25,20 @@ export type RecordingSheet = {
   chartKey: string | null
   body: string
   chordsCount: number
+  /**
+   * A chart of a Bhajan or a Spiritual song: the lines of the pasted text with their chords (the chords are as they
+   * SOUND, in `chartKey`; a guitar capo is a hint). Null or missing for a plain-text sheet, which `body` carries.
+   */
+  lines?: SheetChartLine[] | null
+  capo?: number
+  strum?: string | null
+  /** set when the chords were copied from another member's chart ("Start from this chart") */
+  basedOn?: SheetCredit | null
+  /** the author's own view only: a newer version went live and took this chart's place */
+  archived?: boolean
+  replacedBy?: string | null
+  /** the author's own view only: the live chart this waiting chart will replace once it is accepted */
+  replaces?: string | null
   note: string | null
   playedIt: boolean
   createdAt: string
@@ -43,6 +63,22 @@ export type SheetDraft = {
   playedIt: boolean
   note: string
   isAnonymous: boolean
+}
+
+/** What the member sends for a chart: SOUNDING chords in `baseKey` (Sa for a harmonium), the text of every line beside them. */
+export type SheetChartPayload = {
+  instrument: SheetInstrument
+  baseKey: string
+  capo: number
+  strum: string | null
+  lines: SheetChartLine[]
+  playedIt: boolean
+  note: string | null
+  isAnonymous: boolean
+  /** a new version of the author's own LIVE chart: when it goes live the old one is replaced (archived) */
+  replacesId?: string | null
+  /** "Start from this chart": somebody else's published chart whose chords were copied (credited) */
+  basedOnId?: string | null
 }
 
 export type SheetReportReason = "wrong_chords" | "offensive" | "spam" | "other"
@@ -75,6 +111,9 @@ export interface SheetsBackend {
   offer(recordingId: string, draft: SheetDraft): Promise<RecordingSheet>
   /** the author fixes a waiting or rejected sheet and sends it again (same recording and instrument) */
   update(sheetId: string, draft: SheetDraft): Promise<RecordingSheet>
+  /** a chart over pasted text (Bhajan, Spiritual song): offered, or fixed and sent again (same recording and instrument) */
+  offerChart(recordingId: string, chart: SheetChartPayload): Promise<RecordingSheet>
+  updateChart(sheetId: string, chart: SheetChartPayload): Promise<RecordingSheet>
   remove(sheetId: string): Promise<void>
   report(sheetId: string, reason: SheetReportReason): Promise<{ status: "received" | "already_reported" }>
 }

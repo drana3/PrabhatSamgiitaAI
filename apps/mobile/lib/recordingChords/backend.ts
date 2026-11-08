@@ -2,6 +2,7 @@ import { remoteConfig } from "@/lib/kirtan/api"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { previewName } from "@/lib/songComments/backend"
 
+import { recordingHasCharts } from "./kinds"
 import { createSheetsMock, sheetMockFailure } from "./mock"
 import { sheetFailureFromError, sheetsRemote } from "./remote"
 import type { SheetFailure, SheetsBackend } from "./types"
@@ -11,7 +12,7 @@ let mock: SheetsBackend | null = null
 
 export function sheetsBackend(): SheetsBackend {
   if (MOCKUP_DATA) {
-    mock ??= createSheetsMock({ me: previewName })
+    mock ??= createSheetsMock({ me: previewName, chartKind: recordingHasCharts })
     return mock
   }
   return sheetsRemote(remoteConfig())

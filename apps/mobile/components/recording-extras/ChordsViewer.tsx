@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
 
 import { Button } from "@/components/comments/CommentsView"
+import { ChartBody, ChartCreditLine, ChartMeta, type ChartLike } from "@/components/song-chords/ChartBody"
 import { SpPress } from "@/components/song-v2/SpUi"
 import { SpSheet } from "@/components/song-v2/SpSheet"
 import type { SpTheme } from "@/constants/tokens/amSong"
@@ -39,6 +40,8 @@ export function ChordsViewer({
   sheets,
   onAdd,
   onChange,
+  onCopy,
+  onFrom,
 }: {
   t: SpTheme
   visible: boolean
@@ -46,6 +49,10 @@ export function ChordsViewer({
   sheets: SheetsController
   onAdd: () => void
   onChange: (sheet: RecordingSheet) => void
+  /** a chart of the member's own that is live: make a changed copy of it (only charts over words have one) */
+  onCopy?: (sheet: RecordingSheet) => void
+  /** somebody else's published chart: "Start from this chart" */
+  onFrom?: (sheet: RecordingSheet) => void
 }) {
   const tr = useT()
   const { state } = sheets
@@ -72,6 +79,9 @@ export function ChordsViewer({
 
   const key = sheet ? shiftedKey(sheet.chartKey, shift, sheet.body) : null
   const shown = useMemo(() => (sheet ? transposeSheet(sheet.body, shift, sheet.chartKey) : ""), [sheet, shift])
+
+  // a chart over the words (a Bhajan, a Spiritual song) is drawn by the Prabhat Samgiita chart view, with its own capo or Sa control
+  const chart: ChartLike | null = sheet && sheet.lines && sheet.lines.length > 0 ? { id: sheet.id, instrument: sheet.instrument, baseKey: sheet.chartKey ?? "C", capo: sheet.capo ?? 0, strum: sheet.strum ?? null, lines: sheet.lines, status: sheet.status, basedOn: sheet.basedOn } : null
 
   const by = !sheet ? "" : sheet.mine ? tr("recChords.by.you") : sheet.author ? tr("recChords.by", { name: sheet.author.name }) : tr("recChords.by.anonymous")
 
@@ -129,29 +139,43 @@ export function ChordsViewer({
             </View>
             {sheet.status === "rejected" && sheet.rejectedReason ? <Note t={t} tone="body">{tr("recChords.reason", { reason: sheet.rejectedReason })}</Note> : null}
 
-            <Stepper
-              t={t}
-              label={tr("recChords.transpose")}
-              value={shift === 0 ? tr("recChords.original") : tr("recChords.shifted", { steps: stepsLabel(shift) })}
-              downLabel={tr("recChords.down")}
-              upLabel={tr("recChords.up")}
-              canDown={shift > -MAX_SHIFT}
-              canUp={shift < MAX_SHIFT}
-              onDown={() => setShift((s) => clampShift(s - 1))}
-              onUp={() => setShift((s) => clampShift(s + 1))}
-            />
-
-            <ChartText t={t} body={shown} />
+            {chart && sheet?.lines ? (
+              <View style={styles.bleed}>
+                <View style={styles.bleedPad}>
+                  <ChartCreditLine t={t} chart={chart} />
+                  <ChartMeta t={t} chart={chart} />
+                </View>
+                <ChartBody t={t} chart={chart} romanLines={sheet.lines.map((l) => l.text)} />
+              </View>
+            ) : (
+              <>
+                <Stepper
+                  t={t}
+                  label={tr("recChords.transpose")}
+                  value={shift === 0 ? tr("recChords.original") : tr("recChords.shifted", { steps: stepsLabel(shift) })}
+                  downLabel={tr("recChords.down")}
+                  upLabel={tr("recChords.up")}
+                  canDown={shift > -MAX_SHIFT}
+                  canUp={shift < MAX_SHIFT}
+                  onDown={() => setShift((s) => clampShift(s - 1))}
+                  onUp={() => setShift((s) => clampShift(s + 1))}
+                />
+                <ChartText t={t} body={shown} />
+              </>
+            )}
             {sheet.note ? (
               <Text selectable style={[styles.sheetNote, { color: t.ink800 }]}>
                 {sheet.note}
               </Text>
             ) : null}
             <Note t={t}>{by}</Note>
+            {sheet.mine && sheet.replaces && sheet.status !== "published" ? <Note t={t} tone="body">{tr("recChart.replaces")}</Note> : null}
             <Note t={t}>{tr("recChords.noTiming")}</Note>
             <Note t={t}>{tr("recChords.unchecked")}</Note>
 
             <View style={styles.actions}>
+              {chart && !sheet.mine && sheet.status === "published" && onFrom ? <Button t={t} variant="quiet" label={tr("recChart.startFrom")} onPress={() => onFrom(sheet)} /> : null}
+              {chart && sheet.mine && sheet.status === "published" && onCopy ? <Button t={t} variant="quiet" label={tr("recChart.editCopy")} onPress={() => onCopy(sheet)} /> : null}
               {!sheet.mine && sheet.status === "published" ? <Button t={t} variant="quiet" label={tr("recChords.report")} onPress={() => setPanel(panel === "report" ? null : "report")} /> : null}
               {sheet.mine && sheet.status !== "published" ? <Button t={t} variant="quiet" label={tr("recChords.change")} onPress={() => onChange(sheet)} /> : null}
               {sheet.mine || sheet.canReview ? <Button t={t} variant="quiet" tone="danger" label={tr("recChords.delete")} onPress={() => setPanel(panel === "delete" ? null : "delete")} /> : null}
@@ -223,6 +247,9 @@ const styles = StyleSheet.create({
   pill: { minHeight: 44, paddingHorizontal: 16, borderRadius: R_ROUND, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   pillText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   sheet: { gap: 12 },
+  // the chart view pads its own sides: take back the sheet's padding so the letters sit where they do on the song page
+  bleed: { marginHorizontal: -20, gap: 8 },
+  bleedPad: { paddingHorizontal: 20 },
   meta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" },
   key: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 24 },
   status2: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: R_ROUND },

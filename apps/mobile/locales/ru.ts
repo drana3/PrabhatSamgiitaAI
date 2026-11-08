@@ -4,6 +4,7 @@ import { appShellRu } from "./appShell"
 import { ugcRu } from "./ugc"
 import { duplicatesRu } from "./duplicates"
 import { recordingInfoRu } from "./recordingInfo"
+import { recordingChartsRu } from "./recordingCharts"
 import { recordingsRu } from "./recordings"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
@@ -1357,6 +1358,7 @@ export const ru: Dictionary = {
   ...ugcRu,
   ...duplicatesRu,
   ...recordingInfoRu,
+  ...recordingChartsRu,
   ...recordingsRu,
   ...offlineRu,
   ...accountRu,

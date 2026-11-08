@@ -4,6 +4,7 @@ import { appShellEs } from "./appShell"
 import { ugcEs } from "./ugc"
 import { duplicatesEs } from "./duplicates"
 import { recordingInfoEs } from "./recordingInfo"
+import { recordingChartsEs } from "./recordingCharts"
 import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
@@ -1271,6 +1272,7 @@ export const es: Dictionary = {
   ...ugcEs,
   ...duplicatesEs,
   ...recordingInfoEs,
+  ...recordingChartsEs,
   ...recordingsEs,
   ...offlineEs,
   ...accountEs,

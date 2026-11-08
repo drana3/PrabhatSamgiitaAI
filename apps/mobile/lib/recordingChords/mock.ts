@@ -1,7 +1,10 @@
+import { isChordName } from "@/lib/songChords/chordName"
+import { splitWords } from "@/lib/songPage/chordChart"
 import { cleanDraft } from "@/lib/songComments/rules"
 
-import { OPEN_PER_RECORDING_INSTRUMENT, cleanSheet, draftProblem } from "./rules"
-import type { RecordingSheet, SheetDraft, SheetFailure, SheetReportReason, SheetsBackend } from "./types"
+import { chartBody } from "./chart"
+import { OPEN_PER_RECORDING_INSTRUMENT, cleanSheet, draftProblem, provesAChart } from "./rules"
+import type { RecordingSheet, SheetChartPayload, SheetDraft, SheetFailure, SheetReportReason, SheetsBackend } from "./types"
 
 /**
  * The in-memory stand-in for the recording chord sheets API, used ONLY in the web preview (`EXPO_PUBLIC_MOCKUP_DATA=1`).
@@ -22,13 +25,21 @@ export function sheetMockFailure(error: unknown): SheetFailure | null {
   return error instanceof SheetMockFailure ? error.failure : null
 }
 
+/** Made-up text and chords for the preview of a Bhajan: the words are the Name of Baba, the chords are only an example. */
+const CHART_SAMPLE: RecordingSheet["lines"] = [
+  { text: "Baba Nam Kevalam", placements: [{ word: 0, chord: "Em" }, { word: 2, chord: "C" }] },
+  { text: "Prema Mayi Dhyana", placements: [{ word: 0, chord: "Am" }, { word: 2, chord: "D" }] },
+  { text: "", placements: [] },
+  { text: "Ananda Marga Jaya", placements: [{ word: 0, chord: "G" }, { word: 2, chord: "Em" }] },
+]
+
 const SAMPLE = ["        Em           C", "Baba Nam Kevalam", "        Am           D", "Prema Mayi Dhyana", "", "   G         Em", "Ananda Marga Jaya"].join("\n")
 
 function sameKey(body: string): string {
   return body.split("\n").map((l) => l.split(/\s+/).filter(Boolean).join(" ")).join("\n")
 }
 
-export function createSheetsMock(options: { me: () => string; now?: () => number } = { me: () => "You" }): SheetsBackend {
+export function createSheetsMock(options: { me: () => string; now?: () => number; chartKind?: (recordingId: string) => boolean } = { me: () => "You" }): SheetsBackend {
   const clock = options.now ?? Date.now
   const sheets = new Map<string, RecordingSheet>()
   const reported = new Set<string>()
@@ -39,13 +50,17 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
     seeded.add(recordingId)
     counter += 1
     const id = `mock-sheet-${counter}`
+    const chart = options.chartKind?.(recordingId) ?? false
     sheets.set(id, {
       id,
       recordingId,
       instrument: "guitar",
-      chartKey: "Em",
-      body: SAMPLE,
-      chordsCount: 8,
+      chartKey: chart ? "G" : "Em",
+      body: chart ? chartBody(CHART_SAMPLE as NonNullable<typeof CHART_SAMPLE>) : SAMPLE,
+      lines: chart ? CHART_SAMPLE : null,
+      capo: 0,
+      strum: chart ? "D DU UDU" : null,
+      chordsCount: chart ? 6 : 8,
       note: "Sample chart for the preview.",
       playedIt: true,
       createdAt: new Date(clock() - 3 * 24 * 3_600_000).toISOString(),
@@ -89,13 +104,53 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
     }
   }
   const live = (recordingId: string, instrument: string) =>
-    [...sheets.values()].filter((s) => s.mine && s.recordingId === recordingId && s.instrument === instrument && s.status !== "rejected")
+    [...sheets.values()].filter((s) => s.mine && s.recordingId === recordingId && s.instrument === instrument && s.status !== "rejected" && !s.archived)
+  /** A chart as the server would keep it (it checks the same things, and has the last word). */
+  const buildChart = (id: string, recordingId: string, chart: SheetChartPayload, status: RecordingSheet["status"]): RecordingSheet => {
+    if (options.chartKind && !options.chartKind(recordingId)) throw new SheetMockFailure("invalid")
+    if (!chart.playedIt) throw new SheetMockFailure("invalid")
+    const found = chart.lines.flatMap((l) => l.placements.map((p) => p.chord))
+    if (found.length === 0) throw new SheetMockFailure("noChords")
+    if (found.some((name) => !isChordName(name))) throw new SheetMockFailure("invalid")
+    if (chart.lines.some((l) => l.placements.some((p) => p.word >= splitWords(l.text).length))) throw new SheetMockFailure("invalid")
+    if (!provesAChart(found)) throw new SheetMockFailure("fewChords")
+    const old = chart.replacesId ? sheets.get(chart.replacesId) : undefined
+    const replaces = old && old.mine && old.status === "published" && old.recordingId === recordingId && old.instrument === chart.instrument ? old.id : null
+    const original = chart.basedOnId ? sheets.get(chart.basedOnId) : undefined
+    const credited = original && !original.mine && original.status === "published" && original.recordingId === recordingId ? original : null
+    return {
+      id,
+      recordingId,
+      instrument: chart.instrument,
+      chartKey: chart.baseKey,
+      body: chartBody(chart.lines),
+      lines: chart.lines.map((l) => ({ text: l.text, placements: l.placements.map((p) => ({ ...p })) })),
+      capo: chart.instrument === "guitar" ? chart.capo : 0,
+      strum: chart.instrument === "guitar" ? chart.strum : null,
+      basedOn: credited ? { id: credited.id, name: credited.author?.name ?? null } : null,
+      archived: false,
+      replacedBy: null,
+      replaces,
+      chordsCount: found.length,
+      note: cleanDraft(chart.note ?? "") || null,
+      playedIt: true,
+      createdAt: new Date(clock()).toISOString(),
+      isAnonymous: chart.isAnonymous,
+      author: chart.isAnonymous ? null : { name: options.me() },
+      mine: true,
+      status,
+      rejectedReason: null,
+      canReview: false,
+      recordingTitle: null,
+    }
+  }
+  const sameChart = (a: RecordingSheet, b: RecordingSheet) => a.chartKey === b.chartKey && (a.capo ?? 0) === (b.capo ?? 0) && JSON.stringify(a.lines) === JSON.stringify(b.lines)
 
   return {
     async list(recordingId, instrument) {
       seedFor(recordingId)
       return [...sheets.values()]
-        .filter((s) => s.recordingId === recordingId && (!instrument || s.instrument === instrument) && (s.status === "published" || s.mine))
+        .filter((s) => s.recordingId === recordingId && !s.archived && (!instrument || s.instrument === instrument) && (s.status === "published" || s.mine))
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     },
     async mine() {
@@ -114,6 +169,24 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
       if (old.status === "published") throw new SheetMockFailure("notEditable")
       if (old.instrument !== draft.instrument) throw new SheetMockFailure("invalid")
       const next = build(sheetId, old.recordingId, draft, "pending")
+      sheets.set(sheetId, next)
+      return next
+    },
+    async offerChart(recordingId, chart) {
+      const sheet = buildChart(`mock-sheet-${(counter += 1)}`, recordingId, chart, "pending")
+      const mine = live(recordingId, chart.instrument)
+      // a new version takes the place of the live chart it replaces
+      if (mine.filter((s) => s.id !== sheet.replaces).length >= OPEN_PER_RECORDING_INSTRUMENT) throw new SheetMockFailure("tooMany")
+      if (mine.some((s) => sameChart(s, sheet))) throw new SheetMockFailure("duplicate")
+      sheets.set(sheet.id, sheet)
+      return sheet
+    },
+    async updateChart(sheetId, chart) {
+      const old = get(sheetId)
+      if (!old.mine) throw new SheetMockFailure("forbidden")
+      if (old.status === "published") throw new SheetMockFailure("notEditable")
+      if (old.instrument !== chart.instrument || !old.lines) throw new SheetMockFailure("invalid")
+      const next = { ...buildChart(sheetId, old.recordingId, chart, "pending"), replaces: old.replaces ?? null, createdAt: old.createdAt }
       sheets.set(sheetId, next)
       return next
     },

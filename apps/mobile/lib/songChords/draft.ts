@@ -124,9 +124,10 @@ export type DraftProblem = "noSong" | "noChords" | "badChord" | "notPlayed" | "n
 const STRUM_OK = /^[DUduxX.\-\s^v|()0-9]*$/
 
 /** Everything that stops a draft from being sent, in the order the form meets it. */
-export function draftProblems(draft: Draft, wordCounts: readonly number[]): DraftProblem[] {
+export function draftProblems(draft: Draft, wordCounts: readonly number[], options: { needsSong?: boolean } = {}): DraftProblem[] {
   const out: DraftProblem[] = []
-  if (draft.songId === null) out.push("noSong")
+  // a chart of a recording (Bhajan, Spiritual song) is not tied to a Prabhat Samgiita song
+  if (draft.songId === null && options.needsSong !== false) out.push("noSong")
   const live = draft.lines.map((line, i) => line.filter((p) => p.word < (wordCounts[i] ?? 0)))
   if (live.every((line) => line.length === 0)) out.push("noChords")
   if (live.some((line) => line.some((p) => !isChordName(p.chord)))) out.push("badChord")
@@ -136,12 +137,17 @@ export function draftProblems(draft: Draft, wordCounts: readonly number[]): Draf
   return out
 }
 
+/** The chords of every line as the API takes them: SOUNDING chords, only on words that exist. One entry per line. */
+export function soundingLines(draft: Draft, wordCounts: readonly number[]): Array<{ placements: Placement[] }> {
+  return draft.lines.map((line, i) => ({
+    placements: line.filter((p) => p.word < (wordCounts[i] ?? 0)).map((p) => ({ word: p.word, chord: soundingOf(draft, p.chord) })),
+  }))
+}
+
 /** The API payload: sounding chords, only on words that exist, the capo as a hint. Throws on an unfinished draft. */
 export function toPayload(draft: Draft, wordCounts: readonly number[]): ProposalPayload {
   if (draft.songId === null) throw new Error("A chord chart needs a song")
-  const lines = draft.lines.map((line, i) => ({
-    placements: line.filter((p) => p.word < (wordCounts[i] ?? 0)).map((p) => ({ word: p.word, chord: soundingOf(draft, p.chord) })),
-  }))
+  const lines = soundingLines(draft, wordCounts)
   // trailing lines without chords carry nothing
   while (lines.length > 1 && lines[lines.length - 1].placements.length === 0) lines.pop()
   const strum = draft.instrument === "guitar" ? draft.strum.replace(/\s+/g, " ").trim() : ""

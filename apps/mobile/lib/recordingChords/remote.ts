@@ -1,8 +1,8 @@
 import { NetworkError, RemoteError, type RemoteConfig } from "@/lib/kirtan/remote"
 import { callFor } from "@/lib/recordingExtras/http"
 
-import { draftToWire } from "./rules"
-import type { RecordingSheet, SheetDraft, SheetFailure, SheetInstrument, SheetReportReason, SheetsBackend } from "./types"
+import { chartToWire, draftToWire } from "./rules"
+import type { RecordingSheet, SheetChartPayload, SheetDraft, SheetFailure, SheetInstrument, SheetReportReason, SheetsBackend } from "./types"
 
 /** The phone's side of the recording chord sheets API (apps/api `/api/v1/recording-chords`). */
 const call = callFor("/api/v1/recording-chords")
@@ -14,6 +14,13 @@ export type WireSheet = {
   instrument: SheetInstrument
   chart_key: string | null
   body: string
+  lines?: Array<{ text: string; placements: Array<{ word: number; chord: string }> }> | null
+  capo?: number
+  strum?: string | null
+  based_on?: { id: string | null; name: string | null } | null
+  archived?: boolean
+  replaced_by?: string | null
+  replaces?: string | null
   chords_count: number
   note: string | null
   played_it: boolean
@@ -35,6 +42,13 @@ export function sheetFromWire(w: WireSheet): RecordingSheet {
     instrument: w.instrument,
     chartKey: w.chart_key ?? null,
     body: w.body,
+    lines: w.lines ? w.lines.map((l) => ({ text: l.text, placements: l.placements.map((p) => ({ word: p.word, chord: p.chord })) })) : null,
+    capo: w.capo ?? 0,
+    strum: w.strum ?? null,
+    basedOn: w.based_on ? { id: w.based_on.id ?? null, name: w.based_on.name ?? null } : null,
+    archived: Boolean(w.archived),
+    replacedBy: w.replaced_by ?? null,
+    replaces: w.replaces ?? null,
     chordsCount: w.chords_count,
     note: w.note ?? null,
     playedIt: Boolean(w.played_it),
@@ -66,6 +80,12 @@ export function sheetsRemote(cfg: RemoteConfig): SheetsBackend {
     async update(sheetId, draft: SheetDraft) {
       return sheetFromWire(await call<WireSheet>(cfg, "PUT", `/${encodeURIComponent(sheetId)}`, draftToWire(draft)))
     },
+    async offerChart(recordingId, chart: SheetChartPayload) {
+      return sheetFromWire(await call<WireSheet>(cfg, "POST", `/recordings/${encodeURIComponent(recordingId)}`, chartToWire(chart)))
+    },
+    async updateChart(sheetId, chart: SheetChartPayload) {
+      return sheetFromWire(await call<WireSheet>(cfg, "PUT", `/${encodeURIComponent(sheetId)}`, chartToWire(chart)))
+    },
     async remove(sheetId) {
       await call<void>(cfg, "DELETE", `/${encodeURIComponent(sheetId)}`)
     },
@@ -88,7 +108,7 @@ export function sheetFailureFromError(error: unknown): SheetFailure {
     if (error.status === 404) return "gone"
     if (error.status === 422) {
       if (/single plain letter/i.test(error.message)) return "fewChords"
-      if (/at least one chord|write the chords/i.test(error.message)) return "noChords"
+      if (/at least one chord|write the chords|over a word/i.test(error.message)) return "noChords"
       if (/web links/i.test(error.message)) return "links"
       if (/too long|lines at most|longer than|too many chords/i.test(error.message)) return "tooLong"
       return "invalid"

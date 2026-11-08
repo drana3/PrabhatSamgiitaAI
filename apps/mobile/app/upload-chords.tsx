@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { ChartPreview } from "@/components/song-chords/ChartPreview"
-import { ChordPasteBox } from "@/components/song-chords/ChordPasteBox"
 import { ChordSheet } from "@/components/song-chords/ChordSheet"
-import { ChordSlotEditor, type Slot } from "@/components/song-chords/ChordSlotEditor"
 import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
+import { ChordEntryField, ConfirmFields, InstrumentField, KeyCapoField, OptionalFields, PreviewField } from "@/components/song-chords/OfferFields"
 import { EditBanner, ResumePanel, SentPanel } from "@/components/song-chords/OfferPanels"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
-import { ActionButton, CheckRow, Chip, CORNER, Hint, Label, PILL } from "@/components/song-chords/parts"
+import { ActionButton, CORNER, Hint, Label, PILL } from "@/components/song-chords/parts"
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { KPress } from "@/components/kirtan/KPress"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useChordSelection } from "@/hooks/useChordSelection"
 import { useChordTeam } from "@/hooks/useChordTeam"
 import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { useSongLyrics } from "@/hooks/useSongLyrics"
@@ -24,25 +23,21 @@ import { useSpTheme } from "@/hooks/useSpTheme"
 import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { chordFailure, chordsBackend, previewGuest, previewName } from "@/lib/songChords/backend"
-import { ROOTS, suggestedChords, usedChords } from "@/lib/songChords/chordName"
+import { usedChords } from "@/lib/songChords/chordName"
 import type { ParseMeta } from "@/lib/songChords/chordPro"
 import {
-  NOTE_MAX,
   STRUM_MAX,
   countChords,
   draftFromOther,
   draftFromProposal,
   draftProblems,
   fitLines,
-  linesWithChords,
   newDraft,
   nextSlot,
   previousSlot,
   replaceLines,
   setCapo,
-  setChord,
   setInstrument,
-  soundingKey,
   toPayload,
   type Draft,
   type DraftProblem,
@@ -51,10 +46,7 @@ import {
 import { draftKey, entryChoices, worthKeeping, type DraftEntry } from "@/lib/songChords/drafts"
 import { draftSignature, parseEntry, type Entry } from "@/lib/songChords/entry"
 import { FIELD_ORDER, problemsByField, type FormField } from "@/lib/songChords/fields"
-import { revealOffset } from "@/lib/songChords/reveal"
 import type { ChordFailure, ChordProposal } from "@/lib/songChords/types"
-import { splitWords } from "@/lib/songPage/chordChart"
-import { MAX_CAPO } from "@/lib/songPage/chords"
 import { PS_SONG_COUNT } from "@/lib/learn/learnSongs"
 import { useAuthStore } from "@/stores/authStore"
 import { useChordDraftStore } from "@/stores/chordDraftStore"
@@ -242,8 +234,6 @@ export default function UploadChordsScreen() {
   }, [lyrics])
 
   const [chooser, setChooser] = useState(false)
-  const [entryMode, setEntryMode] = useState<"tap" | "paste">("tap")
-  const [selected, setSelected] = useState<Slot | null>(null)
   const [showProblems, setShowProblems] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -264,7 +254,6 @@ export default function UploadChordsScreen() {
   const total = countChords(draft)
   const problems: DraftProblem[] = useMemo(() => draftProblems(draft, counts), [draft, counts])
   const used = useMemo(() => usedChords(draft.lines), [draft.lines])
-  const guitar = draft.instrument === "guitar"
   // `dismissTo` goes back to the Upload screen that is already in the stack (this screen is opened over it) and only
   // opens one when there is none; `replace` would leave the old Upload under a second one, and the result screen would
   // have two hubs under it
@@ -280,46 +269,11 @@ export default function UploadChordsScreen() {
   }
 
   // ---- the selected word and the chord sheet ----
-  const selectedWord = useMemo(() => {
-    if (!selected || !lines) return null
-    return splitWords(lines[selected.line] ?? "")[selected.word] ?? null
-  }, [selected, lines])
-  const lastWord = useRef("")
-  if (selectedWord) lastWord.current = selectedWord
-  const currentChord = selected ? (draft.lines[selected.line]?.find((p) => p.word === selected.word)?.chord ?? null) : null
-  const sheetOpen = entryMode === "tap" && selected !== null && lines !== null && selectedWord !== null && !sent && phase === "edit"
-
-  const pick = (chord: string | null) => {
-    if (!selected) return
-    setDraft((d) => setChord(d, selected.line, selected.word, chord))
-  }
-  const closeSheet = useCallback(() => setSelected(null), [])
-
-  // keep the selected word in sight above the sheet
-  const [covered, setCovered] = useState(0)
-  const coveredRef = useRef(0)
-  coveredRef.current = covered
-  const areaRef = useRef<View>(null)
   // the shared "jump to the first field that is wrong" helper (lib/forms/useFormFocus.ts) owns the scroll view's ref
   const form = useFormFocus()
   const scrollRef = form.scrollRef
-  const offsetRef = useRef(0)
-  const nodes = useRef<Record<string, View | null>>({})
-  useEffect(() => {
-    if (!selected) return undefined
-    const id = setTimeout(() => {
-      const node = nodes.current[`${selected.line}:${selected.word}`]
-      const area = areaRef.current
-      if (!node || !area) return
-      area.measureInWindow((_ax, ay, _aw, ah) => {
-        node.measureInWindow((_nx, ny, _nw, nh) => {
-          const next = revealOffset({ itemTop: ny, itemBottom: ny + nh, viewTop: ay, viewBottom: ay + ah, covered: coveredRef.current, offset: offsetRef.current })
-          if (next !== null) scrollRef.current?.scrollTo({ y: next, animated: true })
-        })
-      })
-    }, 80)
-    return () => clearTimeout(id)
-  }, [selected, covered])
+  const pickedWord = useChordSelection({ lines, setDraft, currentDraft: draft, enabled: !sent && phase === "edit", scrollRef })
+  const { entryMode, setEntryMode, selected, setSelected, selectedWord, lastWord, currentChord, sheetOpen, pick, closeSheet, covered, setCovered, areaRef, offsetRef, nodes } = pickedWord
 
   const applyPasted = (pasted: Placement[][], meta: ParseMeta) => {
     setDraft((d) => {
@@ -403,12 +357,6 @@ export default function UploadChordsScreen() {
     if (original && (entry.kind === "edit" || entry.kind === "copy")) begin(original, original)
     else if (rest.length === 0) begin(fresh())
   }
-
-  const payloadForPreview = useMemo(() => {
-    if (!lines || total === 0) return null
-    const payload = toPayload({ ...draft, songId: draft.songId ?? 0 }, counts)
-    return { baseKey: payload.baseKey, strum: payload.strum, lines: payload.lines, instrument: payload.instrument }
-  }, [lines, total, draft, counts])
 
   const mode: "edit" | "copy" | null = draft.editId ? "edit" : draft.basedOn ? "copy" : null
   const title = mode === "edit" ? t("chordOffer.title.fix") : mode === "copy" ? t("chordOffer.title.copy") : t("chordOffer.title")
@@ -554,183 +502,62 @@ export default function UploadChordsScreen() {
 
               {/* 2. instrument */}
               <Reveal index={3} style={s.field}>
-                <Label theme={theme}>{t("chordOffer.instrument.label")}</Label>
-                <View style={s.chips} accessibilityRole="radiogroup">
-                  {locked ? (
-                    <Chip theme={theme} label={t(`chordOffer.instrument.${draft.instrument}` as "chordOffer.instrument.guitar")} on minWidth={120} onPress={() => {}} />
-                  ) : (
-                    <>
-                      <Chip theme={theme} label={t("chordOffer.instrument.guitar")} on={guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "guitar"))} />
-                      <Chip theme={theme} label={t("chordOffer.instrument.harmonium")} on={!guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "harmonium"))} />
-                    </>
-                  )}
-                </View>
+                <InstrumentField theme={theme} draft={draft} locked={locked} patch={patch} />
               </Reveal>
 
               {/* 3. key (and capo for a guitar): a question in plain words, an answer to pick, an example of what it does */}
               <Reveal index={4} style={s.field}>
-                <Label theme={theme}>{guitar ? t("chordOffer.key.guitar.label") : t("chordOffer.key.harmonium.label")}</Label>
-                <Hint theme={theme}>{guitar ? t("chordOffer.key.guitar.hint") : t("chordOffer.key.harmonium.hint")}</Hint>
-                <View style={s.chips} accessibilityRole="radiogroup">
-                  {ROOTS.map((root) => (
-                    <Chip key={root} theme={theme} label={root} on={draft.key === root} a11y={t("chordOffer.key.a11y", { key: root })} minWidth={52} onPress={() => patch({ key: root })} />
-                  ))}
-                </View>
-                <View style={[s.example, { backgroundColor: theme.peach }]} accessibilityLiveRegion="polite">
-                  <Text style={[s.exampleText, { color: theme.textHeading }]}>{t("chordOffer.key.example", { key: draft.key, chords: suggestedChords(draft.key).slice(0, 4).join(" · ") })}</Text>
-                </View>
-                {guitar ? (
-                  <>
-                    <Label theme={theme}>{t("chordOffer.capo.label")}</Label>
-                    <View style={s.stepper}>
-                      <Chip theme={theme} role="button" label="−" a11y={t("chordOffer.capo.lower")} minWidth={52} onPress={() => patch(setCapo(draft, draft.capo - 1))} />
-                      <Text style={[s.capoValue, { color: theme.textHeading }]} accessibilityLiveRegion="polite">
-                        {draft.capo === 0 ? t("chordOffer.capo.none") : t("chordOffer.capo.fret", { capo: draft.capo })}
-                      </Text>
-                      <Chip theme={theme} role="button" label="+" a11y={t("chordOffer.capo.raise")} minWidth={52} onPress={() => patch(setCapo(draft, Math.min(MAX_CAPO, draft.capo + 1)))} />
-                    </View>
-                    {draft.capo > 0 ? <Hint theme={theme}>{t("chordOffer.capo.sounds", { key: soundingKey(draft) })}</Hint> : null}
-                  </>
-                ) : null}
+                <KeyCapoField theme={theme} draft={draft} patch={patch} />
               </Reveal>
 
               {/* 4. the chords */}
               <Reveal index={5} style={s.field}>
-                <View {...form.field("chords")} style={s.field}>
-                  <Label theme={theme}>{t("chordOffer.chords.label")}</Label>
-                  <View style={s.chips} accessibilityRole="tablist" accessibilityLabel={t("chordOffer.chords.mode.a11y")}>
-                    <Chip theme={theme} label={t("chordOffer.chords.mode.tap")} on={entryMode === "tap"} minWidth={130} onPress={() => setEntryMode("tap")} />
-                    <Chip theme={theme} label={t("chordOffer.chords.mode.paste")} on={entryMode === "paste"} minWidth={130} onPress={() => setEntryMode("paste")} />
-                  </View>
-                  {fieldError("chords") ? (
-                    <Hint theme={theme} tone="danger">
-                      {fieldError("chords")}
-                    </Hint>
-                  ) : null}
-                  {lyrics.status === "idle" ? <Hint theme={theme}>{t("chordOffer.lyrics.pick")}</Hint> : null}
-                  {lyrics.status === "loading" ? <Hint theme={theme}>{t("chordOffer.lyrics.loading")}</Hint> : null}
-                  {lyrics.status === "error" ? (
+                <ChordEntryField
+                  theme={theme}
+                  form={form}
+                  error={fieldError("chords")}
+                  draft={draft}
+                  lines={lines}
+                  entryMode={entryMode}
+                  onMode={setEntryMode}
+                  selected={selected}
+                  onSelect={setSelected}
+                  nodes={nodes}
+                  onClose={closeSheet}
+                  onApply={applyPasted}
+                  status={
                     <>
-                      <Hint theme={theme} tone="danger">
-                        {t("chordOffer.lyrics.error")}
-                      </Hint>
-                      <ActionButton theme={theme} tone="quiet" label={t("upload.mine.retry")} onPress={() => setLyricsTry((n) => n + 1)} />
+                      {lyrics.status === "idle" ? <Hint theme={theme}>{t("chordOffer.lyrics.pick")}</Hint> : null}
+                      {lyrics.status === "loading" ? <Hint theme={theme}>{t("chordOffer.lyrics.loading")}</Hint> : null}
+                      {lyrics.status === "error" ? (
+                        <>
+                          <Hint theme={theme} tone="danger">
+                            {t("chordOffer.lyrics.error")}
+                          </Hint>
+                          <ActionButton theme={theme} tone="quiet" label={t("upload.mine.retry")} onPress={() => setLyricsTry((n) => n + 1)} />
+                        </>
+                      ) : null}
+                      {lyrics.status === "none" ? (
+                        <Hint theme={theme} tone="danger">
+                          {t("chordOffer.lyrics.none")}
+                        </Hint>
+                      ) : null}
                     </>
-                  ) : null}
-                  {lyrics.status === "none" ? <Hint theme={theme} tone="danger">{t("chordOffer.lyrics.none")}</Hint> : null}
-                  {lines ? (
-                    entryMode === "tap" ? (
-                      <>
-                        <Hint theme={theme}>{t("chordOffer.chords.tapHint")}</Hint>
-                        {/* a tap on the blank part of the sheet puts the chord sheet away; a word catches its own tap */}
-                        <Pressable accessible={false} onPress={closeSheet} style={s.editorTap}>
-                          <ChordSlotEditor theme={theme} lines={lines} placements={draft.lines} selected={selected} onSelect={setSelected} nodes={nodes} />
-                        </Pressable>
-                      </>
-                    ) : (
-                      <ChordPasteBox theme={theme} lyricLines={lines} placements={draft.lines} onApply={applyPasted} />
-                    )
-                  ) : null}
-                  {lines ? (
-                    <Text style={[s.count, { color: theme.textBody }]} accessibilityLiveRegion="polite">
-                      {t("chordOffer.chords.count", { count: total })}
-                      {total > 0 ? ` · ${linesWithChords(draft)}/${lines.length}` : ""}
-                    </Text>
-                  ) : null}
-                </View>
+                  }
+                />
               </Reveal>
 
               {/* 5. the preview */}
-              {lines ? (
-                <View style={s.field}>
-                  <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
-                    {t("chordOffer.preview.title")}
-                  </Text>
-                  {payloadForPreview ? (
-                    <>
-                      <Hint theme={theme}>{t("chordOffer.preview.hint")}</Hint>
-                      <ChartPreview
-                        t={spTheme}
-                        romanLines={lines}
-                        proposal={payloadForPreview}
-                        capo={guitar ? draft.capo : 0}
-                        harmoniumKey={draft.key}
-                        caption={guitar ? (draft.capo > 0 ? t("chordOffer.preview.summary.guitar", { capo: draft.capo }) : t("chordOffer.preview.summary.guitarNoCapo")) : t("chordOffer.preview.summary.harmonium", { key: draft.key })}
-                      />
-                    </>
-                  ) : (
-                    <Hint theme={theme}>{t("chordOffer.preview.empty")}</Hint>
-                  )}
-                </View>
-              ) : null}
+              {lines ? <PreviewField theme={theme} spTheme={spTheme} draft={draft} lines={lines} counts={counts} /> : null}
 
               {/* 6. the optional part (strumming pattern, note), shut until asked for or filled in */}
               <View style={s.field}>
-                {moreOpen || draft.strum || draft.note || fieldError("strum") || fieldError("note") ? (
-                  <>
-                    {guitar ? (
-                      <View {...form.field("strum")} style={s.field}>
-                        <Label theme={theme}>{t("chordOffer.strum.label")}</Label>
-                        <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: fieldError("strum") ? amColors.danger : theme.line }]}>
-                          <TextInput
-                            ref={form.input("strum") as never}
-                            value={draft.strum}
-                            onChangeText={(text) => patch({ strum: text.slice(0, STRUM_MAX) })}
-                            onFocus={closeSheet}
-                            placeholder={t("chordOffer.strum.placeholder")}
-                            placeholderTextColor={theme.textMuted}
-                            accessibilityLabel={t("chordOffer.strum.label")}
-                            autoCapitalize="characters"
-                            autoCorrect={false}
-                            maxLength={STRUM_MAX}
-                            style={[s.input, { color: theme.textHeading }]}
-                          />
-                        </View>
-                        {fieldError("strum") ? (
-                          <Hint theme={theme} tone="danger">
-                            {fieldError("strum")}
-                          </Hint>
-                        ) : (
-                          <Hint theme={theme}>{t("chordOffer.strum.hint")}</Hint>
-                        )}
-                      </View>
-                    ) : null}
-                    <View {...form.field("note")} style={s.field}>
-                      <Label theme={theme}>{t("chordOffer.note.label")}</Label>
-                      <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: theme.line, alignItems: "flex-start" }]}>
-                        <TextInput
-                          ref={form.input("note") as never}
-                          value={draft.note}
-                          onChangeText={(text) => patch({ note: text.slice(0, NOTE_MAX) })}
-                          onFocus={closeSheet}
-                          placeholder={t("chordOffer.note.placeholder")}
-                          placeholderTextColor={theme.textMuted}
-                          accessibilityLabel={t("chordOffer.note.label")}
-                          maxLength={NOTE_MAX}
-                          multiline
-                          style={[s.input, s.noteInput, { color: theme.textHeading }]}
-                        />
-                      </View>
-                      <Hint theme={theme}>{t("chordOffer.note.left", { count: NOTE_MAX - draft.note.length })}</Hint>
-                    </View>
-                  </>
-                ) : (
-                  <ActionButton theme={theme} tone="quiet" label={guitar ? t("chordOffer.details.show.guitar") : t("chordOffer.details.show.harmonium")} onPress={() => setMoreOpen(true)} />
-                )}
+                <OptionalFields theme={theme} form={form} draft={draft} patch={patch} fieldError={fieldError} open={moreOpen} onOpen={() => setMoreOpen(true)} onFocus={closeSheet} />
               </View>
 
               {/* 7. confirm and send */}
               <View style={s.field}>
-                <View {...form.field("played")} style={s.field}>
-                  <CheckRow theme={theme} on={draft.playedIt} label={t("chordOffer.played.label")} onToggle={() => patch({ playedIt: !draft.playedIt })} invalid={fieldError("played") !== null} />
-                  {fieldError("played") ? (
-                    <Hint theme={theme} tone="danger">
-                      {fieldError("played")}
-                    </Hint>
-                  ) : null}
-                </View>
-                <CheckRow theme={theme} on={draft.isAnonymous} label={t("chordOffer.anonymous.label")} onToggle={() => patch({ isAnonymous: !draft.isAnonymous })} />
-                <Hint theme={theme}>{draft.isAnonymous ? t("chordOffer.as.anonymous") : name ? t("chordOffer.as.named", { name }) : t("chordOffer.as.namedNoName")}</Hint>
+                <ConfirmFields theme={theme} form={form} draft={draft} patch={patch} fieldError={fieldError} name={name} />
 
                 {failure ? (
                   <View style={s.problems} accessibilityLiveRegion="polite">
@@ -796,18 +623,9 @@ const s = StyleSheet.create({
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
   h2: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
   field: { gap: 12 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  stepper: { flexDirection: "row", alignItems: "center", gap: 12 },
-  capoValue: { minWidth: 110, textAlign: "center", fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22 },
   inputBox: { minHeight: 56, borderRadius: CORNER, borderWidth: 1.5, paddingLeft: 16, paddingRight: 8, flexDirection: "row", alignItems: "center", gap: 12 },
   songName: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20 },
-  input: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, outlineStyle: "none" as never },
-  noteInput: { minHeight: 80, textAlignVertical: "top" },
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: PILL, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
-  editorTap: { paddingVertical: 8 },
-  example: { borderRadius: CORNER, paddingHorizontal: 16, paddingVertical: 12 },
-  exampleText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
-  count: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   problems: { gap: 8 },
 })

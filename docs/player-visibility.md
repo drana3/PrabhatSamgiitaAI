@@ -50,7 +50,7 @@ while something is loaded in the player (nothing loaded: no pill on any screen).
 | Welcome, sign in, finish profile | `/welcome`, `/auth`, `/signin`, `/complete-profile` | Hidden | Not shown | A task with a button at the bottom; nothing is playing yet for a new person. |
 | Edit profile and the profile sheets (language, appearance, script) | `/edit-profile`, `/profile-sheet`, `/script-translations`, `/review-style`, `/language` | Hidden | Not shown | Sheets and forms that draw over the whole screen. |
 | Settings (notifications, storage, contact us) | `/notification-settings`, `/storage`, `/feedback` | Hidden | Not shown | Switches and action buttons at the bottom; the pill would sit on them. |
-| Upload and Add recording | `/upload-chords`, `/upload`, `/add-kirtan`, `/upload-set`, `/chords-review`, `/team-review`, `/recording-chords` | Hidden | Not shown | Forms with a keyboard and a send button; the screen opens over the tab bar and its Upload button. |
+| Upload and Add recording | `/upload-chords`, `/upload`, `/add-kirtan`, `/upload-set`, `/chords-review`, `/team-review`, `/recording-chords`, `/recording-chart` | Hidden | Not shown | Forms with a keyboard and a send button; the screen opens over the tab bar and its Upload button. |
 | Become an author, edit the page, claim recordings | `/become-author`, `/author-edit`, `/author-claims`, `/author-find` | Hidden | Not shown | Forms with a keyboard and a button at the bottom (Publish, Add to my page); the pill would sit on them. |
 | Content rules | `/content-rules` | Hidden | Not shown | A page to read to the end and agree to; the pill covered its last lines. |
 | Kiirtan live | `/kiirtan-live` | Hidden | Not shown | A video is playing: two sounds at once would clash. |
