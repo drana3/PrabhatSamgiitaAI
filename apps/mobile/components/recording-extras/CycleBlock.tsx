@@ -22,7 +22,7 @@ import { Note, R_ROUND } from "./ui"
 import type { SheetsController } from "./useRecordingSheets"
 
 const REASONS: SheetReportReason[] = ["wrong_chords", "offensive", "spam", "other"]
-const INSTRUMENTS: SheetInstrument[] = ["guitar", "harmonium"]
+const INSTRUMENTS: SheetInstrument[] = ["harmonium", "piano", "guitar"]
 /** past this many tunes the tabs show only the number */
 const MANY = 6
 

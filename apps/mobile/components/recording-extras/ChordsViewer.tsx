@@ -8,12 +8,14 @@ import { SpSheet } from "@/components/song-v2/SpSheet"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
+import { cardChords } from "@/lib/recordingChords/instruments"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { sheetFailureText } from "@/lib/recordingChords/words"
 import { MAX_SHIFT, clampShift, shiftedKey, transposeSheet } from "@/lib/recordingChords/transpose"
 import type { RecordingSheet, SheetInstrument, SheetReportReason } from "@/lib/recordingChords/types"
 
 import { DeletePanel, ReportPanel } from "./Panels"
+import { SheetChordStrip } from "./SheetChordStrip"
 import { ChartText, Note, R_ROUND, Stepper } from "./ui"
 import type { SheetsController } from "./useRecordingSheets"
 
@@ -146,6 +148,10 @@ export function ChordsViewer({
                   <ChartMeta t={t} chart={chart} />
                 </View>
                 <ChartBody t={t} chart={chart} romanLines={sheet.lines.map((l) => l.text)} />
+                {/* how each chord is played, on the instrument the author chose (the shared chord card) */}
+                <View style={styles.bleedPad}>
+                  <SheetChordStrip t={t} chords={cardChords(chart)} instrument={chart.instrument} />
+                </View>
               </View>
             ) : (
               <>

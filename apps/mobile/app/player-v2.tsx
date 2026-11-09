@@ -76,7 +76,7 @@ import { ensureKirtansRegistered, kirtanById, kiirtanSongByNumber } from "@/lib/
 import { openReportSheet } from "@/stores/safetySheetStore"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
-import { kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/kind"
+import { kindHasChords, kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/kind"
 import { isKiirtanNumber, isKiirtanSong, recordingKindOfSong } from "@/lib/kirtan/track"
 import { flattenRoutes, rubberBand, songPageInStack } from "@/lib/navV2"
 import { formatClock } from "@/lib/playerV2/transportState"
@@ -647,7 +647,7 @@ export default function PlayerV2Screen() {
     if (!isK) return rows
     const kept = rows.filter((r) => ["share", "save", "queue", "goQueue", "playback", "drive", "report"].includes(r.id))
     // a recording that is on the server also has chords, videos and comments (docs/recording-extras.md)
-    return extrasRecording ? withRecordingExtras(kept) : kept
+    return extrasRecording ? withRecordingExtras(kept, kindHasChords(extrasRecording.kind)) : kept
   }, [isSaved, isK, song, list, collection, source, rate, sleepValue, extrasRecording])
   const sharePayload = useMemo(
     () =>

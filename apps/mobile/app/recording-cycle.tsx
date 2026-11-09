@@ -63,7 +63,8 @@ import {
 } from "@/lib/recordingChords/cycle"
 import { kindHasCycle } from "@/lib/recordingChords/kinds"
 import { SHEET_NOTE_MAX } from "@/lib/recordingChords/rules"
-import type { RecordingSheet, SheetFailure } from "@/lib/recordingChords/types"
+import { sheetInstrumentOf } from "@/lib/recordingChords/instruments"
+import type { RecordingSheet, SheetFailure, SheetInstrument } from "@/lib/recordingChords/types"
 import { sheetFailureText } from "@/lib/recordingChords/words"
 import { chordsFormHref, recordingPageHref } from "@/lib/recordingExtras/links"
 import { PREVIEW_NAME } from "@/lib/songComments/mock"
@@ -75,7 +76,7 @@ import { allKirtans } from "@/lib/kirtan/catalog"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
-type Entry = { kind: "new"; instrument: "guitar" | "harmonium" } | { kind: "edit" | "copy" | "from"; id: string; tune?: number }
+type Entry = { kind: "new"; instrument: SheetInstrument } | { kind: "edit" | "copy" | "from"; id: string; tune?: number }
 
 /** What the screen was opened for, read from its address. An id wins over a bare instrument. `tune` is the number of a tune with no chords yet that is being added. */
 function entryOf(params: { edit?: string; copy?: string; from?: string; instrument?: string; tune?: string }): Entry {
@@ -85,7 +86,7 @@ function entryOf(params: { edit?: string; copy?: string; from?: string; instrume
     const tune = Number(params.tune)
     return { kind: "from", id: params.from, ...(Number.isInteger(tune) && tune >= 1 ? { tune } : {}) }
   }
-  return { kind: "new", instrument: params.instrument === "harmonium" ? "harmonium" : "guitar" }
+  return { kind: "new", instrument: sheetInstrumentOf(params.instrument) }
 }
 
 /** Everything the member can change, as one string: whether the work differs from where it began. */
