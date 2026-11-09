@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.db import get_session
 from app.models import UserAccount, UserFavorite, UserPlaylist, UserPlaylistSong
+from app.models.member_session import MemberSession
 from app.schemas.member import (
     AnonymousMember,
     ChatMemoryResponse,
@@ -286,6 +287,9 @@ async def delete_member_data(request: Request, session: DatabaseSession) -> Resp
     # the author page (its address is held back for a while) and the member's raw listening
     # rows go first
     await erase_author_data(session, member, get_settings())
+    # every signed-in device goes with the account (the database cascade would do it too; this
+    # does not depend on it, and a deleted session row also makes the access token worthless)
+    await session.execute(delete(MemberSession).where(MemberSession.user_id == member.id))
     await session.delete(member)
     await session.commit()
     return Response(status_code=204)
