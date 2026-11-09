@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 
 import { LiveMark } from "@/components/broadcasts/LiveMark"
+import { RecordingBlock } from "@/components/broadcasts/RecordingBlock"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
 import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
@@ -15,8 +16,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { broadcastFailure, broadcastsBackend } from "@/lib/broadcasts/backend"
-import { addressToOpen, phaseNow, playsInApp } from "@/lib/broadcasts/rules"
-import type { Broadcast, BroadcastFailure, BroadcastReportReason } from "@/lib/broadcasts/types"
+import { addressToOpen, liveDay, phaseNow, playsInApp } from "@/lib/broadcasts/rules"
+import type { Broadcast, BroadcastFailure, BroadcastRecording, BroadcastReportReason } from "@/lib/broadcasts/types"
 import { whenLine } from "@/lib/broadcasts/when"
 import { useLanguage, useT } from "@/lib/i18n"
 import { videoEmbed } from "@/lib/recordingVideos/embed"
@@ -59,6 +60,14 @@ export default function BroadcastScreen() {
   useEffect(() => {
     void load()
   }, [load])
+  // coming back from "Add the recording" shows the new recording (the first focus is the load above)
+  const firstFocus = useRef(true)
+  useFocusEffect(
+    useCallback(() => {
+      if (!firstFocus.current) void load()
+      firstFocus.current = false
+    }, [load]),
+  )
   // the phase is worked out from the times, so the mark follows the clock while the page is open
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000)
@@ -77,6 +86,16 @@ export default function BroadcastScreen() {
       setNote(null)
     } catch {
       setNote(t("bc.p.open.fail"))
+    }
+  }
+
+  async function removeRecording(recording: BroadcastRecording) {
+    if (!item) return
+    try {
+      await broadcastsBackend().removeRecording(item.id, recording.id)
+      setItem({ ...item, recordings: item.recordings.filter((r) => r.id !== recording.id) })
+    } catch (error) {
+      setNote(say(broadcastFailure(error)))
     }
   }
 
@@ -137,7 +156,7 @@ export default function BroadcastScreen() {
       <SheetTopBar closeLabel={t("bc.f.close")} onClose={close} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content, { paddingBottom: bottomInset }]}>
         <Reveal index={0} style={s.head}>
-          <LiveMark phase={phase} theme={theme} />
+          <LiveMark phase={phase} theme={theme} day={liveDay(item, now)} />
           <Text style={[s.h1, { color: theme.textHeading }]} accessibilityRole="header">
             {item.title}
           </Text>
@@ -173,11 +192,18 @@ export default function BroadcastScreen() {
               ) : null}
             </>
           )}
+          {item.liveSource === "youtube" && phase === "now" ? <Hint theme={theme}>{t("bc.p.viaYoutube")}</Hint> : null}
           {item.linkStatus === "unavailable" ? <Hint theme={theme} tone="danger">{t("bc.p.unavailable")}</Hint> : null}
           {note ? <Hint theme={theme}>{note}</Hint> : null}
         </Reveal>
 
-        <Reveal index={3} style={s.stack}>
+        {phase === "ended" || item.recordings.length > 0 ? (
+          <Reveal index={3}>
+            <RecordingBlock item={{ ...item, phase }} theme={theme} watch={watch} width={videoWidth} onOpen={(url) => void open(url)} onRemove={(r) => void removeRecording(r)} onAdd={() => router.push(href(`/broadcast-recording?id=${encodeURIComponent(item.id)}`))} />
+          </Reveal>
+        ) : null}
+
+        <Reveal index={4} style={s.stack}>
           {item.canEnd && phase !== "ended" ? <ActionButton theme={theme} tone="quiet" label={t("bc.p.end")} onPress={() => setConfirm("end")} /> : null}
           {item.mine ? <ActionButton theme={theme} tone="quiet" label={t("bc.p.delete")} onPress={() => setConfirm("delete")} /> : null}
           {!item.mine ? (

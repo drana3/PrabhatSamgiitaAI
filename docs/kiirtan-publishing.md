@@ -301,3 +301,11 @@ is no `mantra` column any more.
 - Уровень 5: скрипт `scripts/import_kiirtan_library.py`, по умолчанию пробный прогон, `--execute` по-настоящему,
   состояние и отчёт в файлах.
 - Для деплоя: миграция `0029_recording_duplicates`, `fpcalc` в образе API, переменные окружения. Деплоя не было.
+
+## Recordings made from a live broadcast
+
+A recording can be uploaded for an ended broadcast (`docs/broadcasts.md`, "Recordings"). The publish body then carries an
+optional `broadcast_id`; the server checks that the broadcast exists and has ended, and that the uploader may attach (the
+author and the team directly, others as a suggestion), and links the recording to it. Nothing else changes: the upload is
+live at once and reviewed afterwards like every other. `GET /recordings/{id}` answers with `from_broadcast`
+(`id`, `title`, `date`) and the recording page shows "From a live broadcast". The link survives the broadcast being archived.

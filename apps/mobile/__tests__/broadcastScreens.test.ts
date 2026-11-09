@@ -3,6 +3,7 @@ import { join } from "node:path"
 
 import { describe, expect, it } from "vitest"
 
+import { miniModeForPath, policyForPath } from "@/lib/playerPolicy"
 import { dictionaries } from "@/locales"
 import review from "@/locales/review.json"
 
@@ -14,6 +15,10 @@ const ROOT = join(__dirname, "..")
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8")
 
 const FILES = ["app/upload-broadcast.tsx", "app/broadcast/[id].tsx", "app/broadcasts.tsx", "components/broadcasts/BroadcastCard.tsx", "components/broadcasts/BroadcastsShelf.tsx", "components/broadcasts/LiveMark.tsx", "hooks/useBroadcasts.ts"]
+
+/** The screens added with the duration, the team's desk and the recordings: the same safety rules, each file counted. */
+const DESK_FILES = ["components/broadcasts/RecordingBlock.tsx", "app/broadcast-recording.tsx", "components/broadcasts/ReviewBroadcastCard.tsx", "app/team-broadcasts.tsx", "components/broadcasts/FromBroadcastMark.tsx", "hooks/useFromBroadcast.ts", "hooks/useBroadcastReviewCount.ts"]
+const DESK_LIBS = ["lib/broadcastReview/mock.ts", "lib/broadcastReview/remote.ts", "lib/broadcastReview/rules.ts", "lib/broadcasts/notices.ts", "lib/broadcasts/fromBroadcast.ts"]
 
 describe("a posted link is only ever opened by a person, outside the app", () => {
   const page = read("app/broadcast/[id].tsx")
@@ -53,6 +58,66 @@ describe("a posted link is only ever opened by a person, outside the app", () =>
 
   it("loads a thumbnail only from YouTube's own image host", () => {
     expect(read("components/broadcasts/BroadcastCard.tsx")).toContain("safeThumbnail(item.thumbnailUrl)")
+  })
+})
+
+describe("the team's desk and the recordings keep the same rule for a posted link", () => {
+  it("opens a link outside the app in one place of the desk, after the address is parsed again, and nowhere else", () => {
+    for (const file of [...DESK_FILES, ...DESK_LIBS]) {
+      const opens = (read(file).match(/Linking\.openURL/g) ?? []).length
+      expect(opens, file).toBe(file === "components/broadcasts/ReviewBroadcastCard.tsx" ? 1 : 0)
+    }
+    const card = read("components/broadcasts/ReviewBroadcastCard.tsx")
+    const at = card.indexOf("Linking.openURL")
+    expect(card.lastIndexOf("addressToOpen(url)", at)).toBeGreaterThan(-1)
+    expect(card).toContain("Linking.openURL(address)")
+  })
+
+  it("the recording block opens a link only through the page's own open(), never by itself", () => {
+    const block = read("components/broadcasts/RecordingBlock.tsx")
+    expect(block).toContain("onOpen")
+    expect(read("app/broadcast/[id].tsx")).toMatch(/onOpen=\{[^}]*open/)
+  })
+
+  it("never loads a link in a web view or a frame and never fetches one", () => {
+    for (const file of [...DESK_FILES, ...DESK_LIBS]) {
+      expect(read(file), file).not.toMatch(/react-native-webview|WebView\b|<iframe|createElement\("iframe"/)
+      expect(read(file), file).not.toMatch(/\bfetch\(|XMLHttpRequest/)
+    }
+  })
+
+  it("never embeds a recording that is not on YouTube, and the Zoom link is only opened outside", () => {
+    const block = read("components/broadcasts/RecordingBlock.tsx")
+    expect(block).toContain('r.provider === "youtube" ? videoEmbed({ provider: "youtube"')
+    expect(block.match(/videoEmbed\(/g)).toHaveLength(1)
+    expect(block).not.toMatch(/provider:\s*"zoom"/)
+  })
+
+  it("parses the link of a recording with new URL(), like the link of a broadcast", () => {
+    const rules = read("lib/broadcasts/rules.ts")
+    const link = rules.slice(rules.indexOf("export function parseRecordingLink"))
+    expect(link).toContain("new URL(")
+    expect(link.split("\nexport ")[0]).not.toMatch(/\.(?:test|exec|match)\(|\.replace\(\//)
+  })
+
+  it("the desk and the recording form keep the layout of the other team screens", () => {
+    expect(read("app/team-broadcasts.tsx")).toMatch(/\bcontent:\s*\{[^}]*\bgap:\s*16\b/)
+    expect(read("app/broadcast-recording.tsx")).toMatch(/\bcontent:\s*\{[^}]*\bgap:\s*24\b/)
+  })
+
+  it("the new routes are forms: no mini player, no tab bar, and the docs table lists them", () => {
+    for (const route of ["/broadcast-recording", "/team-broadcasts"]) {
+      expect(policyForPath(route).id, route).toBe("upload")
+      expect(miniModeForPath(route), route).toBe("hidden")
+      expect(readFileSync(join(ROOT, "..", "..", "docs", "player-visibility.md"), "utf8"), route).toContain(`\`${route}\``)
+      expect(read("app/_layout.tsx"), route).toContain(`name="${route.slice(1)}"`)
+    }
+  })
+
+  it("the duration is read with the phone's zone and the end is checked before sending", () => {
+    const form = read("app/upload-broadcast.tsx")
+    expect(form).toContain("resolveEnd(")
+    expect(form).toContain("deviceZone()")
   })
 })
 
@@ -99,6 +164,8 @@ describe("the form and the pages", () => {
 describe("the words", () => {
   const used = new Set<string>()
   for (const file of FILES) for (const m of read(file).matchAll(/\bt\("(bc\.[A-Za-z0-9_.]+)"/g)) used.add(m[1] as string)
+  for (const file of DESK_FILES) for (const m of read(file).matchAll(/\bt\("(bc\.[A-Za-z0-9_.]+)"/g)) used.add(m[1] as string)
+  for (const file of ["app/upload.tsx", "components/broadcasts/LiveMark.tsx", "lib/broadcasts/notices.ts"]) for (const m of read(file).matchAll(/\bt\("(bc\.[A-Za-z0-9_.]+)"/g)) used.add(m[1] as string)
   for (const m of read("lib/broadcasts/when.ts").matchAll(/\bt\("(bc\.[A-Za-z0-9_.]+)"/g)) used.add(m[1] as string)
 
   it("every sentence the screens use is in English, Russian and Spanish", () => {
@@ -107,7 +174,7 @@ describe("the words", () => {
   })
 
   it("has a sentence for every failure and every report reason", () => {
-    const failures = ["signin", "empty", "badLink", "notHttps", "notPublic", "channel", "bareSite", "tooLong", "titleShort", "titleLong", "titleLatin", "titleLink", "textLink", "startBad", "startPast", "startFar", "dailyLimit", "liveLimit", "duplicate", "slowDown", "refused", "network", "gone", "server"]
+    const failures = ["signin", "empty", "badLink", "notHttps", "notPublic", "channel", "bareSite", "tooLong", "titleShort", "titleLong", "titleLatin", "titleLink", "textLink", "startBad", "startPast", "startFar", "dailyLimit", "liveLimit", "duplicate", "slowDown", "refused", "network", "gone", "server", "endBad", "endPast", "endBeforeStart", "endFar", "notEnded", "recordingSite", "recordingMeeting", "recordingFull", "recordingDuplicate"]
     const reasons = ["broken", "not_a_broadcast", "offensive", "spam", "other"]
     const providers = ["youtube", "zoom", "facebook", "instagram", "other"]
     for (const language of ["en", "ru", "es"] as const) {

@@ -6,7 +6,7 @@ import { LiveMark } from "@/components/broadcasts/LiveMark"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useLanguage, useT } from "@/lib/i18n"
-import { phaseNow, safeThumbnail } from "@/lib/broadcasts/rules"
+import { liveDay, phaseNow, safeThumbnail } from "@/lib/broadcasts/rules"
 import type { Broadcast } from "@/lib/broadcasts/types"
 import { whenLine } from "@/lib/broadcasts/when"
 
@@ -41,11 +41,11 @@ export function BroadcastCard({ item, theme, onPress, width }: { item: Broadcast
         {thumbnail ? <Image source={{ uri: thumbnail }} style={s.image} accessibilityIgnoresInvertColors /> : <AirGlyph color={theme.accent} />}
       </View>
       <View style={s.text}>
-        <LiveMark phase={phase} theme={theme} />
+        <LiveMark phase={phase} theme={theme} day={liveDay(item)} />
         <Text style={[s.title, { color: theme.textHeading }]} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={[s.when, { color: theme.textBody }]} numberOfLines={1}>
+        <Text style={[s.when, { color: theme.textBody }]} numberOfLines={2}>
           {line}
         </Text>
       </View>

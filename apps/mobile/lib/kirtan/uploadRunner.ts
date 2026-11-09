@@ -62,6 +62,7 @@ export async function runUpload(
       collectionId: item.collectionId ?? null,
       position: item.position ?? null,
       recordedOn: item.recordedOn ?? null,
+      broadcastId: item.broadcastId ?? null,
       credits: item.credits,
       notes: item.notes,
       place: item.place,

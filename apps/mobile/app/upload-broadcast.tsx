@@ -12,7 +12,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { broadcastFailure, broadcastsBackend } from "@/lib/broadcasts/backend"
-import { DESCRIPTION_MAX, ORGANIZER_MAX, TITLE_MAX, URL_MAX, cleanBroadcastText, cleanBroadcastTitle, deviceZone, localDateString, parseBroadcastLink, resolveStart } from "@/lib/broadcasts/rules"
+import { DESCRIPTION_MAX, ORGANIZER_MAX, TITLE_MAX, URL_MAX, cleanBroadcastText, cleanBroadcastTitle, deviceZone, localDateString, parseBroadcastLink, resolveEnd, resolveStart } from "@/lib/broadcasts/rules"
 import type { Broadcast, BroadcastFailure } from "@/lib/broadcasts/types"
 import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { useT } from "@/lib/i18n"
@@ -21,7 +21,7 @@ import { previewGuest } from "@/lib/songChords/backend"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
-type FieldKey = "link" | "title" | "start" | "about" | "organizer"
+type FieldKey = "link" | "title" | "start" | "end" | "about" | "organizer"
 
 /** Which field a failure belongs to; the others are said above the send button. */
 const FIELD_OF: Partial<Record<BroadcastFailure, FieldKey>> = {
@@ -41,6 +41,10 @@ const FIELD_OF: Partial<Record<BroadcastFailure, FieldKey>> = {
   startBad: "start",
   startPast: "start",
   startFar: "start",
+  endBad: "end",
+  endPast: "end",
+  endBeforeStart: "end",
+  endFar: "end",
 }
 
 /**
@@ -61,6 +65,8 @@ export default function UploadBroadcastScreen() {
   const [title, setTitle] = useState("")
   const [date, setDate] = useState("")
   const [time, setTime] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [endTime, setEndTime] = useState("")
   const [about, setAbout] = useState("")
   const [organizer, setOrganizer] = useState("")
   const [busy, setBusy] = useState(false)
@@ -81,11 +87,13 @@ export default function UploadBroadcastScreen() {
     if (!cleanTitle.ok) found.push({ key: "title", failure: cleanTitle.failure })
     const start = resolveStart({ date, time })
     if (!start.ok) found.push({ key: "start", failure: start.failure })
+    const end = resolveEnd({ date: endDate, time: endTime }, { startsAt: start.ok ? start.startsAt : null })
+    if (!end.ok) found.push({ key: "end", failure: end.failure })
     const description = cleanBroadcastText(about, DESCRIPTION_MAX)
     if (!description.ok) found.push({ key: "about", failure: description.failure })
     const who = cleanBroadcastText(organizer, ORGANIZER_MAX)
     if (!who.ok) found.push({ key: "organizer", failure: who.failure })
-    if (found.length || !parsed.ok || !cleanTitle.ok || !start.ok || !description.ok || !who.ok) {
+    if (found.length || !parsed.ok || !cleanTitle.ok || !start.ok || !end.ok || !description.ok || !who.ok) {
       const messages: Record<string, string> = {}
       for (const item of found) messages[item.key] = say(item.failure)
       void form.focusFirst(
@@ -96,7 +104,7 @@ export default function UploadBroadcastScreen() {
     }
     setBusy(true)
     try {
-      setPosted(await broadcastsBackend().create({ url: parsed.url, title: cleanTitle.title, description: description.text, organizer: who.text, startsAt: start.startsAt, timezone: start.timezone }))
+      setPosted(await broadcastsBackend().create({ url: parsed.url, title: cleanTitle.title, description: description.text, organizer: who.text, startsAt: start.startsAt, endsAt: end.endsAt, timezone: start.timezone ?? end.timezone }))
     } catch (error) {
       const failure = broadcastFailure(error)
       const key = FIELD_OF[failure]
@@ -209,6 +217,38 @@ export default function UploadBroadcastScreen() {
               </View>
               <Text style={[s.hint, { color: theme.textBody }]}>{t("bc.f.when.hint", { zone })}</Text>
               <FieldError theme={theme} text={form.error("start")} />
+            </View>
+
+            <View {...form.field("end")} style={s.field}>
+              <View style={s.labelRow}>
+                <Text style={[s.label, { color: theme.textHeading }]}>{t("bc.f.ends")}</Text>
+                <RequiredMark theme={theme} required={false} />
+              </View>
+              <View style={s.chips} accessibilityRole="radiogroup">
+                {[
+                  { label: t("bc.f.today"), value: localDateString(0) },
+                  { label: t("bc.f.tomorrow"), value: localDateString(1) },
+                  { label: t("bc.f.inWeek"), value: localDateString(7) },
+                ].map((choice) => (
+                  <Chip key={choice.value} theme={theme} label={choice.label} on={endDate === choice.value} onPress={() => setEndDate(endDate === choice.value ? "" : choice.value)} />
+                ))}
+              </View>
+              <View style={s.pair}>
+                <View style={s.pairItem}>
+                  <Text style={[s.sub, { color: theme.textBody }]}>{t("bc.f.date")}</Text>
+                  <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: form.error("end") ? amColors.danger : theme.line }]}>
+                    <TextInput ref={form.input("end")} value={endDate} onChangeText={(text) => { if (form.error("end")) form.clear(); setEndDate(text) }} editable={!busy} placeholder={t("bc.f.date.ph")} placeholderTextColor={theme.textMuted} accessibilityLabel={`${t("bc.f.ends")}, ${t("bc.f.date")}`} maxLength={10} keyboardType="numbers-and-punctuation" style={[s.input, { color: theme.textHeading }]} />
+                  </View>
+                </View>
+                <View style={s.pairItem}>
+                  <Text style={[s.sub, { color: theme.textBody }]}>{t("bc.f.time")}</Text>
+                  <View style={[s.inputBox, { backgroundColor: theme.card, borderColor: form.error("end") ? amColors.danger : theme.line }]}>
+                    <TextInput value={endTime} onChangeText={(text) => { if (form.error("end")) form.clear(); setEndTime(text) }} editable={!busy} placeholder={t("bc.f.time.ph")} placeholderTextColor={theme.textMuted} accessibilityLabel={`${t("bc.f.ends")}, ${t("bc.f.time")}`} maxLength={5} keyboardType="numbers-and-punctuation" style={[s.input, { color: theme.textHeading }]} />
+                  </View>
+                </View>
+              </View>
+              <Text style={[s.hint, { color: theme.textBody }]}>{t("bc.f.ends.hint")}</Text>
+              <FieldError theme={theme} text={form.error("end")} />
             </View>
 
             {field("about", t("bc.f.about"), about, setAbout, { placeholder: t("bc.f.about.ph"), optional: true, max: DESCRIPTION_MAX + 40, multiline: true })}

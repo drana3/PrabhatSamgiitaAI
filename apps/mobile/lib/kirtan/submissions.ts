@@ -53,6 +53,8 @@ export type SubmissionInput = {
   position?: number | null
   /** the day it was recorded, YYYY-MM-DD */
   recordedOn?: string | null
+  /** the live broadcast this is the recording of */
+  broadcastId?: string | null
   /** words and music by, optional */
   credits?: string
   /** Baba's Audio Discourses only: where it was given, and the name or number of the discourse (both optional) */
@@ -174,6 +176,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(kindHasDance(kind) && input.dance && DANCES.includes(input.dance) ? { dance: input.dance } : {}),
     ...(input.collectionId ? { collectionId: input.collectionId, ...(input.position ? { position: input.position } : {}) } : {}),
     ...(input.recordedOn ? { recordedOn: input.recordedOn } : {}),
+    ...(input.broadcastId ? { broadcastId: input.broadcastId } : {}),
     ...(tidy(input.credits ?? "") ? { credits: tidy(input.credits ?? "") } : {}),
     ...(kindHasDiscourse(kind) && tidy(input.place ?? "") ? { place: tidy(input.place ?? "") } : {}),
     ...(kindHasDiscourse(kind) && tidy(input.discourse ?? "") ? { discourse: tidy(input.discourse ?? "") } : {}),

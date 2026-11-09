@@ -191,6 +191,8 @@ export type Kirtan = {
   position?: number
   /** the day it was recorded, YYYY-MM-DD (a playlist track may differ from the playlist's first day) */
   recordedOn?: string
+  /** the live broadcast this is the recording of (docs/broadcasts.md) */
+  broadcastId?: string
   /** words and music by, as the uploader wrote it (Bhajan) */
   credits?: string
   /** a short note from the uploader */

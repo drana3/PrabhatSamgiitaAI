@@ -17,6 +17,11 @@ export const DESCRIPTION_MAX = 1000
 export const ORGANIZER_MAX = 120
 export const STARTED_AGO_MAX_HOURS = 6
 export const FAR_AHEAD_DAYS = 365
+/** A broadcast is "on" at most this long from its start; with no end given it ends by itself then (apps/api MAX_DURATION). */
+export const MAX_SPAN_DAYS = 14
+/** A week after the real end a broadcast leaves the lists (it stays for its author). */
+export const ARCHIVE_AFTER_DAYS = 7
+const DAY_MS = 86_400_000
 
 const ZOOM_DOMAINS = ["zoom.us", "zoom.com", "zoomgov.com"]
 const FACEBOOK_HOSTS = new Set(["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com", "fb.watch"])
@@ -118,6 +123,32 @@ export function addressToOpen(url: string): string | null {
   return parsed.ok && parsed.url === url ? parsed.url : null
 }
 
+/** Sites that hold a recording of a talk besides YouTube and Zoom (apps/api services/broadcast_recordings.py). */
+const OTHER_RECORDING_HOSTS = new Set(["vimeo.com", "www.vimeo.com", "player.vimeo.com", "archive.org", "www.archive.org"])
+
+export type ParsedRecordingLink = { ok: true; provider: BroadcastProvider; host: string; url: string } | { ok: false; failure: BroadcastFailure }
+
+/**
+ * The link of the recording of a broadcast: the same safe parse as a broadcast link (https only, no credentials, a public
+ * domain, never fetched), and then only a YouTube video, a Zoom cloud recording (`zoom.us/rec/...`, not the meeting's own
+ * link), Vimeo or archive.org. Zoom and the others are only ever opened outside the app.
+ */
+export function parseRecordingLink(raw: string): ParsedRecordingLink {
+  const parsed = parseBroadcastLink(raw)
+  if (!parsed.ok) return parsed
+  if (parsed.provider === "youtube") return parsed
+  if (parsed.provider === "zoom") {
+    let path = ""
+    try {
+      path = new URL(parsed.url).pathname
+    } catch {
+      return bad("badLink")
+    }
+    return path.startsWith("/rec/") ? parsed : bad("recordingMeeting")
+  }
+  return OTHER_RECORDING_HOSTS.has(parsed.host) ? { ok: true, provider: "other", host: parsed.host, url: parsed.url } : bad("recordingSite")
+}
+
 /** Only a YouTube broadcast ever plays inside the app (through the site's own embed); Zoom and every other site never. */
 export const playsInApp = (provider: BroadcastProvider): boolean => provider === "youtube"
 
@@ -156,6 +187,19 @@ export function deviceZone(): string | null {
   }
 }
 
+/** A date `YYYY-MM-DD` and a time `HH:MM` as typed, read in the phone's own zone; null when they are not a real moment (31 February, 25:00). */
+function readMoment(dateText: string, timeText: string): { moment: Date; local: string } | null {
+  const [y = "", mo = "", d = "", ...extraDate] = dateText.split("-")
+  const [h = "", mi = "", ...extraTime] = timeText.split(":")
+  const parts = [y, mo, d, h, mi]
+  if (extraDate.length || extraTime.length || parts.some((p) => p === "" || !Array.from(p).every(isDigit)) || y.length !== 4 || mo.length > 2 || d.length > 2 || h.length > 2 || mi.length !== 2) return null
+  const [year, month, day, hour, minute] = parts.map(Number) as [number, number, number, number, number]
+  const moment = new Date(year, month - 1, day, hour, minute)
+  // 31 February or 25:00 roll over into another day: not a time
+  if (moment.getFullYear() !== year || moment.getMonth() !== month - 1 || moment.getDate() !== day || moment.getHours() !== hour || moment.getMinutes() !== minute) return null
+  return { moment, local: `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}` }
+}
+
 /**
  * The start the person typed (a date `YYYY-MM-DD` and a time `HH:MM`, both in the phone's own zone) as the API takes it: a
  * local date-time without an offset plus the zone's name. Not further than a year ahead, and not more than six hours ago
@@ -168,24 +212,40 @@ export function resolveStart(
   const date = (input.date ?? "").trim()
   const time = (input.time ?? "").trim()
   if (!date && !time) return { ok: true, startsAt: null, timezone: null }
-  const [y = "", mo = "", d = "", ...extraDate] = date.split("-")
-  const [h = "", mi = "", ...extraTime] = time.split(":")
-  const parts = [y, mo, d, h, mi]
-  if (extraDate.length || extraTime.length || parts.some((p) => p === "" || !Array.from(p).every(isDigit)) || y.length !== 4 || mo.length > 2 || d.length > 2 || h.length > 2 || mi.length !== 2) {
-    return { ok: false, failure: "startBad" }
-  }
-  const [year, month, day, hour, minute] = parts.map(Number) as [number, number, number, number, number]
-  const moment = new Date(year, month - 1, day, hour, minute)
-  // 31 February or 25:00 roll over into another day: not a time
-  if (moment.getFullYear() !== year || moment.getMonth() !== month - 1 || moment.getDate() !== day || moment.getHours() !== hour || moment.getMinutes() !== minute) {
-    return { ok: false, failure: "startBad" }
-  }
+  const read = readMoment(date, time)
+  if (!read) return { ok: false, failure: "startBad" }
   const now = options.now ?? Date.now()
-  if (moment.getTime() < now - STARTED_AGO_MAX_HOURS * 3_600_000) return { ok: false, failure: "startPast" }
-  if (moment.getTime() > now + FAR_AHEAD_DAYS * 86_400_000) return { ok: false, failure: "startFar" }
+  if (read.moment.getTime() < now - STARTED_AGO_MAX_HOURS * 3_600_000) return { ok: false, failure: "startPast" }
+  if (read.moment.getTime() > now + FAR_AHEAD_DAYS * DAY_MS) return { ok: false, failure: "startFar" }
   const zone = options.zone === undefined ? deviceZone() : options.zone
   if (!zone) return { ok: false, failure: "startBad" }
-  return { ok: true, startsAt: `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`, timezone: zone }
+  return { ok: true, startsAt: read.local, timezone: zone }
+}
+
+/**
+ * The end the person typed (the optional "Ends" fields), in the same shape and zone as the start. It has to come after the
+ * start (after now when there is no start: the broadcast then begins when it is posted), and at most 14 days from the start.
+ * Nothing typed is "no end": the broadcast is on until its organizer says "It is over", and ends by itself on day 14.
+ */
+export function resolveEnd(
+  input: { date: string; time: string },
+  options: { now?: number; zone?: string | null; startsAt?: string | null } = {},
+): { ok: true; endsAt: string | null; timezone: string | null } | { ok: false; failure: BroadcastFailure } {
+  const date = (input.date ?? "").trim()
+  const time = (input.time ?? "").trim()
+  if (!date && !time) return { ok: true, endsAt: null, timezone: null }
+  const read = readMoment(date, time)
+  if (!read) return { ok: false, failure: "endBad" }
+  const now = options.now ?? Date.now()
+  const start = options.startsAt ? readMoment(options.startsAt.slice(0, 10), options.startsAt.slice(11, 16)) : null
+  const end = read.moment.getTime()
+  if (start && end <= start.moment.getTime()) return { ok: false, failure: "endBeforeStart" }
+  if (end <= now) return { ok: false, failure: "endPast" }
+  const begin = start ? start.moment.getTime() : now
+  if (end > begin + MAX_SPAN_DAYS * DAY_MS) return { ok: false, failure: "endFar" }
+  const zone = options.zone === undefined ? deviceZone() : options.zone
+  if (!zone) return { ok: false, failure: "endBad" }
+  return { ok: true, endsAt: read.local, timezone: zone }
 }
 
 /** What the page says about a broadcast right now: the server's own phase can be minutes old, so it is worked out again from the times. */
@@ -194,6 +254,28 @@ export function phaseNow(b: Pick<Broadcast, "startsAt" | "endsAt" | "createdAt">
   const begins = b.startsAt ? Date.parse(b.startsAt) : Date.parse(b.createdAt)
   return now < begins ? "upcoming" : "now"
 }
+
+/** When the broadcast begins: its start, or the moment it was posted when it has none. */
+export const beginsAt = (b: Pick<Broadcast, "startsAt" | "createdAt">): number => (b.startsAt ? Date.parse(b.startsAt) : Date.parse(b.createdAt))
+
+/**
+ * "Day 3 of 9" for the Live mark of a broadcast that runs for days: the day it is on, and (when its end was announced) how
+ * many days it has. A broadcast with no announced end shows the day only, from the second day. One that is not live, or lasts
+ * a single day, has none.
+ */
+export function liveDay(b: Pick<Broadcast, "startsAt" | "endsAt" | "createdAt" | "endsDeclared">, now: number = Date.now()): { day: number; total: number | null } | null {
+  if (phaseNow(b, now) !== "now") return null
+  const begin = beginsAt(b)
+  const day = Math.floor((now - begin) / DAY_MS) + 1
+  if (b.endsDeclared) {
+    const total = Math.ceil((Date.parse(b.endsAt) - begin) / DAY_MS)
+    return total >= 2 ? { day: Math.min(Math.max(day, 1), total), total } : null
+  }
+  return day >= 2 ? { day, total: null } : null
+}
+
+/** The day a broadcast leaves the lists: a week after its actual end. */
+export const archiveAt = (b: Pick<Broadcast, "endsAt">): number => Date.parse(b.endsAt) + ARCHIVE_AFTER_DAYS * DAY_MS
 
 /** The shelf of the Kiirtan screen: live ones first, then the soonest upcoming; an ended one never stays on it. */
 export function shelfOrder(items: readonly Broadcast[], now: number = Date.now()): Broadcast[] {

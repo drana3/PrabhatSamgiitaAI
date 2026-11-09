@@ -41,6 +41,8 @@ export type UploadSource = {
   collectionId?: string | null
   position?: number | null
   recordedOn?: string | null
+  /** the live broadcast this is the recording of */
+  broadcastId?: string | null
   credits?: string
   notes?: string
   /** Baba's Audio Discourses only */
@@ -125,6 +127,7 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       collectionId: source.collectionId,
       position: source.position,
       recordedOn: source.recordedOn,
+      broadcastId: source.broadcastId,
       credits: source.credits,
       notes: source.notes,
       place: source.place,

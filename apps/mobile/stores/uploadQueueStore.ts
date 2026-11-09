@@ -59,6 +59,9 @@ type QueueState = {
   running: boolean
   /** why the last run ended early (the daily limit, or not being signed in); null otherwise */
   stopped: QueueStop
+  /** the live broadcast the files being added are the recording of (docs/broadcasts.md); null for an ordinary upload */
+  forBroadcast: { id: string; title: string } | null
+  setBroadcast: (target: { id: string; title: string } | null) => void
   setDraft: (patch: Partial<QueueDraft>) => void
   /** the Add screen was opened: files left over from an earlier visit that was never sent are dropped; a queue that has work in it stays */
   openFresh: () => void
@@ -141,6 +144,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       performance: draft.performance,
       leadInstrument: draft.leadInstrument,
       leadInstrumentOther: draft.leadInstrumentOther,
+      broadcastId: get().forBroadcast?.id ?? null,
     }
     if (validateSubmission(input)) return { status: "failed", failure: { code: "gone" } }
     const added = useKirtanStore.getState().submit(input).added
@@ -172,6 +176,11 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     draft: EMPTY_DRAFT,
     running: false,
     stopped: null,
+    forBroadcast: null,
+    // a run that is going keeps the target it started with
+    setBroadcast: (target) => {
+      if (!get().running) set({ forBroadcast: target })
+    },
     // the type decides which optional fields exist: changing it clears the ones the new type does not have
     // The picked files stay when the type changes (they are the same files); what the old type's fields and rows said does not.
     setDraft: (change) => {
@@ -231,7 +240,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       if (outcome.status === "published" && kindHasChords(get().draft.kind)) sendChords(id, submissionId, row.title || row.fileName)
     },
     clearFinished: () => set({ items: withoutFinished(get().items), stopped: null }),
-    reset: () => set({ items: [], draft: EMPTY_DRAFT, running: false, stopped: null }),
+    reset: () => set({ items: [], draft: EMPTY_DRAFT, running: false, stopped: null, forBroadcast: null }),
   }
 })
 

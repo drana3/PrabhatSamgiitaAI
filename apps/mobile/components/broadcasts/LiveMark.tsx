@@ -10,9 +10,11 @@ import type { BroadcastPhase } from "@/lib/broadcasts/types"
  * The mark of a broadcast's phase: a word and a dot, never colour alone. "Live" is the filled one (white on the strong
  * orange), "Upcoming" an outline, "Ended" quiet text.
  */
-export function LiveMark({ phase, theme }: { phase: BroadcastPhase; theme: SongsTheme }) {
+export function LiveMark({ phase, theme, day }: { phase: BroadcastPhase; theme: SongsTheme; day?: { day: number; total: number | null } | null }) {
   const t = useT()
-  const label = phase === "now" ? t("bc.p.live") : phase === "upcoming" ? t("bc.p.upcoming") : t("bc.p.ended")
+  // a broadcast that runs for days says which day it is on: "Live · Day 3 of 9"
+  const span = phase === "now" && day ? (day.total ? t("bc.p.day.of", { day: day.day, total: day.total }) : t("bc.p.day", { day: day.day })) : null
+  const label = phase === "now" ? (span ? `${t("bc.p.live")} · ${span}` : t("bc.p.live")) : phase === "upcoming" ? t("bc.p.upcoming") : t("bc.p.ended")
   const live = phase === "now"
   return (
     <View

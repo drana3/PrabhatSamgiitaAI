@@ -9,6 +9,7 @@ import { PracticeBlock } from "@/components/kirtan/PracticeBlock"
 import { RecordingHero } from "@/components/kirtan/RecordingHero"
 import { RecordingTags } from "@/components/kirtan/RecordingTags"
 import { RecordingFacts } from "@/components/kirtan/RecordingFacts"
+import { FromBroadcastMark } from "@/components/broadcasts/FromBroadcastMark"
 import { CommentsView } from "@/components/comments/CommentsView"
 import { useComments } from "@/components/comments/useComments"
 import { AddVideoSheet } from "@/components/recording-extras/AddVideoSheet"
@@ -145,6 +146,8 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
             </View>
           </BlockStack>
         </Reveal>
+        {/* a recording made from a live broadcast says so (docs/broadcasts.md); nothing for any other */}
+        <FromBroadcastMark recordingId={apiId} theme={theme} />
         <AddLanguagePrompt theme={theme} kirtan={recording} variant="card" />
         <PracticeBlock theme={theme} kirtan={recording} />
         <Reveal index={2}>

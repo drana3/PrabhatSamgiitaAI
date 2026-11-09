@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from "react-native"
 
 import { syncClaimNotices } from "@/lib/authors/claimNotices"
 import { forgetShownOnPages } from "@/lib/authors/onPages"
+import { syncBroadcastNotices } from "@/lib/broadcasts/notices"
 import { syncReplyNotices } from "@/lib/comments/replyNotices"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
@@ -20,6 +21,8 @@ async function look(): Promise<void> {
   await syncReplyNotices()
   // claims of author pages: decisions for the page owner, "your recording is on a page" for the uploader
   if ((await syncClaimNotices()) > 0) forgetShownOnPages()
+  // what the team decided about the member's broadcasts (hidden, removed, back on the lists)
+  await syncBroadcastNotices()
 }
 
 /**

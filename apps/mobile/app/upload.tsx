@@ -13,6 +13,7 @@ import { KPress } from "@/components/kirtan/KPress"
 import { Reveal } from "@/components/today/motion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useChordTeam } from "@/hooks/useChordTeam"
+import { useBroadcastReviewCount } from "@/hooks/useBroadcastReviewCount"
 import { useClaimsDeskCount } from "@/hooks/useClaimsDeskCount"
 import { useTeamReviewCounts } from "@/hooks/useTeamReviewCounts"
 import { useMyChords } from "@/hooks/useMyChords"
@@ -58,6 +59,7 @@ export default function UploadScreen() {
   const { team, waiting } = useChordTeam(signedIn, tick)
   const reviewCounts = useTeamReviewCounts(team, tick)
   const claimsWaiting = useClaimsDeskCount(team, tick)
+  const broadcastsWaiting = useBroadcastReviewCount(team, tick)
   const reviewWaiting = reviewCounts.sheets + reviewCounts.comments + reviewCounts.videos
   const mine = useMyChords(signedIn, tick)
   const close = () => (router.canGoBack() ? router.back() : router.replace(href("/")))
@@ -132,6 +134,16 @@ export default function UploadScreen() {
               title={t("claimsDesk.hub.title")}
               body={claimsWaiting > 0 ? t("claimsDesk.hub.body", { count: claimsWaiting }) : t("claimsDesk.hub.none")}
               onPress={() => router.push(href("/team-claims"))}
+              theme={theme}
+              quiet
+            />
+          ) : null}
+          {team ? (
+            <Choice
+              icon={null}
+              title={t("bc.rv.hub.title")}
+              body={broadcastsWaiting > 0 ? t("bc.rv.hub.body", { count: broadcastsWaiting }) : t("bc.rv.hub.none")}
+              onPress={() => router.push(href("/team-broadcasts"))}
               theme={theme}
               quiet
             />

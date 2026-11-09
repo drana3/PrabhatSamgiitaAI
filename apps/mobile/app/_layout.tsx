@@ -257,6 +257,8 @@ export default function RootLayout() {
             <Stack.Screen name="upload-broadcast" options={{ presentation: "modal" }} />
             <Stack.Screen name="broadcasts" options={{ presentation: "card" }} />
             <Stack.Screen name="broadcast/[id]" options={{ presentation: "card" }} />
+            <Stack.Screen name="broadcast-recording" options={{ presentation: "modal" }} />
+            <Stack.Screen name="team-broadcasts" options={{ presentation: "card" }} />
             <Stack.Screen name="chords-review" options={{ presentation: "card" }} />
             <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
             <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />

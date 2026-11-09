@@ -256,6 +256,8 @@ export type PublishPayload = {
   collectionId?: string | null
   position?: number | null
   recordedOn?: string | null
+  /** the live broadcast this is the recording of (its author and the team link it at once, anybody else suggests it) */
+  broadcastId?: string | null
   credits?: string | null
   notes?: string | null
   /** Baba's Audio Discourses only */
@@ -301,6 +303,7 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     ...(payload.dance && kindHasDance(payload.kind) ? { dance: payload.dance } : {}),
     ...(payload.collectionId ? { collection_id: payload.collectionId, ...(payload.position ? { position: payload.position } : {}) } : {}),
     ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),
+    ...(payload.broadcastId ? { broadcast_id: payload.broadcastId } : {}),
     ...(payload.credits?.trim() ? { credits: payload.credits.trim() } : {}),
     ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
     ...(payload.place?.trim() && kindHasDiscourse(payload.kind) ? { place: payload.place.trim() } : {}),

@@ -81,7 +81,7 @@ export default function AddKirtanScreen() {
   const insets = useSafeAreaInsets()
   const isWeb = Platform.OS === "web"
   // "Upload a corrected version" opens this screen with the removed recording's words already in.
-  const params = useLocalSearchParams<{ kind?: string; title?: string; author?: string; song?: string }>()
+  const params = useLocalSearchParams<{ kind?: string; title?: string; author?: string; song?: string; broadcast?: string; broadcastTitle?: string }>()
   const actions = useKirtanActions()
 
   const signedIn = useAuthStore((s) => s.mode === "signed_in") || MOCKUP_DATA
@@ -96,7 +96,11 @@ export default function AddKirtanScreen() {
   if (!opened.current) {
     opened.current = true
     useUploadQueueStore.getState().openFresh()
+    // "Add the recording" of an ended live broadcast opens this form with the broadcast named: the files become its recording
+    const target = typeof params.broadcast === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(params.broadcast) ? params.broadcast : null
+    useUploadQueueStore.getState().setBroadcast(target ? { id: target, title: typeof params.broadcastTitle === "string" ? params.broadcastTitle.slice(0, 300) : "" } : null)
   }
+  const forBroadcast = useUploadQueueStore((st) => st.forBroadcast)
   const draft = useUploadQueueStore((s) => s.draft)
   const items = useUploadQueueStore((s) => s.items)
   const running = useUploadQueueStore((s) => s.running)
@@ -397,6 +401,14 @@ export default function AddKirtanScreen() {
                 <Text style={{ color: theme.ink300 }}>{kindLabel(kind)}</Text>
               </Text>
             </Reveal>
+
+            {forBroadcast ? (
+              <Reveal index={1}>
+                <Text style={[styles.hint, { color: theme.textBody }]} testID="for-broadcast">
+                  {t("bc.rec.forBanner", { title: forBroadcast.title })}
+                </Text>
+              </Reveal>
+            ) : null}
 
             {/* a whole event at once: its own screen (app/upload-set.tsx), docs/kiirtan-sets.md */}
             <Reveal index={1} style={styles.setStack}>

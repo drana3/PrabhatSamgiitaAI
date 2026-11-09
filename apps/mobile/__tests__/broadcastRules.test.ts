@@ -114,7 +114,7 @@ describe("the start", () => {
 })
 
 function sample(over: Partial<Broadcast>): Broadcast {
-  return { id: "b", provider: "zoom", url: "https://zoom.us/j/1", host: "zoom.us", title: "T", description: null, organizer: null, startsAt: null, timezone: null, endsAt: "2026-11-09T20:00:00Z", phase: "now", archived: false, thumbnailUrl: null, linkStatus: "unknown", status: "published", mine: false, canEnd: false, canRemove: false, createdAt: "2026-11-09T10:00:00Z", reportsCount: null, ...over }
+  return { id: "b", provider: "zoom", url: "https://zoom.us/j/1", host: "zoom.us", title: "T", description: null, organizer: null, startsAt: null, timezone: null, endsAt: "2026-11-09T20:00:00Z", endsDeclared: false, liveSource: "clock", phase: "now", archived: false, thumbnailUrl: null, linkStatus: "unknown", status: "published", mine: false, canEnd: false, canRemove: false, createdAt: "2026-11-09T10:00:00Z", reportsCount: null, hidden: null, recordings: [], recordingAction: null, ...over }
 }
 
 describe("phase and the shelf", () => {
@@ -160,7 +160,7 @@ describe("the server's answers", () => {
 describe("the preview backend follows the rules", () => {
   it("refuses what the real one refuses and keeps what is allowed", async () => {
     const backend = createBroadcastsMock({ now: () => Date.parse("2026-11-09T12:00:00Z") })
-    const draft = { url: "https://us05web.zoom.us/j/99?pwd=x", title: "Friday satsang", description: null, organizer: null, startsAt: null, timezone: null }
+    const draft = { url: "https://us05web.zoom.us/j/99?pwd=x", title: "Friday satsang", description: null, organizer: null, startsAt: null, endsAt: null, timezone: null }
     await expect(backend.create({ ...draft, url: "http://zoom.us/j/1" })).rejects.toSatisfy((e) => broadcastMockFailure(e) === "notHttps")
     const made = await backend.create(draft)
     expect(made).toMatchObject({ provider: "zoom", mine: true, phase: "now" })
