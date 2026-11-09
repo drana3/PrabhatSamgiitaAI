@@ -37,6 +37,7 @@ from app.models.recording_extras import (
 )
 from app.schemas.recording_extras import AdminVideoOut, VideoOut
 from app.schemas.song_comments import CommentAuthor
+from app.services import video_checks
 from app.services.extras_common import (
     AUTHOR_DELETED_BY,
     display_name,
@@ -212,6 +213,7 @@ def public_out(
         mine=viewer_id is not None and video.member_id == viewer_id,
         can_remove=team,
         link_status=video.link_status or "unknown",  # type: ignore[arg-type]
+        thumbnail_url=video_checks.thumbnail_for(video),
     )
 
 

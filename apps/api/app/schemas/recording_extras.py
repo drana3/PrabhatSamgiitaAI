@@ -375,6 +375,22 @@ class VideoOut(BaseModel):
     # owner does not allow other apps to show it: offer Open), unavailable (gone or private). A
     # hint.
     link_status: VideoLinkStatus = "unknown"
+    # The picture of the video (https, on the site's own image host), or null when there is none
+    # yet: the
+    # app then draws a placeholder with the site's name. YouTube's and the Archive's stand at
+    # addresses built
+    # from the id; Vimeo's is read from its oEmbed answer after the link is looked at.
+    thumbnail_url: str | None = None
+
+
+class VideoPreview(BaseModel):
+    """A look at a link that is not stored yet: what the form shows under the field."""
+
+    provider: VideoProvider
+    url: str
+    title: str | None = None
+    thumbnail_url: str | None = None
+    link_status: VideoLinkStatus = "unknown"
 
 
 class VideoList(BaseModel):

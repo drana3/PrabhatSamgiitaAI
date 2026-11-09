@@ -426,6 +426,18 @@ def can_see(
     return not is_archived(b, now=now) or has_recording
 
 
+def _picture(b: Broadcast) -> str | None:
+    """The picture of a broadcast: the one the look found, else (a YouTube link whose look has not
+    run, or
+    failed once) the YouTube picture at its id-built address, so a tile is not blank because a
+    request timed out."""
+    if b.thumbnail_url:
+        return b.thumbnail_url
+    if b.provider == "youtube" and b.status == "published" and b.external_id:
+        return video_checks.thumbnail_by_id("youtube", b.external_id)
+    return None
+
+
 def public_out(
     b: Broadcast,
     *,
@@ -452,7 +464,7 @@ def public_out(
         live_source=live_source(b, now=moment),  # type: ignore[arg-type]
         phase=phase(b, now=moment),  # type: ignore[arg-type]
         archived=is_archived(b, now=moment),
-        thumbnail_url=b.thumbnail_url,
+        thumbnail_url=_picture(b),
         link_status=b.link_status or "unknown",  # type: ignore[arg-type]
         status=b.status,  # type: ignore[arg-type]
         mine=mine,

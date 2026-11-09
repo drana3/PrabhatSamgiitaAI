@@ -49,6 +49,7 @@ from app.schemas.recording_extras import (
     VideoFilter,
     VideoList,
     VideoOut,
+    VideoPreview,
     VideoReportCreate,
 )
 from app.services import video_checks
@@ -202,6 +203,41 @@ async def list_for_recording(
         service.target_key_recording(recording_id),
         background,
         factory,
+    )
+
+
+# --------------------------------------------------------------------------- preview
+
+PREVIEW_PER_10_MINUTES = 40
+
+
+@router.get("/preview", response_model=VideoPreview)
+async def preview(
+    url: Annotated[str, Query(min_length=1, max_length=500)],
+    member: Member,
+    response: Response,
+) -> VideoPreview:
+    """What the form shows under a typed link, before it is added: the title and the picture of the
+    video,
+    and whether the site lets other apps show it. The typed text is read by `parse_video_url`
+    (https, the three
+    sites, one video) and then forgotten: the one request the server makes goes to the site's own
+    answer for
+    the video's id, with a timeout, and is remembered for ten minutes. Signed-in members only, 40 a
+    10 minutes each; a link that is refused costs nothing."""
+    try:
+        provider, external_id, normalised = service.parse_video_url(url)
+    except service.VideoRefusedError as error:
+        raise service.refusal(error) from error
+    service.limiter.hit("preview", str(member.id), limit=PREVIEW_PER_10_MINUTES, window_seconds=600)
+    response.headers["Cache-Control"] = "private, max-age=120"
+    found = await video_checks.preview(provider, external_id, normalised)
+    return VideoPreview(
+        provider=provider,  # type: ignore[arg-type]
+        url=normalised,
+        title=found.title,
+        thumbnail_url=found.thumbnail_url,
+        link_status=found.link_status,
     )
 
 

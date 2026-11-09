@@ -341,6 +341,10 @@ class VideoLink(Base, TimestampMixin):
     )
     checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     check_fails: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    # The picture of a Vimeo video, from Vimeo's oEmbed answer (https, i.vimeocdn.com only).
+    # YouTube's and the
+    # Internet Archive's pictures stand at addresses built from the id, so they are not stored.
+    thumbnail_url: Mapped[str | None] = mapped_column(String(300))
 
 
 class VideoLinkReport(Base, TimestampMixin):
