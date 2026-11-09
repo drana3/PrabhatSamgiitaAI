@@ -9,7 +9,9 @@ from tabs.
 2. **Play** and the **"How does it feel?"** menu on one row. The menu (`MoodBlock collapsible`) shows the chosen mood
    under the question and opens the options below it; it does not take the page any more.
 3. **Tabs**, always in this order: **Chords, Video, Notes, Story** (`lib/recordingExtras/kiirtanTabs.ts`,
-   `components/recording-extras/KiirtanTabs.tsx`). The page opens on Chords. A link may name a tab (`?tab=video`); a
+   `components/recording-extras/KiirtanTabs.tsx`). They are the Prabhat Samgiita song page's own menu
+   (`SectionTabs` of `components/song-page/ui.tsx`: text tabs, a 3 px underline on the chosen one, the answer on
+   touch-down): the type, spacing and motion are one thing in both places, not a copy. The page opens on Chords. A link may name a tab (`?tab=video`); a
    notification about a reply opens Story.
    - Chords: the chord cycle (`CycleBlock`): the tune chips, the ring, the chord line, then "All the chords of this
      tune" with the instrument picker and the strip of chord cards.

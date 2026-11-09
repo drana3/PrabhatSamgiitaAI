@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 8, maxWidth: 640, width: "100%", alignSelf: "center" },
   under: { paddingTop: 8 },
   block: { paddingTop: 32 },
-  tabs: { paddingTop: 24, paddingHorizontal: SCREEN_SIDE },
+  tabs: { paddingTop: 24 },
   h1: { fontFamily: amFonts.display, fontSize: 40, lineHeight: 42, letterSpacing: -0.8, textTransform: "uppercase" },
   row: { flexDirection: "row" },
   play: { minHeight: 48, minWidth: 48, paddingHorizontal: 24, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
