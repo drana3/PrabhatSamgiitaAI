@@ -33,6 +33,8 @@ export type MenuKirtan = Kirtan & {
   moods?: readonly string[] | null
   /** any other tag the library carries (tempo, performance, occasion, event ...): facet -> values; discovered, never listed */
   tags?: Readonly<Record<string, readonly string[]>> | null
+  /** accepted piano notes exist for it (set from `GET /piano-notes/recordings`); a piano lead instrument counts too */
+  piano?: boolean
 }
 
 /** The id behind a kind as the menu sees it: the removed kind reads as a Bhajan, `baba_audio` stays itself. */
@@ -56,6 +58,11 @@ export function menuTags(k: MenuKirtan): Readonly<Record<string, readonly string
   return Object.keys(out).length ? out : null
 }
 
+/** On the piano shelf: accepted notes exist, or the lead instrument is the piano (read defensively: the field comes with the upload form). */
+export function isPianoKirtan(k: MenuKirtan): boolean {
+  return k.piano === true || (k as { leadInstrument?: string }).leadInstrument === "piano"
+}
+
 export function toMenuRecording(k: MenuKirtan): MenuRecording {
   return {
     kind: k.kind as string,
@@ -70,6 +77,7 @@ export function toMenuRecording(k: MenuKirtan): MenuRecording {
     dance: k.dance ?? null,
     moods: k.moods ?? null,
     tags: menuTags(k),
+    piano: isPianoKirtan(k),
   }
 }
 
@@ -147,6 +155,7 @@ export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stat
   if (shelfId === "new") return newest(kirtans.filter((k) => k.addedAt >= now - MENU_RULES.windowDays.new * DAY && k.addedAt <= now))
   if (shelfId === "mostPlayed") return [...kirtans].filter((k) => (k.plays ?? 0) > 0).sort((a, b) => (b.plays ?? 0) - (a.plays ?? 0) || b.addedAt - a.addedAt)
   if (shelfId === "baba") return newest(kirtans.filter((k) => kind(k) === BABA_AUDIO_KIND))
+  if (shelfId === "kiirtan:piano") return newest(kiirtans().filter(isPianoKirtan))
   if (shelfId === "ps:recordings") return newest(kirtans.filter((k) => kind(k) === "prabhat_samgiita"))
   if (shelfId === "spiritual") return newest(kirtans.filter((k) => kind(k) === "spiritual_song"))
   if (shelfId === "kiirtan:sets") {
@@ -242,6 +251,7 @@ export function labelFromId(id: string, authors: readonly { key: string; name: s
   if (id === "baba") return key("searchMenu.baba.title")
   if (id === "ps:recordings") return key("searchMenu.ps.recordings")
   if (id === "kiirtan:sets") return key("searchMenu.kiirtan.sets")
+  if (id === "kiirtan:piano") return key("searchMenu.kiirtan.piano")
   if (id === "spiritual") return key("searchMenu.spiritual.title")
   if (id === "bhajan:lang:more") return key("searchMenu.bhajans.moreLanguages")
   const [head, mid, tail] = id.split(":")
