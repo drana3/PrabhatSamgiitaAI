@@ -22,6 +22,7 @@ from app.models.author_profiles import (
     PlayEvent,
 )
 from app.models.base import Base
+from app.models.broadcasts import Broadcast, BroadcastReport
 from app.models.chunk import SongChunk
 from app.models.domain import (
     AnalyticsDaily,
@@ -98,6 +99,8 @@ __all__ = [
     "RateLimitCounter",
     "TakedownRequest",
     "PlayFlag",
+    "Broadcast",
+    "BroadcastReport",
     "RecordingMood",
     "RecordingMoodVote",
     "BlockedAudioHash",

@@ -10,6 +10,7 @@ from app.api.v1.author_claims import uploads_router as author_claims_uploads_rou
 from app.api.v1.author_profiles import admin_router as author_profiles_admin_router
 from app.api.v1.author_profiles import plays_router as author_plays_router
 from app.api.v1.author_profiles import router as author_profiles_router
+from app.api.v1.broadcasts import router as broadcasts_router
 from app.api.v1.discovery import router as discovery_router
 from app.api.v1.health import router as health_router
 from app.api.v1.inventory import router as inventory_router
@@ -88,6 +89,7 @@ router.include_router(author_plays_router)
 router.include_router(author_profiles_admin_router)
 router.include_router(recording_comments_router)
 router.include_router(recording_moods_router)
+router.include_router(broadcasts_router)
 router.include_router(recording_moods_admin_router)
 router.include_router(recording_chords_router)
 router.include_router(video_links_router)
