@@ -241,6 +241,12 @@ class Recording(Base, TimestampMixin):
     # What the uploader SAYS; the listener-confirmed moods are the `recording_moods` table.
     moods: Mapped[list[str] | None] = mapped_column(PortableJSON)
     moods_other: Mapped[list[str] | None] = mapped_column(PortableJSON)
+    # The own words (above) that the team accepted, like `lead_instrument_checked` for the main
+    # instrument: the uploader sees their own word at once, everybody else only the words listed
+    # here (services/recording_tags.visible_own). Null: none accepted (and a row from before the
+    # lists, which has no checked list, shows its single old word as before).
+    styles_other_ok: Mapped[list[str] | None] = mapped_column(PortableJSON)
+    moods_other_ok: Mapped[list[str] | None] = mapped_column(PortableJSON)
     # The practice a Kiirtan is for (services/recording_practice.py): "avarta", or null (the usual).
     practice: Mapped[str | None] = mapped_column(String(16))
     # How it was recorded (services/recording_info.py): studio, live, home or ai. Required for a

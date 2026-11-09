@@ -91,6 +91,19 @@ def effective_tags(
     return [single], []
 
 
+def visible_own(
+    own: Sequence[str], accepted: Sequence[str] | None, *, owner: bool, legacy: bool = False
+) -> list[str]:
+    """The own words a viewer may see. Free text from members is shown to the writer at once and
+    to everybody else only once the team accepted that word (the same rule as the main
+    instrument's `lead_instrument_other`). `legacy`: a row from before the lists, whose one old
+    word was public already, is shown as it was."""
+    if owner or legacy:
+        return list(own)
+    ok = {word.casefold() for word in accepted or ()}
+    return [word for word in own if word.casefold() in ok]
+
+
 def legacy_single(listed: Sequence[str], own: Sequence[str]) -> tuple[str | None, str | None]:
     """The old single value as an older phone reads it: the first listed id, else "other" with
     the first own word, else nothing."""

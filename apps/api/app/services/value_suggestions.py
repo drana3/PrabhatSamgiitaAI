@@ -114,9 +114,7 @@ def listed_names(field: str) -> dict[str, tuple[str, ...]]:
         return {code: (name,) for code, name in LANGUAGES}
     if field == MOOD:
         return {code: (code,) for code in UPLOAD_MOODS}
-    return {
-        code: (code, *STYLE_NAMES.get(code, ())) for code in STYLES
-    }
+    return {code: (code, *STYLE_NAMES.get(code, ())) for code in STYLES}
 
 
 def listed_code(field: str, text: str | None) -> str | None:
@@ -314,16 +312,22 @@ def _decide_in_lists(
     kept = [word for word in own if normalized_key(word) != row.key]
     if len(kept) == len(own):
         return False
+    ok_name = "moods_other_ok" if row.field == MOOD else "styles_other_ok"
+    # the words the team accepted for this recording, without this one (it is put back on accept)
+    ok = [w for w in (getattr(rec, ok_name) or []) if normalized_key(w) != row.key]
     if action == "accept":
-        # the word stays, spelled the way the team fixed it
+        # the word stays, spelled the way the team fixed it, and from now on everybody sees it
+        # (the same rule as `lead_instrument_checked` for the main instrument)
         own = [row.label if normalized_key(word) == row.key else word for word in own]
         _store_list(rec, row.field, ids, own)
+        ok.append(row.label)
     elif action == "merge":
         if merge_into and merge_into not in ids:
             ids = [*ids, merge_into]
         _store_list(rec, row.field, ids, kept)
     else:  # reject: the word is gone from the recording
         _store_list(rec, row.field, ids, kept)
+    setattr(rec, ok_name, ok or None)
     return True
 
 

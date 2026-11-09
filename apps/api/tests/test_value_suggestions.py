@@ -665,3 +665,82 @@ async def test_the_patch_counts_against_the_three_new_words_a_week(world: World)
     # a word that is already in the queue is free
     free = await _patch_language(world, rid, "aaaa")
     assert free.status_code == 200, free.text
+
+
+async def test_an_unapproved_own_style_or_mood_is_seen_by_its_writer_only(
+    world: World,
+    as_team,  # type: ignore[no-untyped-def]
+) -> None:
+    made = await world.publish(
+        "a",
+        mp3(3460),
+        style=None,
+        styles=["indian"],
+        styles_other=["Secret style"],
+        moods=["joyful"],
+        moods_other=["Secret mood"],
+    )
+    assert made.status_code == 201, made.text
+    rid = made.json()["id"]
+    # the writer sees both words at once, and the single old fields keep mirroring the first style
+    assert made.json()["styles_other"] == ["Secret style"]
+    assert made.json()["moods_other"] == ["Secret mood"]
+
+    async def seen(headers: dict[str, str]) -> list[dict[str, object]]:
+        detail = (await world.client.get(f"/api/v1/recordings/{rid}", headers=headers)).json()
+        listed = (await world.client.get("/api/v1/recordings", headers=headers)).json()["items"]
+        return [detail, *listed]
+
+    for headers in ({}, AS_B):  # a visitor and another member
+        for row in await seen(headers):
+            assert row["styles_other"] == [] and row["moods_other"] == [], headers
+            assert row["styles"] == ["indian"] and row["moods"] == ["joyful"]
+            assert row["style_other"] is None and row["style"] == "indian"
+    mine = (await world.client.get(f"/api/v1/recordings/{rid}", headers=AS_A)).json()
+    assert mine["styles_other"] == ["Secret style"] and mine["moods_other"] == ["Secret mood"]
+    my_list = (await world.client.get("/api/v1/recordings/mine", headers=AS_A)).json()["items"]
+    assert my_list[0]["styles_other"] == ["Secret style"]
+    # the team accepts both words: from then on everybody sees them
+    rows = {r.key: r for r in await world.sessions_scalars(select(ValueSuggestion))}
+    for key in ("secret style", "secret mood"):
+        done = await world.client.post(
+            f"{QUEUE}/{rows[key].id}/decision", headers=as_team, json={"action": "accept"}
+        )
+        assert done.status_code == 200, done.text
+    for headers in ({}, AS_B):
+        for row in await seen(headers):
+            assert row["styles_other"] == ["Secret style"], headers
+            assert row["moods_other"] == ["Secret mood"], headers
+
+
+async def test_an_old_row_with_one_own_style_still_reads_as_before(world: World) -> None:
+    made = await world.publish("a", mp3(3470), style=None, styles=["indian"])
+    rid = made.json()["id"]
+    async with world.sessions() as session:
+        row = await session.get(Recording, UUID(rid))
+        assert row is not None
+        row.styles = row.styles_other = row.moods = row.moods_other = None
+        row.style, row.style_other = "other", "Baul"
+        await session.commit()
+    seen = (await world.client.get(f"/api/v1/recordings/{rid}", headers=AS_B)).json()
+    assert seen["styles_other"] == ["Baul"] and seen["style_other"] == "Baul"
+
+
+async def test_a_word_the_team_accepted_earlier_is_public_at_once(
+    world: World,
+    as_team,  # type: ignore[no-untyped-def]
+) -> None:
+    first = await world.publish(
+        "a", mp3(3480), style=None, styles=["indian"], styles_other=["Baul"]
+    )
+    row = await world.scalar(select(ValueSuggestion))
+    await world.client.post(
+        f"{QUEUE}/{row.id}/decision", headers=as_team, json={"action": "accept"}
+    )
+    second = await world.publish(
+        "b", mp3(3481), style=None, styles=["indian"], styles_other=["baul"]
+    )
+    assert second.status_code == 201, second.text
+    seen = (await world.client.get(f"/api/v1/recordings/{second.json()['id']}")).json()
+    assert seen["styles_other"] == ["Baul"]
+    assert first.status_code == 201

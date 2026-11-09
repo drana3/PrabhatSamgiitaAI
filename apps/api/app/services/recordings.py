@@ -76,7 +76,7 @@ from app.services.recording_storage import (
     key_belongs_to,
 )
 from app.services.recording_styles import keeps_style
-from app.services.recording_tags import effective_tags, legacy_single
+from app.services.recording_tags import effective_tags, legacy_single, visible_own
 
 VISIBLE = ("published", "flagged")
 ALREADY_IN_LIBRARY = "This file is already in the library."
@@ -186,6 +186,17 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         recording.styles, recording.styles_other, recording.style, recording.style_other
     )
     moods, moods_other = effective_tags(recording.moods, recording.moods_other)
+    # An own word is free text from a member: its writer sees it at once, others after the team
+    # accepted it (the same rule as the main instrument below).
+    old_style = recording.styles is None and recording.styles_other is None
+    styles_other = visible_own(
+        styles_other, recording.styles_other_ok, owner=owner, legacy=old_style
+    )
+    moods_other = visible_own(moods_other, recording.moods_other_ok, owner=owner)
+    if owner or old_style:
+        style, style_other = recording.style, recording.style_other
+    else:
+        style, style_other = legacy_single(styles, styles_other)
     return RecordingOut(
         id=str(recording.id),
         kind=recording.kind,  # type: ignore[arg-type]
@@ -213,8 +224,8 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         language_other=recording.language_other,
         styles=styles,
         styles_other=styles_other,
-        style=recording.style,
-        style_other=recording.style_other,
+        style=style,
+        style_other=style_other,
         moods=moods,
         moods_other=moods_other,
         practice=recording.practice,
@@ -643,6 +654,9 @@ class CustomValues:
     styles_other: list[str]
     moods: list[str]
     moods_other: list[str]
+    # the own words above that the team accepted earlier: public at once
+    styles_ok: list[str]
+    moods_ok: list[str]
     lead: str | None
     lead_other: str | None
     language: str | None
@@ -675,6 +689,8 @@ async def _custom_values(
     resolved_all = await _resolve_many(session, member_id, asked, team=team)
     kept_styles: list[str] = []
     kept_moods: list[str] = []
+    ok_styles: list[str] = []
+    ok_moods: list[str] = []
     custom: list[words.Resolved] = []
     for (field, _text), resolved in zip(asked, resolved_all, strict=True):
         listed = resolved.kind in ("listed", "merged")
@@ -686,6 +702,8 @@ async def _custom_values(
                     ids.append(resolved.code)
             else:
                 own.append(resolved.label)
+                if resolved.kind == "accepted":
+                    (ok_styles if field == words.STYLE else ok_moods).append(resolved.label)
         elif field == words.INSTRUMENT:
             lead, lead_other = (resolved.code, None) if listed else (OTHER, resolved.label)
         else:
@@ -693,7 +711,17 @@ async def _custom_values(
         if not listed:
             custom.append(resolved)
     return CustomValues(
-        styles, kept_styles, moods, kept_moods, lead, lead_other, language, language_other, custom
+        styles,
+        kept_styles,
+        moods,
+        kept_moods,
+        ok_styles,
+        ok_moods,
+        lead,
+        lead_other,
+        language,
+        language_other,
+        custom,
     )
 
 
@@ -891,6 +919,8 @@ async def create_recording(
         style_other=style_mirror[1],
         moods=values.moods if keeps_style(payload.kind) else None,
         moods_other=values.moods_other if keeps_style(payload.kind) else None,
+        styles_other_ok=values.styles_ok or None,
+        moods_other_ok=values.moods_ok or None,
         practice=payload.practice if payload.kind == "kiirtan" else None,
         recording_type=kept[0],
         tempo=kept[1],
