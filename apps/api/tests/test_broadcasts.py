@@ -13,6 +13,7 @@ import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import cast
+from uuid import UUID
 
 import httpx
 import pytest
@@ -43,6 +44,7 @@ from tests.extras_support import (
 
 URL = "/api/v1/broadcasts"
 YT_LIVE = "https://www.youtube.com/live/dQw4w9WgXcQ"
+MEMBER_C = UUID("00000000-0000-0000-0000-0000000000d4")  # a third, established member
 ZOOM = "https://us02web.zoom.us/j/81234567890?pwd=AbCdEf123"
 
 
@@ -56,7 +58,8 @@ async def world_fixture() -> AsyncIterator[World]:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
     sessions = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with sessions() as session:
-        for member_id, name in NAMES.items():
+        old = datetime.now(UTC) - timedelta(days=30)  # established accounts
+        for member_id, name in {**NAMES, MEMBER_C: "Dharma"}.items():
             session.add(
                 UserAccount(
                     id=member_id,
@@ -66,19 +69,22 @@ async def world_fixture() -> AsyncIterator[World]:
                     email=f"{name.lower()}@example.org",
                     is_admin=member_id == TEAM,
                     last_seen_at=datetime.now(UTC),
+                    created_at=old,
                 )
             )
         await session.commit()
         session.add(recording(REC, "Baba Nam Kevalam"))
         await session.commit()
-    app = build_app(sessions, {"a": MEMBER_A, "b": MEMBER_B, "team": TEAM})
+    app = build_app(sessions, {"a": MEMBER_A, "b": MEMBER_B, "c": MEMBER_C, "team": TEAM})
     app.include_router(broadcasts_router, prefix="/api/v1")
     app.dependency_overrides[get_session_factory] = lambda: sessions
     service.limiter.reset()
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://t"
     ) as client:
-        yield World(client, sessions)
+        made = World(client, sessions)
+        made.app = app  # type: ignore[attr-defined]
+        yield made
     await engine.dispose()
 
 
@@ -359,7 +365,17 @@ async def test_the_author_ends_a_broadcast_and_nobody_else_can(world: World) -> 
 # --------------------------------------------------------------------------- reports and the team
 
 
-async def test_three_reports_hide_it_and_the_team_can_keep_or_remove(world: World) -> None:
+async def anonymous_report(world: World, address: str, rid: str) -> httpx.Response:
+    """A report from somebody who is not signed in, coming from the given network address."""
+    app = world.app  # type: ignore[attr-defined]
+    transport = httpx.ASGITransport(app=app, client=(address, 5000))
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+        return await client.post(f"{URL}/{rid}/report", json={"reason": "spam"})
+
+
+async def test_two_established_members_hide_it_and_the_team_can_keep_or_remove(
+    world: World,
+) -> None:
     made = (await post(world)).json()
     rid = made["id"]
     own = await world.call("POST", f"{URL}/{rid}/report", "a", json={"reason": "spam"})
@@ -368,22 +384,70 @@ async def test_three_reports_hide_it_and_the_team_can_keep_or_remove(world: Worl
     assert first.status_code == 201 and first.json()["status"] == "received"
     again = await world.call("POST", f"{URL}/{rid}/report", "b", json={"reason": "broken"})
     assert again.json()["status"] == "already_reported"
-    await world.call("POST", f"{URL}/{rid}/report", "team", json={"reason": "spam"})
-    await world.call("POST", f"{URL}/{rid}/report", None, json={"reason": "other"})
-    assert await shelf(world) == []  # three reports: hidden until the team looks
+    assert [i["id"] for i in await shelf(world)] == [rid]  # one member: still on the shelf
+    await world.call("POST", f"{URL}/{rid}/report", "c", json={"reason": "other"})
+    assert await shelf(world) == []  # two established members: hidden until the team looks
     assert (await world.call("GET", f"{URL}/{rid}", "b")).status_code == 404
     queue = (await world.call("GET", f"{URL}/review", "team")).json()
-    assert [i["id"] for i in queue["items"]] == [rid] and queue["items"][0]["reports_count"] == 3
+    assert [i["id"] for i in queue["items"]] == [rid] and queue["items"][0]["reports_count"] == 2
     assert (await world.call("GET", f"{URL}/review", "b")).status_code == 403
     assert (await world.call("POST", f"{URL}/{rid}/keep", "b")).status_code == 403
     assert (await world.call("POST", f"{URL}/{rid}/keep", "team")).status_code == 204
     assert [i["id"] for i in await shelf(world)] == [rid]
+    assert await world.rows(BroadcastReport) == []  # the verdict clears the reports
     assert (
         await world.call("POST", f"{URL}/{rid}/remove", "team", json={"reason": "not a broadcast"})
     ).status_code == 204
     assert await shelf(world) == []
     row = (await world.rows(Broadcast))[0]
     assert row.status == "removed" and row.removed_by == "Carya"
+
+
+async def test_anonymous_reports_never_hide_but_reach_the_team(world: World) -> None:
+    rid = (await post(world)).json()["id"]
+    for address in ("203.0.113.1", "203.0.113.2", "198.51.100.7", "192.0.2.9"):
+        got = await anonymous_report(world, address, rid)
+        assert got.status_code == 201 and got.json()["status"] == "received"
+    assert [i["id"] for i in await shelf(world)] == [rid]  # four addresses: still there
+    row = (await world.rows(Broadcast))[0]
+    assert row.reports_count == 0 and len(await world.rows(BroadcastReport)) == 4
+    queue = (await world.call("GET", f"{URL}/review", "team")).json()
+    assert [i["id"] for i in queue["items"]] == [rid]  # but the team sees it
+    # one established member next to them is still not enough
+    await world.call("POST", f"{URL}/{rid}/report", "b", json={"reason": "spam"})
+    assert [i["id"] for i in await shelf(world)] == [rid]
+
+
+async def test_anonymous_reporters_are_told_apart_by_network_not_by_address(
+    world: World,
+) -> None:
+    assert service.anonymous_key("203.0.113.1") == "anon:203.0.113.1"
+    one = service.anonymous_key("2001:db8:1:2:aaaa:bbbb:cccc:dddd")
+    two = service.anonymous_key("2001:db8:1:2:1111:2222:3333:4444")
+    assert one == two == "anon:2001:db8:1:2::/64"
+    assert service.anonymous_key("2001:db8:1:3::1") != one
+    rid = (await post(world)).json()["id"]
+    first = await anonymous_report(world, "2001:db8:1:2:aaaa:bbbb:cccc:dddd", rid)
+    second = await anonymous_report(world, "2001:db8:1:2:1111:2222:3333:4444", rid)
+    assert first.json()["status"] == "received"
+    assert second.json()["status"] == "already_reported"
+    assert len(await world.rows(BroadcastReport)) == 1
+
+
+async def test_a_fresh_account_reports_without_weight_and_the_team_hides_at_once(
+    world: World,
+) -> None:
+    rid = (await post(world)).json()["id"]
+    await world.update(UserAccount, MEMBER_B, created_at=now_utc() - timedelta(hours=5))
+    await world.update(UserAccount, MEMBER_C, created_at=now_utc() - timedelta(days=1))
+    for who in ("b", "c"):
+        assert (
+            await world.call("POST", f"{URL}/{rid}/report", who, json={"reason": "spam"})
+        ).status_code == 201
+    assert [i["id"] for i in await shelf(world)] == [rid]  # new accounts do not add up
+    assert (await world.rows(Broadcast))[0].reports_count == 0
+    await world.call("POST", f"{URL}/{rid}/report", "team", json={"reason": "spam"})
+    assert await shelf(world) == []  # one report from the team hides it
 
 
 async def test_the_author_deletes_their_own_and_the_link_is_wiped(world: World) -> None:

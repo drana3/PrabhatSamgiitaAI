@@ -226,14 +226,16 @@ async def report_broadcast(
     settings: AppSettings,
 ) -> ReportResponse:
     """Anyone may report a link, signed in or not (a broken link, not a broadcast, spam ...). One
-    report per person per broadcast. Three reports hide it from the lists until the team looks."""
+    report per person (or per network, when anonymous) per broadcast. Every report reaches the
+    team's queue, but only reports of established members count towards hiding: two of them (or
+    one from the team) hide the broadcast from the lists until the team looks."""
     host = client_host(request)
     service.limiter.hit("report", host, limit=30, window_seconds=3600)
     if member is not None:
         service.limiter.hit("report-member", str(member.id), limit=20, window_seconds=3600)
         reporter_key = f"member:{member.id}"
     else:
-        reporter_key = f"anon:{host}"[:80]
+        reporter_key = service.anonymous_key(host)
     row = await _get(session, broadcast_id)
     owner = member is not None and row.member_id == member.id
     team = member is not None and is_team_member(member, settings)
@@ -255,6 +257,7 @@ async def report_broadcast(
             reporter_id=member.id if member else None,
             reason=payload.reason,
             note=payload.note,
+            weight=service.report_weight(member=member, team=team),
         )
     except SQLAlchemyError as exc:
         await session.rollback()
@@ -267,7 +270,7 @@ async def report_broadcast(
             message="You already reported this one. The team will look at it.",
         )
     logger.warning(
-        "Broadcast %s reported (%s), %s reports so far", row.id, payload.reason, row.reports_count
+        "Broadcast %s reported (%s), counted weight %s", row.id, payload.reason, row.reports_count
     )
     return ReportResponse(
         status="received", message="Thank you. The team will look at this broadcast."

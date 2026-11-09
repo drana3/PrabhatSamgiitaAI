@@ -30,7 +30,7 @@ from uuid import UUID
 
 import httpx
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserAccount
@@ -63,7 +63,12 @@ ARCHIVE_AFTER = timedelta(days=7)
 STARTED_AGO_MAX = timedelta(hours=6)
 FAR_AHEAD_MAX = timedelta(days=365)
 # Reports that hide a broadcast from the public lists until the team has looked at it.
-REPORTS_HIDE = 3
+# A broadcast is hidden from the lists when the reports that count reach this weight: two from
+# established members, or one from the team (it weighs this much). Anonymous reports and those of
+# accounts younger than MEMBER_REPORT_MIN_AGE are stored and shown to the team but weigh nothing,
+# so a few addresses or fresh accounts cannot take down somebody else's broadcast.
+REPORTS_HIDE = 2
+MEMBER_REPORT_MIN_AGE = timedelta(days=3)
 DAILY_BROADCASTS = 3
 HOURLY_BROADCASTS = 5
 HOURLY_BROADCASTS_TEAM = 60
@@ -517,7 +522,36 @@ async def keep(session: AsyncSession, row: Broadcast) -> None:
     if row.status != "published":
         raise HTTPException(status_code=409, detail="Only a live broadcast can be kept.")
     row.reports_count = 0
+    await session.execute(delete(BroadcastReport).where(BroadcastReport.broadcast_id == row.id))
     await session.commit()
+
+
+def anonymous_key(host: str) -> str:
+    """The key of an anonymous reporter: the address, or for IPv6 its /64 network (one home or
+    one rented block holds billions of addresses). Not an address at all: the host text, cut."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return f"anon:{host}"[:80]
+    if address.version == 6:
+        network = ipaddress.ip_network(f"{address}/64", strict=False)
+        return f"anon:{network.network_address}/64"[:80]
+    return f"anon:{address}"
+
+
+def report_weight(*, member: UserAccount | None, team: bool, now: datetime | None = None) -> int:
+    """What a report adds to the hiding count: the team hides at once, an established member
+    counts one, an anonymous reader or a fresh account nothing."""
+    if team:
+        return REPORTS_HIDE
+    if member is None:
+        return 0
+    created = member.created_at
+    if created is None:
+        return 0
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=UTC)
+    return 1 if (now or now_utc()) - created >= MEMBER_REPORT_MIN_AGE else 0
 
 
 async def add_report(
@@ -528,6 +562,7 @@ async def add_report(
     reporter_id: UUID | None,
     reason: str,
     note: str | None,
+    weight: int = 0,
 ) -> bool:
     already = await session.scalar(
         select(BroadcastReport.id).where(
@@ -545,7 +580,7 @@ async def add_report(
             note=one_line(note, 1000) or None,
         )
     )
-    row.reports_count = (row.reports_count or 0) + 1
+    row.reports_count = (row.reports_count or 0) + weight
     await session.commit()
     return True
 
@@ -553,7 +588,8 @@ async def add_report(
 async def review_queue(
     session: AsyncSession, *, which: str, limit: int, offset: int
 ) -> tuple[list[Broadcast], int]:
-    conditions = [Broadcast.status == "published", Broadcast.reports_count > 0]
+    any_report = select(BroadcastReport.id).where(BroadcastReport.broadcast_id == Broadcast.id)
+    conditions = [Broadcast.status == "published", any_report.exists()]
     if which == "removed":
         conditions = [Broadcast.status == "removed", Broadcast.removed_by != AUTHOR_DELETED_BY]
     total = await session.scalar(select(func.count()).select_from(Broadcast).where(*conditions))
