@@ -132,7 +132,7 @@ export default function MySetsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { paddingHorizontal: 24, gap: 24, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
-  stack: { gap: 14 },
+  stack: { gap: 16 },
   h1: { fontFamily: amFonts.display, fontSize: 40, lineHeight: 42, letterSpacing: -0.8, textTransform: "uppercase" },
   cover: { width: "100%", aspectRatio: 16 / 9, borderRadius: 12 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   sendText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
   rows: { gap: 12 },
   card: { borderRadius: 24, borderWidth: 1, padding: 16, gap: 8 },
-  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   badge: { height: 28, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   badgeText: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 0.4 },
   cardTitle: { fontFamily: amFonts.display, fontSize: 22, lineHeight: 26, letterSpacing: -0.2, textTransform: "uppercase" },

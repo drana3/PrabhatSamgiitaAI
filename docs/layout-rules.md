@@ -116,3 +116,21 @@ the search field. The language picker, the song picker and every other sheet get
 need its own number.
 
 Checked at 390 px (a headless browser) on the language sheet, the style, instrument and language "own word" boxes.
+
+### The walk through the upload screens (9 Nov 2026)
+
+Every upload screen was opened at 390 px (a headless browser): the add form for each of the six types (Kiirtan, Bhajan, Prabhat
+Samgiita, Spiritual song, Dance music, Baba's Audio Discourses) with a file chosen, the hub, the playlist steps, "My event
+playlists", the chord offer. Found and fixed:
+
+* Add form: "My event playlists" stuck to the playlist card above it (8): now 16 (`setStack`). The blocks of the page were 22
+  apart (off the scale): 24. The type tiles and the queue cards were 10 apart: 12.
+* Language box of a Bhajan, Dance or Baba audio: the text ("No language chosen yet") was squeezed to dots by the button beside
+  it. The row now wraps, 12 and 8 apart.
+* Label and field of the shared field (`KindFields`): 10 (off the scale), now 8; the file card's inner rows 6, now 8.
+* Playlist screen (`upload-set.tsx`): 22, 14 and 10 off the scale, now 24, 16 and 12; "My event playlists" list the same.
+* Chord offer: the moderation notice sat 12 above "Send for review" and the ticks 12 above the notice. Now 24 between the
+  ticks and the notice, 16 between the notice and the button.
+* Nothing was found against the main "Upload" button of the add form: the notice is 24 above it and its note 16 below.
+
+The values are pinned by `layoutRules.test.ts` (the form files are on the scale and the stacks above keep their gaps).

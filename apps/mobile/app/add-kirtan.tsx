@@ -399,7 +399,7 @@ export default function AddKirtanScreen() {
             </Reveal>
 
             {/* a whole event at once: its own screen (app/upload-set.tsx), docs/kiirtan-sets.md */}
-            <Reveal index={1}>
+            <Reveal index={1} style={styles.setStack}>
               <KPress
                 accessibilityRole="link"
                 accessibilityLabel={`${t("set.entry.title")}. ${t("set.entry.body")}`}
@@ -786,10 +786,12 @@ function SignInGate({ theme, onSignIn }: { theme: SongsTheme; onSignIn: () => vo
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: 24, gap: 22, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
+  content: { paddingHorizontal: 24, gap: 24, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   over: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase", marginBottom: 6 },
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
   field: { gap: 8 },
+  /** the playlist card and its "My event playlists" link: 16 apart, the link does not stick to the card */
+  setStack: { gap: 16 },
   /** a field and the tick that belongs to it (performer and "I am the author") */
   pair: { gap: 16 },
   /** fields of one group of the form (style, how it sounds, instrument): 24 apart, so no two fields touch */
@@ -803,18 +805,18 @@ const styles = StyleSheet.create({
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  kinds: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  kinds: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   kindOuter: { width: "48%", flexGrow: 1 },
   kindCard: { flex: 1, minHeight: 88, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, justifyContent: "center", gap: 2 },
   kindName: { fontFamily: amFonts.display, fontSize: 17, lineHeight: 20, letterSpacing: -0.2, textTransform: "uppercase" },
   kindBlurb: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
-  queue: { gap: 10 },
+  queue: { gap: 12 },
   setEntry: { minHeight: 72, borderRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   setEntryTitle: { fontFamily: amFonts.display, fontSize: 19, lineHeight: 22, letterSpacing: -0.2, textTransform: "uppercase" },
   rowWrap: { gap: 6 },
   moreHead: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10 },
   moreText: { flex: 1, minWidth: 0, gap: 2 },
-  moreBody: { gap: 10, paddingTop: 4 },
+  moreBody: { gap: 12, paddingTop: 4 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { minHeight: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
@@ -825,6 +827,6 @@ const styles = StyleSheet.create({
   linkText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20, textDecorationLine: "underline" },
   send: { height: 56, borderRadius: 70, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   sendText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
-  sent: { alignItems: "stretch", gap: 20, paddingTop: 12 },
+  sent: { alignItems: "stretch", gap: 24, paddingTop: 12 },
   full: { alignSelf: "stretch" },
 })

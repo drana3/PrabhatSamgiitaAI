@@ -557,7 +557,7 @@ export default function UploadChordsScreen() {
               </View>
 
               {/* 7. confirm and send */}
-              <View style={s.field}>
+              <View style={s.send}>
                 <ConfirmFields theme={theme} form={form} draft={draft} patch={patch} fieldError={fieldError} name={name} />
 
                 {failure ? (
@@ -569,8 +569,10 @@ export default function UploadChordsScreen() {
                     {failure === "signin" ? <ActionButton theme={theme} tone="quiet" label={t("chordOffer.signin.action")} onPress={() => router.push(href("/signin"))} /> : null}
                   </View>
                 ) : null}
-                <ModerationNotice kind="chords" />
-                <ActionButton theme={theme} label={sendLabel} onPress={() => void send()} disabled={busy} busy={busy} />
+                <View style={s.sendRow}>
+                  <ModerationNotice kind="chords" />
+                  <ActionButton theme={theme} label={sendLabel} onPress={() => void send()} disabled={busy} busy={busy} />
+                </View>
                 {keep || inBook ? (
                   <>
                     <Hint theme={theme}>{t("chordOffer.draft.saved")}</Hint>
@@ -625,6 +627,9 @@ const s = StyleSheet.create({
   h1: { fontFamily: amFonts.display, fontSize: 45, lineHeight: 45, letterSpacing: -0.9, textTransform: "uppercase" },
   h2: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
   field: { gap: 12 },
+  /** the last step: the ticks, a problem, then the notice and the button; nothing closer than 24, the notice and the button 16 */
+  send: { gap: 24 },
+  sendRow: { gap: 16 },
   inputBox: { minHeight: 56, borderRadius: CORNER, borderWidth: 1.5, paddingLeft: 16, paddingRight: 8, flexDirection: "row", alignItems: "center", gap: 12 },
   songName: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20 },
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: PILL, alignItems: "center", justifyContent: "center" },

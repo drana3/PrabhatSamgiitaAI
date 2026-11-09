@@ -207,6 +207,11 @@ describe("Space between blocks: the upload forms", () => {
     "components/kirtan/add/InstrumentField.tsx",
     "components/kirtan/add/SoundFields.tsx",
     "components/kirtan/add/AuthorTick.tsx",
+    "components/kirtan/add/KindFields.tsx",
+    "components/kirtan/add/QueueRows.tsx",
+    "components/kirtan/add/OwnWord.tsx",
+    "app/my-sets.tsx",
+    "app/upload-chords.tsx",
   ]
   const VERTICAL = /\b(gap|rowGap|paddingTop|paddingBottom|paddingVertical|marginTop|marginBottom|marginVertical)\s*:\s*(\d+)\b/g
   const TEXT_NUDGE = new Set([0, 1, 2, 3, 6])
@@ -277,6 +282,25 @@ describe("Nothing overlaps and nothing sticks: neighbours are not closer than 16
     expect(gap).toBeGreaterThanOrEqual(16)
     // the title shrinks (flex 1, minWidth 0) instead of running under the close button
     expect(sheet).toMatch(/\bheading:\s*\{[^}]*flex:\s*1[^}]*minWidth:\s*0/)
+  })
+
+  it("the add form keeps the playlist link 16 under the playlist card, and its blocks 24 apart", () => {
+    const source = read("app/add-kirtan.tsx")
+    expect(source).toMatch(/\bsetStack:\s*\{\s*gap:\s*16\s*\}/)
+    expect(source).toMatch(/<Reveal index=\{1\} style=\{styles\.setStack\}>/)
+    expect(source).toMatch(/\bcontent:\s*\{[^}]*\bgap:\s*24\b/)
+    expect(read("app/upload-set.tsx")).toMatch(/\bcontent:\s*\{[^}]*\bgap:\s*24\b/)
+  })
+
+  it("the chord offer's last step keeps 24 between the ticks, the notice and the button, and 16 between the notice and the button", () => {
+    const source = read("app/upload-chords.tsx")
+    expect(source).toMatch(/\bsend:\s*\{\s*gap:\s*24\s*\}/)
+    expect(source).toMatch(/\bsendRow:\s*\{\s*gap:\s*16\s*\}/)
+    expect(source).toMatch(/<View style=\{s\.sendRow\}>\s*<ModerationNotice kind="chords" \/>\s*<ActionButton/)
+  })
+
+  it("a row of a picker (a field and its button) wraps instead of squeezing the text to dots", () => {
+    expect(read("components/kirtan/add/KindFields.tsx")).toMatch(/\bbox:\s*\{[^}]*flexWrap:\s*"wrap"/)
   })
 
   it("the rule is written down in docs/layout-rules.md", () => {

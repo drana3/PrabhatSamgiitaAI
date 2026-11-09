@@ -742,7 +742,7 @@ function Primary({ theme: _theme, label, onPress, grow, disabled, busy }: { them
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: 24, gap: 22, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
+  content: { paddingHorizontal: 24, gap: 24, paddingTop: 8, maxWidth: 560, width: "100%", alignSelf: "center" },
   stack: { gap: 16 },
   /** the details step (title, place, date, performer, cover, type, how it sounds): the blocks are 24 apart, never touching (docs/layout-rules.md, "Space between blocks") */
   details: { gap: 24 },
@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
   field: { gap: 8 },
   /** fields of one group of the form (style, how it sounds, instrument): 24 apart, so no two fields touch */
   group: { gap: 24 },
-  labelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   inputBox: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, flexDirection: "row" },
@@ -766,11 +766,11 @@ const styles = StyleSheet.create({
   dropTitle: { fontFamily: amFonts.display, fontSize: 22, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
   pill: { alignSelf: "flex-start", height: 40, paddingHorizontal: 18, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   pillText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
-  card: { borderRadius: 24, borderWidth: 1, padding: 16, gap: 10 },
+  card: { borderRadius: 24, borderWidth: 1, padding: 16, gap: 12 },
   cardTitle: { fontFamily: amFonts.display, fontSize: 20, lineHeight: 24, letterSpacing: -0.2, textTransform: "uppercase" },
-  cardActions: { flexDirection: "row", gap: 10, alignItems: "center" },
-  rows: { gap: 14 },
-  nav: { flexDirection: "row", gap: 10, alignItems: "center" },
+  cardActions: { flexDirection: "row", gap: 12, alignItems: "center" },
+  rows: { gap: 16 },
+  nav: { flexDirection: "row", gap: 12, alignItems: "center" },
   navBack: { flexShrink: 0 },
   grow: { flex: 1 },
   full: { alignSelf: "stretch" },
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
   sendText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
   secondary: { height: 56, borderRadius: 70, borderWidth: 1.5, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
   secondaryText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20 },
-  confirm: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingVertical: 4 },
+  confirm: { flexDirection: "row", alignItems: "flex-start", gap: 16, paddingVertical: 4 },
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 1 },
   tick: { color: "#FFFFFF", fontFamily: amFonts.bold, fontSize: 16, lineHeight: 18 },
   confirmText: { flex: 1, gap: 2 },
