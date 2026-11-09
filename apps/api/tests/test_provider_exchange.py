@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 import jwt
@@ -14,6 +15,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.algorithms import RSAAlgorithm
 
+from app.models import UserAccount
 from app.services import provider_tokens
 from tests.member_session_support import (
     GOOGLE_CLIENT,
@@ -308,3 +310,39 @@ async def test_facebook_token_must_belong_to_our_app(
     assert refused.status_code == 401
     assert accepted.status_code == 200
     assert "facebook:42" in {row.external_subject for row in await world.all_accounts()}
+
+
+async def test_a_local_account_with_someones_address_is_not_taken_over_by_that_person(
+    world: World,
+) -> None:
+    """A stranger registers with e-mail and password using the address of a person who has not
+    joined yet. When that person signs in with Google, they must get their own account, not the
+    stranger's (whose password the stranger knows)."""
+    async with world.sessions() as session:
+        stranger = UserAccount(
+            external_subject="local:stranger",
+            identity_provider="local",
+            display_name="Stranger",
+            email="victim@example.org",
+            last_seen_at=datetime.now(UTC),
+        )
+        session.add(stranger)
+        await session.commit()
+        stranger_id = stranger.id
+
+    response = await exchange(world, google_token(sub="victim-sub", email="victim@example.org"))
+
+    assert response.status_code == 200
+    assert response.json()["account_id"] != str(stranger_id)
+
+
+async def test_an_address_the_provider_did_not_vouch_for_is_not_stored(world: World) -> None:
+    response = await exchange(
+        world, google_token(sub="unverified-sub", email="x@example.org", verified=False)
+    )
+
+    assert response.status_code == 200
+    account = next(
+        a for a in await world.all_accounts() if str(a.id) == response.json()["account_id"]
+    )
+    assert account.email is None

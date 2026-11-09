@@ -291,7 +291,11 @@ def _identity_from_proxy_headers(request: Request) -> MemberIdentity:
     principal = request.headers.get("x-ms-client-principal")
     if not principal:
         raise HTTPException(status_code=401, detail="Sign in is required")
-    return replace(decode_client_principal(principal), trust=trust)
+    # Only the website server (its own key) can vouch for an e-mail address. A principal that came
+    # with the shared app key is typed by the caller, so its address proves nothing.
+    return replace(
+        decode_client_principal(principal), trust=trust, email_verified=(trust == TRUST_WEB)
+    )
 
 
 def require_member_identity(request: Request) -> MemberIdentity:
@@ -330,7 +334,7 @@ async def lookup_preferred_language(
             UserAccount.deleted_at.is_(None),
         )
     )
-    if row is None and identity.email:
+    if row is None and identity.email and identity.email_verified:
         canonical = await _find_canonical_by_email(session, identity.email)
         if canonical is not None:
             row = canonical.preferred_language
@@ -362,8 +366,15 @@ def _account_preference(row: UserAccount) -> tuple[int, int, datetime]:
     )
 
 
+# Providers that confirm an address before they hand it out. An account made by e-mail and
+# password ("local"), by Facebook (never promised verified) or by anything else is not matched by
+# address at sign-in, otherwise a stranger could register someone else's address first and have
+# the real owner land in that account.
+VOUCHING_PROVIDERS = frozenset({"google", "apple", "aad", "entra", "microsoft", "azure"})
+
+
 async def _accounts_sharing_mailbox(
-    session: AsyncSession, email: str | None
+    session: AsyncSession, email: str | None, *, vouched_only: bool = False
 ) -> list[UserAccount]:
     normalized = normalize_member_email(email)
     if not normalized or normalized.endswith("@prabhat.local"):
@@ -383,13 +394,14 @@ async def _accounts_sharing_mailbox(
         row
         for row in rows
         if normalize_member_email(row.email) == normalized
+        and (not vouched_only or (row.identity_provider or "").casefold() in VOUCHING_PROVIDERS)
     ]
 
 
 async def _find_canonical_by_email(
-    session: AsyncSession, email: str
+    session: AsyncSession, email: str, *, vouched_only: bool = False
 ) -> UserAccount | None:
-    rows = await _accounts_sharing_mailbox(session, email)
+    rows = await _accounts_sharing_mailbox(session, email, vouched_only=vouched_only)
     if not rows:
         return None
     rows.sort(key=_account_preference)
@@ -400,7 +412,11 @@ async def _absorb_mailbox_twins(
     session: AsyncSession, member: UserAccount, email: str | None
 ) -> UserAccount:
     """Fold every account for this mailbox into one, keeping quiz/admin/chat."""
-    twins = [row for row in await _accounts_sharing_mailbox(session, email) if row.id != member.id]
+    twins = [
+        row
+        for row in await _accounts_sharing_mailbox(session, email, vouched_only=True)
+        if row.id != member.id
+    ]
     for twin in twins:
         if _account_preference(twin) < _account_preference(member):
             await _merge_fork_into_canonical(session, member, twin)
@@ -541,7 +557,12 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
     if identity.trust == TRUST_SESSION:
         return await _member_from_session(session, identity)
     now = datetime.now(UTC)
-    # An address the provider did not vouch for may not find, merge or promote an account.
+    if identity.trust == TRUST_LEGACY:
+        # The shared key ships inside every app: whoever holds it can type any address. It may
+        # not find, merge, promote or write an e-mail (docs/security-member-auth.md).
+        identity = replace(identity, email=None, email_verified=False)
+    # An address the provider did not vouch for may not find, merge or promote an account,
+    # and is not stored either (a stored address is what the next sign-in is matched against).
     trusted_email = identity.email if identity.email_verified else None
     member = await session.scalar(
         select(UserAccount).where(
@@ -550,7 +571,7 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         )
     )
     if member is None and trusted_email:
-        canonical = await _find_canonical_by_email(session, trusted_email)
+        canonical = await _find_canonical_by_email(session, trusted_email, vouched_only=True)
         if canonical is not None and not is_ephemeral_member(canonical):
             # Reuse the website Easy Auth account instead of forking by mobile UUID/email.
             member = canonical
@@ -558,7 +579,7 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         member = UserAccount(
             external_subject=identity.subject,
             identity_provider=identity.provider,
-            email=identity.email,
+            email=normalize_member_email(trusted_email) if trusted_email else None,
             display_name=identity.display_name,
             avatar_url=identity.avatar_url,
             preferred_language="english",
@@ -571,10 +592,8 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
     if trusted_email:
         member = await _absorb_mailbox_twins(session, member, trusted_email)
     member.identity_provider = identity.provider
-    if identity.email_verified:
-        member.email = normalize_member_email(identity.email) or member.email
-    elif not member.email and identity.email:
-        member.email = normalize_member_email(identity.email)
+    if trusted_email:
+        member.email = normalize_member_email(trusted_email) or member.email
     # Keep a member-edited display name; only fill from OAuth when blank.
     if not (member.display_name or "").strip():
         member.display_name = identity.display_name

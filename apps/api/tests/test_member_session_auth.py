@@ -42,14 +42,59 @@ async def get(world: World, path: str, headers: dict[str, str]):  # type: ignore
 
 
 async def test_shared_key_with_forged_owner_email_is_not_admin(world: World) -> None:
-    headers = legacy_headers("google:attacker", email=OWNER_EMAIL)
+    headers = legacy_headers("attacker", email=OWNER_EMAIL)
 
     assert (await get(world, "/t/me", headers)).json()["is_admin"] is False
     assert (await get(world, "/t/admin", headers)).status_code == 403
     assert (await get(world, "/t/team", headers)).json() == {"team": False}
-    # and nothing was written to the database: the forged owner is a plain account
+    # and nothing was written to the database: the forged address is not stored at all, and no
+    # account that carries the owner address was made or changed into an admin
     rows = [row for row in await world.all_accounts() if row.email == OWNER_EMAIL]
-    assert rows and not any(row.is_admin for row in rows)
+    assert not any(row.is_admin for row in rows)
+    attacker = [r for r in await world.all_accounts() if r.external_subject == "google:attacker"]
+    assert len(attacker) == 1 and attacker[0].email is None
+
+
+async def test_shared_key_with_a_forged_email_does_not_find_or_change_another_account(
+    world: World,
+) -> None:
+    """QA-001 follow-up: a stranger who holds the shared key types the address of a real member.
+    The request must not land in that member's account, and must not rewrite its address."""
+    before = await world.account(PLAIN_ID)
+    headers = legacy_headers("stranger", email=before.email)
+
+    me = (await get(world, "/t/me", headers)).json()
+
+    assert me["id"] != str(PLAIN_ID)
+    after = await world.account(PLAIN_ID)
+    assert after.email == before.email
+    assert after.external_subject == before.external_subject
+    accounts = await world.all_accounts()
+    assert len(accounts) == 4  # the three fixtures and the stranger's own empty account
+
+
+async def test_shared_key_cannot_move_the_address_of_its_own_account_to_a_victims(
+    world: World,
+) -> None:
+    mine = legacy_headers("stranger", email="stranger@example.org")
+    await get(world, "/t/me", mine)
+    forged = legacy_headers("stranger", email="plain@example.net")
+
+    await get(world, "/t/me", forged)
+
+    row = next(r for r in await world.all_accounts() if r.external_subject == "google:stranger")
+    assert row.email is None
+    plain = await world.account(PLAIN_ID)
+    assert plain.email == "plain@example.net"
+
+
+async def test_the_website_key_still_vouches_for_the_address(world: World) -> None:
+    """The website server does the sign-in itself, so its address is trusted (own key)."""
+    headers = web_headers("google:plain-sub", email="plain@example.net")
+
+    me = (await get(world, "/t/me", headers)).json()
+
+    assert me["id"] == str(PLAIN_ID)
 
 
 async def test_shared_key_with_the_subject_of_a_real_admin_is_still_not_admin(world: World) -> None:

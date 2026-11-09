@@ -11,7 +11,7 @@ os.environ.setdefault("APP_ENV", "test")
 import httpx
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from sqlalchemy import Table, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -309,7 +309,18 @@ def limited_app() -> FastAPI:
     @app.post("/api/v1/auth/login")
     async def login(request: Request) -> dict[str, bool]:
         await rl.enforce_rate_limit(
-            request, "sign_in", key_extra=request.headers["x-email"], ip=False
+            request, "sign_in", key_extra=request.headers["x-email"], ip=False, key_with_ip=True
+        )
+        return {"ok": True}
+
+    @app.post("/api/v1/auth/forgot-password")
+    async def forgot(request: Request) -> dict[str, bool]:
+        await rl.enforce_rate_limit(
+            request,
+            "password_reset_email",
+            key_extra=request.headers["x-email"],
+            ip=False,
+            key_policy="password_reset_email",
         )
         return {"ok": True}
 
@@ -358,28 +369,64 @@ async def test_the_limits_can_be_turned_off(monkeypatch: pytest.MonkeyPatch) -> 
             assert (await hit(client, "/api/v1/plays", "203.0.113.1")).status_code == 200
 
 
-async def test_sign_in_is_limited_per_email_from_many_addresses(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_one_address_cannot_hammer_one_account(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(rl.POLICIES, "sign_in_account", RateLimitPolicy("sign_in_account", 3, 900))
     monkeypatch.setitem(rl.POLICIES, "sign_in", RateLimitPolicy("sign_in", 100, 600))
-
-    def failing(request: Request) -> None:
-        raise HTTPException(status_code=401, detail="no")
-
     transport = httpx.ASGITransport(app=limited_app())
     async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
-        for index in range(3):
+        for _ in range(3):
+            r = await hit(client, "/api/v1/auth/login", "203.0.113.7", **{"x-email": "a@x.org"})
+            assert r.status_code == 200
+        # a fourth try for the same e-mail from the same address is stopped (case and spaces
+        # do not buy a new allowance)
+        blocked = await hit(client, "/api/v1/auth/login", "203.0.113.7", **{"x-email": "A@x.org "})
+        assert blocked.status_code == 429
+        # another e-mail from the same address is free
+        other = await hit(client, "/api/v1/auth/login", "203.0.113.7", **{"x-email": "b@x.org"})
+        assert other.status_code == 200
+
+
+async def test_a_stranger_typing_the_owners_email_cannot_lock_the_owner_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The e-mail bucket also holds the caller's address, so the stranger uses up only their own
+    tries. (It used to be keyed by the e-mail alone, which let anyone block anyone's sign-in.)"""
+    monkeypatch.setitem(rl.POLICIES, "sign_in_account", RateLimitPolicy("sign_in_account", 3, 900))
+    monkeypatch.setitem(rl.POLICIES, "sign_in", RateLimitPolicy("sign_in", 100, 600))
+    transport = httpx.ASGITransport(app=limited_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+        for _ in range(10):
+            await hit(client, "/api/v1/auth/login", "198.51.100.66", **{"x-email": "owner@x.org"})
+        stranger = await hit(
+            client, "/api/v1/auth/login", "198.51.100.66", **{"x-email": "owner@x.org"}
+        )
+        assert stranger.status_code == 429
+        owner = await hit(client, "/api/v1/auth/login", "203.0.113.9", **{"x-email": "owner@x.org"})
+        assert owner.status_code == 200
+
+
+async def test_reset_requests_have_a_bucket_of_their_own(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(
+        rl.POLICIES, "password_reset_email", RateLimitPolicy("password_reset_email", 2, 3600)
+    )
+    transport = httpx.ASGITransport(app=limited_app())
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
+        for index in range(2):
             r = await hit(
-                client, "/api/v1/auth/login", f"203.0.113.{index}", **{"x-email": "a@x.org"}
+                client,
+                "/api/v1/auth/forgot-password",
+                f"203.0.113.{index}",
+                **{"x-email": "a@x.org"},
             )
             assert r.status_code == 200
-        # a fourth try for the same e-mail from a new address is stopped
-        blocked = await hit(client, "/api/v1/auth/login", "203.0.113.50", **{"x-email": "A@x.org "})
+        # nobody can fill one inbox, whatever the address
+        blocked = await hit(
+            client, "/api/v1/auth/forgot-password", "203.0.113.99", **{"x-email": "a@x.org"}
+        )
         assert blocked.status_code == 429
-        # another e-mail is free
-        other = await hit(client, "/api/v1/auth/login", "203.0.113.50", **{"x-email": "b@x.org"})
-        assert other.status_code == 200
+        # and asking for resets did not use up anything for signing in
+        signing = await hit(client, "/api/v1/auth/login", "203.0.113.99", **{"x-email": "a@x.org"})
+        assert signing.status_code == 200
 
 
 async def test_an_account_has_its_own_allowance_behind_one_address(

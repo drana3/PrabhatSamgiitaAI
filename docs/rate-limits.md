@@ -24,7 +24,8 @@ in its own file. Now:
 | Policy | Limit | Counted per | Where |
 | --- | --- | --- | --- |
 | `sign_in` | 20 in 10 min | address | login, register, forgot-password, reset-password (middleware); token exchange (in the route) |
-| `sign_in_account` | 8 in 15 min | e-mail address | login and forgot-password (in the route). Stops one account being guessed from many addresses, and one inbox being filled with reset links |
+| `sign_in_account` | 8 in 15 min | e-mail address **and** caller address | login (in the route). Stops one place hammering one account. The caller's address is part of the key on purpose: keyed by the e-mail alone, a stranger could use up the owner's tries and lock the owner out |
+| `password_reset_email` | 5 in 1 hour | e-mail address | forgot-password (in the route). Its own bucket, so nobody fills one inbox with reset links and asking for resets never blocks signing in |
 | `token_refresh` | 60 in 10 min | address | `POST /members/session/refresh` |
 | `upload` | 40 in 1 hour | member (else address) | upload targets, upload files, `POST /recordings` |
 | `comment` | 30 in 10 min | member (else address) | song and recording comments |

@@ -52,7 +52,13 @@ POLICIES: dict[str, RateLimitPolicy] = {
     policy.name: policy
     for policy in (
         RateLimitPolicy("sign_in", 20, 600),  # per address: login, register, token exchange, reset
-        RateLimitPolicy("sign_in_account", 8, 900),  # per e-mail address (guessing one password)
+        # one e-mail address tried from one network place (guessing a password). The key holds
+        # the address of the caller too, so a stranger cannot lock the owner out of their own
+        # account by typing the owner's e-mail over and over from elsewhere.
+        RateLimitPolicy("sign_in_account", 8, 900),
+        # reset links sent to one e-mail address (nobody fills an inbox); its own bucket, not
+        # shared with signing in
+        RateLimitPolicy("password_reset_email", 5, 3600),
         RateLimitPolicy("token_refresh", 60, 600),
         RateLimitPolicy("upload", 40, 3600),  # per member (or address): upload targets and files
         RateLimitPolicy("comment", 30, 600),  # per member (or address)
@@ -247,10 +253,15 @@ async def enforce_rate_limit(
     session: AsyncSession | None = None,  # kept so call sites read the same as the other helpers
     key_extra: str | None = None,
     ip: bool = True,
+    key_policy: str | None = None,
+    key_with_ip: bool = False,
 ) -> None:
     """Raises 429 when this caller (and `key_extra`, hashed, if given) used up the policy.
 
     `ip=False` skips the per-address count, for a route the middleware already counts by address.
+    `key_policy` names the policy of the `key_extra` bucket (default `<policy>_account`).
+    `key_with_ip=True` puts the caller's address into that bucket's key as well, so what one
+    caller does to an e-mail address never uses up the budget of anyone else.
     """
     settings = get_settings()
     if not settings.rate_limit_enabled:
@@ -261,10 +272,13 @@ async def enforce_rate_limit(
         if not decision.allowed:
             raise _too_many(decision.retry_after)
     if key_extra:
-        account_policy = f"{policy_name}_account"
+        account_policy = key_policy or f"{policy_name}_account"
+        value = key_extra.strip().casefold()
+        if key_with_ip:
+            value = f"{value}|{client_ip(request, settings)}"
         decision = await check_policy(
             account_policy if account_policy in POLICIES else policy_name,
-            f"k:{hashed(key_extra.strip().casefold(), settings)}",
+            f"k:{hashed(value, settings)}",
         )
         if not decision.allowed:
             raise _too_many(decision.retry_after)

@@ -39,6 +39,9 @@ Requests that still arrive with `X-Member-Proxy-Key` and a self-made principal a
 
 - they work as an **ordinary member only**. Admin, super admin and team rights are forced off for that request
   and nothing is saved, whatever e-mail or name the principal claims;
+- their **e-mail address is ignored completely**: it is never used to find, merge or promote an account and is
+  never written to one. Anyone holding the shared key can type any address, so it proves nothing. (Only the
+  website, with its own key, and a provider's signed proof can vouch for an address.);
 - they are counted (`legacy_hits`, and a log line) so we can see when old apps have faded out;
 - they can be switched off completely with `ALLOW_LEGACY_MEMBER_PRINCIPAL=false`.
 
@@ -48,6 +51,10 @@ its **own** key (`WEB_PROXY_KEY`, never shipped to a phone). That key keeps the 
 
 ## 3. Other holes closed on the way
 
+- An address is only matched against accounts whose own address a provider confirmed (Google, Apple,
+  Microsoft). An account made with e-mail and password or with Facebook is never matched by address at sign-in,
+  so a stranger cannot register someone else's address first and have the real owner land in that account.
+  An unverified address is not stored at all.
 - An **unverified e-mail** never finds, merges or promotes an account. Google and Apple say whether the e-mail is
   verified, Microsoft only for known tenants or when it says so, Facebook never.
 - **Owner e-mails cannot be registered** as a local (password) account: 409.

@@ -37,9 +37,12 @@ async def register(
 async def login(
     payload: LocalLoginWrite, request: Request, session: DatabaseSession
 ) -> AuthSessionResponse:
-    # The middleware counts tries per address; this counts them per e-mail, so one account cannot be
-    # guessed at from many addresses.
-    await enforce_rate_limit(request, "sign_in", key_extra=str(payload.email), ip=False)
+    # The middleware counts tries per address. This counts them per e-mail AND address, so one
+    # place cannot hammer one account, while a stranger typing the owner's e-mail from another
+    # address cannot use up the owner's tries (that would be a way to lock someone out).
+    await enforce_rate_limit(
+        request, "sign_in", key_extra=str(payload.email), ip=False, key_with_ip=True
+    )
     try:
         return await login_local_user(session, payload, request.headers.get("x-device-label"))
     except HTTPException:
@@ -53,8 +56,15 @@ async def login(
 async def forgot_password(
     payload: ForgotPasswordWrite, request: Request, session: DatabaseSession
 ) -> MessageResponse:
-    # Per e-mail, so nobody can fill one inbox with reset links.
-    await enforce_rate_limit(request, "sign_in", key_extra=str(payload.email), ip=False)
+    # Per e-mail, in a bucket of its own (not the one for signing in), so nobody can fill one
+    # inbox with reset links and nobody can block a sign-in by asking for resets.
+    await enforce_rate_limit(
+        request,
+        "password_reset_email",
+        key_extra=str(payload.email),
+        ip=False,
+        key_policy="password_reset_email",
+    )
     try:
         await request_password_reset(session, str(payload.email))
     except Exception as exc:
