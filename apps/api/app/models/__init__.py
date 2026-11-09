@@ -88,11 +88,14 @@ from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordR
 from app.models.song_comments import SongComment, SongCommentReport
 from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.models.song_translations import SongTranslation
+from app.models.takedown import BlockedAudioHash, TakedownRequest
 
 __all__ = [
     "AppVersionPolicy",
     "MemberSession",
     "RateLimitCounter",
+    "TakedownRequest",
+    "BlockedAudioHash",
     "AppEvent",
     "FeatureFlag",
     "AiDailyUsage",

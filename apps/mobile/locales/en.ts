@@ -9,6 +9,7 @@ import { recordingsEn } from "./recordings"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { appUpdateEn } from "./appUpdate"
+import { takedownEn } from "./takedown"
 import { playerErrorsEn } from "./playerErrors"
 import { shareSheetEn } from "./shareSheet"
 import { scriptSheetEn } from "./scriptSheet"
@@ -1293,6 +1294,7 @@ export const en = {
   ...offlineEn,
   ...accountEn,
   ...appUpdateEn,
+  ...takedownEn,
   ...playerErrorsEn,
   ...shareSheetEn,
   ...scriptSheetEn,

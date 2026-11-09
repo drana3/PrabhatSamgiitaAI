@@ -10,6 +10,7 @@ import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { appUpdateEs } from "./appUpdate"
+import { takedownEs } from "./takedown"
 import { playerErrorsEs } from "./playerErrors"
 import { shareSheetEs } from "./shareSheet"
 import { scriptSheetEs } from "./scriptSheet"
@@ -1287,6 +1288,7 @@ export const es: Dictionary = {
   ...offlineEs,
   ...accountEs,
   ...appUpdateEs,
+  ...takedownEs,
   ...playerErrorsEs,
   ...shareSheetEs,
   ...scriptSheetEs,

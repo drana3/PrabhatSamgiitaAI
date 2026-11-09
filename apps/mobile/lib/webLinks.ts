@@ -48,6 +48,11 @@ export function deleteAccountHelpUrl(): string {
   return `${webBaseUrl()}/delete-account`
 }
 
+/** Where a rights holder asks us to remove a recording (docs/takedown-process.md). */
+export function takedownUrl(): string {
+  return `${webBaseUrl()}/takedown`
+}
+
 function foldShareText(value: string): string {
   return value
     .normalize("NFKD")

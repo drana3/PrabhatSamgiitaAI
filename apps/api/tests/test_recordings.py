@@ -45,6 +45,7 @@ from app.models.recordings import (
     ValueSuggestion,
     ValueSuggestionUse,
 )
+from app.models.takedown import BlockedAudioHash
 from app.services import recording_fingerprint as fingerprints
 from app.services import recordings as service
 from app.services.recording_storage import (
@@ -426,6 +427,7 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
             MemberNotice,
             ValueSuggestion,
             ValueSuggestionUse,
+            BlockedAudioHash,
         )
     ]
     async with engine.begin() as conn:

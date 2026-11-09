@@ -38,6 +38,8 @@ from app.api.v1.song_comments import router as song_comments_router
 from app.api.v1.song_translations import admin_router as song_translations_admin_router
 from app.api.v1.song_translations import router as song_translations_router
 from app.api.v1.songs import router as songs_router
+from app.api.v1.takedown import admin_router as takedown_admin_router
+from app.api.v1.takedown import router as takedown_router
 from app.api.v1.telemetry import admin_router as telemetry_admin_router
 from app.api.v1.telemetry import router as telemetry_router
 from app.api.v1.top_played import router as top_played_router
@@ -54,6 +56,8 @@ router.include_router(inventory_router)
 router.include_router(members_router)
 router.include_router(member_sessions_router)
 router.include_router(app_versions_router)
+router.include_router(takedown_router)
+router.include_router(takedown_admin_router)
 router.include_router(learn_sync_router)
 router.include_router(auth_router)
 router.include_router(member_admin_router)

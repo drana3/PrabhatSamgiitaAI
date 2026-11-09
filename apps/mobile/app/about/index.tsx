@@ -8,6 +8,7 @@ import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { useT } from "@/lib/i18n"
+import { takedownUrl } from "@/lib/webLinks"
 
 /**
  * About — the guru quote art as a clean picture (BabaPhoto): nothing over it, the text below it.
@@ -45,6 +46,14 @@ export default function AboutScreen() {
           <Text style={styles.bullet}>{t("about.credits.piano")}</Text>
           <Pressable accessibilityRole="link" onPress={() => void Linking.openURL("https://creativecommons.org/licenses/by/3.0/")} hitSlop={8}>
             <Text style={[styles.bullet, styles.link]}>{t("about.credits.piano.link")}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("about.copyright.title")}</Text>
+          <Text style={styles.bullet}>{t("about.copyright.body")}</Text>
+          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(takedownUrl())} hitSlop={8}>
+            <Text style={[styles.bullet, styles.link]}>{t("about.copyright.link")}</Text>
           </Pressable>
         </View>
       </ScrollView>

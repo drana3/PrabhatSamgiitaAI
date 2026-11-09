@@ -51,7 +51,7 @@ from app.schemas.recordings import (
     RecordingCreate,
     RecordingOut,
 )
-from app.services import upload_validation
+from app.services import blocked_hashes, upload_validation
 from app.services import recording_matches as matches
 from app.services import value_suggestions as words
 from app.services.admin_members import normalize_member_email, owner_admin_emails
@@ -329,6 +329,10 @@ async def exact_duplicate(session: AsyncSession, sha256: str) -> Recording | Non
         .order_by(Recording.created_at.desc())
         .limit(1)
     )
+    if found is None and await blocked_hashes.is_blocked(session, sha256):
+        # A rights holder asked for this file to go (docs/takedown-process.md): it cannot return.
+        detail = DuplicateDetail(code="removed_duplicate", message=blocked_hashes.BLOCKED_MESSAGE)
+        raise HTTPException(status_code=409, detail=detail.model_dump())
     return found
 
 

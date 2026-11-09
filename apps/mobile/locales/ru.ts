@@ -10,6 +10,7 @@ import { recordingsRu } from "./recordings"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { appUpdateRu } from "./appUpdate"
+import { takedownRu } from "./takedown"
 import { playerErrorsRu } from "./playerErrors"
 import { shareSheetRu } from "./shareSheet"
 import { scriptSheetRu } from "./scriptSheet"
@@ -1373,6 +1374,7 @@ export const ru: Dictionary = {
   ...offlineRu,
   ...accountRu,
   ...appUpdateRu,
+  ...takedownRu,
   ...playerErrorsRu,
   ...shareSheetRu,
   ...scriptSheetRu,
