@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
+import { KeyPicker } from "@/components/kirtan/add/KeyPicker"
 import { KPress } from "@/components/kirtan/KPress"
 import { ActionButton, CheckRow, Chip, Hint } from "@/components/song-chords/parts"
 import { PianoKeyboard } from "@/components/piano/PianoKeyboard"
@@ -8,12 +9,15 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
+import { keyOptions } from "@/lib/kirtan/keyPicker"
 import { SA_NAMES, effectiveSa, keyMidi, windowFor } from "@/lib/pianoNotes/keys"
 import { momentsOf, midisOf } from "@/lib/pianoNotes/rules"
 import { stepLabel } from "@/lib/pianoNotes/sargamText"
 import type { PianoHand, PianoLevel, PianoSheet } from "@/lib/pianoNotes/types"
 import { playPianoKey, stopPiano, warmPiano } from "@/lib/pianoPlayback"
 import { BPM_MAX, BPM_MIN, usePianoReaderStore } from "@/stores/pianoReaderStore"
+
+const SA_OPTIONS = keyOptions(SA_NAMES)
 
 /**
  * One piano sheet to read and play: the keyboard lights the keys of the step you are on, the strip below shows the
@@ -130,14 +134,7 @@ export function PianoReader({ theme, sheet }: { theme: SongsTheme; sheet: PianoS
         <CheckRow theme={theme} on={easy} label={t("piano.easy")} onToggle={() => setEasy(!easy)} />
         <Text style={[s.hint, { color: theme.textBody }]}>{t(easy ? "piano.easy.on" : "piano.easy.off")}</Text>
         {!easy ? (
-          <View style={s.gap6}>
-            <Text style={[s.label, { color: theme.textHeading }]}>{t("piano.saOn")}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} accessibilityRole="tablist">
-              {SA_NAMES.map((name) => (
-                <Chip key={name} theme={theme} label={name} on={pickedSa === name} onPress={() => setSa(name)} minWidth={52} />
-              ))}
-            </ScrollView>
-          </View>
+          <KeyPicker theme={theme} label={t("piano.saOn")} explain={t("keyPicker.explain.reader")} options={SA_OPTIONS} value={pickedSa} onChange={setSa} testID="piano-reader-sa" />
         ) : null}
         {sheet.level === "two_hands" ? <CheckRow theme={theme} on={twoHands} label={t("piano.twoHands")} onToggle={() => setTwoHands(!twoHands)} /> : null}
       </View>
@@ -202,11 +199,8 @@ export function PianoReader({ theme, sheet }: { theme: SongsTheme; sheet: PianoS
 
 const s = StyleSheet.create({
   gap: { gap: 14 },
-  gap6: { gap: 6 },
   settings: { gap: 4 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingLeft: 40 },
-  label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
-  chips: { flexDirection: "row", gap: 8, paddingRight: 8 },
   readout: { flexDirection: "row", alignItems: "baseline", gap: 12, minHeight: 44 },
   big: { fontFamily: amFonts.display, fontSize: 32, lineHeight: 34, textTransform: "uppercase" },
   small: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },

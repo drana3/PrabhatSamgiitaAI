@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Keyboard, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { Check, Plus, Search } from "lucide-react-native"
 
@@ -41,6 +41,12 @@ type Props = {
   similar?: (word: string) => string | null
   /** a short line under the "add your own" row (the team looks at new words) */
   ownNote?: string | null
+  /**
+   * Naming for a choice list that ends in "Something else" (Others): the row reads this instead of "Add your own", it is shown even before
+   * anything is typed (a tap puts the cursor in the search box, where the name is written), and the box asks for the name.
+   */
+  otherLabel?: string | null
+  searchPlaceholder?: string | null
   testID?: string
 }
 
@@ -54,7 +60,7 @@ type Props = {
  * All the rules (limits, own words, what counts as a listed word) live in lib/kirtan/tags.ts; this file only draws and calls them.
  * Holds no value: the caller passes it and takes the change. Motion is the sheet's own spring (assistant-v2/SpringSheet).
  */
-export function TagPicker({ theme, label, hint, required, invalid, errorText, disabled, options, labelOf, value, onChange, single, max, listedFor, similar, ownNote, testID }: Props) {
+export function TagPicker({ theme, label, hint, required, invalid, errorText, disabled, options, labelOf, value, onChange, single, max, listedFor, similar, ownNote, otherLabel, searchPlaceholder, testID }: Props) {
   const t = useT()
   const am = useAmTheme()
   const limit = single ? 1 : (max ?? TAGS_MAX)
@@ -62,6 +68,7 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
   const [query, setQuery] = useState("")
   const [problem, setProblem] = useState<TagProblem>(null)
   const keyboard = useKeyboardHeight(open)
+  const searchRef = useRef<TextInput>(null)
 
   const chips = chipsOf(value, labelOf)
   const { shown, more } = fitRailChips(chips)
@@ -170,7 +177,8 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
                 setQuery(text.slice(0, WORD_MAX))
                 setProblem(null)
               }}
-              placeholder={t("picker.search")}
+              ref={searchRef}
+              placeholder={searchPlaceholder ?? t("picker.search")}
               placeholderTextColor={theme.textMuted}
               accessibilityLabel={t("picker.search")}
               returnKeyType="done"
@@ -197,8 +205,9 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
             {nearOption && !value.ids.includes(nearOption.id) ? (
               <Row theme={theme} label={t("picker.didYouMean", { word: nearOption.label })} on={false} onPress={() => pick(nearOption.id)} />
             ) : null}
-            {addable ? <Row theme={theme} label={`${t("picker.addOwn")}: ${typed}`} on={false} plus note={ownNote ?? t("picker.team")} onPress={() => addOwn(typed)} /> : null}
-            {!visible.length && !addable ? <Text style={[s.empty, { color: theme.textMuted }]}>{t("picker.empty")}</Text> : null}
+            {addable ? <Row theme={theme} label={`${otherLabel ?? t("picker.addOwn")}: ${typed}`} on={false} plus note={ownNote ?? t("picker.team")} onPress={() => addOwn(typed)} /> : null}
+            {otherLabel && !addable && !value.own.length ? <Row theme={theme} label={otherLabel} on={false} plus note={ownNote ?? t("picker.team")} onPress={() => searchRef.current?.focus()} /> : null}
+            {!visible.length && !addable && !otherLabel ? <Text style={[s.empty, { color: theme.textMuted }]}>{t("picker.empty")}</Text> : null}
           </ScrollView>
           {problem ? (
             <Text accessibilityLiveRegion="polite" style={[s.problem, { color: amColors.danger }]}>
@@ -219,7 +228,7 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
   )
 }
 
-function Row({ theme, label, on, note, plus, disabled, onPress, a11yLabel }: { theme: SongsTheme; label: string; on: boolean; note?: string; plus?: boolean; disabled?: boolean; onPress: () => void; a11yLabel?: string }) {
+export function Row({ theme, label, on, note, plus, disabled, onPress, a11yLabel }: { theme: SongsTheme; label: string; on: boolean; note?: string; plus?: boolean; disabled?: boolean; onPress: () => void; a11yLabel?: string }) {
   return (
     <Press
       accessibilityRole="button"
@@ -240,7 +249,7 @@ function Row({ theme, label, on, note, plus, disabled, onPress, a11yLabel }: { t
 }
 
 /** The on-screen keyboard's height while the sheet is open, so the list stays above it (the sheet itself sits at the bottom). */
-function useKeyboardHeight(active: boolean): number {
+export function useKeyboardHeight(active: boolean): number {
   const [height, setHeight] = useState(0)
   useEffect(() => {
     if (!active || Platform.OS === "web") {
@@ -289,3 +298,6 @@ const s = StyleSheet.create({
   done: { minHeight: 48, paddingHorizontal: 24, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   doneText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
 })
+
+/** The picker's own styles, shared with the key picker (same rail, same sheet, same rows). */
+export const pickerStyles = s

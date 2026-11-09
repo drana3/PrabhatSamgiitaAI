@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { SheetTopBar } from "@/components/common/SheetTopBar"
+import { KeyPicker } from "@/components/kirtan/add/KeyPicker"
 import { PianoKeyboard } from "@/components/piano/PianoKeyboard"
 import { ActionButton, CheckRow, Chip, Hint } from "@/components/song-chords/parts"
 import { Reveal } from "@/components/today/motion"
@@ -14,6 +15,7 @@ import { authHeadersFromStore } from "@/lib/memberAuth"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { bookletPianoSheet } from "@/lib/pianoNotes/booklet"
 import { pianoBackend, pianoFailure } from "@/lib/pianoNotes/backend"
+import { keyOptions } from "@/lib/kirtan/keyPicker"
 import { BEAT_CHOICES, appendToken, draftFromEditor, dropLastToken, editorRowsOf, newEditorRow, rowsFromEditor, type EditorRow } from "@/lib/pianoNotes/editor"
 import { EASY_SA, MIDDLE_C, SA_NAMES, keyMidi, saMidi, swaraOfMidi, windowFor } from "@/lib/pianoNotes/keys"
 import { pianoHref, targetFromParams } from "@/lib/pianoNotes/links"
@@ -26,6 +28,8 @@ import { playPianoKey } from "@/lib/pianoPlayback"
 import { postingAccess } from "@/lib/songComments/rules"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
+
+const SA_OPTIONS = keyOptions(SA_NAMES)
 
 /**
  * Write piano notes for a recording or a song: tap the keyboard or type a line like `Sa Re Ga Ma:2 (Sa Ga Pa) 0`. The
@@ -166,15 +170,15 @@ export default function PianoNotesEditScreen() {
         {MOCKUP_DATA ? <Hint theme={theme}>{t("piano.preview")}</Hint> : null}
         <Hint theme={theme}>{t("piano.edit.intro")}</Hint>
 
-        <View style={s.gap6}>
-          <Text style={[s.label, { color: theme.textHeading }]}>{t("piano.edit.sa")}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips} accessibilityRole="tablist">
-            {SA_NAMES.map((name) => (
-              <Chip key={name} theme={theme} label={name} on={saKey === name} onPress={() => setSaKey(name)} minWidth={52} />
-            ))}
-          </ScrollView>
-          <Hint theme={theme}>{t("piano.edit.sa.hint")}</Hint>
-        </View>
+        <KeyPicker
+          theme={theme}
+          label={t("piano.edit.sa")}
+          explain={t("keyPicker.explain.sa")}
+          options={SA_OPTIONS}
+          value={saKey}
+          onChange={setSaKey}
+          testID="piano-sa-field"
+        />
 
         {rows.map((row, index) => {
           const bad = built.problems.find((p) => p.row === index)

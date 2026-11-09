@@ -11,6 +11,7 @@ import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ChordSheet } from "@/components/song-chords/ChordSheet"
 import { ConfirmDialog, type DialogAction } from "@/components/song-chords/ConfirmDialog"
+import { KeyPicker } from "@/components/kirtan/add/KeyPicker"
 import { ConfirmFields, InstrumentField } from "@/components/song-chords/OfferFields"
 import { ActionButton, CORNER, Chip, Hint, Label } from "@/components/song-chords/parts"
 import { Reveal } from "@/components/today/motion"
@@ -69,6 +70,7 @@ import { sheetFailureText } from "@/lib/recordingChords/words"
 import { chordsFormHref, recordingPageHref } from "@/lib/recordingExtras/links"
 import { PREVIEW_NAME } from "@/lib/songComments/mock"
 import { postingAccess } from "@/lib/songComments/rules"
+import { keyOptions } from "@/lib/kirtan/keyPicker"
 import { ROOTS } from "@/lib/songChords/chordName"
 import type { Draft } from "@/lib/songChords/draft"
 import type { FormField } from "@/lib/songChords/fields"
@@ -96,6 +98,7 @@ function signature(d: CycleDraft): string {
 
 /** up to this many tunes the "which tunes" choices and the review cards are spelled "Tune 3"; past it they are bare numbers and one-line rows */
 const FEW = 6
+const KEY_OPTIONS = keyOptions(ROOTS)
 
 /** The problem a field of the form shows. `chords` covers everything about the rings. */
 function fieldOf(p: CycleProblem): FormField {
@@ -670,18 +673,21 @@ export default function RecordingCycleScreen() {
             </View>
           </View>
 
-          {/* the key of THIS tune */}
+          {/* the key of THIS tune: the compact picker (one line, a sheet with the list); "Not sure" and "Same as previous tune" are rows in it */}
           <View style={s.field}>
-            <Label theme={theme}>{t("recCycle.key.label")}</Label>
-            <Hint theme={theme}>{t("kPage.key.plain")}</Hint>
-            <Hint theme={theme}>{t("recCycle.key.hint")}</Hint>
-            <View style={s.chips} accessibilityRole="radiogroup">
-              <Chip theme={theme} label={t("recCycle.key.none")} on={tune.key === ""} minWidth={52} onPress={() => setDraft((d) => setTuneKey(d, tuneIx, ""))} />
-              {ROOTS.map((root) => (
-                <Chip key={root} theme={theme} label={root} on={tune.key === root} a11y={t("recCycle.key.a11y", { key: root })} minWidth={52} onPress={() => setDraft((d) => setTuneKey(d, tuneIx, root))} />
-              ))}
-            </View>
-            {prev !== null ? <ActionButton theme={theme} tone="quiet" label={t("recCycle.key.same")} onPress={() => setDraft((d) => keyLikePrevious(d, tuneIx))} /> : null}
+            <KeyPicker
+              theme={theme}
+              label={t("recCycle.key.label")}
+              explain={t("keyPicker.explain.tune")}
+              options={KEY_OPTIONS}
+              value={tune.key}
+              onChange={(root) => setDraft((d) => setTuneKey(d, tuneIx, root))}
+              noneLabel={t("recCycle.key.none")}
+              sameLabel={prev !== null ? t("recCycle.key.same") : null}
+              onSame={() => setDraft((d) => keyLikePrevious(d, tuneIx))}
+              a11yOf={(root) => t("recCycle.key.a11y", { key: root })}
+              testID="cycle-key-field"
+            />
           </View>
 
           <View {...form.field("chords")} style={s.field}>

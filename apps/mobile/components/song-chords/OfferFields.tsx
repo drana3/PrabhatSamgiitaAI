@@ -1,6 +1,8 @@
-import type { MutableRefObject, ReactNode } from "react"
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native"
+import { useState, type MutableRefObject, type ReactNode } from "react"
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native"
 
+import { SpringSheet } from "@/components/assistant-v2/SpringSheet"
+import { KeyPicker } from "@/components/kirtan/add/KeyPicker"
 import { ChartPreview } from "@/components/song-chords/ChartPreview"
 import { ChordPasteBox } from "@/components/song-chords/ChordPasteBox"
 import { ChordSlotEditor, type Slot } from "@/components/song-chords/ChordSlotEditor"
@@ -9,8 +11,10 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useAmTheme } from "@/hooks/useAmTheme"
 import type { useFormFocus } from "@/lib/forms/useFormFocus"
 import { useT } from "@/lib/i18n"
+import { keyOptions } from "@/lib/kirtan/keyPicker"
 import { ROOTS, suggestedChords } from "@/lib/songChords/chordName"
 import type { ParseMeta } from "@/lib/songChords/chordPro"
 import { NOTE_MAX, STRUM_MAX, countChords, linesWithChords, setCapo, setInstrument, soundingKey, toPayload, type Draft, type Placement } from "@/lib/songChords/draft"
@@ -26,6 +30,8 @@ import { MAX_CAPO } from "@/lib/songPage/chords"
  */
 export type FormFocus = ReturnType<typeof useFormFocus>
 export type Patch = (change: Partial<Draft>) => void
+
+const KEY_OPTIONS = keyOptions(ROOTS)
 
 /** The instrument chips. `locked` shows only the chosen one (a chart being fixed keeps its instrument). */
 export function InstrumentField({ theme, draft, locked, patch }: { theme: SongsTheme; draft: Draft; locked: boolean; patch: (next: Draft) => void }) {
@@ -54,16 +60,17 @@ export function KeyCapoField({ theme, draft, patch }: { theme: SongsTheme; draft
   const guitar = draft.instrument === "guitar"
   return (
     <>
-      <Label theme={theme}>{draft.instrument === "harmonium" ? t("chordOffer.key.harmonium.label") : t("chordOffer.key.guitar.label")}</Label>
-      <Hint theme={theme}>{draft.instrument === "harmonium" ? t("chordOffer.key.harmonium.hint") : draft.instrument === "piano" ? t("chordOffer.key.piano.hint") : t("chordOffer.key.guitar.hint")}</Hint>
-      <View style={s.chips} accessibilityRole="radiogroup">
-        {ROOTS.map((root) => (
-          <Chip key={root} theme={theme} label={root} on={draft.key === root} a11y={t("chordOffer.key.a11y", { key: root })} minWidth={52} onPress={() => patch({ key: root })} />
-        ))}
-      </View>
-      <View style={[s.example, { backgroundColor: theme.peach }]} accessibilityLiveRegion="polite">
-        <Text style={[s.exampleText, { color: theme.textHeading }]}>{t("chordOffer.key.example", { key: draft.key, chords: suggestedChords(draft.key).slice(0, 4).join(" · ") })}</Text>
-      </View>
+      <KeyPicker
+        theme={theme}
+        label={draft.instrument === "harmonium" ? t("chordOffer.key.harmonium.label") : t("chordOffer.key.guitar.label")}
+        explain={t(draft.instrument === "harmonium" ? "keyPicker.explain.harmonium" : draft.instrument === "piano" ? "keyPicker.explain.piano" : "keyPicker.explain.guitar")}
+        options={KEY_OPTIONS}
+        value={draft.key}
+        onChange={(root) => patch({ key: root })}
+        noteOf={(root) => t("keyPicker.usual", { chords: suggestedChords(root).slice(0, 4).join(" · ") })}
+        a11yOf={(root) => t("chordOffer.key.a11y", { key: root })}
+        testID="chord-key-field"
+      />
       {guitar ? (
         <>
           <Label theme={theme}>{t("chordOffer.capo.label")}</Label>
@@ -153,40 +160,48 @@ export function ChordEntryField({
   )
 }
 
-/** The chart as the song page will draw it (letters over the words), or the line that says there is nothing to show yet. */
+/**
+ * "How it will look": ONE button on the page (the preview used to be a block as tall as the song). A tap opens a plain white window
+ * (the spring sheet) with the chart drawn by the song page's own chord view, or the line that says there is nothing to show yet.
+ */
 export function PreviewField({ theme, spTheme, draft, lines, counts }: { theme: SongsTheme; spTheme: SpTheme; draft: Draft; lines: readonly string[]; counts: readonly number[] }) {
   const t = useT()
+  const am = useAmTheme()
+  const { height } = useWindowDimensions()
+  const [open, setOpen] = useState(false)
   const guitar = draft.instrument === "guitar"
   const payload = countChords(draft) === 0 ? null : toPayload({ ...draft, songId: draft.songId ?? 0 }, counts)
   const proposal = payload ? { baseKey: payload.baseKey, strum: payload.strum, lines: payload.lines, instrument: payload.instrument } : null
   return (
     <View style={s.field}>
-      <Text style={[s.h2, { color: theme.textHeading }]} accessibilityRole="header">
-        {t("chordOffer.preview.title")}
-      </Text>
-      {proposal ? (
-        <>
-          <Hint theme={theme}>{t("chordOffer.preview.hint")}</Hint>
-          <ChartPreview
-            t={spTheme}
-            romanLines={lines}
-            proposal={proposal}
-            capo={guitar ? draft.capo : 0}
-            harmoniumKey={draft.key}
-            caption={
-              guitar
-                ? draft.capo > 0
-                  ? t("chordOffer.preview.summary.guitar", { capo: draft.capo })
-                  : t("chordOffer.preview.summary.guitarNoCapo")
-                : draft.instrument === "piano"
-                  ? t("chordOffer.preview.summary.piano", { key: draft.key })
-                  : t("chordOffer.preview.summary.harmonium", { key: draft.key })
-            }
-          />
-        </>
-      ) : (
-        <Hint theme={theme}>{t("chordOffer.preview.empty")}</Hint>
-      )}
+      <ActionButton theme={theme} tone="quiet" label={t("chordOffer.preview.button")} onPress={() => setOpen(true)} />
+      <SpringSheet visible={open} onClose={() => setOpen(false)} title={t("chordOffer.preview.title")} theme={am} surface={amColors.white}>
+        <ScrollView style={{ maxHeight: Math.round(height * 0.6) }} contentContainerStyle={s.previewContent} showsVerticalScrollIndicator>
+          {proposal ? (
+            <>
+              <Hint theme={theme}>{t("chordOffer.preview.hint")}</Hint>
+              <ChartPreview
+                t={spTheme}
+                romanLines={lines}
+                proposal={proposal}
+                capo={guitar ? draft.capo : 0}
+                harmoniumKey={draft.key}
+                caption={
+                  guitar
+                    ? draft.capo > 0
+                      ? t("chordOffer.preview.summary.guitar", { capo: draft.capo })
+                      : t("chordOffer.preview.summary.guitarNoCapo")
+                    : draft.instrument === "piano"
+                      ? t("chordOffer.preview.summary.piano", { key: draft.key })
+                      : t("chordOffer.preview.summary.harmonium", { key: draft.key })
+                }
+              />
+            </>
+          ) : (
+            <Hint theme={theme}>{t("chordOffer.preview.empty")}</Hint>
+          )}
+        </ScrollView>
+      </SpringSheet>
     </View>
   )
 }
@@ -296,8 +311,8 @@ const s = StyleSheet.create({
   input: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, outlineStyle: "none" as never },
   noteInput: { minHeight: 80, textAlignVertical: "top" },
   editorTap: { paddingVertical: 8 },
+  previewContent: { gap: 12, paddingHorizontal: 10, paddingBottom: 16 },
   example: { borderRadius: CORNER, paddingHorizontal: 16, paddingVertical: 12 },
   exampleText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
   count: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
-  h2: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
 })

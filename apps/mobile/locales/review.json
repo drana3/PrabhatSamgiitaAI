@@ -4030,7 +4030,16 @@
     "style.indian": false,
     "style.western": false,
     "picker.choose": false,
-    "picker.change": false
+    "picker.change": false,
+    "keyPicker.explain.guitar": false,
+    "keyPicker.explain.harmonium": false,
+    "keyPicker.explain.piano": false,
+    "keyPicker.explain.tune": false,
+    "keyPicker.explain.sa": false,
+    "keyPicker.explain.reader": false,
+    "keyPicker.usual": false,
+    "chordOffer.preview.button": false,
+    "chordOffer.preview.button.a11y": false
   },
   "es": {
     "chordOffer.instrument.piano": false,
@@ -7877,7 +7886,16 @@
     "style.indian": false,
     "style.western": false,
     "picker.choose": false,
-    "picker.change": false
+    "picker.change": false,
+    "keyPicker.explain.guitar": false,
+    "keyPicker.explain.harmonium": false,
+    "keyPicker.explain.piano": false,
+    "keyPicker.explain.tune": false,
+    "keyPicker.explain.sa": false,
+    "keyPicker.explain.reader": false,
+    "keyPicker.usual": false,
+    "chordOffer.preview.button": false,
+    "chordOffer.preview.button.a11y": false
   },
   "_languages": {
     "hi": "не переведено",

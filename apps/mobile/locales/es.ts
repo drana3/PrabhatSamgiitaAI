@@ -6,6 +6,7 @@ import { duplicatesEs } from "./duplicates"
 import { recordingInfoEs } from "./recordingInfo"
 import { recordingChartsEs } from "./recordingCharts"
 import { chordInstrumentsEs } from "./chordInstruments"
+import { keyPickerEs } from "./keyPicker"
 import { recordingCycleEs } from "./recordingCycle"
 import { chordCardEs } from "./chordCard"
 import { kiirtanPageEs } from "./kiirtanPage"
@@ -1326,4 +1327,5 @@ export const es: Dictionary = {
   ...listeningEs,
   ...radioEs,
   ...chordInstrumentsEs,
+  ...keyPickerEs,
 }

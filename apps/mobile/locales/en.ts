@@ -5,6 +5,7 @@ import { duplicatesEn } from "./duplicates"
 import { recordingInfoEn } from "./recordingInfo"
 import { recordingChartsEn } from "./recordingCharts"
 import { chordInstrumentsEn } from "./chordInstruments"
+import { keyPickerEn } from "./keyPicker"
 import { recordingCycleEn } from "./recordingCycle"
 import { chordCardEn } from "./chordCard"
 import { kiirtanPageEn } from "./kiirtanPage"
@@ -1332,4 +1333,5 @@ export const en = {
   ...listeningEn,
   ...radioEn,
   ...chordInstrumentsEn,
+  ...keyPickerEn,
 } as const

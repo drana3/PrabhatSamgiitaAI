@@ -27,6 +27,8 @@ type Props = {
   onClose: () => void
   title: string
   theme: AmTheme
+  /** the sheet's own ground when it should not be the page colour (the preview window is plain white) */
+  surface?: string
   children: ReactNode
 }
 
@@ -38,7 +40,7 @@ type Props = {
  *   the spring and the landing point is the projected momentum.
  * - Only transform and opacity move. With Reduce Motion the sheet cross-fades.
  */
-export function SpringSheet({ visible, onClose, title, theme, children }: Props) {
+export function SpringSheet({ visible, onClose, title, theme, surface, children }: Props) {
   const t = useT()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
@@ -151,7 +153,7 @@ export function SpringSheet({ visible, onClose, title, theme, children }: Props)
           onLayout={onLayout}
           style={[
             styles.sheet,
-            { backgroundColor: theme.page, paddingBottom: Math.max(insets.bottom, 16) },
+            { backgroundColor: surface ?? theme.page, paddingBottom: Math.max(insets.bottom, 16) },
             sheetStyle,
           ]}
         >
