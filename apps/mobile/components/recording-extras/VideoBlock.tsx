@@ -65,7 +65,7 @@ export function VideoBlock({
                   pressedScale={0.98}
                   style={styles.poster}
                 >
-                  <VideoThumb video={video} title={title} radius={R_FIELD} scrim showTitle={false} testID="recording-video-thumb">
+                  <VideoThumb video={video} title={title} radius={R_FIELD} scrim overlay showTitle={false} testID="recording-video-thumb">
                     <View style={styles.over}>
                       <View style={[styles.play, { backgroundColor: t.action }]}>
                         <SpIcon name="play" size={24} color={t.onAction} />

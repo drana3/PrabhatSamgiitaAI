@@ -45,6 +45,7 @@ export function VideoThumb({
   showTitle = true,
   compact = false,
   fill = false,
+  overlay = false,
   background,
   placeholder,
   testID,
@@ -62,6 +63,8 @@ export function VideoThumb({
   compact?: boolean
   /** fill the parent's box (its own fixed height) instead of keeping 16:9 */
   fill?: boolean
+  /** the caller draws its own play disc and text over the box: the placeholder then keeps to the site's name in the corner */
+  overlay?: boolean
   /** the ground behind the picture and under the placeholder (dark by default) */
   background?: string
   /** a picture of your own for the placeholder (the broadcast tile's "on air" glyph), instead of the site's name and the title */
@@ -118,19 +121,24 @@ export function VideoThumb({
   return (
     <View style={[styles.box, fill ? styles.fill : null, { width, borderRadius: radius }, background ? { backgroundColor: background } : null]} testID={testID}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.placeholderBox, background ? { backgroundColor: background } : null, pulseStyle]} testID={testID ? `${testID}-placeholder` : undefined}>
-        {placeholder ?? (
-          <>
-            <SpIcon name="play" size={compact ? 16 : 22} color={amColors.sand300} />
-            <Text style={styles.mark} numberOfLines={1}>
+        {placeholder ??
+          (overlay ? (
+            <Text style={[styles.mark, styles.corner, compact ? styles.cornerSmall : null]} numberOfLines={1}>
               {mark}
             </Text>
-            {!compact && showTitle && title ? (
-              <Text style={styles.title} numberOfLines={2}>
-                {title}
+          ) : (
+            <>
+              <SpIcon name="play" size={compact ? 16 : 22} color={amColors.sand300} />
+              <Text style={styles.mark} numberOfLines={1}>
+                {mark}
               </Text>
-            ) : null}
-          </>
-        )}
+              {!compact && showTitle && title ? (
+                <Text style={styles.title} numberOfLines={2}>
+                  {title}
+                </Text>
+              ) : null}
+            </>
+          ))}
       </Animated.View>
       {showImage && src ? (
         <Image
@@ -159,7 +167,7 @@ export function VideoThumb({
       ) : null}
       {scrim ? <View pointerEvents="none" style={styles.scrim} /> : null}
       {children}
-      {state.phase === "failed" && !none ? (
+      {state.phase === "failed" && !none && !compact ? (
         <SpPress
           onPress={() => dispatch("again")}
           accessibilityLabel={tr("recVideos.thumb.retry")}
@@ -180,6 +188,8 @@ const styles = StyleSheet.create({
   fill: { aspectRatio: undefined, height: "100%" },
   placeholderBox: { alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 16, backgroundColor: amColors.ink900 },
   mark: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18, color: amColors.sand300, letterSpacing: 0.2 },
+  corner: { position: "absolute", top: 12, left: 16 },
+  cornerSmall: { top: 6, left: 8, fontSize: 10, lineHeight: 14 },
   title: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 20, color: amColors.sand100, textAlign: "center" },
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(20,14,10,0.28)" },
   retry: { position: "absolute", top: 8, right: 8, minHeight: 32, paddingHorizontal: 12, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(20,14,10,0.62)" },

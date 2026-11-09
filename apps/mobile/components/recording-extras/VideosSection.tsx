@@ -147,7 +147,7 @@ function VideoRow({ t, video, videos, onFlash, watch }: { t: SpTheme; video: Vid
     <View style={[styles.card, { backgroundColor: t.white, borderColor: t.sand400 }]}>
       <View style={styles.head}>
         <SpPress onPress={press} disabled={!openable} accessibilityRole={embed ? "button" : "link"} accessibilityLabel={embed ? tr("recVideos.watch.a11y", { title }) : tr("recVideos.open.a11y", { title, site })} style={styles.main}>
-          <VideoThumb video={video} title={title} width={96} radius={10} compact scrim testID={`video-thumb-${video.id}`}>
+          <VideoThumb video={video} title={title} width={96} radius={10} compact overlay scrim testID={`video-thumb-${video.id}`}>
             <View style={styles.thumbOver}>
               <View style={[styles.playSmall, { backgroundColor: t.action }]}>
                 <SpIcon name="play" size={14} color={t.onAction} />

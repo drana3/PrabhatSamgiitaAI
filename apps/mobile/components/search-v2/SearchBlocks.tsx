@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native"
 
+import { TagRail } from "@/components/kirtan/TagRail"
 import { overStyle, TodaySectionHeading } from "@/components/today/TodayBlocks"
 import { readableTitle } from "@/lib/readableTitle"
 import { ChevronGlyph } from "@/components/today/protoIcons"
@@ -167,10 +168,14 @@ export function ResultList({ p, rows, offlineNumbers, onOpen }: P & { rows: Flat
 export function CollectionChips({ p, names, onPick }: P & { names: CollectionHit[]; onPick: (label: string) => void }) {
   const t = useT()
   return (
-    <View style={s.cloud}>
-      {names.map((hit) => (
-        <Chip key={hit.label} p={p} label={`${hit.label} · ${hit.count}`} accessibilityLabel={t("search.collection.a11y", { label: hit.label, count: hit.count })} onPress={() => onPick(hit.label)} />
-      ))}
+    <View style={s.railPad}>
+      <TagRail
+        title={t("search.collection.title")}
+        size="large"
+        look={{ bg: p.white, border: p.sand300, text: p.ink800 }}
+        testID="collection-chips"
+        chips={names.map((hit) => ({ key: hit.label, label: `${hit.label} · ${hit.count}`, a11y: t("search.collection.a11y", { label: hit.label, count: hit.count }), onPress: () => onPick(hit.label) }))}
+      />
     </View>
   )
 }
@@ -224,6 +229,7 @@ const s = StyleSheet.create({
   hint: { paddingTop: 20, gap: 12 },
   hintText: { marginHorizontal: 20, fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6 },
   feelHead: { paddingTop: 32, paddingBottom: 16 },
+  railPad: { paddingHorizontal: amProto.gutter },
   cloud: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: amProto.gutter },
   chip: { height: 44, paddingHorizontal: 20, borderRadius: 70, borderWidth: 1, justifyContent: "center" },
   chipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 18 },

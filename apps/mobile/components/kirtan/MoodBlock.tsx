@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { KPress } from "@/components/kirtan/KPress"
+import { TagRail } from "@/components/kirtan/TagRail"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useRecordingMoods } from "@/hooks/useRecordingMoods"
@@ -77,11 +78,13 @@ export function MoodBlock({ theme, kirtan, collapsible, leading }: { theme: Song
       {page.canVote && openMoods(page).length ? (
         <View style={s.other}>
           <Text style={[s.sub, { color: theme.textHeading }]}>{t("recMoods.other.title")}</Text>
-          <View style={s.chips}>
-            {openMoods(page).map((m) => (
-              <Chip key={m.mood} theme={theme} label={moodLabel(m.mood)} on={false} a11y={t("recMoods.other.a11y", { mood: moodLabel(m.mood) })} onPress={() => void controller.vote(m.mood, "yes")} testID={`mood-start-${m.mood}`} />
-            ))}
-          </View>
+          <TagRail
+            title={t("recMoods.other.title")}
+            size="large"
+            look={{ bg: "transparent", border: theme.line, text: theme.textHeading }}
+            testID="mood-other-rail"
+            chips={openMoods(page).map((m) => ({ key: m.mood, label: moodLabel(m.mood), a11y: t("recMoods.other.a11y", { mood: moodLabel(m.mood) }), onPress: () => void controller.vote(m.mood, "yes"), testID: `mood-start-${m.mood}` }))}
+          />
         </View>
       ) : null}
 

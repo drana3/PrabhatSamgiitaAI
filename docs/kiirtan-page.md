@@ -5,7 +5,9 @@ from tabs.
 
 ## Layout, top to bottom
 
-1. Hero (cover, title, authors) and the tags.
+1. Hero (cover, title, authors) and the tags: ONE line of chips that fit whole and a "+N" chip; a tap on it opens the compact sheet with
+   every tag and a search box (`components/kirtan/TagRail.tsx`, 9 Nov 2026). The same rail is used wherever many tags can stand
+   together, see `docs/layout-rules.md`, "Many tags on a page".
 2. **Play** and the **"How does it feel?"** menu on one row. The menu (`MoodBlock collapsible`) shows the chosen mood
    under the question and opens the options below it; it does not take the page any more.
 3. **Tabs**, always in this order: **Chords, Video, Notes, Story** (`lib/recordingExtras/kiirtanTabs.ts`,

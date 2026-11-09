@@ -1,5 +1,7 @@
 import { StyleSheet, Text, View } from "react-native"
 
+import { TagRail } from "@/components/kirtan/TagRail"
+
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
@@ -9,7 +11,9 @@ import type { Kirtan } from "@/lib/kirtan/types"
 
 /**
  * The tag row of a recording's page: style, how it was recorded, tempo, solo or group, instrument and the Avarta mark
- * (lib/kirtan/pageTags.ts). A recording made by AI also carries a plain sentence, never only a tag. Nothing for a recording
+
+ * (lib/kirtan/pageTags.ts), on ONE line with "+N" and a compact sheet for the rest (components/kirtan/TagRail.tsx, Dada 9 Nov 2026).
+ * A recording made by AI also carries a plain sentence, never only a tag. Nothing for a recording
  * that says none of it.
  */
 export function RecordingTags({ theme, kirtan }: { theme: SongsTheme; kirtan: Kirtan }) {
@@ -18,13 +22,11 @@ export function RecordingTags({ theme, kirtan }: { theme: SongsTheme; kirtan: Ki
   if (!tags.length) return null
   return (
     <View style={s.root} testID="recording-tags">
-      <View style={s.tags}>
-        {tags.map((tag) => (
-          <View key={tag.id} testID={`recording-tag-${tag.id}`} style={[s.tag, { backgroundColor: tag.tone === "plain" ? theme.card : theme.peach, borderColor: theme.line }]}>
-            <Text style={[s.tagText, { color: tag.tone === "plain" ? theme.textHeading : theme.accent }]}>{tag.label}</Text>
-          </View>
-        ))}
-      </View>
+      <TagRail
+        title={t("recTag.sheet")}
+        testID="recording-tags-rail"
+        chips={tags.map((tag) => ({ key: tag.id, label: tag.label, tone: tag.tone === "plain" ? "plain" : "accent", testID: `recording-tag-${tag.id}` }))}
+      />
       {isAiRecording(kirtan) ? (
         <Text style={[s.note, { color: theme.textBody }]} testID="recording-tags-ai-note">
           {t("recinfo.type.aiBanner")}
@@ -36,8 +38,5 @@ export function RecordingTags({ theme, kirtan }: { theme: SongsTheme; kirtan: Ki
 
 const s = StyleSheet.create({
   root: { gap: 8 },
-  tags: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tag: { minHeight: 28, paddingHorizontal: 12, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  tagText: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
 })

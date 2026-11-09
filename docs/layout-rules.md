@@ -142,3 +142,17 @@ playlists", the chord offer. Found and fixed:
 * Nothing was found against the main "Upload" button of the add form: the notice is 24 above it and its note 16 below.
 
 The values are pinned by `layoutRules.test.ts` (the form files are on the scale and the stacks above keep their gaps).
+
+## Many tags on a page (9 Nov 2026)
+
+A page that can show many tags (styles, moods, instruments, counts of a search) shows at most ONE line of chips and a "+N" chip. A tap
+on "+N" opens the compact sheet of the upload form's tag field (`SpringSheet`, its rows and keyboard rule) in the listener's read-only form: every tag, a search box from seven
+tags on, no ticks. The component is `components/kirtan/TagRail.tsx`; the measure (how many chips fit) is `lib/kirtan/tagRail.ts`
+on top of `fitRailChips`, so a page and the form agree. A chip may carry a press (a search, a vote): it stays pressable on the line and in the
+sheet, and the sheet closes after the pick. A new place with a list of tags uses `TagRail`; it never writes a wrapping `flexWrap` row of tags.
+
+Where it is used: the tag row of a recording's page (`RecordingTags`), the moods a listener may start voting on (`MoodBlock`), the
+values of every row of "Search by" (`SearchByBlock`) and the collections that match a search (`CollectionChips`).
+Left as they are on purpose: the eight "feeling" prompts of the empty Search page (a fixed set of examples, not tags of anything),
+the length filters of the Kiirtan list (four), the mood picker of an uploader (a fixed list of choices to tick, an editor), the author page
+(languages are one text line, not chips) and the upload form's own fields (already `TagPicker`).

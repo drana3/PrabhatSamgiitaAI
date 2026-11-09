@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
+import { TagRail } from "@/components/kirtan/TagRail"
 import { HOME_INSET } from "@/components/home/HomeBlocks"
 import { BlockTitle } from "@/components/search-v2/MenuShelves"
 import { TodayPress } from "@/components/today/TodayPress"
@@ -62,11 +63,19 @@ function Row({ p, row, onOpen, onType }: { p: AmProto; row: SearchByRow; onOpen:
       </Text>
       {row.note ? <Text style={[s.note, { color: p.ink500 }]}>{row.note}</Text> : null}
       {row.values.length ? (
-        <View style={s.chips}>
-          {row.values.map((value) => (
-            <Chip key={value.key} p={p} value={value} a11y={value.count === undefined ? value.label : t("searchBy.chipA11y", { label: value.label, count: String(value.count) })} onPress={() => (value.query !== undefined ? onType(value.query) : value.href ? onOpen(value.href) : undefined)} />
-          ))}
-        </View>
+        <TagRail
+          title={row.title}
+          size="large"
+          look={{ bg: p.white, border: p.sand300, text: p.ink800, count: p.orange700 }}
+          testID={`search-by-${row.id}-rail`}
+          chips={row.values.map((value) => ({
+            key: value.key,
+            label: value.label,
+            count: value.count,
+            a11y: value.count === undefined ? value.label : t("searchBy.chipA11y", { label: value.label, count: String(value.count) }),
+            onPress: () => (value.query !== undefined ? onType(value.query) : value.href ? onOpen(value.href) : undefined),
+          }))}
+        />
       ) : (
         <Text style={[s.empty, { color: p.ink500 }]}>{row.empty}</Text>
       )}
