@@ -37,6 +37,8 @@ import {
   keyLikePrevious,
   newCycleDraft,
   nextTune,
+  openTune,
+  parseTuneRange,
   previousTune,
   priorTune,
   resizeTune,
@@ -51,6 +53,8 @@ import {
   tuneEmpty,
   tuneLine,
   tuneProblems,
+  tuneState,
+  tuneStates,
   type CycleDraft,
   type CycleProblem,
 } from "@/lib/recordingChords/cycle"
@@ -86,7 +90,8 @@ function signature(d: CycleDraft): string {
   return JSON.stringify([d.tunes, d.instrument, d.note, d.playedIt, d.isAnonymous])
 }
 
-const COUNTS = Array.from({ length: CYCLE_MAX_TUNES }, (_, i) => i + 1)
+/** up to this many tunes the "which tunes" choices and the review cards are spelled "Tune 3"; past it they are bare numbers and one-line rows */
+const FEW = 6
 
 /** The problem a field of the form shows. `chords` covers everything about the rings. */
 function fieldOf(p: CycleProblem): FormField {
@@ -99,11 +104,12 @@ type Step = "count" | "which" | "tune" | "review"
 /**
  * Add the chord CYCLE of a Kiirtan (docs/kiirtan-cycle.md). A recording can play more than one tune (melody), each with its
  * own chords, so the screen walks through it one question at a time:
- *  1. how many tunes are played in the recording (1 to 6);
- *  2. (more than one tune) do you have chords for all of them or only some, and which;
+ *  1. how many tunes are played in the recording (1 to 30, a stepper or a typed number);
+ *  2. (more than one tune) do you have chords for all of them or only some, and which (a grid of numbers, "All", "None" and a typed
+ *     range such as "1-5, 8");
  *  3. one step per chosen tune ("Tune 2 of 3"): its ring of chords (four places, up to eight; tap a place and choose the chord
  *     from the same chord sheet as the song screens), where the round starts, how many rounds, its key (each tune has its own,
- *     "Same as previous tune" copies it); a tune can be skipped, and every step has Back;
+ *     "Same as previous tune" copies it); a tune can be skipped, every step has Back, and a row of numbered chips jumps to any tune;
  *  4. check and send. Tunes without chords stay in the recording as "no chords yet" and another member can add them later.
  * The member's cycle goes to the team to look at, a team member's goes live at once. The same screen fixes a waiting or
  * rejected cycle (`?edit=`), changes a live one of the member's own (`?copy=`; the new one replaces it once accepted) and starts
@@ -149,6 +155,9 @@ export default function RecordingCycleScreen() {
   const [allTunes, setAllTunes] = useState(true)
   const [chosen, setChosen] = useState<number[]>([])
   const [tried, setTried] = useState(false)
+  const [countText, setCountText] = useState("1")
+  const [rangeText, setRangeText] = useState("")
+  const [rangeBad, setRangeBad] = useState(false)
 
   // load the cycle being fixed, changed or started from
   useEffect(() => {
@@ -190,6 +199,7 @@ export default function RecordingCycleScreen() {
   const dirty = signature(draft) !== baseline
   const used = useMemo(() => cycleUsedChords(draft), [draft])
   const total = draft.tunes.length
+  useEffect(() => setCountText(String(total)), [total])
   const tune = draft.tunes[tuneIx] ?? draft.tunes[0]!
 
   const form = useFormFocus()
@@ -365,6 +375,40 @@ export default function RecordingCycleScreen() {
     else goTo(total > 1 ? "which" : "count")
   }
 
+  /** the stepper and the typed number of the first question: always a whole number from 1 to the limit */
+  const setCount = (n: number) => {
+    const next = Math.min(CYCLE_MAX_TUNES, Math.max(1, Math.round(n)))
+    setDraft((d) => setTuneCount(d, next))
+    setCountText(String(next))
+  }
+  const typeCount = (text: string) => {
+    const digits = text.replace(/\D+/g, "").slice(0, 2)
+    const n = Number(digits)
+    setCountText(digits && n > CYCLE_MAX_TUNES ? String(CYCLE_MAX_TUNES) : digits)
+    if (digits && n >= 1) setDraft((d) => setTuneCount(d, Math.min(CYCLE_MAX_TUNES, n)))
+  }
+  /** the row of numbered chips: go straight to any tune (a tune left as "no chords yet" is taken back into the walk) */
+  const jumpTo = (i: number) => {
+    setDraft((d) => openTune(d, i))
+    goTo("tune", i, fromReview)
+  }
+  const applyRange = () => {
+    const picked = parseTuneRange(rangeText, total)
+    if (picked === null || picked.length === 0) {
+      setRangeBad(true)
+      return
+    }
+    setRangeBad(false)
+    setChosen(picked)
+  }
+  const jumpRef = useRef<ScrollView>(null)
+  const jumpX = useRef<Record<number, number>>({})
+  useEffect(() => {
+    if (step !== "tune") return
+    const x = jumpX.current[tuneIx]
+    if (x !== undefined) jumpRef.current?.scrollTo({ x: Math.max(0, x - 72), animated: false })
+  }, [step, tuneIx])
+
   const tuneProblem = tried ? tuneProblems(tune)[0] : undefined
   const tuneProblemText = tuneProblem ? (tuneProblem === "noChords" ? t("recCycle.tune.problem") : tuneProblem === "badKey" ? t("recCycle.problem.badKey") : tuneProblem === "noStart" ? t("recCycle.problem.noStart") : tuneProblem === "badTimes" ? t("recCycle.problem.badTimes") : tuneProblem === "tooLong" ? t("recCycle.problem.tooLong") : t("recCycle.problem.links")) : null
 
@@ -434,11 +478,24 @@ export default function RecordingCycleScreen() {
             <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.count")}</Text>
             <Label theme={theme}>{t("recCycle.count.question")}</Label>
             <Hint theme={theme}>{t("recCycle.count.hint")}</Hint>
-            <View style={s.chips} accessibilityRole="radiogroup">
-              {COUNTS.map((n) => (
-                <Chip key={n} theme={theme} label={String(n)} on={total === n} a11y={t("recCycle.count.a11y", { count: n })} minWidth={52} onPress={() => setDraft((d) => setTuneCount(d, n))} />
-              ))}
+            <View style={s.stepper}>
+              <Chip theme={theme} role="button" label="−" a11y={t("recCycle.count.less")} minWidth={52} onPress={() => setCount(total - 1)} />
+              <View style={[s.box, s.countBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
+                <TextInput
+                  value={countText}
+                  onChangeText={typeCount}
+                  onBlur={() => setCountText(String(total))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  selectTextOnFocus
+                  accessibilityLabel={t("recCycle.count.field")}
+                  style={[s.input, s.countInput, { color: theme.textHeading }]}
+                  testID="cycle-count-field"
+                />
+              </View>
+              <Chip theme={theme} role="button" label="+" a11y={t("recCycle.count.more")} minWidth={52} onPress={() => setCount(total + 1)} />
             </View>
+            <Hint theme={theme}>{t("recCycle.count.limit", { max: CYCLE_MAX_TUNES })}</Hint>
             {total > 1 && baseline !== signature(draft) ? <Hint theme={theme}>{t("recCycle.count.change")}</Hint> : null}
           </Reveal>
           <Reveal index={3} style={s.field}>
@@ -470,18 +527,46 @@ export default function RecordingCycleScreen() {
             <View style={s.field}>
               <Label theme={theme}>{t("recCycle.which.pick")}</Label>
               <View style={s.chips}>
+                <Chip theme={theme} role="button" label={t("recCycle.which.allBtn")} minWidth={72} onPress={() => setChosen(Array.from({ length: total }, (_, i) => i))} />
+                <Chip theme={theme} role="button" label={t("recCycle.which.noneBtn")} minWidth={72} onPress={() => setChosen([])} />
+              </View>
+              <View style={s.chips}>
                 {draft.tunes.map((_, i) => (
                   <Chip
                     key={i}
                     theme={theme}
                     role="checkbox"
-                    label={t("recCycle.which.tune", { n: i + 1 })}
+                    label={total > FEW ? String(i + 1) : t("recCycle.which.tune", { n: i + 1 })}
+                    a11y={t("recCycle.which.tune", { n: i + 1 })}
                     on={chosen.includes(i)}
-                    minWidth={96}
+                    minWidth={total > FEW ? 52 : 96}
                     onPress={() => setChosen((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))}
                   />
                 ))}
               </View>
+              <Text style={[s.size, s.sizeLeft, { color: theme.textHeading }]} accessibilityLiveRegion="polite">{t("recCycle.which.count", { count: chosen.length, total })}</Text>
+              {total > FEW ? (
+                <>
+                  <Label theme={theme}>{t("recCycle.which.range.label")}</Label>
+                  <View style={[s.box, { backgroundColor: theme.card, borderColor: rangeBad ? amColors.danger : theme.line }]}>
+                    <TextInput
+                      value={rangeText}
+                      onChangeText={(text) => {
+                        setRangeText(text.replace(/[^0-9,;\s\-\u2013]/g, "").slice(0, 80))
+                        setRangeBad(false)
+                      }}
+                      onSubmitEditing={applyRange}
+                      placeholder={t("recCycle.which.range.placeholder")}
+                      placeholderTextColor={theme.textMuted}
+                      accessibilityLabel={t("recCycle.which.range.label")}
+                      style={[s.input, { color: theme.textHeading }]}
+                      testID="cycle-range-field"
+                    />
+                  </View>
+                  {rangeBad ? <Hint theme={theme} tone="danger">{t("recCycle.which.range.bad", { max: total })}</Hint> : null}
+                  <ActionButton theme={theme} tone="quiet" label={t("recCycle.which.range.apply")} onPress={applyRange} disabled={!rangeText.trim()} />
+                </>
+              ) : null}
               <Hint theme={theme}>{t("recCycle.which.hint")}</Hint>
               {tried && chosen.length === 0 ? <Hint theme={theme} tone="danger">{t("recCycle.which.none")}</Hint> : null}
             </View>
@@ -505,6 +590,33 @@ export default function RecordingCycleScreen() {
           {intro}
           <View style={s.field}>
             <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.tune", { n: tuneIx + 1, total })}</Text>
+            {total > 1 ? (
+              <View style={s.jump} testID="cycle-jump">
+                <Hint theme={theme}>{t("recCycle.jump.title")}</Hint>
+                <ScrollView ref={jumpRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.jumpRow} keyboardShouldPersistTaps="handled">
+                  {draft.tunes.map((f, i) => {
+                    const st = tuneState(f)
+                    const mark = st === "done" ? " ✓" : st === "skipped" ? " –" : ""
+                    return (
+                      <View key={i} onLayout={(e) => (jumpX.current[i] = e.nativeEvent.layout.x)}>
+                        <Chip
+                          theme={theme}
+                          role="button"
+                          label={`${i + 1}${mark}`}
+                          a11y={t(st === "done" ? "recCycle.jump.done" : st === "skipped" ? "recCycle.jump.skipped" : "recCycle.jump.open", { n: i + 1 })}
+                          on={i === tuneIx}
+                          danger={st === "partial"}
+                          minWidth={52}
+                          onPress={() => jumpTo(i)}
+                        />
+                      </View>
+                    )
+                  })}
+                </ScrollView>
+                <Hint theme={theme}>{t("recCycle.jump.legend")}</Hint>
+                <Hint theme={theme}>{(() => { const c = tuneStates(draft); return t("recCycle.jump.summary", { done: c.done, skipped: c.skipped, open: c.empty + c.partial }) })()}</Hint>
+              </View>
+            ) : null}
             <View ref={card} collapsable={false} style={[s.formCard, { backgroundColor: theme.card, borderColor: selected !== null ? theme.accent : theme.line }]} testID={`cycle-tune-${tuneIx + 1}`}>
               <Text style={[s.formTitle, { color: theme.textHeading }]} accessibilityRole="header">
                 {t("recCycle.tune.title", { n: tuneIx + 1 })}
@@ -589,6 +701,7 @@ export default function RecordingCycleScreen() {
           <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.send")}</Text>
           <Label theme={theme}>{t("recCycle.review.title")}</Label>
           <Hint theme={theme}>{t("recCycle.review.intro")}</Hint>
+          {total > 1 ? <Hint theme={theme}>{t("recCycle.review.summary", { done: tuneStates(draft).done, total })}</Hint> : null}
         </View>
         <View {...form.field("chords")} style={s.field}>
           {draft.tunes.map((f, i) => {
@@ -599,6 +712,29 @@ export default function RecordingCycleScreen() {
               !empty && f.times ? t("recCycle.block.times", { count: f.times }) : "",
             ].filter(Boolean)
             return (
+              total > FEW ? (
+                <View key={i} style={[s.rowCard, { backgroundColor: theme.card, borderColor: theme.line }]} testID={`review-tune-${i + 1}`}>
+                  <View style={s.rowText}>
+                    <Text style={[s.rowTitle, { color: theme.textHeading }]} accessibilityRole="header">
+                      {f.name.trim() ? t("recCycle.block.tuneNamed", { n: i + 1, name: f.name.trim() }) : t("recCycle.block.tune", { n: i + 1 })}
+                    </Text>
+                    <Text style={[s.rowLine, { color: empty ? theme.textMuted : theme.textHeading }]} numberOfLines={1}>
+                      {empty ? t("recCycle.review.noChords") : tuneLine({ chords: f.slots.map((c) => c ?? "·") })}
+                    </Text>
+                    {facts.length && !empty ? <Text style={[s.rowFacts, { color: theme.textBody }]} numberOfLines={1}>{facts.join(" · ")}</Text> : null}
+                  </View>
+                  <Chip
+                    theme={theme}
+                    role="button"
+                    label={empty ? t("recCycle.review.add") : t("recCycle.review.change")}
+                    a11y={`${empty ? t("recCycle.review.add") : t("recCycle.review.change")}: ${t("recCycle.block.tune", { n: i + 1 })}`}
+                    onPress={() => {
+                      setDraft((d) => setTuneSkipped(d, i, false))
+                      goTo("tune", i, true)
+                    }}
+                  />
+                </View>
+              ) : (
               <View key={i} style={[s.formCard, { backgroundColor: theme.card, borderColor: theme.line }]} testID={`review-tune-${i + 1}`}>
                 <Text style={[s.formTitle, { color: theme.textHeading }]} accessibilityRole="header">
                   {f.name.trim() ? t("recCycle.block.tuneNamed", { n: i + 1, name: f.name.trim() }) : t("recCycle.block.tune", { n: i + 1 })}
@@ -621,6 +757,7 @@ export default function RecordingCycleScreen() {
                   }}
                 />
               </View>
+              )
             )
           })}
           {chordsError ? (
@@ -723,6 +860,16 @@ const s = StyleSheet.create({
   size: { minWidth: 150, textAlign: "center", fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   box: { minHeight: 56, borderRadius: CORNER, borderWidth: 1.5, paddingHorizontal: 16, justifyContent: "center" },
   times: { alignSelf: "flex-start", minWidth: 96 },
+  countBox: { minWidth: 96, alignItems: "center" },
+  countInput: { textAlign: "center", fontFamily: amFonts.display, fontSize: 28, lineHeight: 32, minWidth: 64 },
+  sizeLeft: { textAlign: "left", minWidth: 0 },
+  jump: { gap: 8 },
+  jumpRow: { flexDirection: "row", gap: 8, paddingRight: 24 },
+  rowCard: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1.5, borderRadius: CORNER, paddingVertical: 12, paddingLeft: 16, paddingRight: 12 },
+  rowText: { flex: 1, gap: 2 },
+  rowTitle: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
+  rowLine: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 24 },
+  rowFacts: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   noteBox: { minHeight: 96, justifyContent: "flex-start" },
   input: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, outlineStyle: "none" as never },
   noteInput: { minHeight: 80, textAlignVertical: "top" },

@@ -10,6 +10,7 @@ import pytest
 
 from app.models.recording_extras import RecordingChordSheet
 from app.models.song_chords import SongChordOffer
+from app.schemas.recording_extras import CycleIn
 from app.services import kiirtan_cycles
 from tests.extras_support import MEMBER_B, REC, World, recording
 from tests.extras_support import world_fixture as world_fixture  # noqa: F401
@@ -124,7 +125,7 @@ async def test_three_tunes_are_three_rings(world: World) -> None:
         [tune(name="see https://example.org")],
         [tune(name="x" * 40)],
         [tune(number=1), tune(number=1)],  # two tunes with the same number
-        [tune(number=7)],  # more than six tunes
+        [tune(number=31)],  # more than thirty tunes
         [tune(key="H")],  # not a key
     ],
 )
@@ -293,7 +294,7 @@ async def test_the_numbers_of_tunes_follow_their_place_when_not_sent(world: Worl
 @pytest.mark.parametrize(
     "extra",
     [
-        {"tune_count": 7},
+        {"tune_count": 31},
         {"tune_count": 1, "tunes": [tune(number=2)]},  # a number above the count
     ],
 )
@@ -336,3 +337,70 @@ async def test_a_cycle_of_the_first_build_is_read_as_tunes(world: World) -> None
     out = kiirtan_cycles.cycle_out(stored)
     assert out is not None and out.tunes[0].name == "Slow" and out.tunes[1].key is None
     assert kiirtan_cycles.cycle_body(stored).startswith("Tune 1 (Slow): Em - C - G - D")
+
+
+# --------------------------------------------------------------------------- thirty tunes
+
+LONG_CHORDS = (
+    "C#m7b5/G",
+    "Abmaj7sus4",
+    "F#m7/C#",
+    "Ebmaj7/Bb",
+    "G#m7b5",
+    "Dsus4/F#",
+    "Bbmaj7#11",
+    "Am7/G",
+)
+
+
+def thirty() -> list[dict]:
+    return [
+        tune(
+            tuple(LONG_CHORDS[(i + n) % 8] for i in range(8)),
+            start=n % 8,
+            times=1 + n % 99,
+            name=f"Round number {n + 1} of the long kiirtan"[:30],
+            key=["C", "D#", "F#", "Bb", "A"][n % 5],
+            number=n + 1,
+        )
+        for n in range(30)
+    ]
+
+
+async def test_thirty_rings_of_eight_chords_go_through_whole(world: World) -> None:
+    sent = await offer(world, "team", tunes=thirty())
+    assert sent.status_code == 201, sent.text
+    body = sent.json()
+    assert body["cycle"]["tune_count"] == 30
+    assert [t["number"] for t in body["cycle"]["tunes"]] == list(range(1, 31))
+    assert all(len(t["chords"]) == 8 for t in body["cycle"]["tunes"])
+    assert body["body"].count("\n") == 29
+    assert (await listing(world))[0]["cycle"] == body["cycle"]
+
+
+async def test_thirty_one_tunes_are_too_many(world: World) -> None:
+    too_many = thirty() + [tune(number=31)]
+    response = await offer(world, "a", tunes=too_many)
+    assert response.status_code == 422, response.text
+    assert await world.rows(RecordingChordSheet) == []
+
+
+def test_the_text_of_thirty_long_tunes_fits_what_a_reader_without_cycles_shows() -> None:
+    """The worst a member can send: 30 tunes, each with a name, a key, 8 long chords, rounds."""
+    cycle = kiirtan_cycles.clean_cycle(
+        CycleIn.model_validate({"tune_count": 30, "tunes": thirty()})
+    )
+    text = kiirtan_cycles.cycle_body(cycle)
+    assert text.count("\n") == 29
+    assert len(text) < kiirtan_cycles.MAX_BODY
+
+
+async def test_thirty_tunes_of_which_only_a_few_have_chords(world: World) -> None:
+    sent = await offer(
+        world, "team", tunes=[tune(number=1), tune(number=8), tune(number=30)], tune_count=30
+    )
+    assert sent.status_code == 201, sent.text
+    body = sent.json()
+    assert body["cycle"]["tune_count"] == 30
+    assert [t["number"] for t in body["cycle"]["tunes"]] == [1, 8, 30]
+    assert body["body"].count("no chords yet") == 27

@@ -6,7 +6,7 @@ import type { RecordingSheet, SheetCycle, SheetCycleTune, SheetCycleTuneDraft, S
 
 /**
  * The chord CYCLE of a Kiirtan (docs/kiirtan-cycle.md). A Kiirtan has no lines of words to hang chords on: the same few
- * chords go round and round. A recording can play more than one TUNE (melody), so a cycle has a list of tunes, up to six;
+ * chords go round and round. A recording can play more than one TUNE (melody), so a cycle has a list of tunes, up to thirty;
  * each tune is a ring of chords, four by default, up to eight, with the chord the ring starts on (required), its own key
  * (optional) and how many rounds are played (optional). A tune nobody has chords for stays in the recording as
  * "no chords yet" and another member can add it later. The same limits as the API
@@ -17,7 +17,7 @@ import type { RecordingSheet, SheetCycle, SheetCycleTune, SheetCycleTuneDraft, S
 export const CYCLE_DEFAULT_SLOTS = 4
 export const CYCLE_MIN_SLOTS = 2
 export const CYCLE_MAX_SLOTS = 8
-export const CYCLE_MAX_TUNES = 6
+export const CYCLE_MAX_TUNES = 30
 export const CYCLE_NAME_MAX = 30
 export const CYCLE_TIMES_MAX = 99
 
@@ -158,6 +158,46 @@ export function tuneFilled(f: SheetCycleTuneDraft): boolean {
 /** True when nothing was put in the ring yet. */
 export function tuneEmpty(f: SheetCycleTuneDraft): boolean {
   return f.slots.every((c) => !c)
+}
+
+/** Where a tune stands on the entry screen: finished, left as "no chords yet", partly filled, or not started. */
+export type TuneState = "done" | "skipped" | "partial" | "empty"
+
+export function tuneState(f: SheetCycleTuneDraft): TuneState {
+  if (f.skipped) return "skipped"
+  if (tuneFilled(f)) return "done"
+  return tuneEmpty(f) ? "empty" : "partial"
+}
+
+/** How many tunes are in each state (the line over the list of tunes). */
+export function tuneStates(draft: CycleDraft): Record<TuneState, number> {
+  const out: Record<TuneState, number> = { done: 0, skipped: 0, partial: 0, empty: 0 }
+  for (const f of draft.tunes) out[tuneState(f)] += 1
+  return out
+}
+
+/** Jump to any tune: a tune that was left as "no chords yet" is taken back into the walk. */
+export function openTune(draft: CycleDraft, tune: number): CycleDraft {
+  return draft.tunes[tune]?.skipped ? setTuneSkipped(draft, tune, false) : draft
+}
+
+/**
+ * The tunes named by a typed range such as "1-5, 8" (numbers from 1, as people count), as places in the list. Anything
+ * else (a letter, 0, a number past `max`, a backwards range) makes the whole text invalid: null. An empty text is [].
+ */
+export function parseTuneRange(text: string, max: number): number[] | null {
+  const out = new Set<number>()
+  for (const raw of text.split(/[,;\s]+/)) {
+    const part = raw.trim()
+    if (!part) continue
+    const m = /^(\d{1,3})(?:\s*[-\u2013]\s*(\d{1,3}))?$/.exec(part)
+    if (!m) return null
+    const from = Number(m[1])
+    const to = m[2] === undefined ? from : Number(m[2])
+    if (from < 1 || to < from || to > max) return null
+    for (let n = from; n <= to; n += 1) out.add(n - 1)
+  }
+  return [...out].sort((a, b) => a - b)
 }
 
 /** The tune as the server keeps it, or null while a slot is still empty (or the tune is skipped). */

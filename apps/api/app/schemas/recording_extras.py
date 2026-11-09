@@ -107,7 +107,7 @@ class SheetLineIn(ChordLineIn):
 
 # The chord cycle of a Kiirtan: tunes (melodies played in the recording), each a ring of chords.
 # Old rows and old clients call a tune a "form" (`forms`): read as tunes (see kiirtan_cycles).
-CYCLE_MAX_TUNES = 6
+CYCLE_MAX_TUNES = 30
 CYCLE_MAX_LEGACY_FORMS = 8
 CYCLE_MIN_CHORDS = 2
 CYCLE_MAX_CHORDS = 8

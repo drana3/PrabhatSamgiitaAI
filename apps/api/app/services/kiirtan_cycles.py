@@ -3,9 +3,9 @@
 A Kiirtan has no lyric lines to hang chords on: the same few chords go round and round. So a cycle
 is a ring of chords (2 to 8, four by default on the phone) with the chord the ring STARTS on, and
 optionally how many rounds are played (`times`). A recording can hold more than one TUNE (melody),
-up to six, each with its own ring and its own key. A tune nobody has chords for yet is not stored:
-`tune_count` says how many tunes the recording has, the numbers missing from `tunes` are "no chords
-yet", and another member can add them later (as a new sheet that starts from this one).
+up to thirty, each with its own ring and its own key. A tune nobody has chords for yet is not
+stored: `tune_count` says how many tunes the recording has, the numbers missing from `tunes` are
+"no chords yet", and another member can add them later (as a new sheet that starts from this one).
 
 The first build called a tune a "form" (`{"forms": [...]}`, no numbers, no keys, no count). Those
 rows are not migrated: `normalize` reads them as tunes numbered by their place, and a request that
@@ -32,7 +32,8 @@ from app.schemas.recording_extras import CycleIn, CycleOut, CycleTuneOut
 from app.services.song_comments import link_count, strip_invisible
 
 CYCLE_KINDS = ("kiirtan",)
-MAX_BODY = 2000
+# 30 tunes of 8 long chord names with a name and notes each come to about 8000 characters.
+MAX_BODY = 12000
 
 
 def clean_name(raw: str | None) -> str | None:

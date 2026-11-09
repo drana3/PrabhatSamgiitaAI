@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, View, useWindowDimensions } from "react-native"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 
 import { Button } from "@/components/comments/CommentsView"
 import { BlockStack, Section } from "@/components/common/Layout"
@@ -21,6 +21,8 @@ import type { SheetsController } from "./useRecordingSheets"
 const REASONS: SheetReportReason[] = ["wrong_chords", "offensive", "spam", "other"]
 const INSTRUMENTS: SheetInstrument[] = ["guitar", "harmonium"]
 const MAX_RING = 288
+/** past this many tunes the tabs show only the number */
+const MANY = 6
 
 /**
  * The chord cycle of a Kiirtan, at the bottom of its page (docs/kiirtan-cycle.md): every tune of the recording as a ring,
@@ -69,6 +71,15 @@ export function CycleBlock({
   const tuneCount = cycle?.tuneCount ?? 0
   const picked = Math.min(Math.max(1, tuneNo), Math.max(1, tuneCount))
   const tune: SheetCycleTune | null = cycle ? (tuneNumbered(cycle, picked) ?? null) : null
+
+  const tabsRef = useRef<ScrollView>(null)
+  const tabX = useRef<Record<number, number>>({})
+  const pickTune = (n: number) => {
+    setTuneNo(n)
+    // keep the chosen tab in view (a little of the one before it shows too)
+    const x = tabX.current[n]
+    if (x !== undefined) tabsRef.current?.scrollTo({ x: Math.max(0, x - 56), animated: true })
+  }
 
   const reset = (next: () => void) => {
     next()
@@ -130,12 +141,32 @@ export function CycleBlock({
               {sheet.status === "rejected" && sheet.rejectedReason ? <Note t={t} tone="body">{tr("recChords.reason", { reason: sheet.rejectedReason })}</Note> : null}
 
               {tuneCount > 1 ? (
-                <View style={styles.chips} accessibilityRole="tablist" accessibilityLabel={tr("recCycle.block.tabs")}>
+                // many tunes (up to 30): one row that scrolls sideways and keeps the chosen tune in view, never a wall of pills
+                <ScrollView
+                  ref={tabsRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.tabs}
+                  accessibilityRole="tablist"
+                  accessibilityLabel={tr("recCycle.block.tabs")}
+                  testID="cycle-tabs"
+                >
                   {Array.from({ length: tuneCount }, (_, i) => i + 1).map((n) => (
-                    <Pill key={n} t={t} on={n === picked} role="tab" label={tr("recCycle.block.tune", { n })} a11y={tuneName(n)} onPress={() => setTuneNo(n)} />
+                    <Pill
+                      key={n}
+                      t={t}
+                      on={n === picked}
+                      dim={!tuneNumbered(cycle, n)}
+                      role="tab"
+                      label={tuneCount > MANY ? String(n) : tr("recCycle.block.tune", { n })}
+                      a11y={tuneName(n) + (tuneNumbered(cycle, n) ? "" : `, ${tr("recCycle.review.noChords")}`)}
+                      onLayout={(x) => (tabX.current[n] = x)}
+                      onPress={() => pickTune(n)}
+                    />
                   ))}
-                </View>
+                </ScrollView>
               ) : null}
+              {tuneCount > MANY ? <Text style={[styles.position, { color: t.ink500 }]}>{tr("recCycle.block.position", { n: picked, total: tuneCount })}</Text> : null}
 
               {tune ? (
                 <>
@@ -232,19 +263,30 @@ export function CycleBlock({
   )
 }
 
-function Pill({ t, on, label, onPress, role = "radio", a11y }: { t: SpTheme; on: boolean; label: string; onPress: () => void; role?: "radio" | "tab"; a11y?: string }) {
-  return (
-    <SpPress onPress={onPress} accessibilityRole={role} accessibilityLabel={a11y ?? label} accessibilityState={{ selected: on }} pressedScale={0.96} style={[styles.pill, { backgroundColor: on ? t.action : "transparent", borderColor: on ? t.action : t.ink800 }]}>
-      <Text style={[styles.pillText, { color: on ? t.onAction : t.ink900 }]}>{label}</Text>
+function Pill({ t, on, label, onPress, role = "radio", a11y, dim, onLayout }: { t: SpTheme; on: boolean; label: string; onPress: () => void; role?: "radio" | "tab"; a11y?: string; dim?: boolean; onLayout?: (x: number) => void }) {
+  const pill = (
+    <SpPress
+      onPress={onPress}
+      accessibilityRole={role}
+      accessibilityLabel={a11y ?? label}
+      accessibilityState={{ selected: on }}
+      pressedScale={0.96}
+      style={[styles.pill, { backgroundColor: on ? t.action : "transparent", borderColor: on ? t.action : dim ? t.ink500 : t.ink800 }, dim && !on ? styles.dim : null]}
+    >
+      <Text style={[styles.pillText, { color: on ? t.onAction : dim ? t.ink500 : t.ink900 }]}>{label}</Text>
     </SpPress>
   )
+  return onLayout ? <View onLayout={(e) => onLayout(e.nativeEvent.layout.x)}>{pill}</View> : pill
 }
 
 const styles = StyleSheet.create({
   status: { gap: 12, alignItems: "flex-start" },
   empty: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 24 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pill: { minHeight: 44, paddingHorizontal: 16, borderRadius: R_ROUND, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  tabs: { flexDirection: "row", gap: 8, paddingRight: 16 },
+  dim: { borderStyle: "dashed" },
+  position: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20, textAlign: "center" },
+  pill: { minWidth: 44, minHeight: 44, paddingHorizontal: 16, borderRadius: R_ROUND, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   pillText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   meta: { flexDirection: "row", alignItems: "center", gap: 8 },
   badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: R_ROUND },

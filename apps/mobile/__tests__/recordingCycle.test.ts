@@ -12,11 +12,15 @@ import {
   keyLikePrevious,
   missingTunes,
   nextTune,
+  openTune,
+  parseTuneRange,
   previousTune,
   priorTune,
   setTuneKey,
   setTuneSkipped,
   tuneProblems,
+  tuneState,
+  tuneStates,
   cycleDraftFromSheet,
   cycleProblems,
   cycleToWire,
@@ -75,9 +79,9 @@ describe("a new cycle", () => {
     expect(d.tunes).toHaveLength(3)
     expect(new Set(d.tunes.map((f) => f.slots)).size).toBe(3)
   })
-  it("keeps the number of tunes between one and six", () => {
+  it("keeps the number of tunes between one and thirty", () => {
     expect(newCycleDraft(0).tunes).toHaveLength(1)
-    expect(newCycleDraft(40).tunes).toHaveLength(CYCLE_MAX_TUNES)
+    expect(newCycleDraft(99).tunes).toHaveLength(CYCLE_MAX_TUNES)
     expect(setTuneCount(newCycleDraft(2), 99).tunes).toHaveLength(CYCLE_MAX_TUNES)
     expect(setTuneCount(newCycleDraft(2), 0).tunes).toHaveLength(1)
   })
@@ -319,11 +323,11 @@ describe("the preview's in-memory server", () => {
 describe("several tunes in one recording", () => {
   const filled = (d: CycleDraft, tune: number, chords: string[]) => chords.reduce((acc, c, i) => setSlot(acc, tune, i, c), d)
 
-  it("asks for as many tunes as the member says, up to six", () => {
-    expect(CYCLE_MAX_TUNES).toBe(6)
+  it("asks for as many tunes as the member says, up to thirty", () => {
+    expect(CYCLE_MAX_TUNES).toBe(30)
     expect(newCycleDraft(3).tunes).toHaveLength(3)
-    expect(setTuneCount(newCycleDraft(), 6).tunes).toHaveLength(6)
-    expect(setTuneCount(newCycleDraft(), 7).tunes).toHaveLength(6)
+    expect(setTuneCount(newCycleDraft(), 30).tunes).toHaveLength(30)
+    expect(setTuneCount(newCycleDraft(), 31).tunes).toHaveLength(30)
   })
 
   it("'only some' skips the tunes that were not chosen, and the walk visits only the chosen ones", () => {
@@ -421,5 +425,87 @@ describe("several tunes in one recording", () => {
     expect(sheet.cycle?.tuneCount).toBe(3)
     expect(sheet.cycle?.tunes.map((f) => f.number)).toEqual([1, 3])
     expect(sheet.body).toContain("Tune 2: no chords yet")
+  })
+})
+
+
+describe("thirty tunes in one recording", () => {
+  const ring = (n: number) => ["Em", "C", "G", "D", "Am", "F", "Dm", "E"].slice(0, 4 + (n % 5)).map((c, i, all) => all[(i + n) % all.length] as string)
+  const full = () => {
+    let d = newCycleDraft(30)
+    for (let t = 0; t < 30; t++) {
+      d = setTuneName(d, t, `Round ${t + 1}`)
+      d = setTuneKey(d, t, ["C", "D", "E", "G", "A"][t % 5] as string)
+      d = resizeTune(d, t, 8)
+      for (let i = 0; i < 8; i++) d = setSlot(d, t, i, ["Em", "C#m7", "Gmaj7", "Dsus4", "Am", "F#m", "Bb", "E7"][(i + t) % 8] as string)
+      d = setTuneTimes(d, t, String(1 + (t % 9)))
+    }
+    return { ...d, playedIt: true }
+  }
+
+  it("30 rings of 8 chords can be sent, in order and numbered 1 to 30", () => {
+    const d = full()
+    expect(cycleProblems(d)).toEqual([])
+    const p = toCyclePayload(d)
+    expect(p.cycle.tuneCount).toBe(30)
+    expect(p.cycle.tunes).toHaveLength(30)
+    expect(p.cycle.tunes.map((t) => t.number)).toEqual(Array.from({ length: 30 }, (_, i) => i + 1))
+    expect(p.cycle.tunes.every((t) => t.chords.length === 8)).toBe(true)
+    // the request stays far under the 1 MB the API accepts
+    expect(JSON.stringify(p).length).toBeLessThan(40_000)
+  })
+  it("the preview server keeps 30 tunes and refuses 31", async () => {
+    const m = mock()
+    const sheet = await m.offerCycle("r1", toCyclePayload(full()))
+    expect(sheet.cycle?.tuneCount).toBe(30)
+    expect(sheet.cycle?.tunes).toHaveLength(30)
+    const tooMany = toCyclePayload(full())
+    await expect(m.offerCycle("r2", { ...tooMany, cycle: { tuneCount: 31, tunes: tooMany.cycle.tunes } })).rejects.toMatchObject({ failure: "invalid" })
+  })
+  it("a range such as 1-5, 8 names the tunes (counted from 1) and nothing else", () => {
+    expect(parseTuneRange("1-5, 8", 30)).toEqual([0, 1, 2, 3, 4, 7])
+    expect(parseTuneRange("3", 30)).toEqual([2])
+    expect(parseTuneRange("10 12;14", 30)).toEqual([9, 11, 13])
+    expect(parseTuneRange("5-3", 30)).toBeNull()
+    expect(parseTuneRange("0-2", 30)).toBeNull()
+    expect(parseTuneRange("1-31", 30)).toBeNull()
+    expect(parseTuneRange("1-a", 30)).toBeNull()
+    expect(parseTuneRange("  ", 30)).toEqual([])
+    expect(parseTuneRange("2, 2, 1-3", 30)).toEqual([0, 1, 2])
+  })
+  it("choosing '1-5, 8' out of 30 skips the other 24 and the walk visits the six", () => {
+    const d = chooseTunes(newCycleDraft(30), parseTuneRange("1-5, 8", 30) ?? [])
+    expect(activeTunes(d)).toEqual([0, 1, 2, 3, 4, 7])
+    expect(nextTune(d, 4)).toBe(7)
+    expect(nextTune(d, 7)).toBeNull()
+    expect(d.tunes.filter((f) => f.skipped)).toHaveLength(24)
+  })
+  it("every tune says where it stands: ready, left as no chords yet, partly filled or not started", () => {
+    let d = chooseTunes(newCycleDraft(30), [0, 1, 2])
+    for (let i = 0; i < 4; i++) d = setSlot(d, 0, i, ["Em", "C", "G", "D"][i] as string)
+    d = setSlot(d, 1, 0, "Am")
+    expect(tuneState(d.tunes[0]!)).toBe("done")
+    expect(tuneState(d.tunes[1]!)).toBe("partial")
+    expect(tuneState(d.tunes[2]!)).toBe("empty")
+    expect(tuneState(d.tunes[7]!)).toBe("skipped")
+    expect(tuneStates(d)).toEqual({ done: 1, partial: 1, empty: 1, skipped: 27 })
+  })
+  it("jumping to a tune that was left as no chords yet takes it back into the walk", () => {
+    const d = chooseTunes(newCycleDraft(30), [0])
+    expect(d.tunes[20]?.skipped).toBe(true)
+    const jumped = openTune(d, 20)
+    expect(jumped.tunes[20]?.skipped).toBe(false)
+    expect(openTune(jumped, 20)).toBe(jumped)
+    expect(nextTune(jumped, 0)).toBe(20)
+  })
+  it("'same as previous tune' and the previous tune work far into the list", () => {
+    let d = chooseTunes(newCycleDraft(30), [3, 29])
+    d = setTuneKey(d, 3, "G")
+    expect(previousTune(d, 29)).toBe(3)
+    expect(keyLikePrevious(d, 29).tunes[29]?.key).toBe("G")
+    expect(missingTunes(cycleFromWire({ tune_count: 30, tunes: [{ number: 4, name: null, key: "G", chords: ["Em", "C"], start: 0, times: null }] })).length).toBe(29)
+  })
+  it("an address asks for tune 17 of a cycle of 30", () => {
+    expect(cycleFormHref({ recordingId: "r1", title: "x", from: "s1", tune: 17 })).toContain("tune=17")
   })
 })
