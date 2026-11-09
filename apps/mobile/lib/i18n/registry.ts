@@ -98,9 +98,26 @@ export function matchDeviceLanguage(tag: string, options?: { includeStubs?: bool
 }
 
 /**
- * What the language sheet lists. Stubs appear only in development builds (or when
- * `EXPO_PUBLIC_SHOW_ALL_LANGUAGES=1`), so a release build never offers a language that shows English.
+ * What a language list may offer. A language whose `complete` is false (see its entry above) is hidden
+ * from EVERY list in the app (the onboarding step, Profile > Language) until it is translated and read
+ * by a native speaker: flip that one `complete` to `true` and it appears in all of them. The only
+ * exception is a developer build started with `EXPO_PUBLIC_SHOW_ALL_LANGUAGES=1`.
+ * A person whose stored language is hidden keeps working: the app speaks English for it.
  */
 export function selectableLanguages(showStubs: boolean): readonly Language[] {
   return showStubs ? ALL_LANGUAGES : COMPLETE_LANGUAGES
+}
+
+/** Developer switch to see the unfinished languages too. Off in every build unless this variable is set. */
+export const SHOW_UNFINISHED_LANGUAGES = process.env.EXPO_PUBLIC_SHOW_ALL_LANGUAGES === "1"
+
+/** The languages every list in the app offers right now (Profile > Language, the onboarding step). */
+export function offeredLanguages(): readonly Language[] {
+  return selectableLanguages(SHOW_UNFINISHED_LANGUAGES)
+}
+
+/** Registered but not offered yet: the ones waiting for a translation and a native reader. */
+export function hiddenLanguages(): readonly Language[] {
+  const offered = new Set<string>(offeredLanguages())
+  return ALL_LANGUAGES.filter((id) => !offered.has(id))
 }

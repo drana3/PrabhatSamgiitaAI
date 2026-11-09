@@ -9,13 +9,10 @@ import { protoFor } from "@/constants/tokens/amToday"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
-import { LANGUAGE_NATIVE_NAMES, languageEntry, selectableLanguages, useT, type LanguagePreference } from "@/lib/i18n"
+import { LANGUAGE_NATIVE_NAMES, languageEntry, offeredLanguages, useT, type LanguagePreference } from "@/lib/i18n"
 import { useLanguageStore } from "@/stores/languageStore"
 import { href } from "@/utils/href"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
-
-/** Development builds list the languages that are still stubs; release builds never do (docs/localization.md). */
-const SHOW_UNFINISHED_LANGUAGES = __DEV__ || process.env.EXPO_PUBLIC_SHOW_ALL_LANGUAGES === "1"
 
 /**
  * "Language" sheet: the language of the app's own buttons, menus and messages. Automatic follows the
@@ -39,7 +36,7 @@ export default function LanguageScreen() {
 
   const options: readonly { id: LanguagePreference; name: string; sub: string; unfinished?: boolean }[] = [
     { id: "auto", name: t("language.auto"), sub: t("language.autoSub") },
-    ...selectableLanguages(SHOW_UNFINISHED_LANGUAGES).map((id) => {
+    ...offeredLanguages().map((id) => {
       // the language's name in the current interface language, shown under its own name unless identical
       const inCurrent = t(`language.name.${id}`)
       const unfinished = !languageEntry(id).complete
