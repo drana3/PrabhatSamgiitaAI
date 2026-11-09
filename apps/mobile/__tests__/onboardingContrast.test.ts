@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { amColors, amDark, amDarkSurface, amLight } from "@/constants/tokens/amColors"
+import { amOnboarding } from "@/constants/tokens/amOnboarding"
 
 /**
  * Every text/background and control/background pair that the onboarding board lists in its section
@@ -51,17 +52,17 @@ const PART = 3
 
 const D = amDarkSurface
 /** the warm wash at the top of an onboarding page, and the selected-row fill (board CSS: --wash, --selbg) */
-const darkWash = "rgba(58, 36, 24, 0.5)"
-const lightWash = "rgba(255, 220, 197, 0.75)"
-const lightSel = "rgba(255, 220, 197, 0.5)"
+const darkWash = amOnboarding.dark.wash
+const lightWash = amOnboarding.light.wash
+const lightSel = amOnboarding.light.selected
 
 const dark: Pair[] = [
   { what: "muted on card", fg: amDark.textMuted, bg: amDark.card, ground: D.page, min: TEXT },
   { what: "muted on inner", fg: amDark.textMuted, bg: amDark.inner, ground: D.page, min: TEXT },
   { what: "muted on tile", fg: amDark.textMuted, bg: D.tile, ground: D.page, min: TEXT },
-  { what: "muted on selected row", fg: amDark.textMuted, bg: D.peach, ground: D.page, min: TEXT },
-  { what: "body on selected row", fg: amDark.textBody, bg: D.peach, ground: D.page, min: TEXT },
-  { what: "heading on selected row", fg: amDark.textHeading, bg: D.peach, ground: D.page, min: TEXT },
+  { what: "muted on selected row", fg: amDark.textMuted, bg: amOnboarding.dark.selected, ground: D.page, min: TEXT },
+  { what: "body on selected row", fg: amDark.textBody, bg: amOnboarding.dark.selected, ground: D.page, min: TEXT },
+  { what: "heading on selected row", fg: amDark.textHeading, bg: amOnboarding.dark.selected, ground: D.page, min: TEXT },
   { what: "heading on page", fg: amDark.textHeading, bg: amDark.page, ground: D.page, min: TEXT },
   { what: "body on card", fg: amDark.textBody, bg: amDark.card, ground: D.page, min: TEXT },
   { what: "accent text on page", fg: amDark.accentText, bg: amDark.page, ground: D.page, min: TEXT },
@@ -76,7 +77,7 @@ const dark: Pair[] = [
   { what: "button outline (lineStrong) on page", fg: amDark.lineStrong, bg: amDark.page, ground: D.page, min: PART },
   { what: "field outline (lineStrong) on card", fg: amDark.lineStrong, bg: amDark.card, ground: D.page, min: PART },
   { what: "empty radio ring on card", fg: amDark.textMuted, bg: amDark.card, ground: D.page, min: PART },
-  { what: "filled radio (controlOn) on selected row", fg: amDark.controlOn, bg: D.peach, ground: D.page, min: PART },
+  { what: "filled radio (controlOn) on selected row", fg: amDark.controlOn, bg: amOnboarding.dark.selected, ground: D.page, min: PART },
   { what: "filled radio (controlOn) on card", fg: amDark.controlOn, bg: amDark.card, ground: D.page, min: PART },
   { what: "dot on the filled radio", fg: amDark.controlOnDot, bg: amDark.controlOn, ground: D.page, min: PART },
   { what: "focus ring on page", fg: amDark.accentBright, bg: amDark.page, ground: D.page, min: PART },
@@ -137,10 +138,10 @@ describe("onboarding contrast: the accepted dark corrections", () => {
   it("matches the numbers printed on the board", () => {
     const near = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(0.02)
     near(ratio(amDark.textMuted, D.tile, D.page), 4.79)
-    near(ratio(amDark.textMuted, D.peach, D.page), 4.9)
+    near(ratio(amDark.textMuted, amOnboarding.dark.selected, D.page), 4.9)
     near(ratio(amDark.trackOff, amDark.page, D.page), 3.69)
     near(ratio(amDark.lineStrong, amDark.card, D.page), 3.32)
-    near(ratio(amDark.controlOn, D.peach, D.page), 5.33)
+    near(ratio(amDark.controlOn, amOnboarding.dark.selected, D.page), 5.33)
   })
 
   it("the new tokens exist in both themes", () => {
