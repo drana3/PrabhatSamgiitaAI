@@ -11,8 +11,6 @@ from app.schemas.auth import LocalLoginWrite, LocalRegisterWrite
 from app.services.local_auth import login_local_user, register_local_user
 from app.services.members import decode_client_principal
 
-VALID_PHONE = {"phone_country_code": "IN", "phone_number": "9876543210"}
-
 
 class _AuthSession:
     def __init__(self):
@@ -91,7 +89,6 @@ async def test_register_and_login_local_user_returns_member_principal() -> None:
             email="member@example.com",
             password="secure-pass-1",
             display_name="Member",
-            **VALID_PHONE,
         ),
     )
     identity = decode_client_principal(registered.client_principal)
@@ -125,7 +122,6 @@ async def test_register_rejects_existing_oauth_email() -> None:
                 email="member@example.com",
                 password="secure-pass-1",
                 display_name="Member",
-                **VALID_PHONE,
             ),
         )
     assert error.value.status_code == 409
@@ -141,7 +137,6 @@ async def test_register_rejects_duplicate_local_email() -> None:
             email="member@example.com",
             password="secure-pass-1",
             display_name="Member",
-            **VALID_PHONE,
         ),
     )
 
@@ -152,8 +147,6 @@ async def test_register_rejects_duplicate_local_email() -> None:
                 email="member@example.com",
                 password="another-pass-1",
                 display_name="Someone else",
-                phone_country_code="IN",
-                phone_number="9123456789",
             ),
         )
     assert error.value.status_code == 409
@@ -169,7 +162,6 @@ async def test_login_rejects_invalid_password() -> None:
             email="member@example.com",
             password="secure-pass-1",
             display_name="Member",
-            **VALID_PHONE,
         ),
     )
     with pytest.raises(HTTPException) as error:
@@ -178,3 +170,69 @@ async def test_login_rejects_invalid_password() -> None:
             LocalLoginWrite(email="member@example.com", password="wrong-password"),
         )
     assert error.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_register_needs_no_phone_number_and_stores_none() -> None:
+    session = _AuthSession()
+    registered = await register_local_user(
+        session,  # type: ignore[arg-type]
+        LocalRegisterWrite(
+            email="member@example.com", password="secure-pass-1", display_name="Member"
+        ),
+    )
+    assert registered.email == "member@example.com"
+    (account,) = session.accounts
+    assert account.phone_e164 is None
+    assert account.phone_country_code is None
+    assert account.phone_verified_at is None
+
+
+@pytest.mark.asyncio
+async def test_an_older_app_that_still_sends_a_number_is_accepted_and_the_number_is_ignored() -> (
+    None
+):
+    session = _AuthSession()
+    payload = LocalRegisterWrite.model_validate(
+        {
+            "email": "old@example.com",
+            "password": "secure-pass-1",
+            "display_name": "Old App",
+            "phone_country_code": "IN",
+            "phone_number": "9876543210",
+        }
+    )
+    await register_local_user(session, payload)  # type: ignore[arg-type]
+    (account,) = session.accounts
+    assert account.phone_e164 is None
+
+    # the same number on a second sign-up is no reason to refuse it any more
+    again = LocalRegisterWrite.model_validate(
+        {
+            "email": "second@example.com",
+            "password": "secure-pass-1",
+            "display_name": "Second",
+            "phone_country_code": "IN",
+            "phone_number": "9876543210",
+        }
+    )
+    await register_local_user(session, again)  # type: ignore[arg-type]
+    assert len(session.accounts) == 2
+
+
+@pytest.mark.asyncio
+async def test_an_account_that_already_has_a_number_keeps_it_and_signs_in() -> None:
+    session = _AuthSession()
+    await register_local_user(
+        session,  # type: ignore[arg-type]
+        LocalRegisterWrite(
+            email="member@example.com", password="secure-pass-1", display_name="Member"
+        ),
+    )
+    session.accounts[0].phone_e164 = "+919876543210"
+    logged_in = await login_local_user(
+        session,  # type: ignore[arg-type]
+        LocalLoginWrite(email="member@example.com", password="secure-pass-1"),
+    )
+    assert logged_in.email == "member@example.com"
+    assert session.accounts[0].phone_e164 == "+919876543210"

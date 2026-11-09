@@ -278,15 +278,11 @@ export async function signUpWithEmailPassword(
   email: string,
   password: string,
   displayName: string,
-  phoneCountryCode: string,
-  phoneNumber: string,
 ) {
   const session = await registerWithEmail({
     email,
     password,
     displayName,
-    phoneCountryCode,
-    phoneNumber,
   })
   return finishSignIn({
     displayName: session.display_name,

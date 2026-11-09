@@ -15,9 +15,10 @@ OAUTH_IDENTITY_PROVIDERS = frozenset({"google", "aad", "facebook", "entra", "app
 
 
 def phone_required(member: UserAccount) -> bool:
-    if member.phone_e164:
-        return False
-    return member.identity_provider not in OAUTH_IDENTITY_PROVIDERS
+    """Nobody is asked for a mobile number (decision of 9 November 2026: sign-up is name, e-mail,
+    password). Accounts that already have one keep it; a number can still be added by choice
+    (`PATCH /members/phone`)."""
+    return False
 
 
 def phone_verification_required(_member: UserAccount) -> bool:
@@ -27,9 +28,7 @@ def phone_verification_required(_member: UserAccount) -> bool:
 async def _ensure_phone_available(
     session: AsyncSession, phone_e164: str, *, exclude_user_id: object | None = None
 ) -> None:
-    existing = await session.scalar(
-        select(UserAccount).where(UserAccount.phone_e164 == phone_e164)
-    )
+    existing = await session.scalar(select(UserAccount).where(UserAccount.phone_e164 == phone_e164))
     if existing is not None and existing.id != exclude_user_id:
         raise HTTPException(
             status_code=409,

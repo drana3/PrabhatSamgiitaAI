@@ -34,6 +34,20 @@ and the signing of recording links.
 5. **Admin and team rights are read from the database on every request.** Remove someone's admin flag and the
    very next request they make is a plain member request, even with a valid token.
 
+### E-mail sign-up has no mobile number (decision of 9 November 2026)
+
+Sign-up with e-mail is **name, e-mail, password**, three screens in the app. The app does not ask for a mobile
+number and no longer sends one. `POST /api/v1/auth/register` accepts a number from an older app or from the
+website form (`phone_country_code`, `phone_number`) and **ignores it: it is not stored** and the same number on
+two sign-ups is not a conflict any more. `phone_required` in the member profile is always `false`, so nobody is
+sent to a "add your number" screen (the app also ignores the flag from an older server). Accounts that already have
+a number keep it; `PATCH /api/v1/members/phone` still lets a person add or change one by choice. No migration:
+`user_accounts.phone_e164` was already optional.
+
+Still to do (not changed here): the website sign-up form (`apps/web/components/email-auth-panel.tsx`) still asks
+for a number, which the server now ignores, and `apps/web/components/phone-required-gate.tsx` becomes inactive by
+itself. Remove the field from the form.
+
 ### The old shared key
 
 Requests that still arrive with `X-Member-Proxy-Key` and a self-made principal are called **legacy**:

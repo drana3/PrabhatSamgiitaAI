@@ -14,8 +14,9 @@ def test_oauth_members_without_phone_are_not_required() -> None:
         assert phone_required(_member(identity_provider=provider)) is False
 
 
-def test_local_member_without_phone_is_required() -> None:
-    assert phone_required(_member(identity_provider="local")) is True
+def test_local_member_without_phone_is_not_asked_for_one_either() -> None:
+    # decision of 9 November 2026: sign-up is name, e-mail and password
+    assert phone_required(_member(identity_provider="local")) is False
 
 
 def test_any_member_with_phone_is_not_required() -> None:

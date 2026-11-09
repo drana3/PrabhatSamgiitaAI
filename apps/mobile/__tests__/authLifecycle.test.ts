@@ -301,11 +301,15 @@ describe("mobile auth lifecycle (all providers)", () => {
         "new@example.com",
         "password123",
         "New Member",
-        "+91",
-        "9876543210",
       )
 
-      expect(result.needsPhone).toBe(true)
+      // sign-up is name, email and password: the person is never sent on to ask for a number
+      expect(registerWithEmail).toHaveBeenCalledWith({
+        email: "new@example.com",
+        password: "password123",
+        displayName: "New Member",
+      })
+      expect(result.needsPhone).toBeUndefined()
       expect(useAuthStore.getState().mode).toBe("signed_in")
       expect(useAuthStore.getState().identityProvider).toBe("local")
     })

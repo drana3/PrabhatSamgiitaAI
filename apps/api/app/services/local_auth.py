@@ -14,7 +14,6 @@ from app.schemas.auth import AuthSessionResponse, LocalLoginWrite, LocalRegister
 from app.services.admin_members import owner_admin_emails
 from app.services.member_tokens import session_tokens_enabled, start_session
 from app.services.members import _find_canonical_by_email
-from app.services.phone_numbers import normalize_phone
 from app.services.principals import principal_for_member
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -72,16 +71,6 @@ async def register_local_user(
 
     now = datetime.now(UTC)
     display_name = payload.display_name.strip()[:255] or email
-    phone_e164, phone_region = normalize_phone(payload.phone_country_code, payload.phone_number)
-    existing_phone = await session.scalar(
-        select(UserAccount).where(UserAccount.phone_e164 == phone_e164)
-    )
-    if existing_phone is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="That mobile number is already linked to another account.",
-        )
-
     user_id = uuid4()
     member = UserAccount(
         id=user_id,
@@ -89,9 +78,6 @@ async def register_local_user(
         identity_provider="local",
         email=email,
         display_name=display_name,
-        phone_e164=phone_e164,
-        phone_country_code=phone_region,
-        phone_verified_at=now,
         last_seen_at=now,
     )
     session.add(member)

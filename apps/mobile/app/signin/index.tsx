@@ -1,4 +1,3 @@
-import { DEFAULT_PHONE_COUNTRY } from "@prabhat/core"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
@@ -8,7 +7,6 @@ import { openExternal } from "@/lib/openLink"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
 import { AppleMark, GoogleMark, MicrosoftMark } from "@/components/account/BrandMarks"
-import { PhoneField } from "@/components/account/PhoneField"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -41,7 +39,7 @@ import { href } from "@/utils/href"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 type Busy = "apple" | "google" | "microsoft" | "email" | null
-type FieldKey = "email" | "password" | "name" | "phone"
+type FieldKey = "email" | "password" | "name"
 type SignInResult = { needsName?: boolean; needsPhone?: boolean }
 
 const PREVIEW_EMAIL = "dada@example.com"
@@ -91,8 +89,6 @@ export default function SignInScreen() {
   const [email, setEmail] = useState(preview === "typed" || preview === "password" || preview === "signup" ? PREVIEW_EMAIL : "")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
-  const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
-  const [phone, setPhone] = useState("")
   const [fieldError, setFieldError] = useState<{ field: FieldKey; error: string } | null>(null)
 
   const scrollRef = useRef<ScrollView>(null)
@@ -166,7 +162,7 @@ export default function SignInScreen() {
   }
 
   const submitEmail = () => {
-    const check = checkEmailForm({ mode, email, password, name, phoneCountryCode: countryCode, phoneNumber: phone })
+    const check = checkEmailForm({ mode, email, password, name })
     if (!check.ok) {
       setFieldError({ field: check.field, error: check.error })
       return
@@ -174,7 +170,7 @@ export default function SignInScreen() {
     const address = email.trim()
     void run("email", () =>
       mode === "signup"
-        ? signUpWithEmailPassword(address, password, name.trim(), countryCode, phone)
+        ? signUpWithEmailPassword(address, password, name.trim())
         : signInWithEmailPassword(address, password),
     )
   }
@@ -324,18 +320,6 @@ export default function SignInScreen() {
                         returnKeyType="next"
                         editable={!inactive}
                         onSubmitEditing={() => passwordRef.current?.focus()}
-                      />
-                      <PhoneField
-                        theme={theme}
-                        countryCode={countryCode}
-                        nationalNumber={phone}
-                        onCountryCodeChange={setCountryCode}
-                        onNationalNumberChange={(value) => {
-                          setPhone(value)
-                          clear("phone")
-                        }}
-                        error={errorFor("phone")}
-                        disabled={inactive}
                       />
                     </>
                   ) : null}

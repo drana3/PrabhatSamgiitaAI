@@ -1,5 +1,3 @@
-import { validateNationalPhoneNumber } from "@prabhat/core"
-
 import { validateName } from "@/lib/profile/validate"
 import { t } from "@/lib/i18n"
 
@@ -41,11 +39,9 @@ export type EmailForm = {
   email: string
   password: string
   name: string
-  phoneCountryCode: string
-  phoneNumber: string
 }
 
-export type EmailFormCheck = { ok: true } | { ok: false; field: "email" | "password" | "name" | "phone"; error: string }
+export type EmailFormCheck = { ok: true } | { ok: false; field: "email" | "password" | "name"; error: string }
 
 /** First thing wrong with the email form, in the order the fields appear. */
 export function checkEmailForm(form: EmailForm): EmailFormCheck {
@@ -60,10 +56,6 @@ export function checkEmailForm(form: EmailForm): EmailFormCheck {
       field: "password",
       error: form.mode === "signup" ? t("account.error.passwordShort", { count: PASSWORD_MIN }) : t("account.error.passwordEmpty"),
     }
-  }
-  if (form.mode === "signup") {
-    const phone = validateNationalPhoneNumber(form.phoneCountryCode, form.phoneNumber)
-    if (phone) return { ok: false, field: "phone", error: phone }
   }
   return { ok: true }
 }

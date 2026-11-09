@@ -8,7 +8,11 @@ class PhoneFieldsWrite(BaseModel):
     phone_number: str = Field(min_length=4, max_length=20)
 
 
-class LocalRegisterWrite(PhoneFieldsWrite):
+class LocalRegisterWrite(BaseModel):
+    """Sign-up is name, e-mail and password. An older app (or the website) may still send
+    `phone_country_code` and `phone_number`: they are accepted and ignored, never stored
+    (decision of 9 November 2026, docs/account-deletion.md and docs/security-member-auth.md)."""
+
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=120)

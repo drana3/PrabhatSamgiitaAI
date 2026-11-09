@@ -35,18 +35,17 @@ describe("isEmailValid", () => {
 })
 
 describe("checkEmailForm", () => {
-  const form: EmailForm = { mode: "signin", email: "a@b.co", password: "x", name: "", phoneCountryCode: "IN", phoneNumber: "" }
+  const form: EmailForm = { mode: "signin", email: "a@b.co", password: "x", name: "" }
   it("sign-in needs an email and a password", () => {
     expect(checkEmailForm(form)).toEqual({ ok: true })
     expect(checkEmailForm({ ...form, email: "nope" })).toMatchObject({ ok: false, field: "email" })
     expect(checkEmailForm({ ...form, password: "" })).toMatchObject({ ok: false, field: "password" })
   })
-  it("sign-up also needs a name, 8 characters of password and a mobile number, in that order", () => {
-    const up: EmailForm = { ...form, mode: "signup", password: "longenough", name: "Dada", phoneNumber: "9876543210" }
+  it("sign-up needs a name, an email and 8 characters of password, and no mobile number", () => {
+    const up: EmailForm = { ...form, mode: "signup", password: "longenough", name: "Dada" }
     expect(checkEmailForm(up)).toEqual({ ok: true })
     expect(checkEmailForm({ ...up, name: "D" })).toMatchObject({ ok: false, field: "name" })
     expect(checkEmailForm({ ...up, password: "short" })).toMatchObject({ ok: false, field: "password" })
-    expect(checkEmailForm({ ...up, phoneNumber: "12" })).toMatchObject({ ok: false, field: "phone" })
   })
 })
 
