@@ -49,8 +49,9 @@ describe("the page of Others", () => {
     const form = read("app/add-kirtan.tsx")
     expect(form).toMatch(/export function AddRecordingForm\(\{ mantra = false \}/)
     expect(form).toMatch(/<MantraField /)
-    // no kind card of the main form is a mantra, and a mantra page has no playlist entry
-    expect(form).toMatch(/RECORDING_KINDS\.filter\(\(k\) => k !== "other_mantra"\)/)
+    // no kind row of the main form is a mantra (the one-row kind sheet lists FORM_KINDS), and a mantra page has no playlist entry
+    expect(form).toMatch(/<KindField/)
+    expect(read("components/kirtan/add/KindField.tsx")).toMatch(/RECORDING_KINDS\.filter\(\(k\) => k !== "other_mantra"\)/)
     expect(form).toMatch(/\{mantra \? null : \(\s*<Reveal index=\{1\} style=\{styles\.setStack\}>/)
   })
 

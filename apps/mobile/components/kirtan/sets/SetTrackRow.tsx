@@ -2,13 +2,13 @@ import { useState } from "react"
 import { StyleSheet, Text, TextInput, View } from "react-native"
 import Svg, { Path } from "react-native-svg"
 
+import { KindField } from "@/components/kirtan/add/KindField"
 import { QueueRow, type RowKindFields } from "@/components/kirtan/add/QueueRows"
 import { KPress } from "@/components/kirtan/KPress"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
-import { kindLabel } from "@/lib/kirtan/kind"
 import { parseDay, type SetTrack } from "@/lib/kirtan/sets"
 import { RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
 
@@ -101,17 +101,7 @@ export function SetTrackRow({ theme, track, position, total, fields, firstDay, l
                   />
                 </View>
                 <Text style={[styles.hint, { color: dayBad ? theme.dangerText : theme.textBody }]}>{dayBad ? t("set.err.date") : t("set.t.dayHint")}</Text>
-                <Text style={[styles.label, { color: theme.textHeading }]}>{t("set.t.kind")}</Text>
-                <View style={styles.chips} accessibilityRole="radiogroup">
-                  {RECORDING_KINDS.map((kind) => {
-                    const on = fields.kind === kind
-                    return (
-                      <KPress key={kind} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={kindLabel(kind)} onActivate={() => !locked && handlers.onKind(track.id, kind)} pressedScale={0.96} style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}>
-                        <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{kindLabel(kind)}</Text>
-                      </KPress>
-                    )
-                  })}
-                </View>
+                <KindField theme={theme} label={t("set.t.kind")} value={fields.kind} kinds={RECORDING_KINDS} disabled={locked} onChange={(kind) => handlers.onKind(track.id, kind)} />
               </View>
             ) : null}
           </>
@@ -134,7 +124,4 @@ const styles = StyleSheet.create({
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   dayBox: { minHeight: 48, borderRadius: 16, borderWidth: 1.5, paddingHorizontal: 14, justifyContent: "center", width: 180 },
   dayInput: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 10, outlineStyle: "none" as never },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 70, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  chipText: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 17 },
 })

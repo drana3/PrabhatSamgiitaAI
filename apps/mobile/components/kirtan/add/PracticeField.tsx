@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native"
 
+import { TICK_BOX, TICK_GAP } from "@/components/kirtan/add/AuthorTick"
 import { RequiredMark } from "@/components/kirtan/add/KindFields"
 import { KPress } from "@/components/kirtan/KPress"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
@@ -58,13 +59,13 @@ export function PracticeRowToggle({ theme, on, onChange, disabled }: { theme: So
 }
 
 const s = StyleSheet.create({
-  root: { gap: 8 },
+  root: { gap: 4 },
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
-  check: { flexDirection: "row", alignItems: "flex-start", gap: 14, paddingVertical: 4 },
-  box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 1 },
-  checkText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21 },
-  hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  check: { flexDirection: "row", alignItems: "flex-start", gap: TICK_GAP, minHeight: 40, paddingVertical: 8 },
+  box: { width: TICK_BOX, height: TICK_BOX, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  checkText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 24 },
+  hint: { paddingLeft: TICK_BOX + TICK_GAP, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   chip: { minHeight: 36, alignSelf: "flex-start", paddingHorizontal: 14, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   chipText: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
 })

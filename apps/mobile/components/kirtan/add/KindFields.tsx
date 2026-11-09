@@ -17,7 +17,7 @@ import { useT } from "@/lib/i18n"
 import { kindHasLanguage, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import { NEW_WORDS_PER_WEEK } from "@/lib/kirtan/instruments"
 import { cleanLanguageOther, LANGUAGE_OTHER_MAX, languageLabel, listedLanguageFor, OTHER_LANGUAGE, searchLanguages, similarLanguage, type LanguageChoice } from "@/lib/kirtan/languages"
-import { DANCES, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
+import type { RecordingKind } from "@/lib/kirtan/types"
 
 /**
  * The fields that depend on the type of recording, used by the add form, the rows of the bulk queue and the playlist
@@ -79,32 +79,6 @@ export function LanguageField({ theme, kind, value, onOpen, invalid, errorText, 
         </View>
       </KPress>
       <FieldError theme={theme} text={errorText ?? null} />
-    </View>
-  )
-}
-
-/** The dances as a row of small round choices, for the rows of the bulk queue (the form itself uses SoundFields' DanceField, a one-row dropdown); the dance list is lib/kirtan/types.ts DANCES (one growable constant). */
-export function DanceChoices({ theme, value, onChange, invalid, disabled }: { theme: SongsTheme; value: DanceId | null; onChange: (dance: DanceId) => void; invalid?: boolean; disabled?: boolean }) {
-  const t = useT()
-  return (
-    <View style={styles.chips} accessibilityRole="radiogroup">
-      {DANCES.map((dance) => {
-        const on = value === dance
-        const name = (t as (key: string) => string)(`rec.dance.${dance}`)
-        return (
-          <KPress
-            key={dance}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: on, disabled: !!disabled }}
-            accessibilityLabel={name}
-            onActivate={() => !disabled && onChange(dance)}
-            pressedScale={0.96}
-            style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : invalid ? amColors.danger : theme.line }]}
-          >
-            <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{name}</Text>
-          </KPress>
-        )
-      })}
     </View>
   )
 }
@@ -256,9 +230,6 @@ const styles = StyleSheet.create({
   boxText: { flexGrow: 1, flexShrink: 1, flexBasis: 170, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 20 },
   boxButton: { height: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   boxButtonText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { minHeight: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
   searchRow: { height: 56, paddingHorizontal: PICKER_INSET, flexDirection: "row", marginBottom: 8 },
   count: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   list: { flex: 1 },

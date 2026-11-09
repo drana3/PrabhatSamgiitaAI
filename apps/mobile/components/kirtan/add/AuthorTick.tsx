@@ -13,6 +13,10 @@ import { kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
  * what it does (the recording appears on the person's author page). Not shown for Prabhat Samgiita (one author) or
  * Baba's Audio Discourses. Holds no state. Rules: lib/kirtan/recordingInfo.ts `kindHasByAuthor`.
  */
+/** The tick's box and the gap to its words: one measure for every tick of the upload forms (the hint under it starts at the words). */
+export const TICK_BOX = 24
+export const TICK_GAP = 12
+
 export function AuthorTick({ theme, kind, on, onChange, disabled }: { theme: SongsTheme; kind: string; on: boolean; onChange: (next: boolean) => void; disabled?: boolean }) {
   const t = useT()
   if (!kindHasByAuthor(kind)) return null
@@ -36,9 +40,9 @@ export function AuthorTick({ theme, kind, on, onChange, disabled }: { theme: Son
 }
 
 const s = StyleSheet.create({
-  root: { gap: 8 },
-  check: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 4 },
-  box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center", marginTop: 1 },
-  checkText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21 },
-  hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  root: { gap: 4 },
+  check: { flexDirection: "row", alignItems: "flex-start", gap: TICK_GAP, minHeight: 40, paddingVertical: 8 },
+  box: { width: TICK_BOX, height: TICK_BOX, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  checkText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 24 },
+  hint: { paddingLeft: TICK_BOX + TICK_GAP, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
 })

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
+import { KindField } from "@/components/kirtan/add/KindField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { DanceField, PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { kindHasInstrument } from "@/lib/kirtan/instruments"
@@ -41,7 +42,7 @@ import { isRulesAccepted, uploadErrorText } from "@/lib/kirtan/rules"
 import { SET_LIMITS, setCounts, setDay, setDefaults, setProgress, setState, trackMissing, setNeedsStyle, titleIsNotEnglish, validateSetDetails, type SetDetailsError, type SetDraft, type SetTrack, trackKind } from "@/lib/kirtan/sets"
 import { eventLabel } from "@/lib/kirtan/setDate"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
-import { RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
+import type { DanceId, RecordingKind } from "@/lib/kirtan/types"
 import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
@@ -458,32 +459,19 @@ export default function UploadSetScreen() {
         {kindHasPerformer(d.defaultKind) ? <AuthorTick theme={theme} kind={d.defaultKind} on={d.defaultByAuthor} onChange={(on) => store().details(d.id, { defaultByAuthor: on })} disabled={locked} /> : null}
         <CoverField theme={theme} uri={d.coverUri} state={d.coverState} disabled={locked} onChange={(uri) => store().cover(d.id, uri)} />
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: theme.textHeading }]}>{t("set.d.kind")}</Text>
-          <View style={styles.chips} accessibilityRole="radiogroup">
-            {RECORDING_KINDS.filter((k) => k !== "other_mantra").map((kind) => {
-              const on = d.defaultKind === kind
-              return (
-                <KPress
-                  key={kind}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={kindLabel(kind)}
-                  onActivate={() => {
-                    if (locked) return
-                    const clear = kindHasLanguage(kind) ? {} : { defaultLanguage: null, defaultLanguageOther: "" }
-                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultPractice: null }), ...(kindHasStyle(kind) ? {} : { defaultStyles: [], defaultStylesOther: [] }), ...(kindHasMood(kind) ? {} : { defaultMoods: [], defaultMoodsOther: [] }), ...(kind === d.defaultKind ? {} : { defaultRecordingType: null, defaultTempo: null, defaultPerformance: null, defaultLeadInstrument: null, defaultLeadInstrumentOther: "" }), ...(kindHasByAuthor(kind) ? {} : { defaultByAuthor: false }) })
-                  }}
-                  pressedScale={0.96}
-                  style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
-                >
-                  <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{kindLabel(kind)}</Text>
-                </KPress>
-              )
-            })}
-          </View>
-          <Text style={[styles.hint, { color: theme.textBody }]}>{t("set.d.kindHint")}</Text>
-        </View>
+        <KindField
+          theme={theme}
+          label={t("set.d.kind")}
+          hint={t("set.d.kindHint")}
+          value={d.defaultKind}
+          disabled={locked}
+          testID="set-kind-field"
+          onChange={(kind) => {
+            if (locked) return
+            const clear = kindHasLanguage(kind) ? {} : { defaultLanguage: null, defaultLanguageOther: "" }
+            store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultPractice: null }), ...(kindHasStyle(kind) ? {} : { defaultStyles: [], defaultStylesOther: [] }), ...(kindHasMood(kind) ? {} : { defaultMoods: [], defaultMoodsOther: [] }), ...(kind === d.defaultKind ? {} : { defaultRecordingType: null, defaultTempo: null, defaultPerformance: null, defaultLeadInstrument: null, defaultLeadInstrumentOther: "" }), ...(kindHasByAuthor(kind) ? {} : { defaultByAuthor: false }) })
+          }}
+        />
 
         {kindHasDance(d.defaultKind) ? (
           <View {...form.field("dance")}>

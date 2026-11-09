@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { FieldError, RequiredMark } from "@/components/kirtan/add/KindFields"
 import { KPress } from "@/components/kirtan/KPress"
-import { ActionButton, Chip, Hint } from "@/components/song-chords/parts"
+import { ChoiceField } from "@/components/kirtan/add/ChoiceField"
+import { ActionButton, Hint } from "@/components/song-chords/parts"
 import { Reveal } from "@/components/today/motion"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -189,18 +190,19 @@ export default function UploadBroadcastScreen() {
             {field("title", t("bc.f.name"), title, setTitle, { placeholder: t("bc.f.name.ph"), hint: t("bc.f.name.hint"), max: TITLE_MAX + 40 })}
 
             <View {...form.field("start")} style={s.field}>
-              <View style={s.labelRow}>
-                <Text style={[s.label, { color: theme.textHeading }]}>{t("bc.f.when")}</Text>
-                <RequiredMark theme={theme} required={false} />
-              </View>
-              <View style={s.chips} accessibilityRole="radiogroup">
-                {[
-                  { label: t("bc.f.today"), value: localDateString(0) },
-                  { label: t("bc.f.tomorrow"), value: localDateString(1) },
-                ].map((choice) => (
-                  <Chip key={choice.value} theme={theme} label={choice.label} on={date === choice.value} onPress={() => setDate(date === choice.value ? "" : choice.value)} />
-                ))}
-              </View>
+              <ChoiceField
+                theme={theme}
+                label={t("bc.f.when")}
+                options={[
+                  { id: localDateString(0), label: t("bc.f.today") },
+                  { id: localDateString(1), label: t("bc.f.tomorrow") },
+                ]}
+                value={date === localDateString(0) || date === localDateString(1) ? date : null}
+                onChange={(next) => setDate(next ?? "")}
+                required={false}
+                disabled={busy}
+                testID="bc-start-quick"
+              />
               <View style={s.pair}>
                 <View style={s.pairItem}>
                   <Text style={[s.sub, { color: theme.textBody }]}>{t("bc.f.date")}</Text>
@@ -220,19 +222,20 @@ export default function UploadBroadcastScreen() {
             </View>
 
             <View {...form.field("end")} style={s.field}>
-              <View style={s.labelRow}>
-                <Text style={[s.label, { color: theme.textHeading }]}>{t("bc.f.ends")}</Text>
-                <RequiredMark theme={theme} required={false} />
-              </View>
-              <View style={s.chips} accessibilityRole="radiogroup">
-                {[
-                  { label: t("bc.f.today"), value: localDateString(0) },
-                  { label: t("bc.f.tomorrow"), value: localDateString(1) },
-                  { label: t("bc.f.inWeek"), value: localDateString(7) },
-                ].map((choice) => (
-                  <Chip key={choice.value} theme={theme} label={choice.label} on={endDate === choice.value} onPress={() => setEndDate(endDate === choice.value ? "" : choice.value)} />
-                ))}
-              </View>
+              <ChoiceField
+                theme={theme}
+                label={t("bc.f.ends")}
+                options={[
+                  { id: localDateString(0), label: t("bc.f.today") },
+                  { id: localDateString(1), label: t("bc.f.tomorrow") },
+                  { id: localDateString(7), label: t("bc.f.inWeek") },
+                ]}
+                value={[localDateString(0), localDateString(1), localDateString(7)].includes(endDate) ? endDate : null}
+                onChange={(next) => setEndDate(next ?? "")}
+                required={false}
+                disabled={busy}
+                testID="bc-end-quick"
+              />
               <View style={s.pair}>
                 <View style={s.pairItem}>
                   <Text style={[s.sub, { color: theme.textBody }]}>{t("bc.f.date")}</Text>
@@ -288,7 +291,6 @@ const s = StyleSheet.create({
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   sub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pair: { flexDirection: "row", gap: 16 },
   pairItem: { flex: 1, minWidth: 0, gap: 8 },
   inputBox: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, flexDirection: "row" },

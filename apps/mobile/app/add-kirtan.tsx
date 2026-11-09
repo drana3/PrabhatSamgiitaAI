@@ -11,6 +11,7 @@ import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { MantraField } from "@/components/kirtan/add/MantraField"
+import { KindField } from "@/components/kirtan/add/KindField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { DanceField, PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
@@ -46,7 +47,7 @@ import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { effectiveFields, effectivePractice, hasWork, practiceCounts, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
-import { PS_SONG_COUNT, RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
+import type { DanceId, RecordingKind } from "@/lib/kirtan/types"
 import { languageErrorKey, missingKindFields, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
@@ -468,35 +469,19 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
               </Reveal>
             ) : (
             <Reveal index={2} style={styles.field}>
-              <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.type.label")}</Text>
-              <View style={styles.kinds} accessibilityRole="radiogroup">
-                {RECORDING_KINDS.filter((k) => k !== "other_mantra").map((k) => {
-                  const on = k === kind
-                  const blurb = t(`ugc.add.blurb.${k}`, { count: PS_SONG_COUNT })
-                  return (
-                    <KPress
-                      key={k}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: on, disabled: locked }}
-                      accessibilityLabel={`${kindLabel(k)}. ${blurb}`}
-                      onActivate={() => {
-                        if (locked) return
-                        store().setDraft({ kind: k, ...(k === "prabhat_samgiita" ? {} : { psSong: null }) })
-                        setProblem(null)
-                        setTried(false)
-                      }}
-                      pressedScale={0.97}
-                      outerStyle={styles.kindOuter}
-                      style={[styles.kindCard, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line, opacity: locked && !on ? 0.5 : 1 }]}
-                    >
-                      <Text style={[styles.kindName, { color: on ? theme.onInk : theme.textHeading }]} numberOfLines={2}>
-                        {kindLabel(k)}
-                      </Text>
-                      <Text style={[styles.kindBlurb, { color: on ? theme.onInk : theme.textBody }]}>{blurb}</Text>
-                    </KPress>
-                  )
-                })}
-              </View>
+              <KindField
+                theme={theme}
+                label={t("rec.type.label")}
+                value={kind}
+                disabled={locked}
+                testID="kind-field"
+                onChange={(k) => {
+                  if (locked) return
+                  store().setDraft({ kind: k, ...(k === "prabhat_samgiita" ? {} : { psSong: null }) })
+                  setProblem(null)
+                  setTried(false)
+                }}
+              />
             </Reveal>
             )}
 
@@ -863,11 +848,6 @@ const styles = StyleSheet.create({
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   blurb: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21, marginTop: 12 },
-  kinds: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  kindOuter: { width: "48%", flexGrow: 1 },
-  kindCard: { flex: 1, minHeight: 88, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, justifyContent: "center", gap: 2 },
-  kindName: { fontFamily: amFonts.display, fontSize: 17, lineHeight: 20, letterSpacing: -0.2, textTransform: "uppercase" },
-  kindBlurb: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
   queue: { gap: 12 },
   setEntry: { minHeight: 72, borderRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   setEntryTitle: { fontFamily: amFonts.display, fontSize: 19, lineHeight: 22, letterSpacing: -0.2, textTransform: "uppercase" },

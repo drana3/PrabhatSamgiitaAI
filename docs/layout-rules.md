@@ -166,6 +166,20 @@ right. A tap opens the same white `SpringSheet` as the key picker and the tag pi
 leaves. The one-line explanation lives in the sheet, not on the page. A required field has no way to empty it; an optional one gets a first
 row "Not chosen". The error line and the red border stay on the row. The component is `components/kirtan/add/ChoiceField.tsx`, the rules are
 pure (`lib/kirtan/choiceField.ts`, `__tests__/choiceField.test.ts`). A NEW short single-choice field on a form uses `ChoiceField`; it never
-writes a wrapping `flexWrap` row of chips. Left as they are on purpose: the type of recording tiles (what the form is about, they change
-the whole form), the playlist's "Type of the recordings" chips, the small Tandava / Kaoshiki chips inside the rows of the bulk queue (one
-per file, inside a card), the Avarta and "I am the author" ticks (a tick, not a list), the date chips of a broadcast.
+writes a wrapping `flexWrap` row of chips.
+
+### Second part (10 Nov 2026): the rest of the big buttons
+
+* **The kind of a recording** (the six tiles of the add form, the chips of the playlist's "Type of the recordings" and the chips of one
+  track) is one row too: `components/kirtan/add/KindField.tsx` on top of `ChoiceField`. The sheet lists the kinds, each with its one-line
+  blurb under the name (a screen reader hears name, then blurb). A recording always has a kind, so there is no "Not chosen" row and no
+  Required mark. Others keeps its own page (`app/add-mantra.tsx`, kind fixed, its required choice is `MantraField`), so it is not in this list.
+  What a change of kind resets (language, dance, style, mood, recording info, author tick) stays the caller's rule, unchanged.
+* **Inside a card** (one file of the bulk queue, "Same dance for all files") the same field has an `inline` form: a small pill with the chosen
+  words (or "Choose") and a chevron; the caller draws the label and the Required mark beside it. Same sheet. `DanceMenu` in `SoundFields.tsx`.
+* **The quick dates of a broadcast** (Today, Tomorrow, In a week above the date and time boxes) are one row each ("Start", "Ends") with a sheet;
+  the date and time boxes below stay, and a date typed by hand shows as "Not chosen" in the row (the row only knows its own shortcuts).
+* **Ticks stay ticks** ("I am the author of this recording", the Avarta tick). They share one measure (`TICK_BOX` 24, `TICK_GAP` 12, a 40 pt row,
+  `lib/layout` scale for the rest), and the explanation under a tick starts at the tick's words, not under its box.
+
+Left as they are on purpose: only the ticks (a tick, not a list).

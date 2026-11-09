@@ -39,16 +39,19 @@ export function TempoField({ theme, kind, value, onChange, disabled }: { theme: 
   return <ChoiceField theme={theme} label={t("recinfo.tempo.field")} hint={t("recinfo.tempo.hint")} options={options} value={value} onChange={onChange} required={false} disabled={disabled} testID="tempo-field" />
 }
 
+function danceOptions(t: (key: string) => string): ChoiceOption[] {
+  return DANCES.map((dance) => ({ id: dance, label: t(`rec.dance.${dance}`) }))
+}
+
 /** A Dance music's dance: Tandava or Kaoshiki. Always required, so the sheet has no "Not chosen" row. The list is lib/kirtan/types.ts DANCES. */
 export function DanceField({ theme, value, onChange, invalid, errorText, disabled }: { theme: SongsTheme; value: DanceId | null; onChange: (dance: DanceId) => void; invalid?: boolean; errorText?: string | null; disabled?: boolean }) {
   const t = useT()
-  const options: ChoiceOption[] = DANCES.map((dance) => ({ id: dance, label: (t as (key: string) => string)(`rec.dance.${dance}`) }))
   return (
     <ChoiceField
       theme={theme}
       label={t("rec.dance.label")}
       hint={t("rec.dance.hint")}
-      options={options}
+      options={danceOptions(t as (key: string) => string)}
       value={value}
       onChange={(next) => {
         if (next) onChange(next as DanceId)
@@ -58,6 +61,31 @@ export function DanceField({ theme, value, onChange, invalid, errorText, disable
       errorText={errorText}
       disabled={disabled}
       testID="dance-field"
+    />
+  )
+}
+
+/**
+ * The dance inside a card of the bulk queue (one file, or "for every file"): a small pill with the chosen dance (or "Choose") and a chevron;
+ * the caller draws the label and the Required mark beside it. The same sheet as the form's field. It replaced the small Tandava / Kaoshiki chips.
+ */
+export function DanceMenu({ theme, value, onChange, invalid, disabled }: { theme: SongsTheme; value: DanceId | null; onChange: (dance: DanceId) => void; invalid?: boolean; disabled?: boolean }) {
+  const t = useT()
+  return (
+    <ChoiceField
+      theme={theme}
+      inline
+      label={t("rec.dance.label")}
+      hint={t("rec.dance.hint")}
+      options={danceOptions(t as (key: string) => string)}
+      value={value}
+      onChange={(next) => {
+        if (next) onChange(next as DanceId)
+      }}
+      required
+      invalid={invalid}
+      disabled={disabled}
+      testID="dance-menu"
     />
   )
 }

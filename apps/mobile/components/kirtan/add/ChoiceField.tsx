@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { StyleSheet, Text, View } from "react-native"
+import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { ChevronDown } from "lucide-react-native"
 
 import { SpringSheet } from "@/components/assistant-v2/SpringSheet"
@@ -11,7 +11,7 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useT } from "@/lib/i18n"
-import { choiceLabel, choiceRailText, choiceRows, pickChoice, rowIsOn, type ChoiceOption } from "@/lib/kirtan/choiceField"
+import { choiceLabel, choiceRailText, choiceRowA11y, choiceRows, pickChoice, rowIsOn, type ChoiceOption } from "@/lib/kirtan/choiceField"
 
 type Props = {
   theme: SongsTheme
@@ -28,6 +28,13 @@ type Props = {
   required: boolean
   /** show "Optional" in the row; a field that never showed it (the type of recording of a Bhajan) passes false */
   showOptional?: boolean
+  /** no Required / Optional mark at all (the kind of a recording: it always has one, so there is nothing to say) */
+  showMark?: boolean
+  /**
+   * The small form for a row that sits inside a card (one file of the bulk queue, "for every file"): only a round pill with the chosen
+   * words (or "Choose") and a chevron; the label and the mark are the caller's own line. The sheet is the same.
+   */
+  inline?: boolean
   invalid?: boolean
   errorText?: string | null
   disabled?: boolean
@@ -45,7 +52,7 @@ type Props = {
  * recorded?", "Tempo" and "Which dance?" (about 100 pt of height each became 60). The explanation moved into the sheet.
  * Holds no value: the caller passes it and takes the change. The rules: lib/kirtan/choiceField.ts.
  */
-export function ChoiceField({ theme, label, hint, options, value, onChange, required, showOptional = true, invalid, errorText, disabled, noteOf, below, testID }: Props) {
+export function ChoiceField({ theme, label, hint, options, value, onChange, required, showOptional = true, showMark = true, inline, invalid, errorText, disabled, noteOf, below, testID }: Props) {
   const t = useT()
   const am = useAmTheme()
   const [open, setOpen] = useState(false)
@@ -58,6 +65,45 @@ export function ChoiceField({ theme, label, hint, options, value, onChange, requ
     close()
   }
   const rows = choiceRows(options, !required)
+  const sheet = (
+    <SpringSheet visible={open} onClose={close} title={label} theme={am}>
+      <View style={p.sheetBody}>
+        {hint ? <Text style={[p.hint, { color: theme.textBody }]}>{hint}</Text> : null}
+        <ScrollView style={s.list} contentContainerStyle={p.listContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator>
+          {rows.map((row) =>
+            row.kind === "none" ? (
+              <Row key="none" theme={theme} label={t("picker.none")} on={rowIsOn(row, value)} a11yLabel={t("choice.clear.a11y", { field: label })} onPress={() => choose(null)} />
+            ) : (
+              <Row key={row.id} theme={theme} label={row.label} on={rowIsOn(row, value)} note={row.note ?? noteOf?.(row.id)} a11yLabel={choiceRowA11y(row)} onPress={() => choose(row.id)} />
+            ),
+          )}
+        </ScrollView>
+      </View>
+    </SpringSheet>
+  )
+
+  if (inline) {
+    return (
+      <View testID={testID}>
+        <Press
+          accessibilityRole="button"
+          accessibilityLabel={t("picker.open", { field: label })}
+          accessibilityHint={railText}
+          accessibilityState={{ disabled: !!disabled, expanded: open }}
+          disabled={disabled}
+          onPress={() => setOpen(true)}
+          pressedScale={0.96}
+          style={[s.pill, { backgroundColor: chosen ? theme.peach : theme.card, borderColor: invalid ? amColors.danger : chosen ? theme.peach : theme.line }]}
+        >
+          <Text numberOfLines={1} style={[s.pillText, { color: chosen ? theme.accent : theme.textHeading }]}>
+            {chosen ?? t("picker.choose")}
+          </Text>
+          <ChevronDown size={18} color={chosen ? theme.accent : theme.textHeading} />
+        </Press>
+        {sheet}
+      </View>
+    )
+  }
 
   return (
     <View style={s.root} testID={testID}>
@@ -74,7 +120,7 @@ export function ChoiceField({ theme, label, hint, options, value, onChange, requ
         <View style={s.text}>
           <View style={s.head}>
             <Text style={[p.label, { color: theme.textHeading }]}>{label}</Text>
-            {required || showOptional ? <RequiredMark theme={theme} required={required} invalid={invalid} /> : null}
+            {showMark && (required || showOptional) ? <RequiredMark theme={theme} required={required} invalid={invalid} /> : null}
           </View>
           <Text numberOfLines={1} style={[chosen ? s.value : s.none, { color: chosen ? theme.textHeading : theme.textMuted }]}>
             {railText}
@@ -87,20 +133,7 @@ export function ChoiceField({ theme, label, hint, options, value, onChange, requ
       {below ? <Text style={[p.hint, { color: theme.textBody }]}>{below}</Text> : null}
       {errorText ? <FieldError theme={theme} text={errorText} /> : null}
 
-      <SpringSheet visible={open} onClose={close} title={label} theme={am}>
-        <View style={p.sheetBody}>
-          {hint ? <Text style={[p.hint, { color: theme.textBody }]}>{hint}</Text> : null}
-          <View style={p.listContent}>
-            {rows.map((row) =>
-              row.kind === "none" ? (
-                <Row key="none" theme={theme} label={t("picker.none")} on={rowIsOn(row, value)} a11yLabel={t("choice.clear.a11y", { field: label })} onPress={() => choose(null)} />
-              ) : (
-                <Row key={row.id} theme={theme} label={row.label} on={rowIsOn(row, value)} note={noteOf?.(row.id)} onPress={() => choose(row.id)} />
-              ),
-            )}
-          </View>
-        </View>
-      </SpringSheet>
+      {sheet}
     </View>
   )
 }
@@ -112,5 +145,8 @@ const s = StyleSheet.create({
   head: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 4 },
   value: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 22 },
   none: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22 },
+  list: { maxHeight: 480 },
+  pill: { minHeight: 40, alignSelf: "flex-start", paddingHorizontal: 16, borderRadius: 70, borderWidth: 1.5, flexDirection: "row", alignItems: "center", gap: 8 },
+  pillText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18, flexShrink: 1 },
   chevron: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
 })

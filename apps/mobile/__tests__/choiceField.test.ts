@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { choiceLabel, choiceRailText, choiceRows, pickChoice, rowIsOn, type ChoiceOption } from "@/lib/kirtan/choiceField"
+import { choiceLabel, choiceRailText, choiceRowA11y, choiceRows, pickChoice, rowIsOn, type ChoiceOption } from "@/lib/kirtan/choiceField"
 import { kindHasPerformance, kindHasRecordingType, kindHasTempo, kindRequiresPerformance, kindRequiresRecordingType, PERFORMANCES, recordingTypesFor, TEMPO_IDS } from "@/lib/kirtan/recordingInfo"
 import { DANCES } from "@/lib/kirtan/types"
 import { choiceFieldEn, choiceFieldEs, choiceFieldRu } from "@/locales/choiceField"
@@ -139,10 +139,13 @@ describe("the wiring: no row of big chips is left in the form", () => {
     expect(read("app/upload-set.tsx")).toContain('form.field("dance")')
   })
 
-  it("the form's Dance field is the dropdown; the small chips stay only in the rows of the bulk queue", () => {
-    expect(read("components/kirtan/add/KindFields.tsx")).not.toMatch(/export function DanceField/)
+  it("the form's Dance field is the dropdown, and so is the dance inside the rows of the bulk queue (a small pill, same sheet)", () => {
+    expect(read("components/kirtan/add/KindFields.tsx")).not.toMatch(/export function Dance/)
     expect(read("app/add-kirtan.tsx")).toContain('{ DanceField, PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"')
-    expect(read("components/kirtan/add/QueueRows.tsx")).toContain("DanceChoices")
+    const queue = read("components/kirtan/add/QueueRows.tsx")
+    expect(queue).toContain("<DanceMenu")
+    expect(queue).not.toContain("DanceChoices")
+    expect(read("components/kirtan/add/SoundFields.tsx")).toContain("inline")
   })
 })
 
@@ -153,5 +156,63 @@ describe("the row's words", () => {
     expect(Object.keys(choiceFieldEs).sort()).toEqual(keys)
     for (const dict of [choiceFieldEn, choiceFieldRu, choiceFieldEs]) for (const v of Object.values(dict)) expect(v.length).toBeGreaterThan(3)
     for (const dict of [choiceFieldRu, choiceFieldEs]) expect(dict["choice.clear.a11y"]).toContain("{field}")
+  })
+})
+
+describe("the kind of a recording: one row with a sheet (second part, 10 Nov 2026)", () => {
+  const KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"]
+  const options: ChoiceOption[] = KINDS.map((id) => ({ id, label: id, note: `blurb of ${id}` }))
+
+  it("every kind is a row with its own line under the name, and a kind can never be cleared", () => {
+    const rows = choiceRows(options, false)
+    expect(rows).toHaveLength(6)
+    expect(rows.every((r) => r.kind === "choice" && r.note === `blurb of ${r.id}`)).toBe(true)
+    expect(pickChoice("kiirtan", null, true)).toEqual({ value: "kiirtan", changed: false })
+    expect(pickChoice("kiirtan", "bhajan", true)).toEqual({ value: "bhajan", changed: true })
+  })
+
+  it("a screen reader hears the name and then the line, as the tiles said it", () => {
+    expect(choiceRowA11y({ id: "bhajan", label: "Bhajan", note: "A devotional song" })).toBe("Bhajan. A devotional song")
+    expect(choiceRowA11y({ id: "solo", label: "Solo" })).toBe("Solo")
+  })
+
+  it("the add form, the playlist and a track of the playlist use KindField; no tiles or chips of kinds are left", () => {
+    expect(read("app/add-kirtan.tsx")).toContain("<KindField")
+    expect(read("app/add-kirtan.tsx")).not.toContain("kindCard")
+    expect(read("app/upload-set.tsx")).toContain("<KindField")
+    expect(read("components/kirtan/sets/SetTrackRow.tsx")).toContain("<KindField")
+    const field = read("components/kirtan/add/KindField.tsx")
+    expect(field).toContain("other_mantra")
+    expect(field).toContain("showMark={false}")
+  })
+
+  it("the playlist keeps what a change of kind resets, and Others keeps its own page", () => {
+    const set = read("app/upload-set.tsx")
+    for (const reset of ["defaultLanguage: null", "defaultDance: null", "defaultPractice: null", "defaultRecordingType: null", "defaultByAuthor: false"]) expect(set).toContain(reset)
+    expect(read("app/add-kirtan.tsx")).toContain('psSong: null')
+    expect(read("app/add-kirtan.tsx")).toContain("MantraField")
+  })
+})
+
+describe("the broadcast's quick dates are one row with a sheet", () => {
+  it("Start and Ends use ChoiceField with their own ids and no chips", () => {
+    const source = read("app/upload-broadcast.tsx")
+    expect(source.match(/<ChoiceField/g)).toHaveLength(2)
+    expect(source).toContain("localDateString(7)")
+    expect(source).not.toContain("<Chip")
+    expect(source).toContain('form.field("start")')
+    expect(source).toContain('form.field("end")')
+  })
+})
+
+describe("the ticks share one measure", () => {
+  it("the author tick and the Avarta tick have the same box and gap, and the hint sits under the words", () => {
+    const author = read("components/kirtan/add/AuthorTick.tsx")
+    const practice = read("components/kirtan/add/PracticeField.tsx")
+    expect(author).toMatch(/TICK_BOX = 24/)
+    expect(author).toMatch(/TICK_GAP = 12/)
+    expect(practice).toContain("TICK_BOX")
+    expect(practice).toContain("TICK_GAP")
+    for (const source of [author, practice]) expect(source).toMatch(/paddingLeft: TICK_BOX \+ TICK_GAP/)
   })
 })

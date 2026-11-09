@@ -4,7 +4,8 @@ import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSprin
 import Svg, { Path } from "react-native-svg"
 
 import { DuplicateCard } from "@/components/kirtan/add/DuplicateCard"
-import { DanceChoices, RequiredMark } from "@/components/kirtan/add/KindFields"
+import { RequiredMark } from "@/components/kirtan/add/KindFields"
+import { DanceMenu } from "@/components/kirtan/add/SoundFields"
 import { PracticeRowToggle } from "@/components/kirtan/add/PracticeField"
 import { ChordsPrompt } from "@/components/recording-extras/ChordsPrompt"
 import { KPress } from "@/components/kirtan/KPress"
@@ -73,7 +74,7 @@ export function ApplyToAllCard({ theme, kind, missing, tried, locked, onLanguage
       {kindHasDance(kind) ? (
         <View style={styles.applyDance}>
           <Text style={[styles.detail, { color: theme.textBody }]}>{t("rec.q.applyDance")}</Text>
-          <DanceChoices theme={theme} value={null} onChange={onDance} disabled={locked} />
+          <DanceMenu theme={theme} value={null} onChange={onDance} disabled={locked} />
         </View>
       ) : null}
       {missing.language > 0 ? (
@@ -119,7 +120,7 @@ function RowKindLine({ theme, item, fields, onLanguage, onDance }: { theme: Song
         <View style={styles.kindRow}>
           <Text style={[styles.kindRowLabel, { color: theme.textBody }]}>{t("rec.q.rowDance")}</Text>
           <RequiredMark theme={theme} required invalid={lacksDance && fields.tried} />
-          <DanceChoices theme={theme} value={fields.dance ?? null} onChange={(dance) => onDance(item.id, dance)} invalid={lacksDance && fields.tried} />
+          <DanceMenu theme={theme} value={fields.dance ?? null} onChange={(dance) => onDance(item.id, dance)} invalid={lacksDance && fields.tried} />
         </View>
       ) : null}
       {fields.missing.map((field) => (
