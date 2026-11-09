@@ -2,28 +2,29 @@ import { isChordName } from "@/lib/songChords/chordName"
 import { linkCount, stripInvisible } from "@/lib/songComments/rules"
 
 import { KEY_PATTERN, provesAChart, SHEET_NOTE_MAX } from "./rules"
-import type { RecordingSheet, SheetCycle, SheetCycleForm, SheetCycleFormDraft, SheetFailure, SheetInstrument } from "./types"
+import type { RecordingSheet, SheetCycle, SheetCycleTune, SheetCycleTuneDraft, SheetFailure, SheetInstrument } from "./types"
 
 /**
  * The chord CYCLE of a Kiirtan (docs/kiirtan-cycle.md). A Kiirtan has no lines of words to hang chords on: the same few
- * chords go round and round. So a recording has a list of FORMS (a slow round, then a fast one); each form is a ring of
- * chords, four by default, up to eight, with the chord the ring starts on (required) and how many rounds are played
- * (optional). The same limits as the API (apps/api/app/schemas/recording_extras.py `CycleIn`).
+ * chords go round and round. A recording can play more than one TUNE (melody), so a cycle has a list of tunes, up to six;
+ * each tune is a ring of chords, four by default, up to eight, with the chord the ring starts on (required), its own key
+ * (optional) and how many rounds are played (optional). A tune nobody has chords for stays in the recording as
+ * "no chords yet" and another member can add it later. The same limits as the API
+ * (apps/api/app/schemas/recording_extras.py `CycleIn`).
  *
  * Pure, no React. Nothing here is "now playing": a cycle carries no timing and the screen never highlights a part.
  */
 export const CYCLE_DEFAULT_SLOTS = 4
 export const CYCLE_MIN_SLOTS = 2
 export const CYCLE_MAX_SLOTS = 8
-export const CYCLE_MAX_FORMS = 8
+export const CYCLE_MAX_TUNES = 6
 export const CYCLE_NAME_MAX = 30
 export const CYCLE_TIMES_MAX = 99
 
 export type CycleDraft = {
-  forms: SheetCycleFormDraft[]
+  /** one entry per tune of the recording, in the order they are played; a tune with no chords is `skipped` */
+  tunes: SheetCycleTuneDraft[]
   instrument: SheetInstrument
-  /** "" when the player did not say */
-  key: string
   capo: number
   playedIt: boolean
   note: string
@@ -36,47 +37,48 @@ export type CycleDraft = {
   basedOn: { id: string; name: string | null } | null
 }
 
-export type CycleProblem = "noChords" | "fewChords" | "noStart" | "tooLong" | "links" | "notPlayed" | "badKey" | "noteTooLong" | "badTimes" | "sameForm"
+export type CycleProblem = "noChords" | "noTune" | "fewChords" | "noStart" | "tooLong" | "links" | "notPlayed" | "badKey" | "noteTooLong" | "badTimes"
 
-/** An empty ring of `slots` places, the first one the start. */
-export function emptyForm(slots: number = CYCLE_DEFAULT_SLOTS): SheetCycleFormDraft {
+/** An empty ring of `slots` places, the first one the start, in no key, with its chords still to come. */
+export function emptyTune(slots: number = CYCLE_DEFAULT_SLOTS): SheetCycleTuneDraft {
   const n = Math.min(CYCLE_MAX_SLOTS, Math.max(CYCLE_MIN_SLOTS, Math.round(slots)))
-  return { name: "", slots: Array.from({ length: n }, () => null), start: 0, times: "" }
+  return { name: "", slots: Array.from({ length: n }, () => null), start: 0, times: "", key: "", skipped: false }
 }
 
-/** A new draft with `forms` empty rings (the question "how many forms are played in the recording?"). */
-export function newCycleDraft(forms = 1, instrument: SheetInstrument = "guitar"): CycleDraft {
-  const n = Math.min(CYCLE_MAX_FORMS, Math.max(1, Math.round(forms)))
-  return { forms: Array.from({ length: n }, () => emptyForm()), instrument, key: "", capo: 0, playedIt: false, note: "", isAnonymous: false, editId: null, replacesId: null, basedOn: null }
+const clampCount = (count: number) => Math.min(CYCLE_MAX_TUNES, Math.max(1, Math.round(count)))
+
+/** A new draft with `tunes` empty rings (the question "how many tunes are played in the recording?"). */
+export function newCycleDraft(tunes = 1, instrument: SheetInstrument = "guitar"): CycleDraft {
+  return { tunes: Array.from({ length: clampCount(tunes) }, () => emptyTune()), instrument, capo: 0, playedIt: false, note: "", isAnonymous: false, editId: null, replacesId: null, basedOn: null }
 }
 
-/** Changes the number of forms: new ones are empty rings, the surplus is cut from the end. */
-export function setFormCount(draft: CycleDraft, count: number): CycleDraft {
-  const n = Math.min(CYCLE_MAX_FORMS, Math.max(1, Math.round(count)))
-  if (n === draft.forms.length) return draft
-  const forms = n > draft.forms.length ? [...draft.forms, ...Array.from({ length: n - draft.forms.length }, () => emptyForm())] : draft.forms.slice(0, n)
-  return { ...draft, forms }
+/** Changes the number of tunes: new ones are empty rings, the surplus is cut from the end. */
+export function setTuneCount(draft: CycleDraft, count: number): CycleDraft {
+  const n = clampCount(count)
+  if (n === draft.tunes.length) return draft
+  const tunes = n > draft.tunes.length ? [...draft.tunes, ...Array.from({ length: n - draft.tunes.length }, () => emptyTune())] : draft.tunes.slice(0, n)
+  return { ...draft, tunes }
 }
 
-function mapForm(draft: CycleDraft, index: number, change: (form: SheetCycleFormDraft) => SheetCycleFormDraft): CycleDraft {
-  const form = draft.forms[index]
-  if (!form) return draft
-  return { ...draft, forms: draft.forms.map((f, i) => (i === index ? change(f) : f)) }
+function mapTune(draft: CycleDraft, index: number, change: (tune: SheetCycleTuneDraft) => SheetCycleTuneDraft): CycleDraft {
+  const tune = draft.tunes[index]
+  if (!tune) return draft
+  return { ...draft, tunes: draft.tunes.map((f, i) => (i === index ? change(f) : f)) }
 }
 
 /** Puts a chord on a slot, or empties it with `null`. */
-export function setSlot(draft: CycleDraft, form: number, slot: number, chord: string | null): CycleDraft {
-  return mapForm(draft, form, (f) => (slot < 0 || slot >= f.slots.length ? f : { ...f, slots: f.slots.map((c, i) => (i === slot ? chord : c)) }))
+export function setSlot(draft: CycleDraft, tune: number, slot: number, chord: string | null): CycleDraft {
+  return mapTune(draft, tune, (f) => (slot < 0 || slot >= f.slots.length ? f : { ...f, slots: f.slots.map((c, i) => (i === slot ? chord : c)) }))
 }
 
 /** Marks the slot the round starts on. */
-export function setStart(draft: CycleDraft, form: number, slot: number): CycleDraft {
-  return mapForm(draft, form, (f) => (slot < 0 || slot >= f.slots.length ? f : { ...f, start: slot }))
+export function setStart(draft: CycleDraft, tune: number, slot: number): CycleDraft {
+  return mapTune(draft, tune, (f) => (slot < 0 || slot >= f.slots.length ? f : { ...f, start: slot }))
 }
 
 /** Adds a slot at the end (up to eight) or takes the last one away (down to two); the start stays inside the ring. */
-export function resizeForm(draft: CycleDraft, form: number, slots: number): CycleDraft {
-  return mapForm(draft, form, (f) => {
+export function resizeTune(draft: CycleDraft, tune: number, slots: number): CycleDraft {
+  return mapTune(draft, tune, (f) => {
     const n = Math.min(CYCLE_MAX_SLOTS, Math.max(CYCLE_MIN_SLOTS, Math.round(slots)))
     if (n === f.slots.length) return f
     const next = n > f.slots.length ? [...f.slots, ...Array.from({ length: n - f.slots.length }, () => null)] : f.slots.slice(0, n)
@@ -84,12 +86,56 @@ export function resizeForm(draft: CycleDraft, form: number, slots: number): Cycl
   })
 }
 
-export function setFormName(draft: CycleDraft, form: number, name: string): CycleDraft {
-  return mapForm(draft, form, (f) => ({ ...f, name: name.slice(0, CYCLE_NAME_MAX + 10) }))
+export function setTuneName(draft: CycleDraft, tune: number, name: string): CycleDraft {
+  return mapTune(draft, tune, (f) => ({ ...f, name: name.slice(0, CYCLE_NAME_MAX + 10) }))
 }
 
-export function setFormTimes(draft: CycleDraft, form: number, times: string): CycleDraft {
-  return mapForm(draft, form, (f) => ({ ...f, times: times.replace(/\D+/g, "").slice(0, 2) }))
+export function setTuneTimes(draft: CycleDraft, tune: number, times: string): CycleDraft {
+  return mapTune(draft, tune, (f) => ({ ...f, times: times.replace(/\D+/g, "").slice(0, 2) }))
+}
+
+/** The key of one tune ("" = not sure). Every tune has its own: different tunes can be in different keys. */
+export function setTuneKey(draft: CycleDraft, tune: number, key: string): CycleDraft {
+  return mapTune(draft, tune, (f) => ({ ...f, key }))
+}
+
+/** "No chords yet" for a tune (or back to being filled in). */
+export function setTuneSkipped(draft: CycleDraft, tune: number, skipped: boolean): CycleDraft {
+  return mapTune(draft, tune, (f) => ({ ...f, skipped }))
+}
+
+/** The tune before this one that is being filled in (a skipped tune has no key to copy), or null. */
+export function previousTune(draft: CycleDraft, tune: number): number | null {
+  for (let i = tune - 1; i >= 0; i -= 1) if (draft.tunes[i] && !draft.tunes[i]!.skipped) return i
+  return null
+}
+
+/** "Same as previous tune": copies the key of the previous tune. Does nothing for the first tune. */
+export function keyLikePrevious(draft: CycleDraft, tune: number): CycleDraft {
+  const prev = previousTune(draft, tune)
+  return prev === null ? draft : setTuneKey(draft, tune, draft.tunes[prev]!.key)
+}
+
+/** The answer to "do you have chords for all the tunes, or only for some?": `chosen` are the tunes to enter, the rest are skipped. */
+export function chooseTunes(draft: CycleDraft, chosen: readonly number[]): CycleDraft {
+  return { ...draft, tunes: draft.tunes.map((f, i) => ({ ...f, skipped: !chosen.includes(i) })) }
+}
+
+/** The tunes that are being entered (not skipped), as places in the list. */
+export function activeTunes(draft: CycleDraft): number[] {
+  return draft.tunes.flatMap((f, i) => (f.skipped ? [] : [i]))
+}
+
+/** The next tune to fill in after `from` (or the first one for -1), or null when it was the last: the walk of the entry screen. */
+export function nextTune(draft: CycleDraft, from: number): number | null {
+  for (let i = from + 1; i < draft.tunes.length; i += 1) if (!draft.tunes[i]!.skipped) return i
+  return null
+}
+
+/** The tune to fill in before `from`, or null when it is the first. */
+export function priorTune(draft: CycleDraft, from: number): number | null {
+  for (let i = from - 1; i >= 0; i -= 1) if (!draft.tunes[i]!.skipped) return i
+  return null
 }
 
 function cleanName(raw: string): string | null {
@@ -104,66 +150,94 @@ function timesOf(raw: string): number | null | "bad" {
   return Number.isInteger(n) && n >= 1 && n <= CYCLE_TIMES_MAX ? n : "bad"
 }
 
-/** The form as the server keeps it, or null while a slot is still empty. */
-function formOf(f: SheetCycleFormDraft): SheetCycleForm | null {
+/** True when every place of the ring holds a chord. */
+export function tuneFilled(f: SheetCycleTuneDraft): boolean {
+  return f.slots.length >= CYCLE_MIN_SLOTS && f.slots.every((c) => Boolean(c && c.trim()) && isChordName((c ?? "").trim()))
+}
+
+/** True when nothing was put in the ring yet. */
+export function tuneEmpty(f: SheetCycleTuneDraft): boolean {
+  return f.slots.every((c) => !c)
+}
+
+/** The tune as the server keeps it, or null while a slot is still empty (or the tune is skipped). */
+function tuneOf(f: SheetCycleTuneDraft, number: number): SheetCycleTune | null {
+  if (f.skipped) return null
   const chords = f.slots.map((c) => (c ?? "").trim())
   if (chords.some((c) => !c)) return null
   const times = timesOf(f.times)
-  return { name: cleanName(f.name), chords, start: Math.min(f.start, chords.length - 1), times: times === "bad" ? null : times }
+  return { number, name: cleanName(f.name), key: f.key.trim() || null, chords, start: Math.min(f.start, chords.length - 1), times: times === "bad" ? null : times }
+}
+
+/** What stops one tune from being finished (the "Next" button of its step). Empty: it can go on. */
+export function tuneProblems(f: SheetCycleTuneDraft): CycleProblem[] {
+  const out: CycleProblem[] = []
+  if (!tuneFilled(f)) out.push("noChords")
+  if (f.start < 0 || f.start >= f.slots.length) out.push("noStart")
+  if (timesOf(f.times) === "bad") out.push("badTimes")
+  const name = cleanName(f.name) ?? ""
+  if (Array.from(name).length > CYCLE_NAME_MAX) out.push("tooLong")
+  if (linkCount(name) > 0) out.push("links")
+  const key = f.key.trim()
+  if (key && !KEY_PATTERN.test(key)) out.push("badKey")
+  return out
 }
 
 /** What stops the cycle from being sent, in the order a person fixes it. Empty: it can go. */
 export function cycleProblems(draft: CycleDraft): CycleProblem[] {
   const out: CycleProblem[] = []
-  const chordsOf = draft.forms.flatMap((f) => f.slots.filter((c): c is string => Boolean(c && c.trim())))
-  if (chordsOf.length === 0) out.push("noChords")
-  // every place of a ring must hold a chord (a ring with a hole has no round to play)
-  else if (draft.forms.some((f) => f.slots.some((c) => !c || !c.trim()))) out.push("noChords")
-  else if (chordsOf.some((c) => !isChordName(c))) out.push("noChords")
-  else if (!provesAChart(chordsOf)) out.push("fewChords")
-  if (draft.forms.some((f) => f.start < 0 || f.start >= f.slots.length)) out.push("noStart")
-  if (draft.forms.some((f) => timesOf(f.times) === "bad")) out.push("badTimes")
-  const names = draft.forms.map((f) => cleanName(f.name) ?? "")
-  if (names.some((n) => Array.from(n).length > CYCLE_NAME_MAX)) out.push("tooLong")
-  if (names.some((n) => linkCount(n) > 0)) out.push("links")
-  const forms = draft.forms.map(formOf)
-  if (forms.every(Boolean)) {
-    const keys = (forms as SheetCycleForm[]).map((f) => JSON.stringify([f.chords, f.start, f.times]))
-    if (new Set(keys).size < keys.length) out.push("sameForm")
+  const active = draft.tunes.filter((f) => !f.skipped)
+  const add = (p: CycleProblem) => {
+    if (!out.includes(p)) out.push(p)
   }
-  const key = draft.key.trim()
-  if (key && !KEY_PATTERN.test(key)) out.push("badKey")
-  if (Array.from(draft.note.trim()).length > SHEET_NOTE_MAX) out.push("noteTooLong")
-  else if (linkCount(stripInvisible(draft.note)) > 0) out.push("links")
-  if (!draft.playedIt) out.push("notPlayed")
+  if (active.length === 0) add("noTune")
+  for (const f of active) for (const p of tuneProblems(f)) add(p)
+  const chordsOf = active.flatMap((f) => f.slots.filter((c): c is string => Boolean(c && c.trim())))
+  if (active.length > 0 && !out.includes("noChords") && !provesAChart(chordsOf)) add("fewChords")
+  if (Array.from(draft.note.trim()).length > SHEET_NOTE_MAX) add("noteTooLong")
+  else if (linkCount(stripInvisible(draft.note)) > 0) add("links")
+  if (!draft.playedIt) add("notPlayed")
   return out
 }
 
 /** True when nothing was entered yet (a collapsed prompt sends nothing; leaving asks nothing). */
 export function isBlankCycle(draft: CycleDraft): boolean {
-  return draft.forms.every((f) => f.slots.every((c) => !c) && !f.name.trim() && !f.times.trim())
+  return draft.tunes.every((f) => tuneEmpty(f) && !f.name.trim() && !f.times.trim() && !f.key)
 }
 
 /** How many chords were put on the rings. */
 export function cycleChordCount(draft: CycleDraft): number {
-  return draft.forms.reduce((sum, f) => sum + f.slots.filter(Boolean).length, 0)
+  return draft.tunes.reduce((sum, f) => sum + (f.skipped ? 0 : f.slots.filter(Boolean).length), 0)
 }
 
 /** The chords used so far in the draft, in order of first use (the chord sheet shows them first). */
 export function cycleUsedChords(draft: CycleDraft): string[] {
   const seen: string[] = []
-  for (const f of draft.forms) for (const c of f.slots) if (c && !seen.includes(c)) seen.push(c)
+  for (const f of draft.tunes) for (const c of f.slots) if (c && !seen.includes(c)) seen.push(c)
   return seen
 }
 
-/** What the member sends. Only for a draft with no problems. */
-export function toCyclePayload(draft: CycleDraft): { instrument: SheetInstrument; key: string | null; capo: number; cycle: SheetCycle; playedIt: boolean; note: string | null; isAnonymous: boolean; replacesId: string | null; basedOnId: string | null } {
-  const forms = draft.forms.map(formOf).filter((f): f is SheetCycleForm => f !== null)
+export type CyclePayload = {
+  instrument: SheetInstrument
+  /** the key of the first tune that has one: the sheet is listed under it */
+  key: string | null
+  capo: number
+  cycle: SheetCycle
+  playedIt: boolean
+  note: string | null
+  isAnonymous: boolean
+  replacesId: string | null
+  basedOnId: string | null
+}
+
+/** What the member sends. Only for a draft with no problems. Tunes that were skipped are not sent: they stay "no chords yet". */
+export function toCyclePayload(draft: CycleDraft): CyclePayload {
+  const tunes = draft.tunes.map((f, i) => tuneOf(f, i + 1)).filter((f): f is SheetCycleTune => f !== null)
   return {
     instrument: draft.instrument,
-    key: draft.key.trim() || null,
+    key: tunes.find((f) => f.key)?.key ?? null,
     capo: draft.instrument === "guitar" ? draft.capo : 0,
-    cycle: { forms },
+    cycle: { tuneCount: draft.tunes.length, tunes },
     playedIt: draft.playedIt,
     note: draft.note.trim() || null,
     isAnonymous: draft.isAnonymous,
@@ -172,15 +246,16 @@ export function toCyclePayload(draft: CycleDraft): { instrument: SheetInstrument
   }
 }
 
-export type CyclePayload = ReturnType<typeof toCyclePayload>
-
 /** The request body (snake_case) of a cycle. */
 export function cycleToWire(payload: CyclePayload): Record<string, unknown> {
   return {
     instrument: payload.instrument,
     chart_key: payload.key,
     capo: payload.capo,
-    cycle: { forms: payload.cycle.forms.map((f) => ({ name: f.name, chords: f.chords, start: f.start, times: f.times })) },
+    cycle: {
+      tune_count: payload.cycle.tuneCount,
+      tunes: payload.cycle.tunes.map((f) => ({ number: f.number, name: f.name, key: f.key, chords: f.chords, start: f.start, times: f.times })),
+    },
     played_it: payload.playedIt,
     note: payload.note,
     is_anonymous: payload.isAnonymous,
@@ -189,13 +264,49 @@ export function cycleToWire(payload: CyclePayload): Record<string, unknown> {
   }
 }
 
-/** A sheet is a cycle when it carries one. */
-export function isCycle(sheet: Pick<RecordingSheet, "cycle">): boolean {
-  return Boolean(sheet.cycle && sheet.cycle.forms.length > 0)
+type WireCycle = {
+  tune_count?: number
+  tunes?: Array<{ number?: number; name: string | null; key?: string | null; chords: string[]; start: number; times: number | null }>
+  /** the first build's name for a tune: read as tunes numbered by their place (the server already does this) */
+  forms?: Array<{ name: string | null; chords: string[]; start: number; times: number | null }>
 }
 
-function formDraftOf(f: SheetCycleForm): SheetCycleFormDraft {
-  return { name: f.name ?? "", slots: [...f.chords], start: f.start, times: f.times ? String(f.times) : "" }
+/** The cycle as the app keeps it. An answer of the first build (`forms`, no numbers, no keys) is read as tunes in order. */
+export function cycleFromWire(w: WireCycle): SheetCycle {
+  const raw: Array<{ number?: number; name: string | null; key?: string | null; chords: string[]; start: number; times: number | null }> = w.tunes ?? w.forms ?? []
+  const tunes: SheetCycleTune[] = raw.map((f, i) => ({
+    number: f.number || i + 1,
+    name: f.name ?? null,
+    key: f.key || null,
+    chords: [...f.chords],
+    start: f.start,
+    times: f.times ?? null,
+  }))
+  const top = tunes.reduce((m, f) => Math.max(m, f.number), 0)
+  return { tuneCount: Math.max(w.tune_count ?? 0, tunes.length, top), tunes }
+}
+
+/** A sheet is a cycle when it carries one. */
+export function isCycle(sheet: Pick<RecordingSheet, "cycle">): boolean {
+  return Boolean(sheet.cycle && sheet.cycle.tunes.length > 0)
+}
+
+/** How many tunes of the recording have no chords yet in this cycle. */
+export function missingTunes(cycle: SheetCycle): number[] {
+  const have = new Set(cycle.tunes.map((f) => f.number))
+  return Array.from({ length: cycle.tuneCount }, (_, i) => i + 1).filter((n) => !have.has(n))
+}
+
+function tuneDraftOf(f: SheetCycleTune): SheetCycleTuneDraft {
+  return { name: f.name ?? "", slots: [...f.chords], start: f.start, times: f.times ? String(f.times) : "", key: f.key ?? "", skipped: false }
+}
+
+/** The drafts of a cycle, one per tune of the recording: tunes without chords are skipped ("no chords yet"). */
+function tunesOfSheet(cycle: SheetCycle): SheetCycleTuneDraft[] {
+  return Array.from({ length: cycle.tuneCount }, (_, i) => {
+    const found = cycle.tunes.find((f) => f.number === i + 1)
+    return found ? tuneDraftOf(found) : { ...emptyTune(), skipped: true }
+  })
 }
 
 /** A draft from a cycle of the member's own (fix a waiting or rejected one, or change a live one into a replacement). */
@@ -203,8 +314,7 @@ export function cycleDraftFromSheet(sheet: RecordingSheet, mode: "edit" | "copy"
   const base = newCycleDraft(1, sheet.instrument)
   return {
     ...base,
-    forms: (sheet.cycle?.forms ?? []).map(formDraftOf),
-    key: sheet.chartKey ?? "",
+    tunes: sheet.cycle ? tunesOfSheet(sheet.cycle) : base.tunes,
     capo: sheet.capo ?? 0,
     playedIt: sheet.playedIt,
     note: sheet.note ?? "",
@@ -214,10 +324,17 @@ export function cycleDraftFromSheet(sheet: RecordingSheet, mode: "edit" | "copy"
   }
 }
 
-/** A draft that starts from somebody else's published cycle: the chords are copied and the first author is credited. */
-export function cycleDraftFromOther(sheet: RecordingSheet): CycleDraft {
+/**
+ * A draft that starts from somebody else's published cycle: the chords are copied and the first author is credited.
+ * `fill` is the number of a tune with no chords yet that the member is adding: it is opened for entering, the other
+ * tunes without chords stay "no chords yet".
+ */
+export function cycleDraftFromOther(sheet: RecordingSheet, fill?: number): CycleDraft {
+  const copy = cycleDraftFromSheet(sheet, "copy")
+  const tunes = fill && fill >= 1 && fill <= copy.tunes.length && copy.tunes[fill - 1]!.skipped ? copy.tunes.map((f, i) => (i === fill - 1 ? { ...f, skipped: false } : f)) : copy.tunes
   return {
-    ...cycleDraftFromSheet(sheet, "copy"),
+    ...copy,
+    tunes,
     replacesId: null,
     playedIt: false,
     isAnonymous: false,
@@ -226,20 +343,26 @@ export function cycleDraftFromOther(sheet: RecordingSheet): CycleDraft {
   }
 }
 
-/** One line for a form of a cycle: the chords in order, as a listener reads them: `Em - C - G - D`. */
-export function formLine(form: SheetCycleForm): string {
-  return form.chords.join(" - ")
+/** One line for a tune of a cycle: the chords in order, as a listener reads them: `Em - C - G - D`. */
+export function tuneLine(tune: Pick<SheetCycleTune, "chords">): string {
+  return tune.chords.join(" - ")
 }
 
-/** The chord slots of a form in the order they are played, starting with the start. */
-export function roundOrder(form: SheetCycleForm): string[] {
-  return form.chords.map((_, i) => form.chords[(form.start + i) % form.chords.length] as string)
+/** The chord slots of a tune in the order they are played, starting with the start. */
+export function roundOrder(tune: Pick<SheetCycleTune, "chords" | "start">): string[] {
+  return tune.chords.map((_, i) => tune.chords[(tune.start + i) % tune.chords.length] as string)
+}
+
+/** The tune with this number, or undefined while it has no chords yet. */
+export function tuneNumbered(cycle: SheetCycle, number: number): SheetCycleTune | undefined {
+  return cycle.tunes.find((f) => f.number === number)
 }
 
 /** The failure a cycle problem is told as (the screens have a sentence for each). */
 export function cycleProblemFailure(problem: CycleProblem): SheetFailure | null {
   switch (problem) {
     case "noChords":
+    case "noTune":
       return "noChords"
     case "fewChords":
       return "fewChords"

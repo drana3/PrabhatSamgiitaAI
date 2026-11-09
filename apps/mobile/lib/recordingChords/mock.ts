@@ -3,7 +3,7 @@ import { splitWords } from "@/lib/songPage/chordChart"
 import { cleanDraft } from "@/lib/songComments/rules"
 
 import { chartBody } from "./chart"
-import { CYCLE_MAX_FORMS, CYCLE_MAX_SLOTS, CYCLE_MIN_SLOTS, type CyclePayload } from "./cycle"
+import { CYCLE_MAX_TUNES, CYCLE_MAX_SLOTS, CYCLE_MIN_SLOTS, type CyclePayload } from "./cycle"
 import { OPEN_PER_RECORDING_INSTRUMENT, cleanSheet, draftProblem, provesAChart } from "./rules"
 import type { RecordingSheet, SheetChartPayload, SheetDraft, SheetFailure, SheetReportReason, SheetsBackend } from "./types"
 
@@ -34,14 +34,15 @@ const CHART_SAMPLE: RecordingSheet["lines"] = [
   { text: "Ananda Marga Jaya", placements: [{ word: 0, chord: "G" }, { word: 2, chord: "Em" }] },
 ]
 
-/** Made-up chords for the preview of a Kiirtan: two forms, a slow round and a fast one. Only an example. */
+/** Made-up chords for the preview of a Kiirtan: three tunes are played, the first two have chords, the third has none yet. Only an example. */
 const CYCLE_SAMPLE: NonNullable<RecordingSheet["cycle"]> = {
-  forms: [
-    { name: "Slow", chords: ["Em", "C", "G", "D"], start: 0, times: 4 },
-    { name: "Fast", chords: ["Am", "G", "C", "F"], start: 2, times: null },
+  tuneCount: 3,
+  tunes: [
+    { number: 1, name: "Slow", key: "G", chords: ["Em", "C", "G", "D"], start: 0, times: 4 },
+    { number: 2, name: "Fast", key: "C", chords: ["Am", "G", "C", "F"], start: 2, times: null },
   ],
 }
-const CYCLE_SAMPLE_BODY = "Form 1 (Slow): Em - C - G - D (starts on Em, x4)\nForm 2 (Fast): Am - G - C - F (starts on C)"
+const CYCLE_SAMPLE_BODY = "Tune 1 (Slow): Em - C - G - D (key G, starts on Em, x4)\nTune 2 (Fast): Am - G - C - F (key C, starts on C)\nTune 3: no chords yet"
 
 const SAMPLE = ["        Em           C", "Baba Nam Kevalam", "        Am           D", "Prema Mayi Dhyana", "", "   G         Em", "Ananda Marga Jaya"].join("\n")
 
@@ -69,7 +70,7 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
       chartKey: chart ? "G" : "Em",
       body: chart ? chartBody(CHART_SAMPLE as NonNullable<typeof CHART_SAMPLE>) : cycle ? CYCLE_SAMPLE_BODY : SAMPLE,
       lines: chart ? CHART_SAMPLE : null,
-      cycle: cycle ? { forms: CYCLE_SAMPLE.forms.map((f) => ({ ...f, chords: [...f.chords] })) } : null,
+      cycle: cycle ? { tuneCount: CYCLE_SAMPLE.tuneCount, tunes: CYCLE_SAMPLE.tunes.map((f) => ({ ...f, chords: [...f.chords] })) } : null,
       capo: 0,
       strum: chart ? "D DU UDU" : null,
       chordsCount: chart ? 6 : 8,
@@ -160,15 +161,16 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
   const buildCycle = (id: string, recordingId: string, cycle: CyclePayload, status: RecordingSheet["status"]): RecordingSheet => {
     if (options.cycleKind && !options.cycleKind(recordingId)) throw new SheetMockFailure("invalid")
     if (!cycle.playedIt) throw new SheetMockFailure("invalid")
-    const forms = cycle.cycle.forms
-    if (forms.length < 1 || forms.length > CYCLE_MAX_FORMS) throw new SheetMockFailure("invalid")
-    for (const f of forms) {
+    const tunes = cycle.cycle.tunes
+    const count = cycle.cycle.tuneCount
+    if (tunes.length < 1 || count < 1 || count > CYCLE_MAX_TUNES || tunes.length > count) throw new SheetMockFailure("invalid")
+    if (new Set(tunes.map((f) => f.number)).size < tunes.length || tunes.some((f) => f.number < 1 || f.number > count)) throw new SheetMockFailure("invalid")
+    for (const f of tunes) {
       if (f.chords.length < CYCLE_MIN_SLOTS || f.chords.length > CYCLE_MAX_SLOTS || f.start < 0 || f.start >= f.chords.length) throw new SheetMockFailure("invalid")
       if (f.chords.some((name) => !isChordName(name))) throw new SheetMockFailure("invalid")
     }
-    const found = forms.flatMap((f) => f.chords)
+    const found = tunes.flatMap((f) => f.chords)
     if (!provesAChart(found)) throw new SheetMockFailure("fewChords")
-    if (new Set(forms.map((f) => JSON.stringify([f.chords, f.start, f.times]))).size < forms.length) throw new SheetMockFailure("duplicate")
     const old = cycle.replacesId ? sheets.get(cycle.replacesId) : undefined
     const replaces = old && old.mine && old.status === "published" && old.recordingId === recordingId && old.instrument === cycle.instrument ? old.id : null
     const original = cycle.basedOnId ? sheets.get(cycle.basedOnId) : undefined
@@ -178,9 +180,12 @@ export function createSheetsMock(options: { me: () => string; now?: () => number
       recordingId,
       instrument: cycle.instrument,
       chartKey: cycle.key,
-      body: forms.map((f, i) => `Form ${i + 1}${f.name ? ` (${f.name})` : ""}: ${f.chords.join(" - ")}`).join("\n"),
+      body: Array.from({ length: count }, (_, i) => {
+        const f = tunes.find((x) => x.number === i + 1)
+        return f ? `Tune ${i + 1}${f.name ? ` (${f.name})` : ""}: ${f.chords.join(" - ")}` : `Tune ${i + 1}: no chords yet`
+      }).join("\n"),
       lines: null,
-      cycle: { forms: forms.map((f) => ({ ...f, chords: [...f.chords] })) },
+      cycle: { tuneCount: count, tunes: tunes.map((f) => ({ ...f, chords: [...f.chords] })) },
       capo: cycle.instrument === "guitar" ? cycle.capo : 0,
       strum: null,
       basedOn: credited ? { id: credited.id, name: credited.author?.name ?? null } : null,

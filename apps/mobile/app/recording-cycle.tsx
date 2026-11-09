@@ -22,24 +22,35 @@ import { authHeadersFromStore } from "@/lib/memberAuth"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { sheetFailure, sheetsBackend } from "@/lib/recordingChords/backend"
 import {
-  CYCLE_MAX_FORMS,
   CYCLE_MAX_SLOTS,
+  CYCLE_MAX_TUNES,
   CYCLE_MIN_SLOTS,
   CYCLE_NAME_MAX,
+  activeTunes,
+  chooseTunes,
   cycleDraftFromOther,
   cycleDraftFromSheet,
   cycleProblems,
   cycleUsedChords,
   isBlankCycle,
   isCycle,
+  keyLikePrevious,
   newCycleDraft,
-  resizeForm,
-  setFormCount,
-  setFormName,
-  setFormTimes,
+  nextTune,
+  previousTune,
+  priorTune,
+  resizeTune,
   setSlot,
   setStart,
+  setTuneCount,
+  setTuneKey,
+  setTuneName,
+  setTuneSkipped,
+  setTuneTimes,
   toCyclePayload,
+  tuneEmpty,
+  tuneLine,
+  tuneProblems,
   type CycleDraft,
   type CycleProblem,
 } from "@/lib/recordingChords/cycle"
@@ -57,36 +68,47 @@ import { allKirtans } from "@/lib/kirtan/catalog"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
-type Entry = { kind: "new"; instrument: "guitar" | "harmonium" } | { kind: "edit" | "copy" | "from"; id: string }
+type Entry = { kind: "new"; instrument: "guitar" | "harmonium" } | { kind: "edit" | "copy" | "from"; id: string; tune?: number }
 
-/** What the screen was opened for, read from its address. An id wins over a bare instrument. */
-function entryOf(params: { edit?: string; copy?: string; from?: string; instrument?: string }): Entry {
+/** What the screen was opened for, read from its address. An id wins over a bare instrument. `tune` is the number of a tune with no chords yet that is being added. */
+function entryOf(params: { edit?: string; copy?: string; from?: string; instrument?: string; tune?: string }): Entry {
   if (typeof params.edit === "string" && params.edit) return { kind: "edit", id: params.edit }
   if (typeof params.copy === "string" && params.copy) return { kind: "copy", id: params.copy }
-  if (typeof params.from === "string" && params.from) return { kind: "from", id: params.from }
+  if (typeof params.from === "string" && params.from) {
+    const tune = Number(params.tune)
+    return { kind: "from", id: params.from, ...(Number.isInteger(tune) && tune >= 1 ? { tune } : {}) }
+  }
   return { kind: "new", instrument: params.instrument === "harmonium" ? "harmonium" : "guitar" }
 }
 
 /** Everything the member can change, as one string: whether the work differs from where it began. */
 function signature(d: CycleDraft): string {
-  return JSON.stringify([d.forms, d.instrument, d.key, d.note, d.playedIt, d.isAnonymous])
+  return JSON.stringify([d.tunes, d.instrument, d.note, d.playedIt, d.isAnonymous])
 }
 
-const FORM_COUNTS = Array.from({ length: CYCLE_MAX_FORMS }, (_, i) => i + 1)
+const COUNTS = Array.from({ length: CYCLE_MAX_TUNES }, (_, i) => i + 1)
 
 /** The problem a field of the form shows. `chords` covers everything about the rings. */
 function fieldOf(p: CycleProblem): FormField {
   return p === "noteTooLong" ? "note" : p === "notPlayed" ? "played" : "chords"
 }
 
+/** The steps of the screen: how many tunes, which of them have chords, one ring per tune, then check and send. */
+type Step = "count" | "which" | "tune" | "review"
+
 /**
- * Add the chord CYCLE of a Kiirtan (docs/kiirtan-cycle.md). Step 1 asks how many forms of the Kiirtan are played in the
- * recording; step 2 gives each form its own ring of chords (four places, up to eight; tap a place and choose the chord from the
- * same chord sheet as the song screens; mark where the round starts; say how many rounds if it is known); step 3 confirms
- * and sends. The member's cycle goes to the team to look at, a team member's goes live at once. The same screen fixes a
- * waiting or rejected cycle (`?edit=`), changes a live one of the member's own (`?copy=`; the new one replaces it once accepted)
- * and starts from somebody else's published cycle (`?from=`; the first author is credited). Nothing here is timed: the
- * cycle says what is played, never where in the recording.
+ * Add the chord CYCLE of a Kiirtan (docs/kiirtan-cycle.md). A recording can play more than one tune (melody), each with its
+ * own chords, so the screen walks through it one question at a time:
+ *  1. how many tunes are played in the recording (1 to 6);
+ *  2. (more than one tune) do you have chords for all of them or only some, and which;
+ *  3. one step per chosen tune ("Tune 2 of 3"): its ring of chords (four places, up to eight; tap a place and choose the chord
+ *     from the same chord sheet as the song screens), where the round starts, how many rounds, its key (each tune has its own,
+ *     "Same as previous tune" copies it); a tune can be skipped, and every step has Back;
+ *  4. check and send. Tunes without chords stay in the recording as "no chords yet" and another member can add them later.
+ * The member's cycle goes to the team to look at, a team member's goes live at once. The same screen fixes a waiting or
+ * rejected cycle (`?edit=`), changes a live one of the member's own (`?copy=`; the new one replaces it once accepted) and starts
+ * from somebody else's published cycle (`?from=`, with `&tune=` to add a missing tune; the first author is credited); those
+ * three open on the check step. Nothing here is timed: the cycle says what is played, never where in the recording.
  */
 export default function RecordingCycleScreen() {
   const t = useT()
@@ -95,7 +117,7 @@ export default function RecordingCycleScreen() {
   const spTheme = useSpTheme()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
-  const params = useLocalSearchParams<{ recording?: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string }>()
+  const params = useLocalSearchParams<{ recording?: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string; tune?: string }>()
   const recordingId = typeof params.recording === "string" ? params.recording : ""
   const title = typeof params.title === "string" ? params.title : ""
   const [entry] = useState<Entry>(() => entryOf(params))
@@ -119,6 +141,15 @@ export default function RecordingCycleScreen() {
   const [linked, setLinked] = useState<RecordingSheet | null>(null)
   const [loadFailure, setLoadFailure] = useState<SheetFailure | null>(null)
 
+  // where the walk is
+  const [step, setStep] = useState<Step>(entry.kind === "new" ? "count" : "review")
+  const [tuneIx, setTuneIx] = useState(0)
+  /** the tune step was opened from the check step: Next and Back return there */
+  const [fromReview, setFromReview] = useState(false)
+  const [allTunes, setAllTunes] = useState(true)
+  const [chosen, setChosen] = useState<number[]>([])
+  const [tried, setTried] = useState(false)
+
   // load the cycle being fixed, changed or started from
   useEffect(() => {
     if (entry.kind === "new" || access !== "ok" || !recordingId) return undefined
@@ -132,11 +163,18 @@ export default function RecordingCycleScreen() {
           setPhase("gone")
           return
         }
-        const base = entry.kind === "from" ? cycleDraftFromOther(found) : cycleDraftFromSheet(found, entry.kind)
+        const base = entry.kind === "from" ? cycleDraftFromOther(found, entry.tune) : cycleDraftFromSheet(found, entry.kind)
         setLinked(found)
         setDraft(base)
         setBaseline(signature(base))
         setPhase("edit")
+        if (entry.kind === "from" && entry.tune && base.tunes[entry.tune - 1] && !base.tunes[entry.tune - 1]!.skipped) {
+          setTuneIx(entry.tune - 1)
+          setFromReview(true)
+          setStep("tune")
+        } else {
+          setStep("review")
+        }
       })
       .catch((error) => {
         if (!active) return
@@ -151,34 +189,48 @@ export default function RecordingCycleScreen() {
   const locked = Boolean(draft.editId || draft.replacesId || draft.basedOn)
   const dirty = signature(draft) !== baseline
   const used = useMemo(() => cycleUsedChords(draft), [draft])
+  const total = draft.tunes.length
+  const tune = draft.tunes[tuneIx] ?? draft.tunes[0]!
+
+  const form = useFormFocus()
+  const goTo = useCallback(
+    (next: Step, ix?: number, review = false) => {
+      setSelected(null)
+      setTried(false)
+      if (ix !== undefined) setTuneIx(ix)
+      setFromReview(review)
+      setStep(next)
+      requestAnimationFrame(() => form.scrollRef.current?.scrollTo({ y: 0, animated: false }))
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [form.scrollRef],
+  )
 
   // ---- the ring being edited ----
-  const [selected, setSelected] = useState<{ form: number; slot: number } | null>(null)
+  const [selected, setSelected] = useState<number | null>(null)
   const [covered, setCovered] = useState(0)
   const closeSheet = useCallback(() => setSelected(null), [])
-  const current = selected ? (draft.forms[selected.form]?.slots[selected.slot] ?? null) : null
-  const last = useRef({ form: 0, slot: 0 })
-  if (selected) last.current = selected
+  const current = selected !== null ? (tune.slots[selected] ?? null) : null
+  const last = useRef(0)
+  if (selected !== null) last.current = selected
   const shown = selected ?? last.current
-  const slotWord = t("recCycle.slot.label", { form: shown.form + 1, n: shown.slot + 1, total: draft.forms[shown.form]?.slots.length ?? 0 })
-  const cards = useRef<Record<number, View | null>>({})
-  /** brings the ring of a form into view above the chord sheet (past its title and name field) */
-  const scrollToForm = (index: number) => {
+  const slotWord = t("recCycle.slot.label", { tune: tuneIx + 1, n: shown + 1, total: tune.slots.length })
+  const card = useRef<View | null>(null)
+  /** brings the ring into view above the chord sheet (past its title and name field) */
+  const scrollToRing = () => {
     const inner = (form.scrollRef.current as unknown as { getInnerViewNode?: () => unknown } | null)?.getInnerViewNode?.()
-    const node = cards.current[index] as unknown as { measureLayout?: (to: unknown, ok: (x: number, y: number) => void, fail: () => void) => void } | null
+    const node = card.current as unknown as { measureLayout?: (to: unknown, ok: (x: number, y: number) => void, fail: () => void) => void } | null
     if (!inner || !node?.measureLayout) return
     node.measureLayout(inner, (_x, y) => form.scrollRef.current?.scrollTo({ y: Math.max(0, y + 96), animated: true }), () => undefined)
   }
-  const form = useFormFocus()
-  const choose = (formIndex: number, slot: number) => {
-    setSelected({ form: formIndex, slot })
-    scrollToForm(formIndex)
+  const choose = (slot: number) => {
+    setSelected(slot)
+    scrollToRing()
   }
-  const neighbour = (step: -1 | 1) => {
-    if (!selected) return null
-    const size = draft.forms[selected.form]?.slots.length ?? 0
-    const next = selected.slot + step
-    return next >= 0 && next < size ? () => setSelected({ form: selected.form, slot: next }) : null
+  const neighbour = (stepBy: -1 | 1) => {
+    if (selected === null) return null
+    const next = selected + stepBy
+    return next >= 0 && next < tune.slots.length ? () => setSelected(next) : null
   }
 
   // ---- sending ----
@@ -196,7 +248,7 @@ export default function RecordingCycleScreen() {
   )
 
   const problems: CycleProblem[] = useMemo(() => cycleProblems(draft), [draft])
-  const problemText = (p: CycleProblem) => (p === "notPlayed" ? t("chordOffer.problem.notPlayed") : p === "noteTooLong" ? t("chordOffer.problem.noteTooLong") : t(`recCycle.problem.${p}`))
+  const problemText = (p: CycleProblem) => (p === "notPlayed" ? t("chordOffer.problem.notPlayed") : p === "noteTooLong" ? t("chordOffer.problem.noteTooLong") : t(p === "noChords" ? "recCycle.problem.noChords" : p === "noTune" ? "recCycle.problem.noTune" : p === "fewChords" ? "recCycle.problem.fewChords" : p === "noStart" ? "recCycle.problem.noStart" : p === "badTimes" ? "recCycle.problem.badTimes" : p === "tooLong" ? "recCycle.problem.tooLong" : p === "badKey" ? "recCycle.problem.badKey" : "recCycle.problem.links"))
   const messageFor = (field: string): string | null => {
     const found = problems.find((p) => fieldOf(p) === field)
     return found ? problemText(found) : null
@@ -241,7 +293,7 @@ export default function RecordingCycleScreen() {
   const sendLabel = busy ? t("recChordsForm.sending") : kind === "copy" ? t("recCycle.send.copy") : kind === "edit" ? t("recCycle.send.again") : t("recCycle.send")
 
   // the confirm fields and the instrument chips are the song screens' own: they speak a song `Draft`, so lend them one
-  const lent = useMemo(() => ({ songId: null, instrument: draft.instrument, key: draft.key, capo: draft.capo, strum: "", lines: [], playedIt: draft.playedIt, note: draft.note, isAnonymous: draft.isAnonymous }) as Draft, [draft])
+  const lent = useMemo(() => ({ songId: null, instrument: draft.instrument, key: "", capo: draft.capo, strum: "", lines: [], playedIt: draft.playedIt, note: draft.note, isAnonymous: draft.isAnonymous }) as Draft, [draft])
   const lend = useCallback((change: Partial<Draft>) => {
     setDraft((d) => ({
       ...d,
@@ -265,6 +317,57 @@ export default function RecordingCycleScreen() {
 
   const ringSize = Math.min(264, Math.min(width, 560) - 48 - 32)
 
+  // ---- the moves between steps ----
+  /** after question 1: one tune goes straight to its ring, more ask which of them have chords */
+  const afterCount = () => {
+    if (total > 1) {
+      setChosen((c) => (c.length ? c.filter((i) => i < total) : []))
+      goTo("which")
+      return
+    }
+    setDraft((d) => chooseTunes(d, [0]))
+    goTo("tune", 0)
+  }
+  /** after question 2: the chosen tunes are entered, the rest are skipped */
+  const afterWhich = () => {
+    const picked = allTunes ? Array.from({ length: total }, (_, i) => i) : [...chosen].sort((a, b) => a - b)
+    if (picked.length === 0) {
+      setTried(true)
+      return
+    }
+    setDraft((d) => chooseTunes(d, picked))
+    goTo("tune", picked[0]!)
+  }
+  /** Next on a tune: it must be finished (or skipped); then the next tune, or the check */
+  const afterTune = (skip: boolean) => {
+    if (skip) {
+      const after = nextTune(draft, tuneIx)
+      setDraft((d) => setTuneSkipped(d, tuneIx, true))
+      if (fromReview || after === null) goTo("review")
+      else goTo("tune", after)
+      return
+    }
+    if (tuneProblems(tune).length) {
+      setTried(true)
+      return
+    }
+    const after = nextTune(draft, tuneIx)
+    if (fromReview || after === null) goTo("review")
+    else goTo("tune", after)
+  }
+  const backFromTune = () => {
+    if (fromReview) {
+      goTo("review")
+      return
+    }
+    const before = priorTune(draft, tuneIx)
+    if (before !== null) goTo("tune", before)
+    else goTo(total > 1 ? "which" : "count")
+  }
+
+  const tuneProblem = tried ? tuneProblems(tune)[0] : undefined
+  const tuneProblemText = tuneProblem ? (tuneProblem === "noChords" ? t("recCycle.tune.problem") : tuneProblem === "badKey" ? t("recCycle.problem.badKey") : tuneProblem === "noStart" ? t("recCycle.problem.noStart") : tuneProblem === "badTimes" ? t("recCycle.problem.badTimes") : tuneProblem === "tooLong" ? t("recCycle.problem.tooLong") : t("recCycle.problem.links")) : null
+
   const body = () => {
     if (!recordingId) return <Hint theme={theme} tone="danger">{t("recPage.missing")}</Hint>
     if (!kindOk) {
@@ -284,9 +387,11 @@ export default function RecordingCycleScreen() {
       )
     }
     if (sent) {
+      const partial = (sent.cycle?.tuneCount ?? 0) > (sent.cycle?.tunes.length ?? 0)
       return (
         <View style={s.field} accessibilityLiveRegion="polite">
           <Text style={[s.sent, { color: theme.textHeading }]}>{t(sent.status === "published" ? "recCycle.sent.published" : "recCycle.sent.pending")}</Text>
+          {partial ? <Hint theme={theme}>{t("recCycle.sent.partial")}</Hint> : null}
           {sent.status !== "published" && sent.replaces ? <Hint theme={theme}>{t("recCycle.sent.replaces")}</Hint> : null}
           <ActionButton theme={theme} label={t("recChordsForm.back")} onPress={back} />
         </View>
@@ -302,114 +407,219 @@ export default function RecordingCycleScreen() {
       )
     }
     const rejected = kind === "edit" && linked?.status === "rejected"
+    const intro = (
+      <Reveal index={1} style={s.field}>
+        {kind === "edit" ? (
+          <View style={[s.banner, { borderColor: rejected ? theme.dangerText : theme.line, backgroundColor: theme.card }]} accessibilityLiveRegion="polite">
+            <Hint theme={theme} tone={rejected ? "danger" : "body"}>{t(rejected ? "recCycle.edit.rejected" : "recCycle.edit.pending")}</Hint>
+            {rejected && linked?.rejectedReason ? <Text style={[s.reason, { color: theme.textHeading }]}>{t("recChords.reason", { reason: linked.rejectedReason })}</Text> : null}
+          </View>
+        ) : kind === "copy" ? (
+          <Hint theme={theme}>{t("recCycle.edit.copy")}</Hint>
+        ) : draft.basedOn ? (
+          <Hint theme={theme}>{t(entry.kind === "from" && entry.tune ? "recCycle.edit.fill" : "recCycle.edit.from")}</Hint>
+        ) : step === "count" ? (
+          <Hint theme={theme}>{t("recCycle.intro")}</Hint>
+        ) : null}
+        {team && !kind && step === "count" ? <Hint theme={theme}>{t("chordOffer.intro.team")}</Hint> : null}
+      </Reveal>
+    )
+
+    // ---- 1. how many tunes ----
+    if (step === "count") {
+      return (
+        <>
+          {intro}
+          <Reveal index={2} style={s.field}>
+            <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.count")}</Text>
+            <Label theme={theme}>{t("recCycle.count.question")}</Label>
+            <Hint theme={theme}>{t("recCycle.count.hint")}</Hint>
+            <View style={s.chips} accessibilityRole="radiogroup">
+              {COUNTS.map((n) => (
+                <Chip key={n} theme={theme} label={String(n)} on={total === n} a11y={t("recCycle.count.a11y", { count: n })} minWidth={52} onPress={() => setDraft((d) => setTuneCount(d, n))} />
+              ))}
+            </View>
+            {total > 1 && baseline !== signature(draft) ? <Hint theme={theme}>{t("recCycle.count.change")}</Hint> : null}
+          </Reveal>
+          <Reveal index={3} style={s.field}>
+            <Label theme={theme}>{t("recCycle.count.instrument")}</Label>
+            <InstrumentField theme={theme} draft={lent} locked={locked} patch={pickInstrument} />
+          </Reveal>
+          <View style={s.field}>
+            <ActionButton theme={theme} label={t("recCycle.tune.next")} onPress={afterCount} />
+            <ActionButton theme={theme} tone="quiet" label={t("recCycle.asText")} onPress={() => router.replace(href(chordsFormHref({ recordingId, title })))} />
+          </View>
+        </>
+      )
+    }
+
+    // ---- 2. chords for which tunes ----
+    if (step === "which") {
+      return (
+        <>
+          {intro}
+          <Reveal index={2} style={s.field}>
+            <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.which")}</Text>
+            <Label theme={theme}>{t("recCycle.which.question")}</Label>
+            <View style={s.chips} accessibilityRole="radiogroup">
+              <Chip theme={theme} label={t("recCycle.which.all")} on={allTunes} minWidth={96} onPress={() => setAllTunes(true)} />
+              <Chip theme={theme} label={t("recCycle.which.some")} on={!allTunes} minWidth={96} onPress={() => setAllTunes(false)} />
+            </View>
+          </Reveal>
+          {!allTunes ? (
+            <View style={s.field}>
+              <Label theme={theme}>{t("recCycle.which.pick")}</Label>
+              <View style={s.chips}>
+                {draft.tunes.map((_, i) => (
+                  <Chip
+                    key={i}
+                    theme={theme}
+                    role="checkbox"
+                    label={t("recCycle.which.tune", { n: i + 1 })}
+                    on={chosen.includes(i)}
+                    minWidth={96}
+                    onPress={() => setChosen((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))}
+                  />
+                ))}
+              </View>
+              <Hint theme={theme}>{t("recCycle.which.hint")}</Hint>
+              {tried && chosen.length === 0 ? <Hint theme={theme} tone="danger">{t("recCycle.which.none")}</Hint> : null}
+            </View>
+          ) : null}
+          <View style={s.field}>
+            <ActionButton theme={theme} label={t("recCycle.tune.next")} onPress={afterWhich} />
+            <ActionButton theme={theme} tone="quiet" label={t("recCycle.tune.back")} onPress={() => goTo("count")} />
+          </View>
+        </>
+      )
+    }
+
+    // ---- 3. the ring of one tune ----
+    if (step === "tune") {
+      const places = tune.slots.length
+      const startChord = tune.slots[tune.start]
+      const prev = previousTune(draft, tuneIx)
+      const isLast = nextTune(draft, tuneIx) === null
+      return (
+        <>
+          {intro}
+          <View style={s.field}>
+            <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.tune", { n: tuneIx + 1, total })}</Text>
+            <View ref={card} collapsable={false} style={[s.formCard, { backgroundColor: theme.card, borderColor: selected !== null ? theme.accent : theme.line }]} testID={`cycle-tune-${tuneIx + 1}`}>
+              <Text style={[s.formTitle, { color: theme.textHeading }]} accessibilityRole="header">
+                {t("recCycle.tune.title", { n: tuneIx + 1 })}
+              </Text>
+              <Label theme={theme}>{t("recCycle.tune.name.label")}</Label>
+              <View style={[s.box, { backgroundColor: theme.page, borderColor: theme.line }]}>
+                <TextInput
+                  value={tune.name}
+                  onChangeText={(next) => setDraft((d) => setTuneName(d, tuneIx, next))}
+                  onFocus={closeSheet}
+                  maxLength={CYCLE_NAME_MAX + 10}
+                  placeholder={t("recCycle.tune.name.placeholder")}
+                  placeholderTextColor={theme.textMuted}
+                  accessibilityLabel={t("recCycle.tune.name.label")}
+                  style={[s.input, { color: theme.textHeading }]}
+                />
+              </View>
+              <Hint theme={theme}>{t("recCycle.tune.tap")}</Hint>
+              <View style={s.ring}>
+                <CycleRing t={spTheme} chords={tune.slots} start={tune.start} size={ringSize} selected={selected} onPress={choose} label={t("recCycle.tune.title", { n: tuneIx + 1 })} />
+              </View>
+              <View style={s.stepper}>
+                <Chip theme={theme} role="button" label="−" a11y={t("recCycle.tune.less")} minWidth={52} onPress={() => (places > CYCLE_MIN_SLOTS ? setDraft((d) => resizeTune(d, tuneIx, places - 1)) : undefined)} />
+                <Text style={[s.size, { color: theme.textHeading }]} accessibilityLiveRegion="polite">
+                  {t("recCycle.tune.size", { count: places })}
+                </Text>
+                <Chip theme={theme} role="button" label="+" a11y={t("recCycle.tune.more")} minWidth={52} onPress={() => (places < CYCLE_MAX_SLOTS ? setDraft((d) => resizeTune(d, tuneIx, places + 1)) : undefined)} />
+              </View>
+              <Hint theme={theme}>{startChord ? t("recCycle.tune.startChord", { chord: startChord, n: tune.start + 1 }) : t("recCycle.tune.start", { n: tune.start + 1 })}</Hint>
+              {selected !== null && selected !== tune.start ? <ActionButton theme={theme} tone="quiet" label={t("recCycle.tune.startHere")} onPress={() => setDraft((d) => setStart(d, tuneIx, selected))} /> : null}
+              <Label theme={theme}>{t("recCycle.tune.times.label")}</Label>
+              <View style={[s.box, s.times, { backgroundColor: theme.page, borderColor: theme.line }]}>
+                <TextInput
+                  value={tune.times}
+                  onChangeText={(next) => setDraft((d) => setTuneTimes(d, tuneIx, next))}
+                  onFocus={closeSheet}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder={t("recCycle.tune.times.placeholder")}
+                  placeholderTextColor={theme.textMuted}
+                  accessibilityLabel={t("recCycle.tune.times.label")}
+                  style={[s.input, { color: theme.textHeading }]}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* the key of THIS tune */}
+          <View style={s.field}>
+            <Label theme={theme}>{t("recCycle.key.label")}</Label>
+            <Hint theme={theme}>{t("recCycle.key.hint")}</Hint>
+            <View style={s.chips} accessibilityRole="radiogroup">
+              <Chip theme={theme} label={t("recCycle.key.none")} on={tune.key === ""} minWidth={52} onPress={() => setDraft((d) => setTuneKey(d, tuneIx, ""))} />
+              {ROOTS.map((root) => (
+                <Chip key={root} theme={theme} label={root} on={tune.key === root} a11y={t("recCycle.key.a11y", { key: root })} minWidth={52} onPress={() => setDraft((d) => setTuneKey(d, tuneIx, root))} />
+              ))}
+            </View>
+            {prev !== null ? <ActionButton theme={theme} tone="quiet" label={t("recCycle.key.same")} onPress={() => setDraft((d) => keyLikePrevious(d, tuneIx))} /> : null}
+          </View>
+
+          <View {...form.field("chords")} style={s.field}>
+            {tuneProblemText ? (
+              <View accessibilityLiveRegion="polite">
+                <Hint theme={theme} tone="danger">{tuneProblemText}</Hint>
+              </View>
+            ) : null}
+            <ActionButton theme={theme} label={fromReview || isLast ? t("recCycle.tune.done") : t("recCycle.tune.next")} onPress={() => afterTune(false)} />
+            <ActionButton theme={theme} tone="quiet" label={t("recCycle.tune.skip")} onPress={() => afterTune(true)} />
+            <Hint theme={theme}>{t("recCycle.tune.skipHint")}</Hint>
+            <ActionButton theme={theme} tone="quiet" label={t("recCycle.tune.back")} onPress={backFromTune} />
+          </View>
+        </>
+      )
+    }
+
+    // ---- 4. check and send ----
     const chordsError = errorFor("chords")
     return (
       <>
-        <Reveal index={1} style={s.field}>
-          {kind === "edit" ? (
-            <View style={[s.banner, { borderColor: rejected ? theme.dangerText : theme.line, backgroundColor: theme.card }]} accessibilityLiveRegion="polite">
-              <Hint theme={theme} tone={rejected ? "danger" : "body"}>{t(rejected ? "recCycle.edit.rejected" : "recCycle.edit.pending")}</Hint>
-              {rejected && linked?.rejectedReason ? <Text style={[s.reason, { color: theme.textHeading }]}>{t("recChords.reason", { reason: linked.rejectedReason })}</Text> : null}
-              <Hint theme={theme}>{t("recCycle.edit.locked")}</Hint>
-            </View>
-          ) : kind === "copy" ? (
-            <Hint theme={theme}>{t("recCycle.edit.copy")}</Hint>
-          ) : draft.basedOn ? (
-            <Hint theme={theme}>{t("recCycle.edit.from")}</Hint>
-          ) : (
-            <Hint theme={theme}>{t("recCycle.intro")}</Hint>
-          )}
-          {team && !kind ? <Hint theme={theme}>{t("chordOffer.intro.team")}</Hint> : null}
-        </Reveal>
-
-        {/* 1. how many forms */}
-        <Reveal index={2} style={s.field}>
-          <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.forms")}</Text>
-          <Label theme={theme}>{t("recCycle.forms.question")}</Label>
-          <Hint theme={theme}>{t("recCycle.forms.hint")}</Hint>
-          <View style={s.chips} accessibilityRole="radiogroup">
-            {FORM_COUNTS.map((n) => (
-              <Chip
-                key={n}
-                theme={theme}
-                label={String(n)}
-                on={draft.forms.length === n}
-                a11y={t("recCycle.forms.a11y", { count: n })}
-                minWidth={52}
-                onPress={() => {
-                  setSelected(null)
-                  setDraft((d) => setFormCount(d, n))
-                }}
-              />
-            ))}
-          </View>
-          {draft.forms.length > 1 ? <Hint theme={theme}>{t("recCycle.forms.change")}</Hint> : null}
-        </Reveal>
-
-        {/* 2. the ring of each form */}
-        <Reveal index={3} style={s.field}>
-          <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.chords")}</Text>
-          <InstrumentField theme={theme} draft={lent} locked={locked} patch={pickInstrument} />
-        </Reveal>
-
+        {intro}
+        <View style={s.field}>
+          <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.send")}</Text>
+          <Label theme={theme}>{t("recCycle.review.title")}</Label>
+          <Hint theme={theme}>{t("recCycle.review.intro")}</Hint>
+        </View>
         <View {...form.field("chords")} style={s.field}>
-          {draft.forms.map((f, fi) => {
-            const places = f.slots.length
-            const startChord = f.slots[f.start]
-            const picked = selected && selected.form === fi ? selected.slot : null
+          {draft.tunes.map((f, i) => {
+            const empty = f.skipped || tuneEmpty(f)
+            const facts = [
+              f.key ? t("recCycle.review.key", { key: f.key }) : "",
+              !empty && f.slots[f.start] ? t("recCycle.block.starts", { chord: f.slots[f.start] as string }) : "",
+              !empty && f.times ? t("recCycle.block.times", { count: f.times }) : "",
+            ].filter(Boolean)
             return (
-              <View key={fi} ref={(node) => void (cards.current[fi] = node)} collapsable={false} style={[s.formCard, { backgroundColor: theme.card, borderColor: picked !== null ? theme.accent : theme.line }]} testID={`cycle-form-${fi + 1}`}>
+              <View key={i} style={[s.formCard, { backgroundColor: theme.card, borderColor: theme.line }]} testID={`review-tune-${i + 1}`}>
                 <Text style={[s.formTitle, { color: theme.textHeading }]} accessibilityRole="header">
-                  {t("recCycle.form.title", { n: fi + 1 })}
+                  {f.name.trim() ? t("recCycle.block.tuneNamed", { n: i + 1, name: f.name.trim() }) : t("recCycle.block.tune", { n: i + 1 })}
                 </Text>
-                <Label theme={theme}>{t("recCycle.form.name.label")}</Label>
-                <View style={[s.box, { backgroundColor: theme.page, borderColor: theme.line }]}>
-                  <TextInput
-                    value={f.name}
-                    onChangeText={(next) => setDraft((d) => setFormName(d, fi, next))}
-                    onFocus={closeSheet}
-                    maxLength={CYCLE_NAME_MAX + 10}
-                    placeholder={t("recCycle.form.name.placeholder")}
-                    placeholderTextColor={theme.textMuted}
-                    accessibilityLabel={t("recCycle.form.name.label")}
-                    style={[s.input, { color: theme.textHeading }]}
-                  />
-                </View>
-                <Hint theme={theme}>{t("recCycle.form.tap")}</Hint>
-                <View style={s.ring}>
-                  <CycleRing
-                    t={spTheme}
-                    chords={f.slots}
-                    start={f.start}
-                    size={ringSize}
-                    selected={picked}
-                    onPress={(slot) => choose(fi, slot)}
-                    label={t("recCycle.form.title", { n: fi + 1 })}
-                  />
-                </View>
-                <View style={s.stepper}>
-                  <Chip theme={theme} role="button" label="−" a11y={t("recCycle.form.less")} minWidth={52} onPress={() => (places > CYCLE_MIN_SLOTS ? setDraft((d) => resizeForm(d, fi, places - 1)) : undefined)} />
-                  <Text style={[s.size, { color: theme.textHeading }]} accessibilityLiveRegion="polite">
-                    {t("recCycle.form.size", { count: places })}
-                  </Text>
-                  <Chip theme={theme} role="button" label="+" a11y={t("recCycle.form.more")} minWidth={52} onPress={() => (places < CYCLE_MAX_SLOTS ? setDraft((d) => resizeForm(d, fi, places + 1)) : undefined)} />
-                </View>
-                <Hint theme={theme}>{startChord ? t("recCycle.form.startChord", { chord: startChord, n: f.start + 1 }) : t("recCycle.form.start", { n: f.start + 1 })}</Hint>
-                {picked !== null && picked !== f.start ? <ActionButton theme={theme} tone="quiet" label={t("recCycle.form.startHere")} onPress={() => setDraft((d) => setStart(d, fi, picked))} /> : null}
-                <Label theme={theme}>{t("recCycle.form.times.label")}</Label>
-                <View style={[s.box, s.times, { backgroundColor: theme.page, borderColor: theme.line }]}>
-                  <TextInput
-                    value={f.times}
-                    onChangeText={(next) => setDraft((d) => setFormTimes(d, fi, next))}
-                    onFocus={closeSheet}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    placeholder={t("recCycle.form.times.placeholder")}
-                    placeholderTextColor={theme.textMuted}
-                    accessibilityLabel={t("recCycle.form.times.label")}
-                    style={[s.input, { color: theme.textHeading }]}
-                  />
-                </View>
+                {empty ? (
+                  <Hint theme={theme}>{t("recCycle.review.noChords")}</Hint>
+                ) : (
+                  <>
+                    <Text style={[s.line, { color: theme.textHeading }]}>{tuneLine({ chords: f.slots.map((c) => c ?? "·") })}</Text>
+                    {facts.length ? <Hint theme={theme}>{facts.join(" · ")}</Hint> : null}
+                  </>
+                )}
+                <ActionButton
+                  theme={theme}
+                  tone="quiet"
+                  label={empty ? t("recCycle.review.add") : t("recCycle.review.change")}
+                  onPress={() => {
+                    setDraft((d) => setTuneSkipped(d, i, false))
+                    goTo("tune", i, true)
+                  }}
+                />
               </View>
             )
           })}
@@ -418,18 +628,6 @@ export default function RecordingCycleScreen() {
               <Hint theme={theme} tone="danger">{chordsError}</Hint>
             </View>
           ) : null}
-        </View>
-
-        {/* the key, if it is known */}
-        <View style={s.field}>
-          <Label theme={theme}>{t("recCycle.key.label")}</Label>
-          <Hint theme={theme}>{t("recCycle.key.hint")}</Hint>
-          <View style={s.chips} accessibilityRole="radiogroup">
-            <Chip theme={theme} label={t("recCycle.key.none")} on={draft.key === ""} minWidth={52} onPress={() => setDraft((d) => ({ ...d, key: "" }))} />
-            {ROOTS.map((root) => (
-              <Chip key={root} theme={theme} label={root} on={draft.key === root} a11y={t("recCycle.key.a11y", { key: root })} minWidth={52} onPress={() => setDraft((d) => ({ ...d, key: root }))} />
-            ))}
-          </View>
         </View>
 
         {/* a note */}
@@ -452,9 +650,7 @@ export default function RecordingCycleScreen() {
           {errorFor("note") ? <Hint theme={theme} tone="danger">{errorFor("note")}</Hint> : <Hint theme={theme}>{t("chordOffer.note.left", { count: SHEET_NOTE_MAX - draft.note.length })}</Hint>}
         </View>
 
-        {/* 3. confirm and send */}
         <View style={s.field}>
-          <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.send")}</Text>
           <ConfirmFields theme={theme} form={form} draft={lent} patch={lend} fieldError={(field) => errorFor(field)} name={name} />
           {failure ? (
             <View accessibilityLiveRegion="polite">
@@ -463,7 +659,7 @@ export default function RecordingCycleScreen() {
           ) : null}
           <ModerationNotice kind="chords" />
           <ActionButton theme={theme} label={sendLabel} onPress={() => void send()} disabled={busy} busy={busy} />
-          {!kind && !draft.basedOn ? <ActionButton theme={theme} tone="quiet" label={t("recCycle.asText")} onPress={() => router.replace(href(chordsFormHref({ recordingId, title })))} /> : null}
+          {entry.kind === "new" ? <ActionButton theme={theme} tone="quiet" label={t("recCycle.tune.back")} onPress={() => (activeTunes(draft).length ? goTo("tune", activeTunes(draft)[activeTunes(draft).length - 1]!) : goTo(total > 1 ? "which" : "count"))} /> : null}
         </View>
       </>
     )
@@ -477,7 +673,7 @@ export default function RecordingCycleScreen() {
           ref={form.scrollRef}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[s.content, { paddingBottom: selected && covered > 0 ? covered + 24 : Math.max(insets.bottom, 16) + 40 }]}
+          contentContainerStyle={[s.content, { paddingBottom: selected !== null && covered > 0 ? covered + 24 : Math.max(insets.bottom, 16) + 40 }]}
         >
           <Reveal index={0}>
             {title ? <Text style={[s.over, { color: theme.accent }]}>{`${t("recChordsForm.over")} ${title}`}</Text> : null}
@@ -491,18 +687,18 @@ export default function RecordingCycleScreen() {
 
       <ChordSheet
         theme={theme}
-        open={selected !== null && phase === "edit" && !sent}
+        open={selected !== null && phase === "edit" && !sent && step === "tune"}
         word={slotWord}
         current={current}
-        keyName={draft.key || "C"}
+        keyName={tune.key || "C"}
         used={used}
-        onPick={(chord) => selected && setDraft((d) => setSlot(d, selected.form, selected.slot, chord))}
-        onClear={() => selected && setDraft((d) => setSlot(d, selected.form, selected.slot, null))}
+        onPick={(chord) => selected !== null && setDraft((d) => setSlot(d, tuneIx, selected, chord))}
+        onClear={() => selected !== null && setDraft((d) => setSlot(d, tuneIx, selected, null))}
         onPrevious={neighbour(-1)}
         onNext={neighbour(1)}
         onClose={closeSheet}
         onHeight={setCovered}
-        place={{ over: t("recCycle.slot.over", { form: shown.form + 1 }), title: t("recCycle.slot.title", { n: shown.slot + 1, total: draft.forms[shown.form]?.slots.length ?? 0 }) }}
+        place={{ over: t("recCycle.slot.over", { tune: tuneIx + 1 }), title: t("recCycle.slot.title", { n: shown + 1, total: tune.slots.length }) }}
       />
 
       <ConfirmDialog theme={theme} open={leaving} title={t("recCycle.leave.title")} body={t("recCycle.leave.body")} actions={leaveActions} onDismiss={() => setLeaving(false)} />
@@ -521,6 +717,7 @@ const s = StyleSheet.create({
   step: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16, letterSpacing: 1.04, textTransform: "uppercase" },
   formCard: { borderWidth: 1.5, borderRadius: CORNER, padding: 16, gap: 12 },
   formTitle: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 26, letterSpacing: -0.3, textTransform: "uppercase" },
+  line: { fontFamily: amFonts.bold, fontSize: 20, lineHeight: 28 },
   ring: { alignItems: "center" },
   stepper: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 12 },
   size: { minWidth: 150, textAlign: "center", fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },

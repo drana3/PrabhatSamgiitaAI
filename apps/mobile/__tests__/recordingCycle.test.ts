@@ -2,21 +2,32 @@ import { describe, expect, it } from "vitest"
 
 import {
   CYCLE_DEFAULT_SLOTS,
-  CYCLE_MAX_FORMS,
+  CYCLE_MAX_TUNES,
   CYCLE_MAX_SLOTS,
   CYCLE_MIN_SLOTS,
+  activeTunes,
+  chooseTunes,
   cycleDraftFromOther,
+  cycleFromWire,
+  keyLikePrevious,
+  missingTunes,
+  nextTune,
+  previousTune,
+  priorTune,
+  setTuneKey,
+  setTuneSkipped,
+  tuneProblems,
   cycleDraftFromSheet,
   cycleProblems,
   cycleToWire,
   cycleUsedChords,
   isBlankCycle,
   newCycleDraft,
-  resizeForm,
+  resizeTune,
   roundOrder,
-  setFormCount,
-  setFormName,
-  setFormTimes,
+  setTuneCount,
+  setTuneName,
+  setTuneTimes,
   setSlot,
   setStart,
   toCyclePayload,
@@ -28,7 +39,7 @@ import { sheetFromWire, type WireSheet } from "@/lib/recordingChords/remote"
 import { OPEN_PER_RECORDING_INSTRUMENT } from "@/lib/recordingChords/rules"
 import { cycleFormHref, sheetFormHref } from "@/lib/recordingExtras/links"
 
-/** One form of four chords, played by the member. */
+/** One tune of four chords, played by the member. */
 function finished(extra: Partial<CycleDraft> = {}): CycleDraft {
   let d = newCycleDraft(1)
   for (const [i, chord] of ["Em", "C", "G", "D"].entries()) d = setSlot(d, 0, i, chord)
@@ -54,62 +65,62 @@ describe("which recordings take a chord cycle", () => {
 describe("a new cycle", () => {
   it("starts with one ring of four empty places and the first one as the start", () => {
     const d = newCycleDraft()
-    expect(d.forms).toHaveLength(1)
-    expect(d.forms[0]?.slots).toEqual([null, null, null, null])
-    expect(d.forms[0]?.start).toBe(0)
+    expect(d.tunes).toHaveLength(1)
+    expect(d.tunes[0]?.slots).toEqual([null, null, null, null])
+    expect(d.tunes[0]?.start).toBe(0)
     expect(CYCLE_DEFAULT_SLOTS).toBe(4)
   })
-  it("has as many forms as the member said are played in the recording, each its own ring", () => {
+  it("has as many tunes as the member said are played in the recording, each its own ring", () => {
     const d = newCycleDraft(3)
-    expect(d.forms).toHaveLength(3)
-    expect(new Set(d.forms.map((f) => f.slots)).size).toBe(3)
+    expect(d.tunes).toHaveLength(3)
+    expect(new Set(d.tunes.map((f) => f.slots)).size).toBe(3)
   })
-  it("keeps the number of forms between one and eight", () => {
-    expect(newCycleDraft(0).forms).toHaveLength(1)
-    expect(newCycleDraft(40).forms).toHaveLength(CYCLE_MAX_FORMS)
-    expect(setFormCount(newCycleDraft(2), 99).forms).toHaveLength(CYCLE_MAX_FORMS)
-    expect(setFormCount(newCycleDraft(2), 0).forms).toHaveLength(1)
+  it("keeps the number of tunes between one and six", () => {
+    expect(newCycleDraft(0).tunes).toHaveLength(1)
+    expect(newCycleDraft(40).tunes).toHaveLength(CYCLE_MAX_TUNES)
+    expect(setTuneCount(newCycleDraft(2), 99).tunes).toHaveLength(CYCLE_MAX_TUNES)
+    expect(setTuneCount(newCycleDraft(2), 0).tunes).toHaveLength(1)
   })
-  it("changing the number of forms keeps the chords of the ones that stay", () => {
+  it("changing the number of tunes keeps the chords of the ones that stay", () => {
     let d = setSlot(newCycleDraft(3), 0, 0, "Am")
-    d = setFormCount(d, 2)
-    expect(d.forms[0]?.slots[0]).toBe("Am")
-    d = setFormCount(d, 4)
-    expect(d.forms).toHaveLength(4)
-    expect(d.forms[0]?.slots[0]).toBe("Am")
+    d = setTuneCount(d, 2)
+    expect(d.tunes[0]?.slots[0]).toBe("Am")
+    d = setTuneCount(d, 4)
+    expect(d.tunes).toHaveLength(4)
+    expect(d.tunes[0]?.slots[0]).toBe("Am")
   })
   it("is blank until something is typed", () => {
     expect(isBlankCycle(newCycleDraft(2))).toBe(true)
     expect(isBlankCycle(setSlot(newCycleDraft(2), 1, 0, "C"))).toBe(false)
-    expect(isBlankCycle(setFormName(newCycleDraft(), 0, "Slow"))).toBe(false)
+    expect(isBlankCycle(setTuneName(newCycleDraft(), 0, "Slow"))).toBe(false)
   })
 })
 
 describe("the ring", () => {
   it("grows to eight places and shrinks to two, never more or fewer", () => {
     let d = newCycleDraft()
-    d = resizeForm(d, 0, 20)
-    expect(d.forms[0]?.slots).toHaveLength(CYCLE_MAX_SLOTS)
-    d = resizeForm(d, 0, 0)
-    expect(d.forms[0]?.slots).toHaveLength(CYCLE_MIN_SLOTS)
+    d = resizeTune(d, 0, 20)
+    expect(d.tunes[0]?.slots).toHaveLength(CYCLE_MAX_SLOTS)
+    d = resizeTune(d, 0, 0)
+    expect(d.tunes[0]?.slots).toHaveLength(CYCLE_MIN_SLOTS)
   })
   it("keeps the chords and the start inside when a ring shrinks", () => {
     let d = finished()
     d = setStart(d, 0, 3)
-    d = resizeForm(d, 0, 3)
-    expect(d.forms[0]?.slots).toEqual(["Em", "C", "G"])
-    expect(d.forms[0]?.start).toBe(2)
+    d = resizeTune(d, 0, 3)
+    expect(d.tunes[0]?.slots).toEqual(["Em", "C", "G"])
+    expect(d.tunes[0]?.start).toBe(2)
   })
   it("a start outside the ring is ignored", () => {
     const d = setStart(finished(), 0, 9)
-    expect(d.forms[0]?.start).toBe(0)
+    expect(d.tunes[0]?.start).toBe(0)
   })
   it("the round is read from the start place and goes round", () => {
-    expect(roundOrder({ name: null, chords: ["Em", "C", "G", "D"], start: 2, times: null })).toEqual(["G", "D", "Em", "C"])
+    expect(roundOrder({ chords: ["Em", "C", "G", "D"], start: 2 })).toEqual(["G", "D", "Em", "C"])
   })
-  it("a chord of one form does not leak into another", () => {
+  it("a chord of one tune does not leak into another", () => {
     const d = setSlot(newCycleDraft(2), 0, 0, "Em")
-    expect(d.forms[1]?.slots[0]).toBeNull()
+    expect(d.tunes[1]?.slots[0]).toBeNull()
   })
   it("lists the chords used so far once each, in order", () => {
     expect(cycleUsedChords(setSlot(setSlot(finished(), 0, 3, "Em"), 0, 2, "C"))).toEqual(["Em", "C"])
@@ -135,38 +146,36 @@ describe("what stops a cycle from being sent", () => {
   it("the member must say they know the Kiirtan", () => {
     expect(cycleProblems(finished({ playedIt: false }))).toEqual(["notPlayed"])
   })
-  it("the key, if given, must be a note name", () => {
-    expect(cycleProblems(finished({ key: "H" }))).toContain("badKey")
-    expect(cycleProblems(finished({ key: "F#m" }))).toEqual([])
+  it("the key of a tune, if given, must be a note name", () => {
+    expect(cycleProblems(setTuneKey(finished(), 0, "H"))).toContain("badKey")
+    expect(cycleProblems(setTuneKey(finished(), 0, "F#m"))).toEqual([])
   })
   it("the number of rounds is a whole number from 1 to 99, or nothing", () => {
-    expect(cycleProblems({ ...finished(), forms: [setFormTimes(finished(), 0, "4").forms[0]!] })).toEqual([])
-    const zero = setFormTimes(finished(), 0, "0")
+    expect(cycleProblems(setTuneTimes(finished(), 0, "4"))).toEqual([])
+    const zero = setTuneTimes(finished(), 0, "0")
     expect(cycleProblems(zero)).toContain("badTimes")
     // letters are never kept
-    expect(setFormTimes(finished(), 0, "x4").forms[0]?.times).toBe("4")
+    expect(setTuneTimes(finished(), 0, "x4").tunes[0]?.times).toBe("4")
   })
-  it("a note takes no web link, and a form name takes none either", () => {
+  it("a note takes no web link, and a tune name takes none either", () => {
     expect(cycleProblems(finished({ note: "see https://example.com" }))).toContain("links")
-    expect(cycleProblems(setFormName(finished(), 0, "see https://example.com"))).toContain("links")
+    expect(cycleProblems(setTuneName(finished(), 0, "see https://example.com"))).toContain("links")
   })
-  it("two forms exactly the same are one form too many", () => {
-    let d = setFormCount(finished(), 2)
+  it("two tunes with the same chords are fine: many tunes share a few chords", () => {
+    let d = setTuneCount(finished(), 2)
     for (const [i, chord] of ["Em", "C", "G", "D"].entries()) d = setSlot(d, 1, i, chord)
-    expect(cycleProblems(d)).toContain("sameForm")
-    // a different start makes it another form
-    expect(cycleProblems(setStart(d, 1, 2))).toEqual([])
+    expect(cycleProblems(d)).toEqual([])
   })
-  it("a form name is at most thirty characters", () => {
-    expect(cycleProblems(setFormName(finished(), 0, "x".repeat(31)))).toContain("tooLong")
+  it("a tune name is at most thirty characters", () => {
+    expect(cycleProblems(setTuneName(finished(), 0, "x".repeat(31)))).toContain("tooLong")
   })
 })
 
 describe("what is sent", () => {
   it("is the rings with the start and rounds, a clean name and no empty places", () => {
-    const d = setFormName(setFormTimes(setStart(finished({ key: " Em ", note: " nice " }), 0, 1), 0, "4"), 0, "  Slow   round ")
+    const d = setTuneKey(setTuneName(setTuneTimes(setStart(finished({ note: " nice " }), 0, 1), 0, "4"), 0, "  Slow   round "), 0, "Em")
     const p = toCyclePayload(d)
-    expect(p.cycle.forms).toEqual([{ name: "Slow round", chords: ["Em", "C", "G", "D"], start: 1, times: 4 }])
+    expect(p.cycle).toEqual({ tuneCount: 1, tunes: [{ number: 1, name: "Slow round", key: "Em", chords: ["Em", "C", "G", "D"], start: 1, times: 4 }] })
     expect(p.key).toBe("Em")
     expect(p.note).toBe("nice")
     expect(p.replacesId).toBeNull()
@@ -176,9 +185,9 @@ describe("what is sent", () => {
     expect(toCyclePayload(finished({ instrument: "guitar", capo: 3 })).capo).toBe(3)
   })
   it("goes out in the API's own words", () => {
-    const wire = cycleToWire(toCyclePayload(finished({ key: "Em", capo: 2 })))
+    const wire = cycleToWire(toCyclePayload(setTuneKey(finished({ capo: 2 }), 0, "Em")))
     expect(wire).toMatchObject({ instrument: "guitar", chart_key: "Em", capo: 2, played_it: true, is_anonymous: false })
-    expect(wire.cycle).toEqual({ forms: [{ name: null, chords: ["Em", "C", "G", "D"], start: 0, times: null }] })
+    expect(wire.cycle).toEqual({ tune_count: 1, tunes: [{ number: 1, name: null, key: "Em", chords: ["Em", "C", "G", "D"], start: 0, times: null }] })
     expect(wire).not.toHaveProperty("lines")
     expect(wire).not.toHaveProperty("body")
     expect(wire).not.toHaveProperty("replaces_id")
@@ -195,8 +204,8 @@ const WIRE: WireSheet = {
   recording_id: "r1",
   instrument: "guitar",
   chart_key: "Em",
-  body: "Form 1: Em - C - G - D",
-  cycle: { forms: [{ name: "Slow", chords: ["Em", "C", "G", "D"], start: 2, times: 4 }] },
+  body: "Tune 1: Em - C - G - D",
+  cycle: { tune_count: 3, tunes: [{ number: 1, name: "Slow", key: "G", chords: ["Em", "C", "G", "D"], start: 2, times: 4 }] },
   chords_count: 4,
   note: null,
   played_it: true,
@@ -210,9 +219,10 @@ const WIRE: WireSheet = {
 }
 
 describe("a cycle that comes from the server", () => {
-  it("keeps its forms, start and rounds", () => {
+  it("keeps its tunes, start and rounds", () => {
     const sheet = sheetFromWire(WIRE)
-    expect(sheet.cycle?.forms[0]).toEqual({ name: "Slow", chords: ["Em", "C", "G", "D"], start: 2, times: 4 })
+    expect(sheet.cycle?.tunes[0]).toEqual({ number: 1, name: "Slow", key: "G", chords: ["Em", "C", "G", "D"], start: 2, times: 4 })
+    expect(sheet.cycle?.tuneCount).toBe(3)
   })
   it("a sheet without a cycle has none", () => {
     expect(sheetFromWire({ ...WIRE, cycle: undefined }).cycle).toBeNull()
@@ -221,7 +231,9 @@ describe("a cycle that comes from the server", () => {
     const d = cycleDraftFromSheet(sheetFromWire(WIRE), "edit")
     expect(d.editId).toBe("s1")
     expect(d.replacesId).toBeNull()
-    expect(d.forms[0]).toEqual({ name: "Slow", slots: ["Em", "C", "G", "D"], start: 2, times: "4" })
+    expect(d.tunes[0]).toEqual({ name: "Slow", slots: ["Em", "C", "G", "D"], start: 2, times: "4", key: "G", skipped: false })
+    // the two tunes without chords stay "no chords yet"
+    expect(d.tunes.map((f) => f.skipped)).toEqual([false, true, true])
   })
   it("changing a live one makes a replacement", () => {
     const d = cycleDraftFromSheet(sheetFromWire(WIRE), "copy")
@@ -234,7 +246,7 @@ describe("a cycle that comes from the server", () => {
     expect(d.playedIt).toBe(false)
     expect(d.editId).toBeNull()
     expect(d.replacesId).toBeNull()
-    expect(d.forms[0]?.slots).toEqual(["Em", "C", "G", "D"])
+    expect(d.tunes[0]?.slots).toEqual(["Em", "C", "G", "D"])
   })
 })
 
@@ -253,17 +265,18 @@ describe("where adding a cycle goes", () => {
 })
 
 describe("the preview's in-memory server", () => {
-  it("shows a Kiirtan a made-up cycle of two forms, published", async () => {
+  it("shows a Kiirtan a made-up cycle of three tunes (two with chords), published", async () => {
     const list = await mock().list("r1")
     const sheet = list.find((s) => s.cycle)
     expect(sheet?.status).toBe("published")
-    expect(sheet?.cycle?.forms).toHaveLength(2)
+    expect(sheet?.cycle?.tuneCount).toBe(3)
+    expect(sheet?.cycle?.tunes).toHaveLength(2)
   })
   it("a cycle waits for the team, and is the member's own", async () => {
     const m = mock()
     const sheet = await m.offerCycle("r1", toCyclePayload(finished()))
     expect(sheet).toMatchObject({ status: "pending", mine: true, instrument: "guitar" })
-    expect(sheet.cycle?.forms[0]?.chords).toEqual(["Em", "C", "G", "D"])
+    expect(sheet.cycle?.tunes[0]?.chords).toEqual(["Em", "C", "G", "D"])
     expect((await m.list("r1")).some((s) => s.id === sheet.id)).toBe(true)
   })
   it("the same cycle twice is refused", async () => {
@@ -286,7 +299,7 @@ describe("the preview's in-memory server", () => {
     const sheet = await m.offerCycle("r1", toCyclePayload(finished()))
     const fixed = await m.updateCycle(sheet.id, toCyclePayload(setSlot(finished(), 0, 1, "F")))
     expect(fixed.id).toBe(sheet.id)
-    expect(fixed.cycle?.forms[0]?.chords[1]).toBe("F")
+    expect(fixed.cycle?.tunes[0]?.chords[1]).toBe("F")
     const seeded = (await m.list("r2")).find((s) => s.cycle)
     await expect(m.updateCycle(seeded?.id ?? "x", toCyclePayload(finished()))).rejects.toMatchObject({ failure: "forbidden" })
   })
@@ -299,5 +312,114 @@ describe("the preview's in-memory server", () => {
     const sheet = await mock().offerCycle("r1", toCyclePayload(finished()))
     expect(sheet.lines).toBeNull()
     expect(sheet.strum).toBeNull()
+  })
+})
+
+
+describe("several tunes in one recording", () => {
+  const filled = (d: CycleDraft, tune: number, chords: string[]) => chords.reduce((acc, c, i) => setSlot(acc, tune, i, c), d)
+
+  it("asks for as many tunes as the member says, up to six", () => {
+    expect(CYCLE_MAX_TUNES).toBe(6)
+    expect(newCycleDraft(3).tunes).toHaveLength(3)
+    expect(setTuneCount(newCycleDraft(), 6).tunes).toHaveLength(6)
+    expect(setTuneCount(newCycleDraft(), 7).tunes).toHaveLength(6)
+  })
+
+  it("'only some' skips the tunes that were not chosen, and the walk visits only the chosen ones", () => {
+    const d = chooseTunes(newCycleDraft(3), [0, 2])
+    expect(d.tunes.map((f) => f.skipped)).toEqual([false, true, false])
+    expect(activeTunes(d)).toEqual([0, 2])
+    expect(nextTune(d, -1)).toBe(0)
+    expect(nextTune(d, 0)).toBe(2)
+    expect(nextTune(d, 2)).toBeNull()
+    expect(priorTune(d, 2)).toBe(0)
+    expect(priorTune(d, 0)).toBeNull()
+  })
+
+  it("'all of them' leaves every tune to be filled in", () => {
+    expect(activeTunes(chooseTunes(newCycleDraft(3), [0, 1, 2]))).toEqual([0, 1, 2])
+  })
+
+  it("a skipped tune is not sent, but the recording still says how many tunes it has", () => {
+    let d = chooseTunes(newCycleDraft(3), [0, 2])
+    d = filled(d, 0, ["Em", "C", "G", "D"])
+    d = filled(d, 2, ["Am", "G", "F", "E"])
+    d = { ...d, playedIt: true }
+    expect(cycleProblems(d)).toEqual([])
+    const p = toCyclePayload(d)
+    expect(p.cycle.tuneCount).toBe(3)
+    expect(p.cycle.tunes.map((f) => f.number)).toEqual([1, 3])
+    expect(cycleToWire(p).cycle).toMatchObject({ tune_count: 3 })
+  })
+
+  it("a cycle where every tune is skipped cannot be sent", () => {
+    expect(cycleProblems({ ...chooseTunes(newCycleDraft(2), []), playedIt: true })).toContain("noTune")
+  })
+
+  it("the step of a tune can go on only with a finished ring, or by skipping", () => {
+    const d = newCycleDraft(2)
+    expect(tuneProblems(d.tunes[0]!)).toContain("noChords")
+    expect(tuneProblems(filled(d, 0, ["Em", "C", "G", "D"]).tunes[0]!)).toEqual([])
+    expect(tuneProblems(setTuneKey(filled(d, 0, ["Em", "C", "G", "D"]), 0, "H").tunes[0]!)).toContain("badKey")
+  })
+
+  it("each tune has its own key; 'Same as previous tune' copies the key of the tune before", () => {
+    let d = setTuneKey(newCycleDraft(3), 0, "G")
+    d = keyLikePrevious(d, 1)
+    expect(d.tunes[1]?.key).toBe("G")
+    d = setTuneKey(d, 1, "C")
+    expect(d.tunes[0]?.key).toBe("G")
+    // the first tune has nothing before it
+    expect(keyLikePrevious(newCycleDraft(2), 0)).toEqual(newCycleDraft(2))
+    // a skipped tune has no key to copy: the one before it is used
+    const skipped = setTuneSkipped(setTuneKey(newCycleDraft(3), 0, "D"), 1, true)
+    expect(previousTune(skipped, 2)).toBe(0)
+    expect(keyLikePrevious(skipped, 2).tunes[2]?.key).toBe("D")
+  })
+
+  it("the key of a tune goes out with its tune, and the sheet is listed under the first one that has a key", () => {
+    let d = filled(filled(setTuneCount(newCycleDraft(), 2), 0, ["Em", "C", "G", "D"]), 1, ["Am", "G", "C", "F"])
+    d = setTuneKey(d, 1, "C")
+    const p = toCyclePayload({ ...d, playedIt: true })
+    expect(p.cycle.tunes.map((f) => f.key)).toEqual([null, "C"])
+    expect(p.key).toBe("C")
+  })
+
+  it("a cycle of the first build (forms, no numbers, no keys) is read as tunes in order", () => {
+    const cycle = cycleFromWire({ forms: [{ name: "Slow", chords: ["Em", "C"], start: 0, times: null }, { name: null, chords: ["Am", "G"], start: 1, times: 2 }] })
+    expect(cycle.tuneCount).toBe(2)
+    expect(cycle.tunes.map((f) => [f.number, f.key])).toEqual([[1, null], [2, null]])
+    expect(missingTunes(cycle)).toEqual([])
+  })
+
+  it("tunes without chords are listed as missing", () => {
+    const cycle = cycleFromWire({ tune_count: 4, tunes: [{ number: 1, name: null, chords: ["Em", "C"], start: 0, times: null }, { number: 3, name: null, key: "G", chords: ["Am", "G"], start: 0, times: null }] })
+    expect(missingTunes(cycle)).toEqual([2, 4])
+  })
+
+  it("adding a missing tune to somebody else's cycle opens that tune, copies the others and credits the first author", () => {
+    const sheet = sheetFromWire({ ...WIRE, mine: false, author: { name: "Priya" } })
+    const d = cycleDraftFromOther(sheet, 2)
+    expect(d.tunes.map((f) => f.skipped)).toEqual([false, false, true])
+    expect(d.tunes[0]?.slots).toEqual(["Em", "C", "G", "D"])
+    expect(d.tunes[1]?.slots).toEqual([null, null, null, null])
+    expect(d.basedOn?.name).toBe("Priya")
+    // a tune that already has chords is not opened again
+    expect(cycleDraftFromOther(sheet, 1).tunes.map((f) => f.skipped)).toEqual([false, true, true])
+  })
+
+  it("the address of 'add chords for tune 2' carries the tune", () => {
+    expect(cycleFormHref({ recordingId: "r1", from: "s9", tune: 2 })).toBe("/recording-cycle?recording=r1&from=s9&tune=2")
+    expect(cycleFormHref({ recordingId: "r1", edit: "s9", tune: 2 })).toBe("/recording-cycle?recording=r1&edit=s9")
+  })
+
+  it("the preview's in-memory server keeps the count and the numbers of what is sent", async () => {
+    let d = chooseTunes(newCycleDraft(3), [0, 2])
+    d = filled(filled(d, 0, ["Em", "C", "G", "D"]), 2, ["Am", "G", "F", "E"])
+    const sheet = await mock().offerCycle("r1", toCyclePayload({ ...d, playedIt: true }))
+    expect(sheet.cycle?.tuneCount).toBe(3)
+    expect(sheet.cycle?.tunes.map((f) => f.number)).toEqual([1, 3])
+    expect(sheet.body).toContain("Tune 2: no chords yet")
   })
 })

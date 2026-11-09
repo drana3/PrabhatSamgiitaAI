@@ -33,14 +33,18 @@ export function chartFormHref(input: { recordingId: string; title?: string; edit
 
 /**
  * The "Add the chord cycle" screen of a Kiirtan (docs/kiirtan-cycle.md). Same ids as the chart screen: `edit` a waiting or rejected
- * cycle of the member's own, `copy` a live one of their own (the new one replaces it), `from` somebody else's published cycle.
+ * cycle of the member's own, `copy` a live one of their own (the new one replaces it), `from` somebody else's published cycle
+ * (`tune`: the number of a tune with no chords yet that is being added).
  */
-export function cycleFormHref(input: { recordingId: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string }): string {
+export function cycleFormHref(input: { recordingId: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string; tune?: number }): string {
   const parts = [`recording=${encodeURIComponent(input.recordingId)}`]
   if (input.title) parts.push(`title=${encodeURIComponent(input.title.slice(0, 120))}`)
   if (input.edit) parts.push(`edit=${encodeURIComponent(input.edit)}`)
   else if (input.copy) parts.push(`copy=${encodeURIComponent(input.copy)}`)
-  else if (input.from) parts.push(`from=${encodeURIComponent(input.from)}`)
+  else if (input.from) {
+    parts.push(`from=${encodeURIComponent(input.from)}`)
+    if (input.tune && Number.isInteger(input.tune) && input.tune >= 1) parts.push(`tune=${input.tune}`)
+  }
   if (input.instrument && !input.edit && !input.copy) parts.push(`instrument=${encodeURIComponent(input.instrument)}`)
   return `/recording-cycle?${parts.join("&")}`
 }

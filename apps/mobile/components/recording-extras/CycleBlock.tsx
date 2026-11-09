@@ -9,8 +9,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
 import { SCREEN_SIDE } from "@/lib/layout"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { formLine, isCycle } from "@/lib/recordingChords/cycle"
-import type { RecordingSheet, SheetCycleForm, SheetInstrument, SheetReportReason } from "@/lib/recordingChords/types"
+import { isCycle, tuneLine, tuneNumbered } from "@/lib/recordingChords/cycle"
+import type { RecordingSheet, SheetCycleTune, SheetInstrument, SheetReportReason } from "@/lib/recordingChords/types"
 import { sheetFailureText } from "@/lib/recordingChords/words"
 
 import { CycleRing } from "./CycleRing"
@@ -23,8 +23,8 @@ const INSTRUMENTS: SheetInstrument[] = ["guitar", "harmonium"]
 const MAX_RING = 288
 
 /**
- * The chord cycle of a Kiirtan, at the bottom of its page (docs/kiirtan-cycle.md): every form of the recording as a ring,
- * a switcher between the forms, who added it, and the member's own actions (add, fix, change a copy, delete; report a
+ * The chord cycle of a Kiirtan, at the bottom of its page (docs/kiirtan-cycle.md): every tune of the recording as a ring,
+ * a switcher between the tunes, who added it, and the member's own actions (add, fix, change a copy, delete; report a
  * live one that is somebody else's). Nothing is highlighted as "playing now" and the words say so. A Kiirtan's older
  * plain-text sheets stay one tap away (`onOpenText`).
  */
@@ -44,7 +44,8 @@ export function CycleBlock({
   onAdd: () => void
   onChange: (sheet: RecordingSheet) => void
   onCopy: (sheet: RecordingSheet) => void
-  onFrom: (sheet: RecordingSheet) => void
+  /** start from this cycle; `tune` is the number of a tune that has no chords yet and is being added */
+  onFrom: (sheet: RecordingSheet, tune?: number) => void
   onOpenText: () => void
 }) {
   const tr = useT()
@@ -54,7 +55,7 @@ export function CycleBlock({
   const text = state.items.filter((s) => !isCycle(s) && !s.lines)
   const [instrument, setInstrument] = useState<SheetInstrument>("guitar")
   const [version, setVersion] = useState(0)
-  const [formIndex, setFormIndex] = useState(0)
+  const [tuneNo, setTuneNo] = useState(1)
   const [panel, setPanel] = useState<null | "report" | "delete">(null)
   const [note, setNote] = useState<string | null>(null)
 
@@ -64,19 +65,23 @@ export function CycleBlock({
   }, [present, instrument])
   const list = cycles.filter((s) => s.instrument === instrument)
   const sheet = list[Math.min(version, Math.max(0, list.length - 1))] ?? null
-  const forms = sheet?.cycle?.forms ?? []
-  const form: SheetCycleForm | null = forms[Math.min(formIndex, Math.max(0, forms.length - 1))] ?? null
-  const index = forms.indexOf(form as SheetCycleForm)
+  const cycle = sheet?.cycle ?? null
+  const tuneCount = cycle?.tuneCount ?? 0
+  const picked = Math.min(Math.max(1, tuneNo), Math.max(1, tuneCount))
+  const tune: SheetCycleTune | null = cycle ? (tuneNumbered(cycle, picked) ?? null) : null
 
   const reset = (next: () => void) => {
     next()
-    setFormIndex(0)
+    setTuneNo(1)
     setPanel(null)
     setNote(null)
   }
   const size = Math.min(MAX_RING, Math.min(width, 640) - 2 * SCREEN_SIDE)
   const by = !sheet ? "" : sheet.mine ? tr("recChords.by.you") : sheet.author ? tr("recChords.by", { name: sheet.author.name }) : tr("recChords.by.anonymous")
-  const formName = (f: SheetCycleForm, n: number) => (f.name ? tr("recCycle.block.formNamed", { n: n + 1, name: f.name }) : tr("recCycle.block.form", { n: n + 1 }))
+  const tuneName = (n: number) => {
+    const f = cycle ? tuneNumbered(cycle, n) : undefined
+    return f?.name ? tr("recCycle.block.tuneNamed", { n, name: f.name }) : tr("recCycle.block.tune", { n })
+  }
 
   return (
     <Section title={title}>
@@ -113,7 +118,7 @@ export function CycleBlock({
             </View>
           ) : null}
 
-          {sheet && form ? (
+          {sheet && cycle ? (
             <BlockStack gap={12}>
               {sheet.status !== "published" ? (
                 <View style={styles.meta}>
@@ -124,30 +129,41 @@ export function CycleBlock({
               ) : null}
               {sheet.status === "rejected" && sheet.rejectedReason ? <Note t={t} tone="body">{tr("recChords.reason", { reason: sheet.rejectedReason })}</Note> : null}
 
-              {forms.length > 1 ? (
-                <View style={styles.chips} accessibilityRole="tablist">
-                  {forms.map((f, n) => (
-                    <Pill key={n} t={t} on={n === index} role="tab" label={formName(f, n)} onPress={() => setFormIndex(n)} />
+              {tuneCount > 1 ? (
+                <View style={styles.chips} accessibilityRole="tablist" accessibilityLabel={tr("recCycle.block.tabs")}>
+                  {Array.from({ length: tuneCount }, (_, i) => i + 1).map((n) => (
+                    <Pill key={n} t={t} on={n === picked} role="tab" label={tr("recCycle.block.tune", { n })} a11y={tuneName(n)} onPress={() => setTuneNo(n)} />
                   ))}
                 </View>
               ) : null}
 
-              <CycleRing
-                t={t}
-                chords={form.chords}
-                start={form.start}
-                size={size}
-                centre={form.times ? `×${form.times}` : undefined}
-                label={tr("recCycle.ring.a11y", { n: index + 1, chords: form.chords.join(", "), start: form.chords[form.start] ?? "" })}
-              />
-              <View style={styles.summary}>
-                <Text selectable style={[styles.line, { color: t.ink900 }]} testID="cycle-line">
-                  {formLine(form)}
-                </Text>
-                <Text style={[styles.facts, { color: t.ink800 }]}>
-                  {[tr("recCycle.block.starts", { chord: form.chords[form.start] ?? "" }), form.times ? tr("recCycle.block.times", { count: form.times }) : ""].filter(Boolean).join(" · ")}
-                </Text>
-              </View>
+              {tune ? (
+                <>
+                  {tune.name || tuneCount > 1 ? <Text style={[styles.tuneName, { color: t.ink900 }]}>{tuneName(picked)}</Text> : null}
+                  <CycleRing
+                    t={t}
+                    chords={tune.chords}
+                    start={tune.start}
+                    size={size}
+                    centre={tune.times ? `×${tune.times}` : undefined}
+                    label={tr("recCycle.ring.a11y", { n: picked, chords: tune.chords.join(", "), start: tune.chords[tune.start] ?? "" })}
+                  />
+                  <View style={styles.summary}>
+                    <Text selectable style={[styles.line, { color: t.ink900 }]} testID="cycle-line">
+                      {tuneLine(tune)}
+                    </Text>
+                    <Text style={[styles.facts, { color: t.ink800 }]}>
+                      {[tune.key ? tr("recCycle.block.key", { key: tune.key }) : "", tr("recCycle.block.starts", { chord: tune.chords[tune.start] ?? "" }), tune.times ? tr("recCycle.block.times", { count: tune.times }) : ""].filter(Boolean).join(" · ")}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.summary} testID="cycle-no-chords">
+                  <Text style={[styles.tuneName, { color: t.ink900 }]}>{tuneName(picked)}</Text>
+                  <Text style={[styles.facts, { color: t.ink800 }]}>{tr("recCycle.block.noChords")}</Text>
+                  {!sheet.mine && sheet.status === "published" ? <Button t={t} variant="quiet" label={tr("recCycle.block.addTune", { n: picked })} onPress={() => onFrom(sheet, picked)} /> : null}
+                </View>
+              )}
 
               {sheet.note ? (
                 <Text selectable style={[styles.sheetNote, { color: t.ink800 }]}>
@@ -216,9 +232,9 @@ export function CycleBlock({
   )
 }
 
-function Pill({ t, on, label, onPress, role = "radio" }: { t: SpTheme; on: boolean; label: string; onPress: () => void; role?: "radio" | "tab" }) {
+function Pill({ t, on, label, onPress, role = "radio", a11y }: { t: SpTheme; on: boolean; label: string; onPress: () => void; role?: "radio" | "tab"; a11y?: string }) {
   return (
-    <SpPress onPress={onPress} accessibilityRole={role} accessibilityLabel={label} accessibilityState={{ selected: on }} pressedScale={0.96} style={[styles.pill, { backgroundColor: on ? t.action : "transparent", borderColor: on ? t.action : t.ink800 }]}>
+    <SpPress onPress={onPress} accessibilityRole={role} accessibilityLabel={a11y ?? label} accessibilityState={{ selected: on }} pressedScale={0.96} style={[styles.pill, { backgroundColor: on ? t.action : "transparent", borderColor: on ? t.action : t.ink800 }]}>
       <Text style={[styles.pillText, { color: on ? t.onAction : t.ink900 }]}>{label}</Text>
     </SpPress>
   )
@@ -234,6 +250,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: R_ROUND },
   badgeText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 18 },
   summary: { gap: 4, alignItems: "center" },
+  tuneName: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 24, textAlign: "center" },
   line: { fontFamily: amFonts.bold, fontSize: 20, lineHeight: 28, textAlign: "center" },
   facts: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20, textAlign: "center" },
   sheetNote: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22 },

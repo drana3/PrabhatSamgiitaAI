@@ -36,7 +36,7 @@ import { kindHasChords } from "@/lib/kirtan/kind"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { SCREEN_SIDE } from "@/lib/layout"
-import { formLine, isCycle } from "@/lib/recordingChords/cycle"
+import { isCycle, tuneLine } from "@/lib/recordingChords/cycle"
 import { kindHasCharts, kindHasCycle } from "@/lib/recordingChords/kinds"
 import { featuredVideo } from "@/lib/recordingVideos/embed"
 import { apiIdOf, cycleFormHref, sheetFormHref } from "@/lib/recordingExtras/links"
@@ -119,10 +119,10 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
   // A Kiirtan has a chord CYCLE (docs/kiirtan-cycle.md) and a headline video with a short chord line (docs/kiirtan-video.md).
   // Every other kind keeps its chord sheet and its video list.
   const cycleKind = kindHasCycle(recording.kind)
-  const goCycle = (target: { edit?: string; copy?: string; from?: string; instrument?: string } = {}) => router.push(href(cycleFormHref({ recordingId: apiId, title: recording.title, ...target })))
+  const goCycle = (target: { edit?: string; copy?: string; from?: string; instrument?: string; tune?: number } = {}) => router.push(href(cycleFormHref({ recordingId: apiId, title: recording.title, ...target })))
   const live = useMemo(() => sheets.state.items.filter((x) => isCycle(x) && x.status === "published"), [sheets.state.items])
   const firstForm = live.find((x) => x.instrument === "guitar") ?? live[0]
-  const chordLine = firstForm?.cycle?.forms[0] ? formLine(firstForm.cycle.forms[0]) : null
+  const chordLine = firstForm?.cycle?.tunes[0] ? tuneLine(firstForm.cycle.tunes[0]) : null
   const headline = cycleKind ? featuredVideo(videos.state.items) : null
   // the text viewer of a Kiirtan lists only its older plain-text sheets; the cycle has its own block
   const textSheets = useMemo<SheetsController>(() => ({ ...sheets, state: { ...sheets.state, items: sheets.state.items.filter((x) => !isCycle(x)) } }), [sheets])
@@ -170,7 +170,7 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
                 onAdd={() => goCycle({ instrument: firstForm?.instrument })}
                 onChange={(sheet) => goCycle({ edit: sheet.id })}
                 onCopy={(sheet) => goCycle({ copy: sheet.id })}
-                onFrom={(sheet) => goCycle({ from: sheet.id, instrument: sheet.instrument })}
+                onFrom={(sheet, tune) => goCycle({ from: sheet.id, instrument: sheet.instrument, tune })}
                 onOpenText={() => setViewing(true)}
               />
             </Reveal>

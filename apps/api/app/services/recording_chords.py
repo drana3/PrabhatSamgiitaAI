@@ -290,7 +290,7 @@ def clean_chart(payload: SheetCreate) -> Cleaned:
 
 
 def clean_cycle_payload(payload: SheetCreate) -> Cleaned:
-    """The chord cycle of a Kiirtan: the forms as stored, the text written from them, the number of
+    """The chord cycle of a Kiirtan: the tunes as stored, the text written from them, the number of
     chord slots. A cycle that is only one lonely plain letter is no more a cycle than a chart is."""
     assert payload.cycle is not None
     cycle = kiirtan_cycles.clean_cycle(payload.cycle)
@@ -587,9 +587,17 @@ def _live_statement(member_id: UUID, recording_id: UUID, instrument: str) -> Any
     )
 
 
+def _sheet_key(payload: SheetCreate, cleaned: Cleaned) -> str | None:
+    """The key a sheet is listed under. A cycle has the key of each tune inside it; the sheet shows
+    the first one that has a key."""
+    if cleaned.cycle is not None:
+        return kiirtan_cycles.first_key(cleaned.cycle)
+    return payload.chart_key
+
+
 def _is_twin(row: RecordingChordSheet, payload: SheetCreate, cleaned: Cleaned) -> bool:
     """The same chart: a plain sheet by its text, a chart by its lines and its capo."""
-    if row.chart_key != payload.chart_key:
+    if row.chart_key != _sheet_key(payload, cleaned):
         return False
     if sheet_kind(row.chart, row.cycle) != sheet_kind(cleaned.chart, cleaned.cycle):
         return False
@@ -737,7 +745,7 @@ async def create_sheet(
         recording_id=recording_id,
         member_id=member.id,
         instrument=payload.instrument,
-        chart_key=payload.chart_key,
+        chart_key=_sheet_key(payload, cleaned),
         body=cleaned.body,
         chart=cleaned.chart,
         cycle=cleaned.cycle,
@@ -807,7 +815,7 @@ async def update_sheet(
         raise _too_many()
     limiter.hit("edit", str(sheet.member_id), limit=30, window_seconds=3600)
     now = now_utc()
-    sheet.chart_key = payload.chart_key
+    sheet.chart_key = _sheet_key(payload, cleaned)
     sheet.body = cleaned.body
     sheet.chart = cleaned.chart
     sheet.cycle = cleaned.cycle

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -105,23 +105,42 @@ class SheetLineIn(ChordLineIn):
     text: str = Field(default="", max_length=SHEET_MAX_LINE_LENGTH + 80)
 
 
-# The chord cycle of a Kiirtan: forms (ways the Kiirtan is played), each a ring of chords.
-CYCLE_MAX_FORMS = 8
+# The chord cycle of a Kiirtan: tunes (melodies played in the recording), each a ring of chords.
+# Old rows and old clients call a tune a "form" (`forms`): read as tunes (see kiirtan_cycles).
+CYCLE_MAX_TUNES = 6
+CYCLE_MAX_LEGACY_FORMS = 8
 CYCLE_MIN_CHORDS = 2
 CYCLE_MAX_CHORDS = 8
 CYCLE_NAME_MAX = 30
 CYCLE_TIMES_MAX = 99
 
 
-class CycleFormIn(BaseModel):
-    """One way the Kiirtan is played: the chords in a ring, the one the ring starts on, and
-    optionally how many rounds are played."""
+class CycleTuneIn(BaseModel):
+    """One tune of the recording: the chords in a ring, the one the ring starts on, optionally the
+    key it is in, a name and how many rounds are played. A tune nobody has chords for yet is simply
+    not sent: it stays in the recording as "no chords yet" (see `CycleIn.tune_count`)."""
 
+    # Which tune of the recording this is (1 = the first one played).
+    # Missing: its place in the list.
+    number: int | None = Field(default=None, ge=1, le=CYCLE_MAX_TUNES)
     name: str | None = Field(default=None, max_length=CYCLE_NAME_MAX + 40)
+    # The key of THIS tune (different tunes can be in different keys).
+    # Optional: many do not know it.
+    key: str | None = Field(default=None, max_length=3)
     chords: list[str] = Field(min_length=CYCLE_MIN_CHORDS, max_length=CYCLE_MAX_CHORDS)
     # The slot the ring starts on: required, so a listener never has to guess where a round begins.
     start: int = Field(ge=0, lt=CYCLE_MAX_CHORDS)
     times: int | None = Field(default=None, ge=1, le=CYCLE_TIMES_MAX)
+
+    @field_validator("key")
+    @classmethod
+    def _tune_key(cls, value: str | None) -> str | None:
+        key = (value or "").strip()
+        if not key:
+            return None
+        if not SHEET_KEY_PATTERN.fullmatch(key):
+            raise ValueError("The key must be a note such as C, F# or Am")
+        return key
 
     @field_validator("chords")
     @classmethod
@@ -135,25 +154,51 @@ class CycleFormIn(BaseModel):
         return out
 
     @model_validator(mode="after")
-    def _start_in_ring(self) -> CycleFormIn:
+    def _start_in_ring(self) -> CycleTuneIn:
         if self.start >= len(self.chords):
             raise ValueError("The start must be one of the chords of the cycle")
         return self
 
 
 class CycleIn(BaseModel):
-    forms: list[CycleFormIn] = Field(min_length=1, max_length=CYCLE_MAX_FORMS)
+    # How many tunes are played in the recording. Missing: as many as were sent
+    # (or the highest number).
+    tune_count: int | None = Field(default=None, ge=1, le=CYCLE_MAX_TUNES)
+    tunes: list[CycleTuneIn] = Field(min_length=1, max_length=CYCLE_MAX_TUNES)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_forms(cls, data: Any) -> Any:
+        """A cycle sent as `forms` (the first build) is a cycle of tunes."""
+        if isinstance(data, dict) and "tunes" not in data and "forms" in data:
+            data = {**data, "tunes": data["forms"]}
+            data.pop("forms", None)
+        return data
+
+    @model_validator(mode="after")
+    def _numbers(self) -> CycleIn:
+        numbers = [t.number if t.number is not None else i + 1 for i, t in enumerate(self.tunes)]
+        if len(set(numbers)) != len(numbers):
+            raise ValueError("Two tunes have the same number")
+        total = self.tune_count if self.tune_count is not None else max(len(self.tunes), *numbers)
+        if max(numbers) > total:
+            raise ValueError("A tune number is above the number of tunes of the recording")
+        return self
 
 
-class CycleFormOut(BaseModel):
+class CycleTuneOut(BaseModel):
+    number: int
     name: str | None = None
+    key: str | None = None
     chords: list[str]
     start: int
     times: int | None = None
 
 
 class CycleOut(BaseModel):
-    forms: list[CycleFormOut]
+    # How many tunes the recording has; the numbers missing from `tunes` have no chords yet.
+    tune_count: int
+    tunes: list[CycleTuneOut]
 
 
 class SheetCreate(BaseModel):

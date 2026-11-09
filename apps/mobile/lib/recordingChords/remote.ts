@@ -1,7 +1,7 @@
 import { NetworkError, RemoteError, type RemoteConfig } from "@/lib/kirtan/remote"
 import { callFor } from "@/lib/recordingExtras/http"
 
-import { cycleToWire } from "./cycle"
+import { cycleFromWire, cycleToWire } from "./cycle"
 import { chartToWire, draftToWire } from "./rules"
 import type { RecordingSheet, SheetChartPayload, SheetDraft, SheetFailure, SheetInstrument, SheetReportReason, SheetsBackend } from "./types"
 
@@ -16,7 +16,7 @@ export type WireSheet = {
   chart_key: string | null
   body: string
   lines?: Array<{ text: string; placements: Array<{ word: number; chord: string }> }> | null
-  cycle?: { forms: Array<{ name: string | null; chords: string[]; start: number; times: number | null }> } | null
+  cycle?: { tune_count?: number; tunes?: Array<{ number: number; name: string | null; key?: string | null; chords: string[]; start: number; times: number | null }>; forms?: Array<{ name: string | null; chords: string[]; start: number; times: number | null }> } | null
   capo?: number
   strum?: string | null
   based_on?: { id: string | null; name: string | null } | null
@@ -45,7 +45,7 @@ export function sheetFromWire(w: WireSheet): RecordingSheet {
     chartKey: w.chart_key ?? null,
     body: w.body,
     lines: w.lines ? w.lines.map((l) => ({ text: l.text, placements: l.placements.map((p) => ({ word: p.word, chord: p.chord })) })) : null,
-    cycle: w.cycle ? { forms: w.cycle.forms.map((f) => ({ name: f.name ?? null, chords: [...f.chords], start: f.start, times: f.times ?? null })) } : null,
+    cycle: w.cycle ? cycleFromWire(w.cycle) : null,
     capo: w.capo ?? 0,
     strum: w.strum ?? null,
     basedOn: w.based_on ? { id: w.based_on.id ?? null, name: w.based_on.name ?? null } : null,

@@ -1,5 +1,6 @@
-"""The chord cycle of a Kiirtan: forms with a ring of chords, the start slot, the optional number of
-rounds; same review queue, versions, twins and daily allowance as every other chord sheet."""
+"""The chord cycle of a Kiirtan: tunes (melodies) with a ring of chords, the start slot, the
+optional number of rounds; same review queue, versions, twins and daily allowance as every other
+chord sheet."""
 
 from __future__ import annotations
 
@@ -17,15 +18,23 @@ URL = "/api/v1/recording-chords"
 BHAJAN = UUID("3333333a-3333-3333-3333-33333333333b")
 
 
-def form(chords=("Em", "C", "G", "D"), start=0, times=None, name=None) -> dict:
-    return {"name": name, "chords": list(chords), "start": start, "times": times}
+def tune(
+    chords=("Em", "C", "G", "D"), start=0, times=None, name=None, number=None, key=None
+) -> dict:
+    out = {"name": name, "chords": list(chords), "start": start, "times": times, "key": key}
+    if number is not None:
+        out["number"] = number
+    return out
 
 
-def payload(*forms: dict, **extra) -> dict:
+def payload(*tunes: dict, tune_count: int | None = None, **extra) -> dict:
     return {
         "instrument": "guitar",
         "chart_key": "Em",
-        "cycle": {"forms": list(forms) or [form()]},
+        "cycle": {
+            "tunes": list(tunes) or [tune()],
+            **({"tune_count": tune_count} if tune_count else {}),
+        },
         "played_it": True,
         **extra,
     }
@@ -33,7 +42,7 @@ def payload(*forms: dict, **extra) -> dict:
 
 async def offer(world: World, who: str | None = "a", rec: UUID = REC, **kwargs):
     return await world.call(
-        "POST", f"{URL}/recordings/{rec}", who, json=payload(*kwargs.pop("forms", ()), **kwargs)
+        "POST", f"{URL}/recordings/{rec}", who, json=payload(*kwargs.pop("tunes", ()), **kwargs)
     )
 
 
@@ -46,62 +55,81 @@ async def listing(world: World, who: str | None = None, rec: UUID = REC):
 # --------------------------------------------------------------------------- the shape
 
 
-def test_the_text_written_from_a_cycle_names_each_form_its_start_and_its_rounds() -> None:
+def test_the_text_written_from_a_cycle_names_each_tune_its_key_its_start_and_its_rounds() -> None:
     cycle = {
-        "forms": [
-            {"name": "Slow", "chords": ["Em", "C", "G", "D"], "start": 1, "times": 4},
-            {"name": None, "chords": ["Am", "G"], "start": 0, "times": None},
-        ]
+        "tune_count": 3,
+        "tunes": [
+            {
+                "number": 1,
+                "name": "Slow",
+                "key": "G",
+                "chords": ["Em", "C", "G", "D"],
+                "start": 1,
+                "times": 4,
+            },
+            {
+                "number": 3,
+                "name": None,
+                "key": None,
+                "chords": ["Am", "G"],
+                "start": 0,
+                "times": None,
+            },
+        ],
     }
     assert kiirtan_cycles.cycle_body(cycle) == (
-        "Form 1 (Slow): Em - C - G - D (starts on C, x4)\nForm 2: Am - G (starts on Am)"
+        "Tune 1 (Slow): Em - C - G - D (key G, starts on C, x4)\n"
+        "Tune 2: no chords yet\n"
+        "Tune 3: Am - G (starts on Am)"
     )
 
 
-async def test_a_cycle_is_stored_and_read_back_with_every_form(world: World) -> None:
+async def test_a_cycle_is_stored_and_read_back_with_every_tune(world: World) -> None:
     created = await offer(
-        world, "team", forms=[form(name="Slow", times=4), form(("Am", "G", "F", "E", "Am", "G"), 2)]
+        world, "team", tunes=[tune(name="Slow", times=4), tune(("Am", "G", "F", "E", "Am", "G"), 2)]
     )
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["status"] == "published"
     assert body["lines"] is None
-    assert [f["chords"] for f in body["cycle"]["forms"]] == [
+    assert [f["chords"] for f in body["cycle"]["tunes"]] == [
         ["Em", "C", "G", "D"],
         ["Am", "G", "F", "E", "Am", "G"],
     ]
-    assert body["cycle"]["forms"][0]["name"] == "Slow" and body["cycle"]["forms"][0]["times"] == 4
-    assert body["cycle"]["forms"][1]["start"] == 2
+    assert body["cycle"]["tunes"][0]["name"] == "Slow" and body["cycle"]["tunes"][0]["times"] == 4
+    assert body["cycle"]["tunes"][1]["start"] == 2
     assert body["chords_count"] == 10
-    assert body["body"].startswith("Form 1 (Slow): Em - C - G - D (starts on Em, x4)")
+    assert body["body"].startswith("Tune 1 (Slow): Em - C - G - D (starts on Em, x4)")
     seen = (await listing(world))[0]
     assert seen["cycle"] == body["cycle"]
 
 
-async def test_three_forms_are_three_rings(world: World) -> None:
+async def test_three_tunes_are_three_rings(world: World) -> None:
     body = (
-        await offer(world, "team", forms=[form(), form(("Am", "Dm", "E", "Am")), form(("C", "G"))])
+        await offer(world, "team", tunes=[tune(), tune(("Am", "Dm", "E", "Am")), tune(("C", "G"))])
     ).json()
-    assert len(body["cycle"]["forms"]) == 3
+    assert len(body["cycle"]["tunes"]) == 3
 
 
 @pytest.mark.parametrize(
     "bad",
     [
-        [form(("Em",), 0)],  # a ring of one
-        [form(("Em", "C", "G", "D", "Em", "C", "G", "D", "Em"), 0)],  # nine slots
-        [form(start=4)],  # the start is not a slot of the ring
-        [form(times=0)],
-        [form(times=100)],
-        [form(("Em", "Cfoo", "G", "D"))],  # not a chord name
-        [form(("A", "A", "A", "A"))],  # one lonely plain letter is no cycle
-        [form(name="see https://example.org")],
-        [form(name="x" * 40)],
-        [form(), form()],  # the same form twice
+        [tune(("Em",), 0)],  # a ring of one
+        [tune(("Em", "C", "G", "D", "Em", "C", "G", "D", "Em"), 0)],  # nine slots
+        [tune(start=4)],  # the start is not a slot of the ring
+        [tune(times=0)],
+        [tune(times=100)],
+        [tune(("Em", "Cfoo", "G", "D"))],  # not a chord name
+        [tune(("A", "A", "A", "A"))],  # one lonely plain letter is no cycle
+        [tune(name="see https://example.org")],
+        [tune(name="x" * 40)],
+        [tune(number=1), tune(number=1)],  # two tunes with the same number
+        [tune(number=7)],  # more than six tunes
+        [tune(key="H")],  # not a key
     ],
 )
 async def test_a_bad_cycle_is_refused_and_costs_nothing(world: World, bad: list[dict]) -> None:
-    response = await offer(world, "a", forms=bad)
+    response = await offer(world, "a", tunes=bad)
     assert response.status_code == 422, response.text
     assert await world.rows(SongChordOffer) == []
     assert await world.rows(RecordingChordSheet) == []
@@ -109,7 +137,7 @@ async def test_a_bad_cycle_is_refused_and_costs_nothing(world: World, bad: list[
 
 async def test_the_start_is_required(world: World) -> None:
     body = payload()
-    del body["cycle"]["forms"][0]["start"]
+    del body["cycle"]["tunes"][0]["start"]
     response = await world.call("POST", f"{URL}/recordings/{REC}", "a", json=body)
     assert response.status_code == 422
 
@@ -149,22 +177,22 @@ async def test_a_members_cycle_waits_for_the_team_and_then_goes_live(world: Worl
     approved = await world.call("POST", f"{URL}/review/{created['id']}/approve", "team")
     assert approved.status_code == 200, approved.text
     assert [s["status"] for s in await listing(world)] == ["published"]
-    assert (await listing(world))[0]["cycle"]["forms"][0]["chords"] == ["Em", "C", "G", "D"]
+    assert (await listing(world))[0]["cycle"]["tunes"][0]["chords"] == ["Em", "C", "G", "D"]
 
 
 async def test_the_same_cycle_twice_is_a_duplicate_and_a_different_one_is_not(world: World) -> None:
     assert (await offer(world, "a")).status_code == 201
     again = await offer(world, "a")
     assert again.status_code == 409 and again.headers["X-Error-Code"] == "chords_duplicate"
-    assert (await offer(world, "a", forms=[form(start=1)])).status_code == 201
+    assert (await offer(world, "a", tunes=[tune(start=1)])).status_code == 201
 
 
 async def test_three_cycles_wait_at_most_and_a_plain_sheet_does_not_use_their_places(
     world: World,
 ) -> None:
     for start in range(3):
-        assert (await offer(world, "a", forms=[form(start=start)])).status_code == 201
-    too_many = await offer(world, "a", forms=[form(start=3)])
+        assert (await offer(world, "a", tunes=[tune(start=start)])).status_code == 201
+    too_many = await offer(world, "a", tunes=[tune(start=3)])
     assert too_many.status_code == 409 and too_many.headers["X-Error-Code"] == "chords_open_limit"
     plain = await world.call(
         "POST",
@@ -181,21 +209,21 @@ async def test_the_daily_allowance_is_the_one_of_every_chord_offer(world: World)
             session.add(SongChordOffer(member_id=MEMBER_B))
         await session.commit()
     assert (await offer(world, "b")).status_code == 201
-    blocked = await offer(world, "b", forms=[form(start=2)])
+    blocked = await offer(world, "b", tunes=[tune(start=2)])
     assert blocked.status_code == 429
     assert blocked.headers["X-Error-Code"] == "chords_daily_limit"
-    assert (await offer(world, "team", forms=[form(start=2)])).status_code == 201
+    assert (await offer(world, "team", tunes=[tune(start=2)])).status_code == 201
 
 
-async def test_a_cycle_without_forms_is_refused(world: World) -> None:
+async def test_a_cycle_without_tunes_is_refused(world: World) -> None:
     body = payload()
-    body["cycle"] = {"forms": []}
+    body["cycle"] = {"tunes": []}
     assert (await world.call("POST", f"{URL}/recordings/{REC}", "a", json=body)).status_code == 422
 
 
 async def test_a_new_version_replaces_the_live_cycle_once_it_is_live(world: World) -> None:
     old = (await offer(world, "team")).json()
-    new = await offer(world, "team", forms=[form(("Am", "G", "F", "E"), 0)], replaces_id=old["id"])
+    new = await offer(world, "team", tunes=[tune(("Am", "G", "F", "E"), 0)], replaces_id=old["id"])
     assert new.status_code == 201, new.text
     live = await listing(world)
     assert [s["id"] for s in live] == [new.json()["id"]]
@@ -204,10 +232,10 @@ async def test_a_new_version_replaces_the_live_cycle_once_it_is_live(world: Worl
 async def test_a_member_fixes_a_waiting_cycle_and_it_keeps_its_kind(world: World) -> None:
     created = (await offer(world, "a")).json()
     fixed = await world.call(
-        "PUT", f"{URL}/{created['id']}", "a", json=payload(form(("Dm", "G", "C", "A"), 2, 8))
+        "PUT", f"{URL}/{created['id']}", "a", json=payload(tune(("Dm", "G", "C", "A"), 2, 8))
     )
     assert fixed.status_code == 200, fixed.text
-    assert fixed.json()["cycle"]["forms"][0]["chords"] == ["Dm", "G", "C", "A"]
+    assert fixed.json()["cycle"]["tunes"][0]["chords"] == ["Dm", "G", "C", "A"]
     assert fixed.json()["status"] == "pending"
     as_text = await world.call(
         "PUT",
@@ -233,3 +261,78 @@ async def test_a_plain_sheet_of_a_kiirtan_is_still_a_plain_sheet(world: World) -
     )
     assert created.status_code == 201
     assert created.json()["cycle"] is None and created.json()["lines"] is None
+
+
+# ----------------------------------------------------------- several tunes in one recording
+
+
+async def test_a_tune_without_chords_stays_in_the_recording_as_no_chords_yet(world: World) -> None:
+    """Three tunes are played, the member has chords for the first and the third."""
+    created = await offer(
+        world,
+        "team",
+        tunes=[tune(number=1, key="G"), tune(("Am", "G", "F", "E"), 0, number=3, key="Am")],
+        tune_count=3,
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["cycle"]["tune_count"] == 3
+    assert [t["number"] for t in body["cycle"]["tunes"]] == [1, 3]
+    assert [t["key"] for t in body["cycle"]["tunes"]] == ["G", "Am"]
+    assert "Tune 2: no chords yet" in body["body"]
+    # the sheet is listed under the key of its first tune
+    assert body["chart_key"] == "G"
+
+
+async def test_the_numbers_of_tunes_follow_their_place_when_not_sent(world: World) -> None:
+    body = (await offer(world, "team", tunes=[tune(), tune(("Am", "G"), 0)])).json()
+    assert [t["number"] for t in body["cycle"]["tunes"]] == [1, 2]
+    assert body["cycle"]["tune_count"] == 2
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"tune_count": 7},
+        {"tune_count": 1, "tunes": [tune(number=2)]},  # a number above the count
+    ],
+)
+async def test_the_count_of_tunes_is_checked(world: World, extra: dict) -> None:
+    body = payload(tune())
+    body["cycle"].update(extra)
+    response = await world.call("POST", f"{URL}/recordings/{REC}", "a", json=body)
+    assert response.status_code == 422, response.text
+
+
+async def test_two_tunes_may_share_the_same_chords(world: World) -> None:
+    created = await offer(world, "team", tunes=[tune(), tune()])
+    assert created.status_code == 201, created.text
+    assert len(created.json()["cycle"]["tunes"]) == 2
+
+
+async def test_a_cycle_of_the_first_build_is_read_as_tunes(world: World) -> None:
+    """Old rows keep `forms` in the database and old clients send `forms`: both are tunes."""
+    sent = await world.call(
+        "POST",
+        f"{URL}/recordings/{REC}",
+        "team",
+        json={
+            "instrument": "guitar",
+            "cycle": {"forms": [tune(name="Slow"), tune(("Am", "G"), 0)]},
+            "played_it": True,
+        },
+    )
+    assert sent.status_code == 201, sent.text
+    assert [t["number"] for t in sent.json()["cycle"]["tunes"]] == [1, 2]
+    stored = {
+        "forms": [
+            {"name": "Slow", "chords": ["Em", "C", "G", "D"], "start": 0, "times": 4},
+            {"name": None, "chords": ["Am", "G"], "start": 1, "times": None},
+        ]
+    }
+    shaped = kiirtan_cycles.normalize(stored)
+    assert shaped["tune_count"] == 2
+    assert [t["number"] for t in shaped["tunes"]] == [1, 2]
+    out = kiirtan_cycles.cycle_out(stored)
+    assert out is not None and out.tunes[0].name == "Slow" and out.tunes[1].key is None
+    assert kiirtan_cycles.cycle_body(stored).startswith("Tune 1 (Slow): Em - C - G - D")

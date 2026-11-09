@@ -19,14 +19,14 @@ export type SheetChartLine = { text: string; placements: Array<{ word: number; c
 /** "Based on a chart by <name>": `name` is null when that chart was anonymous, `id` is null once the original is gone. */
 export type SheetCredit = { id: string | null; name: string | null }
 
-/** One way a Kiirtan is played in the recording: a ring of chords, the slot it starts on, how many rounds (optional). */
-export type SheetCycleForm = { name: string | null; chords: string[]; start: number; times: number | null }
+/** One tune of a Kiirtan recording: a ring of chords, the slot it starts on, its key and how many rounds (both optional). */
+export type SheetCycleTune = { number: number; name: string | null; key: string | null; chords: string[]; start: number; times: number | null }
 
-/** The chord cycle of a Kiirtan (docs/kiirtan-cycle.md): one ring per form. */
-export type SheetCycle = { forms: SheetCycleForm[] }
+/** The chord cycle of a Kiirtan (docs/kiirtan-cycle.md): one ring per tune. A number missing from `tunes` has no chords yet. */
+export type SheetCycle = { tuneCount: number; tunes: SheetCycleTune[] }
 
-/** A form while it is being entered: empty slots are null, the number of rounds is what was typed. */
-export type SheetCycleFormDraft = { name: string; slots: Array<string | null>; start: number; times: string }
+/** A tune while it is being entered: empty slots are null, the number of rounds is what was typed, `skipped` = no chords yet. */
+export type SheetCycleTuneDraft = { name: string; slots: Array<string | null>; start: number; times: string; key: string; skipped: boolean }
 
 export type RecordingSheet = {
   id: string
@@ -41,7 +41,7 @@ export type RecordingSheet = {
    * SOUND, in `chartKey`; a guitar capo is a hint). Null or missing for a plain-text sheet, which `body` carries.
    */
   lines?: SheetChartLine[] | null
-  /** The chord cycle of a Kiirtan (rings of chords, one per form). Null or missing for a plain-text sheet and for a chart. */
+  /** The chord cycle of a Kiirtan (rings of chords, one per tune). Null or missing for a plain-text sheet and for a chart. */
   cycle?: SheetCycle | null
   capo?: number
   strum?: string | null

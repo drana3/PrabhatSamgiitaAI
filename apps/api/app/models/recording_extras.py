@@ -221,10 +221,11 @@ class RecordingChordSheet(Base, TimestampMixin):
     # Guitar only: the fret of the capo the author played with (a hint; chords are as they sound).
     capo: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     strum: Mapped[str | None] = mapped_column(String(40))
-    # The chord cycle of a Kiirtan: one entry per way the Kiirtan is played in the recording
-    # ("form"): {"forms": [{"name": "Slow", "chords": ["Em", "C", "G", "D"], "start": 0, "times":
-    # 4}]}. Null for a plain sheet and for a chart. `body` is filled too (the cycle written as
-    # text).
+    # The chord cycle of a Kiirtan: one entry per tune (melody) of the recording:
+    # {"tune_count": 3, "tunes": [{"number": 1, "name": "Slow", "key": "G", "chords": ["Em", "C",
+    # "G", "D"], "start": 0, "times": 4}]}; a number missing from `tunes` has no chords yet. The
+    # first build kept {"forms": [...]}: services/kiirtan_cycles.normalize reads those as tunes.
+    # Null for a plain sheet and for a chart. `body` is filled too (the cycle written as text).
     cycle: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON, nullable=True)
     # A new version of the author's own live sheet: when this one goes live the old one is archived
     # (kept, hidden). Null when the old sheet is deleted.
