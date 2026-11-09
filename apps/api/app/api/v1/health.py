@@ -10,6 +10,7 @@ from app.core.db import get_session
 from app.services.catalog import CatalogService
 from app.services.embedding_index import embedding_provider_configured
 from app.services.faiss_store import get_faiss_store
+from app.services.server_tools import tools_summary
 
 router = APIRouter(tags=["health"])
 
@@ -48,6 +49,8 @@ async def deep_health(
         "version": settings.app_version,
         "environment": settings.app_env,
         "checks": checks,
+        # yes/no per helper program (ffmpeg, fpcalc, ClamAV, tzdata); details: /admin/server-tools
+        "tools": tools_summary(settings),
     }
 
 

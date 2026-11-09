@@ -9,7 +9,7 @@ from datetime import datetime
 from time import monotonic
 from typing import Annotated
 from uuid import uuid4
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
 from app.core.security import require_public_quota
+from app.core.timezones import load_zone
 from app.models import (
     AnalyticsDaily,
     CommunityTestimonial,
@@ -151,7 +152,7 @@ async def reflection_today(
     date: date_type | None = None,
     theme: str | None = Query(default=None, max_length=80),
 ) -> ReflectionQuoteResponse:
-    local_date = date or datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    local_date = date or datetime.now(load_zone("Asia/Kolkata")).date()
     result = await session.execute(
         select(ReflectionQuote).where(
             ReflectionQuote.is_active.is_(True),
@@ -236,7 +237,7 @@ async def featured_story(
     session: Annotated[AsyncSession, Depends(get_session)],
     date: date_type | None = None,
 ) -> InspirationStoryResponse:
-    local_date = date or datetime.now(ZoneInfo("Asia/Kolkata")).date()
+    local_date = date or datetime.now(load_zone("Asia/Kolkata")).date()
     stories = await load_stories(session)
     story = select_featured_story(stories, local_date)
     if story is None:
@@ -263,7 +264,7 @@ async def recommendations_today(
 ) -> TodayResponse:
     timezone = canonical_timezone(timezone)
     try:
-        zone = ZoneInfo(timezone)
+        zone = load_zone(timezone)
     except ZoneInfoNotFoundError as exc:
         raise HTTPException(status_code=400, detail="Unknown timezone") from exc
     now = datetime.now(zone)

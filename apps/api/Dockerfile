@@ -22,11 +22,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/apps/api/.venv/bin:$PATH"
 
-# Chromaprint's `fpcalc`: lets the Kiirtan upload warn about a recording that sounds like one already in
-# the library (docs/kiirtan-publishing.md, "Duplicates"). Without it uploads still work, only that
-# warning is skipped. Check after a build with: docker run --rm <image> fpcalc -version
+# Helper programs (docs/launch-readiness.md, "Server tools"). Each one only switches a feature on;
+# the API starts and works without any of them (it logs a line and skips the feature).
+#   libchromaprint-tools  `fpcalc`: lets the Kiirtan upload warn about a recording that sounds like one
+#                         already in the library (docs/kiirtan-publishing.md, "Duplicates")
+#   ffmpeg                measures how loud each upload is (docs/loudness-leveling.md)
+#   tzdata                time zone files: "today in India", scheduled broadcasts
+#   clamav (optional)     virus scan of uploads. OFF by default: `clamscan` needs about 1 GB of memory to
+#                         load its signatures and this app runs in 1 GiB. Build with
+#                         `--build-arg INSTALL_CLAMAV=1` only on a bigger plan; the better route is a
+#                         separate ClamAV container and CLAMD_HOST (docs/launch-readiness.md).
+# Check after a build: docker run --rm <image> sh -c 'fpcalc -version; ffmpeg -version | head -1'
+ARG INSTALL_CLAMAV=0
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libchromaprint-tools \
+    && apt-get install -y --no-install-recommends libchromaprint-tools ffmpeg tzdata \
+    && if [ "$INSTALL_CLAMAV" = "1" ]; then \
+         apt-get install -y --no-install-recommends clamav \
+         && (freshclam --quiet || echo "WARNING: virus signatures not downloaded at build time"); \
+       fi \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system app && useradd --system --gid app --home /app app

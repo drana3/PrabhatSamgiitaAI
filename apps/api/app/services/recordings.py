@@ -53,7 +53,7 @@ from app.schemas.recordings import (
     RecordingCreate,
     RecordingOut,
 )
-from app.services import blocked_hashes, upload_validation
+from app.services import blocked_hashes, upload_validation, virus_scan
 from app.services import recording_matches as matches
 from app.services import value_suggestions as words
 from app.services.admin_members import normalize_member_email, owner_admin_emails
@@ -616,6 +616,16 @@ async def inspect_stored_file(
             )
         except upload_validation.UploadRejected as exc:
             await storage.delete(key)
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail=exc.message,
+                headers={"X-Error-Code": exc.code},
+            ) from exc
+        try:
+            await virus_scan.check_upload(local, settings)
+        except upload_validation.UploadRejected as exc:
+            if exc.status_code != 503:  # 503 = the scanner is down: keep the file, ask to retry
+                await storage.delete(key)
             raise HTTPException(
                 status_code=exc.status_code,
                 detail=exc.message,

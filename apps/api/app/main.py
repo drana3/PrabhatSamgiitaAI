@@ -154,9 +154,24 @@ async def initialize_catalog_and_embeddings() -> None:
     await build_embedding_indexes(settings)
 
 
+def _log_server_tools() -> None:
+    """One line at start: which helper programs this server has (never stops the start)."""
+    try:
+        from app.services.server_tools import tools_summary
+
+        summary = tools_summary(settings)
+        logger.info(
+            "server tools: %s",
+            ", ".join(f"{name}={'yes' if ok else 'NO'}" for name, ok in summary.items()),
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("could not check the server tools", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await initialize_schema()
+    _log_server_tools()
     load_faiss_snapshot(settings)
     if settings.scheduler_enabled:
         scheduler.start()

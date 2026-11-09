@@ -36,6 +36,7 @@ from app.api.v1.recordings import router as recordings_router
 from app.api.v1.search import router as search_router
 from app.api.v1.search_menu import admin_router as search_menu_admin_router
 from app.api.v1.search_menu import router as search_menu_router
+from app.api.v1.server_tools import router as server_tools_router
 from app.api.v1.song_chords import admin_router as song_chords_admin_router
 from app.api.v1.song_chords import router as song_chords_router
 from app.api.v1.song_comments import router as song_comments_router
@@ -100,3 +101,4 @@ router.include_router(top_played_router)
 router.include_router(telemetry_router)
 router.include_router(telemetry_admin_router)
 router.include_router(push_router)
+router.include_router(server_tools_router)

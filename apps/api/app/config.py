@@ -113,6 +113,15 @@ class Settings(BaseSettings):
     recording_fpcalc_path: str = Field(default="fpcalc", alias="RECORDING_FPCALC_PATH")
     # ffmpeg measures the loudness of a new recording (docs/loudness-leveling.md); optional.
     recording_ffmpeg_path: str = Field(default="ffmpeg", alias="RECORDING_FFMPEG_PATH")
+    # Virus scan of an uploaded recording (docs/upload-validation.md): off | auto | required.
+    # auto = scan when ClamAV is reachable, else carry on and log it; required = no scan, no upload.
+    recording_virus_scan: str = Field(default="auto", alias="RECORDING_VIRUS_SCAN")
+    recording_clamscan_path: str = Field(default="clamscan", alias="RECORDING_CLAMSCAN_PATH")
+    clamd_host: str | None = Field(default=None, alias="CLAMD_HOST")
+    clamd_port: int = Field(default=3310, alias="CLAMD_PORT", ge=1, le=65535)
+    recording_virus_scan_timeout_seconds: float = Field(
+        default=60.0, alias="RECORDING_VIRUS_SCAN_TIMEOUT_SECONDS", ge=2.0, le=600.0
+    )
     recording_loudness_timeout_seconds: float = Field(
         default=120.0, alias="RECORDING_LOUDNESS_TIMEOUT_SECONDS", ge=5.0, le=900.0
     )
