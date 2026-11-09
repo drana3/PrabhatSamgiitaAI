@@ -162,6 +162,10 @@ class Settings(BaseSettings):
     web_proxy_key: str | None = Field(default=None, alias="WEB_PROXY_KEY")
     # Old apps: shared key + self-made principal. true = still accepted as a plain member.
     allow_legacy_member_principal: bool = Field(default=True, alias="ALLOW_LEGACY_MEMBER_PRINCIPAL")
+    # Where rights holders write about a recording (the takedown letters, docs/takedown-process.md).
+    copyright_contact_email: str = Field(
+        default="info@anandamarga.org", alias="COPYRIGHT_CONTACT_EMAIL"
+    )
     # Last day (UTC, YYYY-MM-DD) the old shared key still works for members. The day after, old app
     # versions are refused with "please update". Empty = no end date (docs/decisions-security.md).
     legacy_principal_until: date | None = Field(default=None, alias="LEGACY_PRINCIPAL_UNTIL")

@@ -89,8 +89,8 @@ export default function TakedownPage() {
 
         <p className="mt-6 text-sm leading-6 text-stone-600">
           If the form does not work, write to{" "}
-          <a href="mailto:anandamarga01@gmail.com" className={link}>
-            anandamarga01@gmail.com
+          <a href="mailto:info@anandamarga.org" className={link}>
+            info@anandamarga.org
           </a>{" "}
           and include the same information.
         </p>

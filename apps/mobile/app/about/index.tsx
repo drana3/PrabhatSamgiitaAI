@@ -8,6 +8,7 @@ import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import { useT } from "@/lib/i18n"
+import { copyrightEmail } from "@/lib/contactEmail"
 import { takedownUrl } from "@/lib/webLinks"
 
 /**
@@ -54,6 +55,9 @@ export default function AboutScreen() {
           <Text style={styles.bullet}>{t("about.copyright.body")}</Text>
           <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(takedownUrl())} hitSlop={8}>
             <Text style={[styles.bullet, styles.link]}>{t("about.copyright.link")}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`mailto:${copyrightEmail()}`)} hitSlop={8}>
+            <Text style={[styles.bullet, styles.link]}>{t("about.copyright.write", { email: copyrightEmail() })}</Text>
           </Pressable>
         </View>
       </ScrollView>

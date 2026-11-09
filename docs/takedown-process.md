@@ -117,13 +117,13 @@ is right for your country and hosting, is a question for a lawyer.
 **App side not built yet.** The endpoint for the counter-notice exists and is tested. The "Send a
 counter-notice" button on the uploader's message in the app is not built, because it lives in the
 notices and the author screens, which this work did not touch. Until it is built, an uploader who
-writes to the support mailbox is answered by the team, who file the counter-notice by hand.
+writes to `info@anandamarga.org` is answered by the team, who file the counter-notice by hand.
 
 ## Letter templates
 
 The admin endpoint `GET /api/v1/admin/takedowns/{id}/letters` returns both letters filled in for
 a request. The text is in `letter_to_author` and `letter_to_claimant`
-(`apps/api/app/services/takedowns.py`). Send the letter to the sender from the support mailbox;
+(`apps/api/app/services/takedowns.py`). Send the letter to the sender from `info@anandamarga.org`;
 the app does not send email by itself. The notice to the uploader is created by the take-down and
 appears in the app.
 
@@ -168,16 +168,18 @@ The first line after the greeting depends on the state of the request:
   changes.
 - **Closed**: the request is closed and the recording stays removed.
 
-Each ends with "With respect, Prabhat Samgiita AI team" and "This message is not legal advice."
+Each ends with "With respect, Prabhat Samgiita AI team", the address `info@anandamarga.org` and "This message is not legal advice." The address comes from the server setting `COPYRIGHT_CONTACT_EMAIL` (default `info@anandamarga.org`).
 
 ## Needs the owner's check
 
 - A lawyer should read both letters, the two statements on the form, and the 14-day waiting time
   for the country where the service is run and for the countries of the rights holders you expect
   (Kiirtan rights holders are often outside your country).
-- The public page lists `anandamarga01@gmail.com` (the address already on the privacy page) as the
-  fallback if the form is down. Decide whether a separate mailbox, for example
-  `copyright@...`, should replace it, then change `apps/web/app/takedown/page.tsx`.
+- **Decided (Dada, 9 Nov 2026): rights holders and takedown questions go to `info@anandamarga.org`.**
+  It is in the web page `/takedown` (fallback if the form is down), in the app's About screen
+  ("Or write to ..."), in both letter templates and in the setting `COPYRIGHT_CONTACT_EMAIL`. The
+  general contact on the privacy and account-deletion pages (privacy questions, account help) is a
+  different thing and is a team page that was not changed.
 - Who runs the queue. Today it is the admin key only.
 - Whether a DMCA "designated agent" must be registered. In the United States this is a
   registration with the Copyright Office that gives the service legal protection for user

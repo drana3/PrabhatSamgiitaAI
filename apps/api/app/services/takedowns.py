@@ -28,6 +28,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models.recordings import MemberNotice, Recording
 from app.models.takedown import TakedownRequest
 from app.services import blocked_hashes
@@ -466,6 +467,11 @@ async def queue(
 SIGN_OFF = "Prabhat Samgiita AI team"
 
 
+def complaint_email() -> str:
+    """The one address rights holders write to (info@anandamarga.org unless the settings say so)."""
+    return get_settings().copyright_contact_email
+
+
 @dataclass(frozen=True)
 class Letter:
     subject: str
@@ -491,6 +497,7 @@ def letter_to_author(request: TakedownRequest, recording: Recording | None) -> L
         "removal. If they do not start a legal process within about "
         f"{COUNTER_WAIT_DAYS} days, we put the recording back.\n\n"
         "If you do not answer, the recording stays removed.\n\n"
+        f"You can also write to us at {complaint_email()} and quote the reference.\n\n"
         "This message is not legal advice. If you are unsure of your rights, ask a lawyer.\n\n"
         f"{SIGN_OFF}"
     )
@@ -503,12 +510,15 @@ def letter_to_claimant(request: TakedownRequest, *, outcome: str | None = None) 
     ref = request.reference
     subject = f"Your request {ref}"
     greeting = f"Dear {request.sender_name},\n\n"
-    ending = f"\n\nWith respect,\n{SIGN_OFF}\n\nThis message is not legal advice."
+    ending = (
+        f"\n\nWith respect,\n{SIGN_OFF}\n{complaint_email()}\n\nThis message is not legal advice."
+    )
     if which == "new":
         body = (
             "Thank you for writing. We received your request about "
             f"“{request.recording_ref[:200]}” and a person on our team will read it. We will write "
-            f"again with what we decided. Please quote {ref} if you write to us."
+            f"again with what we decided. Please quote {ref} if you write to us at "
+            f"{complaint_email()}."
         )
     elif which == "taken_down":
         body = (

@@ -7,16 +7,19 @@ export const takedownEn = {
   "about.copyright.body":
     "Recordings are uploaded by members. If a recording is yours and you did not allow it to be shared, you can ask us to remove it.",
   "about.copyright.link": "Report a recording (website)",
+  "about.copyright.write": "Or write to {email}",
 } as const
 export const takedownEs = {
   "about.copyright.title": "Derechos de autor",
   "about.copyright.body":
     "Los miembros suben las grabaciones. Si una grabación es tuya y no autorizaste que se compartiera, puedes pedirnos que la retiremos.",
   "about.copyright.link": "Denunciar una grabación (sitio web)",
+  "about.copyright.write": "O escribe a {email}",
 } as const
 export const takedownRu = {
   "about.copyright.title": "Авторские права",
   "about.copyright.body":
     "Записи загружают участники. Если запись ваша и вы не разрешали её публиковать, вы можете попросить нас её удалить.",
   "about.copyright.link": "Сообщить о записи (сайт)",
+  "about.copyright.write": "Или напишите на {email}",
 } as const

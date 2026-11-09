@@ -481,6 +481,10 @@ async def test_the_two_letters_are_filled_in(world: World) -> None:
     assert "not legal advice" in letters["to_author"]["body"].lower()
     assert "not legal advice" in letters["to_claimant"]["body"].lower()
     assert letters["disclaimer"] == "Templates, not legal advice."
+    # both letters name the one address rights holders write to
+    assert "info@anandamarga.org" in letters["to_author"]["body"]
+    assert "info@anandamarga.org" in letters["to_claimant"]["body"]
+    assert "anandamarga01" not in letters["to_claimant"]["body"]
 
 
 async def test_the_claimant_letter_follows_the_status(world: World) -> None:
