@@ -253,6 +253,10 @@ export default function RootLayout() {
             {/* Upload: the hub of the tab bar's Upload button, offering chords for a song, and the team's review of them. */}
             <Stack.Screen name="upload" options={{ presentation: "modal" }} />
             <Stack.Screen name="upload-chords" options={{ presentation: "modal" }} />
+            {/* Broadcasts: a link to a live or announced Zoom, YouTube Live ... (docs/broadcasts.md). */}
+            <Stack.Screen name="upload-broadcast" options={{ presentation: "modal" }} />
+            <Stack.Screen name="broadcasts" options={{ presentation: "card" }} />
+            <Stack.Screen name="broadcast/[id]" options={{ presentation: "card" }} />
             <Stack.Screen name="chords-review" options={{ presentation: "card" }} />
             <Stack.Screen name="kirtan-mix" options={{ presentation: "card" }} />
             <Stack.Screen name="kirtan-artist" options={{ presentation: "card" }} />

@@ -5,11 +5,13 @@
  * mirror it key for key (the parity test checks it once these objects are spread into locales/en.ts, ru.ts and
  * es.ts). "Kiirtan" is always written with two i's in English. Plural groups use _one, _few, _many, _other.
  */
+import { broadcastsEn, broadcastsEs, broadcastsRu } from "./broadcasts"
 import { languagesEn, languagesEs, languagesRu } from "./recordingLanguages"
 import { setsEn, setsEs, setsRu } from "./recordingSets"
 
 export const recordingsEn = {
   ...languagesEn,
+  ...broadcastsEn,
   ...setsEn,
   // the three types
   "kind.prabhat_samgiita": "Prabhat Samgiita",
@@ -226,6 +228,7 @@ export const recordingsEn = {
 
 export const recordingsRu: Record<string, string> = {
   ...languagesRu,
+  ...broadcastsRu,
   ...setsRu,
   "kind.prabhat_samgiita": "Prabhat Samgiita",
   "kind.prabhat_samgiitas": "Записи Prabhat Samgiita",
@@ -468,6 +471,7 @@ export const recordingsRu: Record<string, string> = {
 
 export const recordingsEs: Record<keyof typeof recordingsEn, string> = {
   ...languagesEs,
+  ...broadcastsEs,
   ...setsEs,
   "kind.prabhat_samgiita": "Prabhat Samgiita",
   "kind.prabhat_samgiitas": "Grabaciones de Prabhat Samgiita",

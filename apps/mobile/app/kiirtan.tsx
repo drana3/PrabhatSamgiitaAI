@@ -9,6 +9,7 @@ import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_INSET, HomeEmpty, HomeSectionHead } from "@/components/home/HomeBlocks"
 import { LiveCard } from "@/components/kirtan/LiveCard"
 import { AuthorsShelf } from "@/components/authors/AuthorsShelf"
+import { BroadcastsShelf } from "@/components/broadcasts/BroadcastsShelf"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
 import { KiirtanCover, WaveGlyph, kiirtanTone } from "@/components/kirtan/KiirtanCover"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
@@ -26,6 +27,7 @@ import { useScreenTop } from "@/hooks/useScreenTop"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useDownloadedKirtans } from "@/hooks/useDownloadedKirtans"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
+import { useBroadcasts } from "@/hooks/useBroadcasts"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useKirtans } from "@/hooks/useKirtans"
 import { usePianoRecordingIds } from "@/hooks/usePianoRecordingIds"
@@ -35,6 +37,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { sampleArtists, sampleResume } from "@/lib/fixtures/kirtanGate"
 import { artistsWithKirtans, kirtansOfArtist } from "@/lib/kirtan/artists"
 import { filterByKind, kindDayA11y, kindDayLabel, kindHeading, kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
+import { shelfOrder } from "@/lib/broadcasts/rules"
 import { LENGTH_BUCKETS, longKirtans, type LengthBucketId } from "@/lib/kirtan/length"
 import { formatKirtanLength } from "@/lib/kirtan/list"
 import { withPianoFlag } from "@/lib/pianoNotes/flag"
@@ -152,6 +155,9 @@ export default function KiirtanTabScreen() {
     if (original) play(original, [original])
     else actions.flash(t("ugc.dup.cantPlay"))
   }
+  // "Live and upcoming": appears only when at least one broadcast is on the air or announced (docs/broadcasts.md)
+  const broadcasts = useBroadcasts("shelf")
+  const liveBroadcasts = useMemo(() => shelfOrder(broadcasts.items), [broadcasts.items])
   let reveal = 0
   const next = () => Math.min(reveal++, 8)
 
@@ -244,6 +250,12 @@ export default function KiirtanTabScreen() {
       {titleBlock()}
       {subFilters()}
       {practiceChoice()}
+
+      {liveBroadcasts.length ? (
+        <Reveal index={next()} style={styles.section}>
+          <BroadcastsShelf p={p} items={liveBroadcasts} />
+        </Reveal>
+      ) : null}
 
       {day ? (
         <Reveal index={next()}>

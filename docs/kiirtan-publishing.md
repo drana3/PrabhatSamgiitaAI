@@ -233,6 +233,15 @@ a hidden multi-file input), and press Upload. Code: `lib/kirtan/queue.ts` (pure 
   Everyone else: the queue stops with "Daily limit reached. N files are left for tomorrow" and keeps those rows.
 - The duplicate rules (same file, sounds like, own duplicate) are the same as for one file.
 
+### Broadcasts
+
+Besides recordings, a member can share a link to a live or announced event (Zoom, YouTube Live, Facebook, Instagram or
+any https link). It goes live at once, appears on the Kiirtan screen shelf "Live and upcoming" while it is on and in
+"Recent" for a week, and is then archived (visible only to its author). It follows the same live-at-once, checked-after
+idea: anyone can report it and the team removes what does not belong. The rules, the link safety, the limits and the
+report weights are in `docs/broadcasts.md`. A broadcast is not a recording, so the recording moderation notice is not
+shown in its form.
+
 ### Level 5: bulk import
 
 `apps/api/scripts/import_kiirtan_library.py` imports a folder of audio and a CSV (`title` required; `performer`, `category`,

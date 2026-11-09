@@ -212,6 +212,12 @@ describe("Space between blocks: the upload forms", () => {
     "components/kirtan/add/OwnWord.tsx",
     "app/my-sets.tsx",
     "app/upload-chords.tsx",
+    "app/upload-broadcast.tsx",
+    "app/broadcast/[id].tsx",
+    "app/broadcasts.tsx",
+    "components/broadcasts/BroadcastCard.tsx",
+    "components/broadcasts/BroadcastsShelf.tsx",
+    "components/broadcasts/LiveMark.tsx",
   ]
   const VERTICAL = /\b(gap|rowGap|paddingTop|paddingBottom|paddingVertical|marginTop|marginBottom|marginVertical)\s*:\s*(\d+)\b/g
   const TEXT_NUDGE = new Set([0, 1, 2, 3, 6])

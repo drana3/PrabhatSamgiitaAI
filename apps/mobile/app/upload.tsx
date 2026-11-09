@@ -4,6 +4,7 @@ import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Svg, { Path, Rect } from "react-native-svg"
 
+import { AirGlyph } from "@/components/broadcasts/BroadcastCard"
 import { MyRecordingCharts } from "@/components/recording-extras/MyRecordingCharts"
 import { MyCharts } from "@/components/song-chords/MyCharts"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
@@ -95,8 +96,16 @@ export default function UploadScreen() {
             onPress={() => router.push(href("/upload-chords"))}
             theme={theme}
           />
+          <Choice
+            icon={<AirGlyph color={theme.accent} />}
+            title={t("bc.hub.title")}
+            body={t("bc.hub.body")}
+            onPress={() => router.push(href("/upload-broadcast"))}
+            theme={theme}
+          />
           <AuthorHubRow theme={theme} flush />
           <Choice icon={null} title={t("set.entry.mine")} body="" onPress={() => router.push(href("/my-sets"))} theme={theme} quiet />
+          <Choice icon={null} title={t("bc.hub.mine")} body="" onPress={() => router.push(href("/broadcasts?tab=mine"))} theme={theme} quiet />
           {team ? (
             <Choice
               icon={null}
