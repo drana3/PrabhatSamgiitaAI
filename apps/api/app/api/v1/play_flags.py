@@ -30,6 +30,8 @@ class PlayFlagOut(BaseModel):
     day: date
     plays: int
     held: int
+    confirmed_held: int
+    last_decision: str | None
     baseline: float
     reason: str
     status: str
@@ -45,6 +47,8 @@ def _out(flag: PlayFlag, title: str | None) -> PlayFlagOut:
         day=flag.day,
         plays=flag.plays,
         held=flag.held,
+        confirmed_held=flag.confirmed_held,
+        last_decision=flag.last_decision,
         baseline=flag.baseline,
         reason=flag.reason,
         status=flag.status,

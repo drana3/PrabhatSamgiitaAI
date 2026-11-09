@@ -43,8 +43,16 @@ def upgrade() -> None:
             sa.Column("counted", sa.Boolean(), nullable=False, server_default=sa.true()),
         )
     if "play_flags" in sa.inspect(op.get_bind()).get_table_names():
-        if "reviewed_plays" not in _columns("play_flags"):
+        have = _columns("play_flags")
+        if "reviewed_plays" not in have:
             op.add_column("play_flags", sa.Column("reviewed_plays", sa.Integer()))
+        if "confirmed_held" not in have:
+            op.add_column(
+                "play_flags",
+                sa.Column("confirmed_held", sa.Integer(), nullable=False, server_default="0"),
+            )
+        if "last_decision" not in have:
+            op.add_column("play_flags", sa.Column("last_decision", sa.String(12)))
         return
     op.create_table(
         "play_flags",
@@ -64,6 +72,8 @@ def upgrade() -> None:
         sa.Column("reviewed_by", sa.String(120)),
         sa.Column("reviewed_at", sa.DateTime(timezone=True)),
         sa.Column("reviewed_plays", sa.Integer()),
+        sa.Column("confirmed_held", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("last_decision", sa.String(12)),
         sa.CheckConstraint(
             "status IN ('open', 'cleared', 'confirmed')", name="ck_play_flag_status"
         ),

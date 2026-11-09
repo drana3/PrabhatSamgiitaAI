@@ -169,7 +169,8 @@ async def test_confirming_keeps_the_plays_held(world: World) -> None:
         await pf.review(session, rid, day_ago(0), verdict="confirmed", by="team")
     await add_plays(world, rid, day_ago(0), 100)  # more plays later the same day
     after = await evaluate(world, rid, day_ago(0))
-    assert after is not None and after.status == "confirmed" and after.held == held
+    assert after is not None and after.status == "confirmed"
+    assert after.confirmed_held == held and after.held == 0
     assert (await mine(world))["total_plays"] == 10 * pf.BASELINE_DAYS + 500 + 100 - held
 
 
@@ -195,7 +196,8 @@ async def test_a_new_surge_after_a_cleared_day_is_flagged_again(world: World) ->
     await add_plays(world, rid, day_ago(0), 500)
     again = await evaluate(world, rid, day_ago(0))
     assert again is not None and again.status == "open"
-    assert again.reviewed_by is None and again.reviewed_at is None
+    # the last decision stays as the audit trail
+    assert again.last_decision == "cleared" and again.reviewed_by == "team"
     assert 0 < again.held <= 510
     assert (await mine(world))["total_plays"] == base + 510 - again.held
 
@@ -220,8 +222,93 @@ async def test_a_confirmed_day_that_surges_again_holds_more(world: World) -> Non
         await pf.review(session, rid, day_ago(0), verdict="confirmed", by="team")
     await add_plays(world, rid, day_ago(0), 500)
     after = await evaluate(world, rid, day_ago(0))
-    assert after is not None and after.status == "open" and after.held > held
-    assert after.held <= after.plays
+    assert after is not None and after.status == "open"
+    assert after.confirmed_held == held  # the confirmed part is never lowered or re-counted
+    assert after.held > 0
+    assert after.confirmed_held + after.held <= after.plays
+
+
+async def test_a_reopened_flag_keeps_to_the_new_plays_on_every_later_look(world: World) -> None:
+    """After a decision the rules may suspect only the plays added since it, also while the flag is
+    open and the day keeps growing (not just on the look that reopened it)."""
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await history(world, rid)
+    await add_plays(world, rid, day_ago(0), 500)
+    await evaluate(world, rid, day_ago(0))
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="cleared", by="team")
+    base = 10 * pf.BASELINE_DAYS
+
+    await add_plays(world, rid, day_ago(0), 600)
+    first = await evaluate(world, rid, day_ago(0))
+    assert first is not None and first.status == "open"
+    assert first.held == 600  # not the whole day's excess (1070)
+    await add_plays(world, rid, day_ago(0), 200)
+    second = await evaluate(world, rid, day_ago(0))
+    assert second is not None and second.status == "open"
+    assert second.held == 800 and second.reviewed_plays == 500
+    # the 500 a person called real are shown
+    assert (await mine(world))["total_plays"] == base + 1300 - 800 == base + 500
+
+
+async def test_clearing_a_later_surge_never_frees_what_was_confirmed(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await history(world, rid)
+    await add_plays(world, rid, day_ago(0), 500)
+    first = await evaluate(world, rid, day_ago(0))
+    assert first is not None
+    confirmed = first.held
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="confirmed", by="first")
+    base = 10 * pf.BASELINE_DAYS
+
+    # a second surge opens the day again: the confirmed part is still left out, besides the new part
+    await add_plays(world, rid, day_ago(0), 500)
+    again = await evaluate(world, rid, day_ago(0))
+    assert again is not None and again.status == "open"
+    assert again.confirmed_held == confirmed and again.held > 0
+    assert again.last_decision == "confirmed" and again.reviewed_by == "first"
+    assert (await mine(world))["total_plays"] == base + 1000 - confirmed - again.held
+
+    # a person clears the second surge: its plays come back, the confirmed ones do not
+    async with world.sessions() as session:
+        done = await pf.review(session, rid, day_ago(0), verdict="cleared", by="second")
+    assert done is not None and done.status == "cleared" and done.confirmed_held == confirmed
+    assert done.last_decision == "cleared" and done.reviewed_by == "second"
+    assert (await mine(world))["total_plays"] == base + 1000 - confirmed
+
+    # judged again later and cleared again: still the same confirmed part
+    await add_plays(world, rid, day_ago(0), 600)
+    third = await evaluate(world, rid, day_ago(0))
+    assert third is not None and third.status == "open" and third.confirmed_held == confirmed
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="cleared", by="third")
+    assert (await mine(world))["total_plays"] == base + 1600 - confirmed
+
+
+async def test_confirming_a_cleared_day_moves_the_suspected_plays_into_the_confirmed_part(
+    world: World,
+) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await history(world, rid)
+    await add_plays(world, rid, day_ago(0), 500)
+    first = await evaluate(world, rid, day_ago(0))
+    assert first is not None
+    suspected = first.held
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="cleared", by="team")
+    assert (await mine(world))["total_plays"] == 10 * pf.BASELINE_DAYS + 500
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="confirmed", by="team")
+    assert (await mine(world))["total_plays"] == 10 * pf.BASELINE_DAYS + 500 - suspected
+    # confirming twice does not hold the same plays twice
+    async with world.sessions() as session:
+        again = await pf.review(session, rid, day_ago(0), verdict="confirmed", by="team")
+    assert again is not None and again.confirmed_held == suspected and again.held == 0
+    assert (await mine(world))["total_plays"] == 10 * pf.BASELINE_DAYS + 500 - suspected
 
 
 async def test_held_plays_are_off_the_authors_top_list_and_split_by_kind(world: World) -> None:
@@ -372,6 +459,8 @@ def test_a_flag_holds_no_listener_or_address_data() -> None:
         "reviewed_by",
         "reviewed_at",
         "reviewed_plays",
+        "confirmed_held",
+        "last_decision",
     }
 
 
@@ -418,6 +507,8 @@ async def test_the_team_lists_and_decides(world: World, admin: httpx.AsyncClient
         "day",
         "plays",
         "held",
+        "confirmed_held",
+        "last_decision",
         "baseline",
         "reason",
         "status",

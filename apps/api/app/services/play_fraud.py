@@ -24,7 +24,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, Subquery, func, select
+from sqlalchemy import ColumnElement, Select, Subquery, case, func, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -92,6 +92,13 @@ def judge(plays: int, baseline: float, *, top_source: int = 0) -> Verdict | None
     return Verdict(plays=plays, held=held, baseline=round(baseline, 2), reason="+".join(reasons))
 
 
+def held_expression() -> ColumnElement[int]:
+    """What one flag leaves out of the numbers: the part a person confirmed (always) plus the part
+    still under suspicion (only while the flag is open). The one place that says so; every query
+    that sums plays uses it."""
+    return PlayFlag.confirmed_held + case((PlayFlag.status == "open", PlayFlag.held), else_=0)
+
+
 def _insert(session: AsyncSession) -> Any:
     return postgresql.insert if session.get_bind().dialect.name == "postgresql" else sqlite.insert
 
@@ -115,11 +122,10 @@ async def _shown_history(session: AsyncSession, recording_id: UUID, day: date) -
         row.day: int(row.held)
         for row in (
             await session.execute(
-                select(PlayFlag.day, PlayFlag.held).where(
+                select(PlayFlag.day, held_expression().label("held")).where(
                     PlayFlag.recording_id == recording_id,
                     PlayFlag.day >= start,
                     PlayFlag.day < day,
-                    PlayFlag.status != "cleared",
                 )
             )
         ).all()
@@ -150,9 +156,11 @@ async def evaluate(
 ) -> PlayFlag | None:
     """Judge one recording on one day and record the result. Returns the flag, if there is one.
 
-    A day a person already looked at keeps that decision for the plays it covered
-    (`reviewed_plays`). If the day then grows well past them, it is judged again and the flag opens
-    again for the new part only: a cleared day never turns into a licence to add more plays.
+    Three parts are kept apart (see `PlayFlag`): what a person confirmed (`confirmed_held`, never
+    lowered), what the rules suspect and nobody decided yet (`held`), and how many plays the last
+    decision covered (`reviewed_plays`). After a decision, the rules may suspect only the plays
+    added since (`new_part`), on every later look, so a decision is never a licence for more and a
+    cleared surge never gives back what an earlier one confirmed.
     """
     existing = await session.get(PlayFlag, (recording_id, day))
     plays = int(
@@ -183,6 +191,7 @@ async def evaluate(
             day=day,
             plays=verdict.plays,
             held=verdict.held,
+            confirmed_held=0,
             baseline=verdict.baseline,
             reason=verdict.reason,
             status="open",
@@ -198,28 +207,29 @@ async def evaluate(
             verdict.reason,
         )
         return flag
-    if decided:
-        # Open again, for what was added after the decision. A cleared day holds back at most the
-        # new part (the earlier plays were judged real); a confirmed day keeps what it held.
+    # what the rules may suspect: all of it before any decision, afterwards only the new plays
+    new_part = verdict.held
+    if existing.reviewed_plays is not None or decided:
         covered = existing.reviewed_plays if existing.reviewed_plays is not None else existing.plays
-        added = max(0, verdict.plays - covered)
-        if existing.status == "cleared":
-            existing.held = min(verdict.held, added)
-        else:
-            existing.held = min(existing.held + min(verdict.held, added), verdict.plays)
-        existing.status = "open"
-        existing.reviewed_by = None
-        existing.reviewed_at = None
+        new_part = min(verdict.held, max(0, verdict.plays - covered))
+    if decided:
+        # open again; the suspected part starts from the new plays only
+        suspected = new_part
+        existing.status = (
+            "open"  # reviewed_by / reviewed_at / last_decision stay as the audit trail
+        )
         logger.warning(
             "play spike held back again after a decision: recording=%s day=%s plays=%d held=%d",
             recording_id,
             day,
             verdict.plays,
-            existing.held,
+            new_part,
         )
     else:
-        # still open: the numbers may have grown since the last look; held never goes down
-        existing.held = max(existing.held, verdict.held)
+        # still open: the numbers may have grown since the last look; the suspected part holds
+        suspected = max(existing.held, new_part)
+    # together with the confirmed part it can never exceed the day's plays
+    existing.held = min(suspected, max(0, verdict.plays - existing.confirmed_held))
     existing.plays = verdict.plays
     existing.baseline = verdict.baseline
     existing.reason = verdict.reason
@@ -249,10 +259,11 @@ async def evaluate_after_ingest(
 async def held_by_day(
     session: AsyncSession, recording_ids: Select[Any], *, since: date | None = None
 ) -> dict[date, int]:
-    """Plays held back per day for these recordings (flags a person cleared do not count)."""
+    """Plays held back per day for these recordings (`held_expression`: confirmed part always, the
+    suspected part while the flag is open)."""
     query = (
-        select(PlayFlag.day, func.sum(PlayFlag.held).label("n"))
-        .where(PlayFlag.recording_id.in_(recording_ids), PlayFlag.status != "cleared")
+        select(PlayFlag.day, func.sum(held_expression()).label("n"))
+        .where(PlayFlag.recording_id.in_(recording_ids))
         .group_by(PlayFlag.day)
     )
     if since is not None:
@@ -261,12 +272,10 @@ async def held_by_day(
 
 
 def held_per_recording(*, since: date | None = None) -> Subquery:
-    """A subquery (recording_id, held): plays held back per recording, flags a person cleared
-    left out. LEFT JOIN it to any query that sums `play_daily.plays`, and subtract it, so no
-    number anywhere shows plays that were held back."""
-    query = select(PlayFlag.recording_id, func.sum(PlayFlag.held).label("held")).where(
-        PlayFlag.status != "cleared"
-    )
+    """A subquery (recording_id, held): plays held back per recording (`held_expression`). LEFT JOIN
+    it to any query that sums `play_daily.plays`, and subtract it, so no number anywhere shows plays
+    that were held back."""
+    query = select(PlayFlag.recording_id, func.sum(held_expression()).label("held"))
     if since is not None:
         query = query.where(PlayFlag.day >= since)
     return query.group_by(PlayFlag.recording_id).subquery("held_plays")
@@ -278,19 +287,29 @@ def held_per_recording(*, since: date | None = None) -> Subquery:
 async def review(
     session: AsyncSession, recording_id: UUID, day: date, *, verdict: str, by: str
 ) -> PlayFlag | None:
-    """A person decides: `cleared` (plays are real) or `confirmed` (inflated, stays held)."""
+    """A person decides: `cleared` (the suspected plays are real) or `confirmed` (inflated).
+
+    `confirmed` moves the suspected part into `confirmed_held`, which is permanent. `cleared` gives
+    the suspected part back and leaves `confirmed_held` alone: clearing a later surge never frees
+    plays a person once confirmed as inflated.
+    """
     if verdict not in ("cleared", "confirmed"):
         raise ValueError("verdict must be 'cleared' or 'confirmed'")
     flag = await session.get(PlayFlag, (recording_id, day))
     if flag is None:
         return None
-    flag.status = verdict
-    flag.reviewed_by = by[:120]
-    flag.reviewed_at = datetime.now(UTC)
     # the decision covers the plays the day has right now
     current = await session.scalar(
         select(PlayDaily.plays).where(PlayDaily.recording_id == recording_id, PlayDaily.day == day)
     )
-    flag.reviewed_plays = int(current if current is not None else flag.plays)
+    plays = int(current if current is not None else flag.plays)
+    if verdict == "confirmed":
+        flag.confirmed_held = min(flag.confirmed_held + flag.held, plays)
+        flag.held = 0
+    flag.status = verdict
+    flag.last_decision = verdict
+    flag.reviewed_by = by[:120]
+    flag.reviewed_at = datetime.now(UTC)
+    flag.reviewed_plays = plays
     await session.commit()
     return flag

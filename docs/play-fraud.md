@@ -47,21 +47,38 @@ subtracted from every number an author or the public sees: total plays, plays in
 graph, the weekly line on the public page, the author's own top recordings and split by kind, and
 the Top Played list (including its minimum). Every query that sums `play_daily.plays` subtracts the
 held plays of the same period (`play_fraud.held_per_recording`, one shared subquery), so two screens
-cannot disagree. A flag a person cleared is not subtracted.
+cannot disagree. The suspected part of a flag a person cleared is not subtracted; the confirmed part always is.
 
 ### The team decides
 
 Admin key, `GET /api/v1/admin/play-flags` (default: open flags), then one of:
 
-- `POST /api/v1/admin/play-flags/{recording_id}/{day}/clear`: the plays were real. Nothing is held
-  back any more for the plays the day had at that moment.
-- `POST /api/v1/admin/play-flags/{recording_id}/{day}/confirm`: they were inflated. The held count
-  stays.
+- `POST /api/v1/admin/play-flags/{recording_id}/{day}/clear`: the suspected plays were real. They
+  are given back. Plays confirmed earlier on the same day stay held (see below).
+- `POST /api/v1/admin/play-flags/{recording_id}/{day}/confirm`: the suspected plays were inflated.
+  They move into the confirmed part, which is permanent.
 
-A decision covers the plays the day had when it was made (`reviewed_plays`). It is not a licence for
-more: if that day later grows by at least 50 plays and by at least half of what it had, it is judged
-again and the flag opens again, holding back only the new part (a confirmed day keeps what it held
-and adds to it). A small trickle after the decision changes nothing.
+### Three parts, kept apart
+
+A flag stores three separate things, so no later step can mix them up:
+
+- `confirmed_held`: plays a person confirmed as inflated. Always left out of every number. It is
+  never lowered, whatever happens to the flag afterwards (cleared later, reopened, judged again).
+  There is no call that releases it; if one was confirmed by mistake, fix the row by hand.
+- `held`: plays the rules suspect and nobody decided yet. Left out only while the flag is `open`.
+  Clearing gives them back; confirming moves them into `confirmed_held`.
+- `reviewed_plays`: how many plays the day had at the last decision. A decision covers those plays
+  only. If the day grows by at least 50 plays and at least half of that, it is judged again and the
+  flag opens again. On that look and on every later one the rules may suspect only the plays added
+  since (`held` is capped at `plays - reviewed_plays`), so a cleared day is never a licence for more
+  and a later "clear" cannot give back what an earlier decision confirmed. A small trickle after a
+  decision changes nothing.
+
+`last_decision`, `reviewed_by` and `reviewed_at` stay on the row as the audit trail of the last
+decision even when the flag has been reopened. What a flag leaves out of the numbers is always
+`confirmed_held + (held if status is open else 0)`, in one function (`held_expression` in
+`play_fraud.py`) that every query uses; confirmed part and suspected part together never exceed the
+day's plays.
 
 There is no admin screen yet; the team works it through the admin API.
 
@@ -97,6 +114,6 @@ A script must not learn where the line is.
 
 ## Tables
 
-`play_flags` (migration `0058_play_flags`), and one new column on `play_events`, `counted` (same
+`play_flags` (migration `0058_play_flags`, with `reviewed_plays`, `confirmed_held` and `last_decision`), and one new column on `play_events`, `counted` (same
 migration, default true). Both were added before the migration was released, so it was edited in
 place; a database that already ran an earlier 0058 needs the column added by hand.
