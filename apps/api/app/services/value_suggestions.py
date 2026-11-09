@@ -35,6 +35,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.recordings import (
+    MANTRA_TYPES,
     MemberNotice,
     Recording,
     ValueSuggestion,
@@ -50,7 +51,9 @@ INSTRUMENT = "instrument"
 STYLE = "style"
 MOOD = "mood"
 LANGUAGE = "language"
-FIELDS = (INSTRUMENT, STYLE, MOOD, LANGUAGE)
+# "Others": the name under "Something else" (the recording's type is `other`, the word `type_other`)
+MANTRA = "mantra"
+FIELDS = (INSTRUMENT, STYLE, MOOD, LANGUAGE, MANTRA)
 # The fields that hold a LIST of own words on the recording (the others hold one word).
 LIST_FIELDS = (STYLE, MOOD)
 # One person may bring this many NEW words in any seven days (words already in the queue are free).
@@ -67,6 +70,19 @@ STYLE_NAMES: dict[str, tuple[str, ...]] = {
     "african": ("african", "african style"),
     "western": ("western", "western style"),
 }
+
+
+# English words that mean a listed mantra of Others: what a person may type under "Something else" and
+# still get the listed choice. The visible names and their sources: docs/others-category.md.
+MANTRA_NAMES: dict[str, tuple[str, ...]] = {
+    "guru_puja": ("guru puja", "gurupuja", "guru pooja", "guru pujan"),
+    "pitriyajina": ("pitr yajina", "pitri yajna", "pitri yajina", "pitr yajna", "pitriyajina"),
+    "samgacchadhvam": ("samgacchadhvam", "sangacchadhvam", "sam gaccha dhvam", "samgacchadvam"),
+    "nityam_shuddham": ("nityam shuddham", "nityam shudham", "nityam suddham"),
+    "ananda_sutram": ("ananda sutram", "ananda sutra", "anandasutram"),
+    "shlokas": ("shlokas", "shloka", "slokas", "sloka"),
+}
+LISTED_MANTRAS = tuple(code for code in MANTRA_TYPES if code != "other")
 
 
 def normalized_key(text: str | None) -> str:
@@ -103,6 +119,8 @@ def valid_codes(field: str) -> tuple[str, ...]:
         return LANGUAGE_CODES
     if field == MOOD:
         return UPLOAD_MOODS
+    if field == MANTRA:
+        return LISTED_MANTRAS
     return tuple(STYLES)
 
 
@@ -114,6 +132,8 @@ def listed_names(field: str) -> dict[str, tuple[str, ...]]:
         return {code: (name,) for code, name in LANGUAGES}
     if field == MOOD:
         return {code: (code,) for code in UPLOAD_MOODS}
+    if field == MANTRA:
+        return {code: (code, *MANTRA_NAMES.get(code, ())) for code in LISTED_MANTRAS}
     return {code: (code, *STYLE_NAMES.get(code, ())) for code in STYLES}
 
 
@@ -279,6 +299,8 @@ def _recording_field_names(field: str) -> tuple[str, str]:
         return ("language", "language_other")
     if field == MOOD:
         return ("moods", "moods_other")
+    if field == MANTRA:
+        return ("type", "type_other")
     return ("styles", "styles_other")
 
 
@@ -377,6 +399,8 @@ async def decide(
                 setattr(rec, other_name, row.label)
                 if row.field == INSTRUMENT:
                     rec.lead_instrument_checked = True
+                elif row.field == MANTRA:
+                    rec.type_other_checked = True
     elif action == "merge":
         if merge_into not in valid_codes(row.field):
             raise HTTPException(status_code=422, detail="Choose the listed value to merge into.")
@@ -388,6 +412,8 @@ async def decide(
                 setattr(rec, other_name, None)
                 if row.field == INSTRUMENT:
                     rec.lead_instrument_checked = False
+                elif row.field == MANTRA:
+                    rec.type_other_checked = False
     elif action == "reject":
         row.status = "rejected"
         for rec in recordings:
@@ -399,11 +425,19 @@ async def decide(
                 elif row.field == LANGUAGE:
                     # a required language stays "other", without the name
                     rec.language_other = None
+                elif row.field == MANTRA:
+                    # the choice stays "Something else", without the name
+                    rec.type_other = None
+                    rec.type_other_checked = False
                 else:
                     # a Kiirtan must keep a style: it stays "other", without the word
                     rec.style_other = None
                 if rec.author_id is not None:
-                    what = {INSTRUMENT: "main instrument", LANGUAGE: "language"}.get(
+                    what = {
+                        INSTRUMENT: "main instrument",
+                        LANGUAGE: "language",
+                        MANTRA: "name under Something else",
+                    }.get(
                         row.field, "style"
                     )
                     notice = MemberNotice(

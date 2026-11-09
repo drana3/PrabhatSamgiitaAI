@@ -41,7 +41,7 @@ RECORDING_KINDS = (
     "spiritual_song",
     "dance_song",
     "baba_audio",
-    # Other mantras of Ananda Marga (Guru Puja, Pitriyajina ...): a Kiirtan is only Baba Nam
+    # Others (mantras of Ananda Marga that are not Baba Nam Kevalam: Guru Puja, Pitr Yajina ...): a Kiirtan is only Baba Nam
     # Kevalam, every other mantra has its own category and its own upload page (9 Nov 2026).
     "other_mantra",
 )
@@ -80,7 +80,19 @@ BABA_AUTHOR = "Shrii Shrii Anandamurti"
 KINDS_WITH_DISCOURSE = ("baba_audio",)
 # Where it was recorded or performed (`place`): asked for EVERY category now (9 Nov 2026); it used
 # to be Baba's Audio Discourses only. Optional everywhere.
-MANTRA_TYPES = ("guru_puja", "pitriyajina", "other")
+# What a recording of "Others" (kind `other_mantra`, shown as "Others" since 9 Nov 2026) is: a REQUIRED
+# single choice. `pitriyajina` keeps its old id (rows and clients that carry it stay valid) and shows as
+# "Pitr Yajina"; `other` is "Something else" and then `type_other` holds the name the person wrote. The
+# spelling of every visible name: docs/others-category.md.
+MANTRA_TYPES = (
+    "guru_puja",
+    "pitriyajina",
+    "samgacchadhvam",
+    "nityam_shuddham",
+    "ananda_sutram",
+    "shlokas",
+    "other",
+)
 
 
 def public_kind(stored: str) -> str:
@@ -122,7 +134,8 @@ class Recording(Base, TimestampMixin):
         CheckConstraint(
             "(kind = 'kiirtan' AND type IN ('bnk', 'lila', 'festival', 'other')) OR "
             "(kind = 'bhajan' AND type IN ('morning', 'evening', 'devotional', 'other')) OR "
-            "(kind = 'other_mantra' AND type IN ('guru_puja', 'pitriyajina', 'other')) OR "
+            "(kind = 'other_mantra' AND type IN ('guru_puja', 'pitriyajina', 'samgacchadhvam', "
+            "'nityam_shuddham', 'ananda_sutram', 'shlokas', 'other')) OR "
             "(kind IN ('devotional_song', 'prabhat_samgiita', 'spiritual_song', 'dance_song', "
             "'baba_audio') AND type = 'other')",
             name="ck_recordings_type_for_kind",
@@ -264,6 +277,13 @@ class Recording(Base, TimestampMixin):
     lead_instrument_checked: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0", nullable=False
     )
+    # Others only: with type "other" ("Something else") the name the author wrote. Their own at once,
+    # everybody's once the team accepted it (`type_other_checked`): the same rule and the same queue
+    # (`value_suggestions`, field "mantra") as the main instrument's own word.
+    type_other: Mapped[str | None] = mapped_column(String(80))
+    type_other_checked: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", nullable=False
+    )
     # Where it was recorded or performed (every category, optional); for Baba's Audio Discourses
     # where it was given. `discourse` is the name or number of the discourse (that kind only).
     place: Mapped[str | None] = mapped_column(String(200))
@@ -403,7 +423,7 @@ class ValueSuggestion(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("field", "key", name="uq_value_suggestions_word"),
         CheckConstraint(
-            "field IN ('instrument', 'style', 'language', 'mood')",
+            "field IN ('instrument', 'style', 'language', 'mood', 'mantra')",
             name="ck_value_suggestions_field",
         ),
         CheckConstraint(

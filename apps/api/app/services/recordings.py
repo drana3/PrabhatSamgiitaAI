@@ -201,6 +201,8 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         id=str(recording.id),
         kind=recording.kind,  # type: ignore[arg-type]
         type=recording.type,
+        type_other=recording.type_other if owner or recording.type_other_checked else None,
+        type_other_checked=recording.type_other_checked,
         title=recording.title,
         author=recording.author,
         added_by=recording.added_by,
@@ -353,7 +355,8 @@ async def set_practice(
 
 def validate_type(kind: str, type_id: str) -> str:
     """The sub-type (Kiirtan: BNK, lila, festival; Bhajan: morning, evening, devotional; Other
-    mantras: Guru Puja, Pitriyajina). The other categories have none."""
+    mantras: Guru Puja, Pitr Yajina ...). The other categories have none. Others do not come here: the
+    choice is required and resolved with the own-word queue (see `_custom_values`)."""
     if kind not in ("kiirtan", "bhajan", "other_mantra"):
         return "other"
     allowed = {"kiirtan": KIRTAN_TYPES, "bhajan": BHAJAN_TYPES, "other_mantra": MANTRA_TYPES}[kind]
@@ -662,6 +665,9 @@ class CustomValues:
     language: str | None
     language_other: str | None
     custom: list[words.Resolved]
+    # Others: the choice as it will be stored (a merged or listed word is already its code)
+    mantra: str = "other"
+    mantra_other: str | None = None
 
 
 async def _custom_values(
@@ -686,6 +692,9 @@ async def _custom_values(
         asked.append((words.INSTRUMENT, lead_other))
     if language == OTHER:
         asked.append((words.LANGUAGE, language_other))
+    mantra, mantra_other = payload.type, payload.type_other
+    if payload.kind == "other_mantra" and mantra == OTHER:
+        asked.append((words.MANTRA, mantra_other))
     resolved_all = await _resolve_many(session, member_id, asked, team=team)
     kept_styles: list[str] = []
     kept_moods: list[str] = []
@@ -706,6 +715,8 @@ async def _custom_values(
                     (ok_styles if field == words.STYLE else ok_moods).append(resolved.label)
         elif field == words.INSTRUMENT:
             lead, lead_other = (resolved.code, None) if listed else (OTHER, resolved.label)
+        elif field == words.MANTRA:
+            mantra, mantra_other = (resolved.code, None) if listed else (OTHER, resolved.label)
         else:
             language, language_other = (resolved.code, None) if listed else (OTHER, resolved.label)
         if not listed:
@@ -722,6 +733,8 @@ async def _custom_values(
         language,
         language_other,
         custom,
+        mantra or "other",
+        mantra_other,
     )
 
 
@@ -889,7 +902,12 @@ async def create_recording(
     style_mirror = legacy_single(values.styles, values.styles_other)
     recording = Recording(
         kind=payload.kind,
-        type=validate_type(payload.kind, payload.type),
+        type=(
+            values.mantra
+            if payload.kind == "other_mantra"
+            else validate_type(payload.kind, payload.type)
+        ),
+        type_other=values.mantra_other if payload.kind == "other_mantra" else None,
         title=title,
         author=performer,
         added_by=member_name,
@@ -942,6 +960,9 @@ async def create_recording(
     # A word the team accepted earlier is already public.
     recording.lead_instrument_checked = any(
         r.kind == "accepted" and r.field == words.INSTRUMENT for r in custom
+    )
+    recording.type_other_checked = any(
+        r.kind == "accepted" and r.field == words.MANTRA for r in custom
     )
     session.add(recording)
     try:

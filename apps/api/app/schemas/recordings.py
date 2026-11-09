@@ -11,6 +11,7 @@ from app.models.recordings import (
     KIND_LANGUAGE_RULE,
     KINDS_WITH_DANCE,
     KINDS_WITH_DISCOURSE,
+    MANTRA_TYPES,
     PS_SONG_COUNT,
     public_kind,
 )
@@ -53,6 +54,7 @@ from app.services.recording_tags import (
 from app.services.value_suggestions import (
     INSTRUMENT,
     LANGUAGE,
+    MANTRA,
     MOOD,
     STYLE,
     clean_word,
@@ -65,7 +67,7 @@ from app.services.value_suggestions import (
 # "spiritual_song" is a song in the language the uploader names (required), "dance_song" is a song
 # for Tandava or Kaoshiki (`dance`, required), "baba_audio" is a spoken discourse of Baba (language
 # required, no performer), "other_mantra" is a mantra of Ananda Marga that is not Baba Nam Kevalam
-# (Guru Puja, Pitriyajina ...; its `type` names which). `devotional_song` is gone: it reads as
+# (Guru Puja, Pitr Yajina ...; its `type` names which). `devotional_song` is gone: it reads as
 # "bhajan".
 Kind = Literal[
     "kiirtan",
@@ -145,6 +147,13 @@ class UploadTargetResponse(BaseModel):
     max_bytes: int
 
 
+# What Others asks (a required single choice, no default); the names are the visible ones.
+MANTRA_MESSAGE = (
+    "Choose what this is: Guru Puja, Pitr Yajina, Samgacchadhvam, Nityam Shuddham, Ananda Sutram, "
+    "Shlokas, or Something else (then write its name)."
+)
+
+
 def _split_own_words(
     field: str, listed: list[str], own: list[str]
 ) -> tuple[list[str], list[str]]:
@@ -177,7 +186,10 @@ def _custom_word(field: str, text: str | None, empty_message: str | None) -> tup
 class RecordingCreate(BaseModel):
     key: str = Field(min_length=10, max_length=300)
     kind: Kind = "kiirtan"
+    # Kiirtan, Bhajan: the sub-type. Others: REQUIRED, one of MANTRA_TYPES; with "other" (Something
+    # else) the name goes in `type_other` (2 to 40 characters, held for the team like an own word).
     type: str = Field(default="other", max_length=16)
+    type_other: str | None = Field(default=None, max_length=200)
     # The uploader types the title.
     title: str = Field(min_length=1, max_length=200)
     # Performer or group: required (the form prefills it with the member's name).
@@ -416,6 +428,17 @@ class RecordingCreate(BaseModel):
             )
         else:
             self.lead_instrument_other = None
+        # Others: what it is is a REQUIRED choice (nothing is pre-selected). "Something else" needs
+        # a name; a name that IS a listed choice ("Guru Puja") becomes it, the rest waits for the team.
+        if self.kind == "other_mantra" and not kind_unsaid:
+            if self.type == "other":
+                self.type, self.type_other = _custom_word(MANTRA, self.type_other, MANTRA_MESSAGE)
+            elif self.type in MANTRA_TYPES:
+                self.type_other = None
+            else:
+                raise ValueError(MANTRA_MESSAGE)
+        else:
+            self.type_other = None
         # The performer is named by every single upload except an audio discourse of Baba.
         if self.collection_id is None and self.kind != "baba_audio" and not self.author.strip():
             raise ValueError("Add who performs it.")
@@ -514,6 +537,10 @@ class RecordingOut(BaseModel):
     id: str
     kind: Kind
     type: str
+    # Others, type "other" (Something else): the name its author wrote. The author sees it at once,
+    # everybody else once the team accepted it (`type_other_checked`).
+    type_other: str | None = None
+    type_other_checked: bool = False
     title: str
     author: str
     added_by: str
