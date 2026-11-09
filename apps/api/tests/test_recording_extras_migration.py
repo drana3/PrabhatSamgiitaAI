@@ -117,6 +117,7 @@ def test_the_tables_match_the_models(engine: sa.Engine, m34: ModuleType) -> None
     run(engine, m34.upgrade)
     run(engine, load("0037_comment_replies").upgrade)  # the reply columns of the comment model
     run(engine, load("0047_recording_chord_charts").upgrade)  # the chart columns of the sheet model
+    run(engine, load("0049_kiirtan_cycle_video_status").upgrade)  # cycle, link status
     inspector = sa.inspect(engine)
     for model in MODELS:
         table = model.__table__
