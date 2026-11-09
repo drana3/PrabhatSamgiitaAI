@@ -21,6 +21,7 @@ from test_author_profiles import AS, MEMBER_A, MEMBER_B, URL, World, world  # no
 from app.api.v1.author_profiles import PLAY_BATCHES_PER_MINUTE_PER_HOST
 from app.models.author_profiles import AuthorStatsSnapshot, PlayDaily, PlayEvent
 from app.services import author_stats as stats
+from app.services import play_fraud
 
 PLAYS = "/api/v1/plays"
 
@@ -515,7 +516,7 @@ async def test_one_client_cannot_make_many_new_listeners_with_made_up_device_ids
     for i in range(40):
         sent = await send(world, [event(rid)], device=f"fake-device-{i:04d}")
         assert sent.json()["accepted"] == 1
-    # every play counts as a play ...
+    # every play is stored and counted in the daily total ...
     assert (await counts(world)) == (40, 40)
     # ... but only a few of the devices are new listeners
     async with world.sessions() as session:
@@ -525,8 +526,9 @@ async def test_one_client_cannot_make_many_new_listeners_with_made_up_device_ids
             )
         )
     assert listeners == stats.NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY
+    # ... but what the author is shown holds back what one client added above play_fraud.SOURCE_KEEP
     mine = (await world.client.get(f"{URL}/me/stats", headers=AS["a"])).json()
-    assert mine["total_plays"] == 40
+    assert mine["total_plays"] == play_fraud.SOURCE_KEEP
     assert mine["monthly_listeners"] == stats.NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY
     assert mine["series"][-1]["listeners"] == stats.NEW_LISTENERS_PER_CLIENT_PER_RECORDING_DAY
 

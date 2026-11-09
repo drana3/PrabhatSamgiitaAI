@@ -41,6 +41,7 @@ from app.models.author_profiles import (
     PlayEvent,
 )
 from app.models.base import Base
+from app.models.play_flag import PlayFlag
 from app.models.recording_collections import RecordingCollection
 from app.models.recordings import AuthorBlock, MemberNotice, Recording
 from app.models.song_plays import SongPlayDaily, SongPlayEvent
@@ -161,6 +162,7 @@ async def world() -> AsyncIterator[World]:
             AuthorReport,
             PlayEvent,
             PlayDaily,
+            PlayFlag,
             SongPlayEvent,
             SongPlayDaily,
             AuthorStatsSnapshot,

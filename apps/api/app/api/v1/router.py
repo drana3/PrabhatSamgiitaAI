@@ -20,6 +20,7 @@ from app.api.v1.member_sessions import router as member_sessions_router
 from app.api.v1.members import router as members_router
 from app.api.v1.notation import router as notation_router
 from app.api.v1.piano_sheets import router as piano_sheets_router
+from app.api.v1.play_flags import router as play_flags_router
 from app.api.v1.push import router as push_router
 from app.api.v1.quiz_events import router as quiz_events_router
 from app.api.v1.recommendations import router as recommendations_router
@@ -58,6 +59,7 @@ router.include_router(member_sessions_router)
 router.include_router(app_versions_router)
 router.include_router(takedown_router)
 router.include_router(takedown_admin_router)
+router.include_router(play_flags_router)
 router.include_router(learn_sync_router)
 router.include_router(auth_router)
 router.include_router(member_admin_router)

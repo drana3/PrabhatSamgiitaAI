@@ -64,6 +64,7 @@ from app.models.member import (
 from app.models.member_session import MemberSession
 from app.models.notation import Notation
 from app.models.piano_sheets import PianoSheet, PianoSheetReport
+from app.models.play_flag import PlayFlag
 from app.models.rate_limit import RateLimitCounter
 from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
 from app.models.recording_extras import (
@@ -95,6 +96,7 @@ __all__ = [
     "MemberSession",
     "RateLimitCounter",
     "TakedownRequest",
+    "PlayFlag",
     "BlockedAudioHash",
     "AppEvent",
     "FeatureFlag",

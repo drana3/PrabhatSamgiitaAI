@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.author_profiles import PlayDaily, PlayEvent
 from app.models.recordings import Recording
 from app.models.song_plays import SongPlayEvent
+from app.services import play_fraud
 
 # ---- the knobs (one place each) --------------------------------------------------------------
 
@@ -318,6 +319,7 @@ async def ingest_plays(
     per_day: dict[date, int] = {}
     client_rec: dict[tuple[date, UUID], int] = {}
     client_all: dict[date, int] = {}
+    touched: set[tuple[UUID, date]] = set()
     for event in events[:MAX_EVENTS_PER_BATCH]:
         recording = recordings.get(event.recording_id)
         if recording is None or recording.status not in ("published", "flagged"):
@@ -391,9 +393,13 @@ async def ingest_plays(
             )
         )
         result.accepted += 1
+        touched.add((recording.id, day))
     for _ in events[MAX_EVENTS_PER_BATCH:]:
         result.reject("batch_limit")
     await session.commit()
+    # The second line of defence: a day that looks inflated is held back (services/play_fraud.py).
+    if touched:
+        await play_fraud.evaluate_after_ingest(session, touched, now=now)
     return result
 
 
@@ -461,7 +467,10 @@ async def stats_since(session: AsyncSession) -> date | None:
 
 
 async def numbers_for(session: AsyncSession, recording_ids: Select[Any], *, today: date) -> Numbers:
-    """`recording_ids` is a SELECT of recording ids (the recordings that belong to a profile)."""
+    """`recording_ids` is a SELECT of recording ids (the recordings that belong to a profile).
+
+    Plays that `play_fraud` holds back are not in any of these numbers.
+    """
     start = today - timedelta(days=MONTH_DAYS - 1)
     total = await session.scalar(
         select(func.coalesce(func.sum(PlayDaily.plays), 0)).where(
@@ -473,6 +482,9 @@ async def numbers_for(session: AsyncSession, recording_ids: Select[Any], *, toda
             PlayDaily.recording_id.in_(recording_ids), PlayDaily.day >= start
         )
     )
+    held = await play_fraud.held_by_day(session, recording_ids)
+    held_total = sum(held.values())
+    held_month = sum(n for day, n in held.items() if day >= start)
     distinct = await session.scalar(
         select(func.count(func.distinct(PlayEvent.listener_key))).where(
             PlayEvent.recording_id.in_(recording_ids),
@@ -482,8 +494,8 @@ async def numbers_for(session: AsyncSession, recording_ids: Select[Any], *, toda
     )
     return Numbers(
         monthly_listeners=estimate_distinct(int(distinct or 0)),
-        total_plays=int(total or 0),
-        plays_30d=int(month or 0),
+        total_plays=max(0, int(total or 0) - held_total),
+        plays_30d=max(0, int(month or 0) - held_month),
     )
 
 
@@ -516,12 +528,12 @@ async def daily_series(
             )
         ).all()
     }
+    held = await play_fraud.held_by_day(session, recording_ids, since=start)
     out = []
     for i in range(days):
         day = start + timedelta(days=i)
-        out.append(
-            {"day": day.isoformat(), "plays": plays.get(day, 0), "listeners": listeners.get(day, 0)}
-        )
+        shown = max(0, plays.get(day, 0) - held.get(day, 0))
+        out.append({"day": day.isoformat(), "plays": shown, "listeners": listeners.get(day, 0)})
     return out
 
 
@@ -546,7 +558,8 @@ async def weekly_plays(
             .group_by(PlayDaily.day)
         )
     ).all()
-    per_day = {row.day: int(row.n) for row in rows}
+    held = await play_fraud.held_by_day(session, recording_ids, since=first)
+    per_day = {row.day: max(0, int(row.n) - held.get(row.day, 0)) for row in rows}
     out: list[dict[str, Any]] = []
     for i in range(weeks):
         start = first + timedelta(days=7 * i)
