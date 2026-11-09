@@ -39,7 +39,7 @@ import {
   WORD_MIN,
   wordProblem,
 } from "@/lib/kirtan/instruments"
-import { cleanStyle, STYLE_OTHER_MAX } from "@/lib/kirtan/styles"
+import { cleanStyles, STYLE_OTHER_MAX } from "@/lib/kirtan/styles"
 import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import { buildSubmission, validateSubmission, type SubmissionInput } from "@/lib/kirtan/submissions"
 import { infoTags, kindHasByAuthor, performanceMissing } from "@/lib/kirtan/recordingInfo"
@@ -139,14 +139,14 @@ describe("what the form sends", () => {
 
   it("a style named by hand is 2 to 40 characters, and a listed word is that style", () => {
     expect(STYLE_OTHER_MAX).toBe(40)
-    expect(cleanStyle("kiirtan", "other", "x").missingName).toBe(true)
-    expect(cleanStyle("kiirtan", "other", "y".repeat(90)).styleOther!.length).toBe(40)
-    expect(cleanStyle("kiirtan", "other", "Hindi")).toEqual({ style: "hindi", styleOther: null, missingName: false })
+    expect(cleanStyles("kiirtan", [], ["x"]).missing).toBe(true)
+    expect(cleanStyles("kiirtan", [], ["y".repeat(90)]).stylesOther[0]!.length).toBe(40)
+    expect(cleanStyles("kiirtan", [], ["Electronic"])).toEqual({ styles: ["electronic"], stylesOther: [], missing: false })
   })
 })
 
 describe("the single form", () => {
-  const base: SubmissionInput = { kind: "kiirtan", fileName: "a.mp3", fileUri: "file:///a.mp3", fileSize: 1000, fileType: "audio/mpeg", title: "Baba Nam Kevalam", author: "Priya", addedBy: "You", byAuthor: true, termsAccepted: true, style: "bengali", recordingType: "studio", performance: "solo" }
+  const base: SubmissionInput = { kind: "kiirtan", fileName: "a.mp3", fileUri: "file:///a.mp3", fileSize: 1000, fileType: "audio/mpeg", title: "Baba Nam Kevalam", author: "Priya", addedBy: "You", byAuthor: true, termsAccepted: true, styles: ["indian"], recordingType: "studio", performance: "solo" }
 
   it("a Kiirtan needs solo or group", () => {
     expect(performanceMissing("kiirtan", null)).toBe(true)
@@ -180,7 +180,7 @@ describe("the single form", () => {
 })
 
 describe("the playlist", () => {
-  const draft = () => ({ ...newSetDraft("s", NOW), title: "Retreat", defaultStyle: "bengali", defaultRecordingType: "studio", defaultPerformance: "solo" })
+  const draft = () => ({ ...newSetDraft("s", NOW), title: "Retreat", defaultStyles: ["indian"], defaultRecordingType: "studio", defaultPerformance: "solo" })
   const track = { id: "t", fileName: "a.mp3", title: "A", size: 1, uri: "file:///a.mp3", type: "audio/mpeg", status: "waiting" } as unknown as SetTrack
 
   it("needs solo or group for its Kiirtans, and a usable word for 'Add your own'", () => {

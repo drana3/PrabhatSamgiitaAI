@@ -60,11 +60,15 @@ export function discoverFacets(recordings: readonly MenuRecording[], kindOf: (ki
   const out: DiscoveredFacets = { styles: {}, moods: {}, facets: {} }
   for (const r of recordings) {
     const kind = kindOf(r.kind)
-    if (kind === "kiirtan" && r.style) {
-      if (r.style === "other") {
+    if (kind === "kiirtan") {
+      // a recording counts once under each style it carries (the lists, or the one old `style` read as a list of one)
+      if (r.styles != null || r.stylesOther != null) {
+        for (const id of new Set(r.styles ?? [])) bump(out.styles, id)
+        for (const slug of uniqueSlugs(r.stylesOther)) bump(out.styles, `${CUSTOM_STYLE_PREFIX}${slug}`)
+      } else if (r.style === "other") {
         const slug = slugOf(r.styleOther)
         bump(out.styles, slug ? `${CUSTOM_STYLE_PREFIX}${slug}` : "other")
-      } else bump(out.styles, r.style)
+      } else if (r.style) bump(out.styles, r.style)
     }
     for (const mood of uniqueSlugs(r.moods)) bump(out.moods, mood)
     if (kind === "dance_song" && r.dance) {

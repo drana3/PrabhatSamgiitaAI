@@ -44,7 +44,7 @@ beforeEach(() => {
   forgetChords.mockClear()
   useKirtanStore.getState().reset()
   queue().reset()
-  queue().setDraft({ performer: "Priya Devi", style: "bengali", recordingType: "studio", performance: "solo" })
+  queue().setDraft({ performer: "Priya Devi", styles: ["indian"], recordingType: "studio", performance: "solo" })
 })
 
 describe("the form of the queue", () => {
@@ -148,7 +148,7 @@ describe("uploading the queue", () => {
   })
 
   it("a Kiirtan without a style is not sent", async () => {
-    queue().setDraft({ style: null })
+    queue().setDraft({ styles: [], stylesOther: [] })
     pick("a.mp3")
     runUpload.mockResolvedValue({ status: "published" })
     await queue().start()

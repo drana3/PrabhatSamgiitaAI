@@ -1,5 +1,6 @@
 import { sampleKirtans } from "@/lib/fixtures/kirtanGate"
 import { canUseServer, remoteConfig } from "@/lib/kirtan/api"
+import { stylesOfRecord } from "@/lib/kirtan/styles"
 import { submissionKey } from "@/lib/kirtan/submissions"
 import { discardSimilar, uploadSubmission, type UploadDeps, type UploadOutcome } from "@/lib/kirtan/upload"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
@@ -68,8 +69,11 @@ export async function runUpload(
       place: item.place,
       discourse: item.discourse,
       psSong: item.psSong ?? null,
-      style: item.style ?? null,
-      styleOther: item.styleOther ?? null,
+      // a submission stored before the lists carries one `style`: it reads as a list of one
+      styles: stylesOfRecord(item).styles,
+      stylesOther: stylesOfRecord(item).stylesOther,
+      moods: item.moods ?? null,
+      moodsOther: item.moodsOther ?? null,
       practice: item.practice ?? null,
       recordingType: item.recordingType ?? null,
       tempo: item.tempo ?? null,

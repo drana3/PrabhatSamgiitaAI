@@ -48,6 +48,7 @@ export function buildRadioPools(source: PoolSource): RadioPools {
     spiritual_song: [],
     dance_song: [],
     baba_audio: [],
+    other_mantra: [],
   }
   for (const n of source.psNumbers) keys.prabhat_samgiita.push(psKey(n))
   const byKey = new Map<string, Kirtan>()

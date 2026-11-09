@@ -4,7 +4,7 @@ vi.mock("@/lib/i18n", () => ({ t: (key: string) => key }))
 vi.mock("react-native", () => ({ Platform: { OS: "web" } }))
 vi.mock("@react-native-async-storage/async-storage", () => ({ default: { getItem: async () => null, setItem: async () => undefined, removeItem: async () => undefined } }))
 
-import { MOODS } from "@/lib/kirtan/moods"
+import { UPLOAD_MOODS } from "@/lib/kirtan/moods"
 import { withConfirmedMoods } from "@/lib/recordingMoods/flag"
 import { createMoodMock, MoodMockFailure } from "@/lib/recordingMoods/mock"
 import { moodFailureFromError, moodRemote, pageFromWire } from "@/lib/recordingMoods/remote"
@@ -35,14 +35,15 @@ describe("what the page shows", () => {
       { mood: "devotion", status: "confirmed" as const, source: "uploader" as const, locked: false, yes: 4, no: 0, mine: "yes" as const },
     ],
   }
-  it("always lists the six moods in the app's order, those nobody proposed as none", () => {
+  it("always lists the five moods in the app's order, those nobody proposed as none, and an older word only while the recording carries it", () => {
     const all = orderedMoods(page)
-    expect(all.map((m) => m.mood)).toEqual([...MOODS])
-    expect(all.find((m) => m.mood === "sad")?.status).toBe("none")
+    expect(all.map((m) => m.mood)).toEqual([...UPLOAD_MOODS, "calm", "devotion"])
+    expect(all.find((m) => m.mood === "mix")?.status).toBe("none")
+    expect(orderedMoods({ moods: [] }).map((m) => m.mood)).toEqual([...UPLOAD_MOODS])
   })
   it("asks about the proposed moods and offers the rest as 'does another fit'", () => {
     expect(proposedMoods(page).map((m) => m.mood)).toEqual(["calm", "devotion"])
-    expect(openMoods(page).map((m) => m.mood)).toEqual(["joyful", "longing", "ecstatic", "sad"])
+    expect(openMoods(page).map((m) => m.mood)).toEqual([...UPLOAD_MOODS])
   })
   it("says how far a waiting mood is: the number depends on who suggested it", () => {
     const needed = { uploader: 3, listeners: 5 }
@@ -149,7 +150,7 @@ describe("the preview's stand-in", () => {
     expect(moods.find((m) => m.mood === "calm")?.status).toBe("suggested")
     expect(moods.find((m) => m.mood === "joyful")?.status).toBe("none") // the uploader changed their mind: an unconfirmed suggestion goes
     expect(moods.find((m) => m.mood === "devotion")?.status).toBe("confirmed")
-    await expect(own.suggest("r1", ["calm", "sad", "joyful"])).rejects.toMatchObject({ failure: "too_many" })
+    await expect(own.suggest("r1", ["calm", "sad", "joyful", "mix", "longing", "ecstatic"])).rejects.toMatchObject({ failure: "too_many" })
     await expect(make().suggest("r1", ["calm"])).rejects.toMatchObject({ failure: "not_uploader" })
   })
 })

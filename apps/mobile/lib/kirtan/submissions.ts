@@ -4,7 +4,9 @@ import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { cleanPractice } from "@/lib/kirtan/practice"
 import { AI_TYPE, cleanRecordingInfo, kindAllowsAi, kindHasByAuthor, kindHasRecordingType, performanceMissing, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
-import { cleanStyle, isKiirtanStyle, OTHER_STYLE } from "@/lib/kirtan/styles"
+import { fixKiirtanSpelling } from "@/lib/kirtan/kiirtanSpelling"
+import { cleanMoods } from "@/lib/kirtan/moods"
+import { cleanStyles, stylesOfRecord } from "@/lib/kirtan/styles"
 import { validateAudioFile, type FileProblem } from "@/lib/kirtan/rules"
 import { missingKindFields } from "@/lib/kirtan/uploadForm"
 import { BABA_AUTHOR, DANCES, PS_SONG_COUNT, type DanceId, type Kirtan, type KirtanStatus, type KirtanTypeId, type RecordingKind, type RecordingLanguage, type UploadFailure } from "@/lib/kirtan/types"
@@ -57,14 +59,20 @@ export type SubmissionInput = {
   broadcastId?: string | null
   /** words and music by, optional */
   credits?: string
-  /** Baba's Audio Discourses only: where it was given, and the name or number of the discourse (both optional) */
+  /** where it was recorded or performed (every kind, optional), and Baba's Audio Discourses only: the name or number of the discourse */
   place?: string
   discourse?: string
   /** a short note, optional */
   notes?: string
   /** Prabhat Samgiita only: the song this is a performance of (1 to 5018) */
   psSong?: number | null
-  /** Kiirtan only: the optional style (a KIIRTAN_STYLES id or "other") and its name */
+  /** the styles (STYLES ids) and the person's own style words; REQUIRED for a Kiirtan (one of either), optional for the other kinds but Baba's Audio Discourses */
+  styles?: readonly string[] | null
+  stylesOther?: readonly string[] | null
+  /** the moods (UPLOAD_MOODS ids) and the person's own mood words; always optional */
+  moods?: readonly string[] | null
+  moodsOther?: readonly string[] | null
+  /** the single style of the first form: read as a list of one when `styles` is not given (a caller from before the lists) */
   style?: string | null
   styleOther?: string | null
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
@@ -109,11 +117,8 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   const missing = missingKindFields({ kind: normalizeKind(input.kind), language: input.language, languageOther: input.languageOther, dance: input.dance })
   if (missing.length) return missing[0]!
   if (normalizeKind(input.kind) === "prabhat_samgiita" && !isPsSongNumber(input.psSong)) return "song"
-  // the style of a Kiirtan is required ("other" needs its name); the other kinds have none
-  if (normalizeKind(input.kind) === "kiirtan") {
-    const style = cleanStyle("kiirtan", input.style, input.styleOther)
-    if (!style.style || style.missingName) return "style"
-  }
+  // a Kiirtan names at least one style (listed or its own word); the other kinds may
+  if (cleanStyles(normalizeKind(input.kind), inputStyles(input).styles, inputStyles(input).stylesOther).missing) return "style"
   // how a Kiirtan was recorded is required; an AI recording is not taken as a Bhajan
   if (recordingTypeMissing(input.kind, input.recordingType)) return "recordingType"
   if (input.recordingType === AI_TYPE && kindHasRecordingType(input.kind) && !kindAllowsAi(input.kind)) return "recordingType"
@@ -139,11 +144,28 @@ function slug(text: string, fallback: string): string {
   return tidy(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || fallback
 }
 
-/** The style a form named (a Kiirtan only; "other" needs its name, otherwise nothing is kept). */
-function styleOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "style" | "styleOther"> {
-  const clean = cleanStyle(kind, input.style, input.styleOther)
-  if (!clean.style || clean.missingName) return {}
-  return { style: clean.style, ...(clean.styleOther ? { styleOther: clean.styleOther } : {}) }
+/** The styles a form named: the lists, or the one old `style` read as a list of one. */
+function inputStyles(input: Pick<SubmissionInput, "styles" | "stylesOther" | "style" | "styleOther">): { styles: readonly string[]; stylesOther: readonly string[] } {
+  if (input.styles != null || input.stylesOther != null) return { styles: input.styles ?? [], stylesOther: input.stylesOther ?? [] }
+  return stylesOfRecord(input)
+}
+
+/**
+ * The styles and moods a form named, for the kinds that keep them. The first style is also written the old way (`style`, and
+ * `styleOther` for an own word) so an older screen and the search shelves still read it.
+ */
+function tagsOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "styles" | "stylesOther" | "moods" | "moodsOther" | "style" | "styleOther"> {
+  const given = inputStyles(input)
+  const st = cleanStyles(kind, given.styles, given.stylesOther)
+  const mood = cleanMoods(kind, input.moods, input.moodsOther)
+  const first = st.styles[0]
+  return {
+    ...(st.styles.length ? { styles: st.styles } : {}),
+    ...(st.stylesOther.length ? { stylesOther: st.stylesOther } : {}),
+    ...(mood.moods.length ? { moods: mood.moods } : {}),
+    ...(mood.moodsOther.length ? { moodsOther: mood.moodsOther } : {}),
+    ...(first ? { style: first } : st.stylesOther[0] ? { style: "other", styleOther: st.stylesOther[0] } : {}),
+  }
 }
 
 /** The type of recording, tempo and solo or group a form named, for the kinds that carry them. */
@@ -165,7 +187,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
   return {
     id: `sub-${slug(input.title, kind)}-${now}`,
     kind,
-    title: tidy(input.title),
+    title: fixKiirtanSpelling(tidy(input.title)),
     author: kindHasPerformer(kind) ? tidy(input.author) : BABA_AUTHOR,
     durationSec: null,
     type: DEFAULT_SUBMISSION_TYPE,
@@ -178,11 +200,11 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(input.recordedOn ? { recordedOn: input.recordedOn } : {}),
     ...(input.broadcastId ? { broadcastId: input.broadcastId } : {}),
     ...(tidy(input.credits ?? "") ? { credits: tidy(input.credits ?? "") } : {}),
-    ...(kindHasDiscourse(kind) && tidy(input.place ?? "") ? { place: tidy(input.place ?? "") } : {}),
+    ...(tidy(input.place ?? "") ? { place: tidy(input.place ?? "") } : {}),
     ...(kindHasDiscourse(kind) && tidy(input.discourse ?? "") ? { discourse: tidy(input.discourse ?? "") } : {}),
     ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),
     ...(kind === "prabhat_samgiita" && isPsSongNumber(input.psSong) ? { psSong: input.psSong } : {}),
-    ...styleOfInput(kind, input),
+    ...tagsOfInput(kind, input),
     ...(cleanPractice(kind, input.practice) ? { practice: cleanPractice(kind, input.practice) as string } : {}),
     ...infoOfInput(kind, input),
     ...instrumentOfInput(kind, input),
@@ -300,13 +322,25 @@ function languageOf(remote: RemoteRecording, base?: Kirtan): Pick<Kirtan, "langu
   return { language: code, ...(other ? { languageOther: other } : {}) }
 }
 
-/** The Kiirtan style of a server row (Kiirtans only; "other" keeps the uploader's own name). */
-function styleOf(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kirtan, "style" | "styleOther"> {
-  if (kind !== "kiirtan") return {}
-  const id: string | null | undefined = remote.style ?? base?.style
-  if (!(isKiirtanStyle(id) || id === OTHER_STYLE)) return {}
-  const name = id === OTHER_STYLE ? (remote.style_other || base?.styleOther || "").trim() : ""
-  return { style: id, ...(name ? { styleOther: name } : {}) }
+/**
+ * The styles and moods of a server row. The server is the truth when it says (an own word comes only for its writer, or once the team
+ * accepted it); a row from before the lists carries one `style`, which reads as a list of one; an older server says nothing and the
+ * phone's own values stay.
+ */
+function tagsOf(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kirtan, "styles" | "stylesOther" | "moods" | "moodsOther" | "style" | "styleOther"> {
+  if (kind === "baba_audio") return {}
+  const said = remote.styles !== undefined || remote.styles_other !== undefined || remote.style !== undefined
+  const from = said ? stylesOfRecord({ styles: remote.styles, stylesOther: remote.styles_other, style: remote.style, styleOther: remote.style_other }) : stylesOfRecord(base ?? {})
+  const moods = remote.moods !== undefined ? (remote.moods ?? []) : (base?.moods ?? [])
+  const moodsOther = remote.moods_other !== undefined ? (remote.moods_other ?? []) : (base?.moodsOther ?? [])
+  const first = from.styles[0]
+  return {
+    ...(from.styles.length ? { styles: from.styles } : {}),
+    ...(from.stylesOther.length ? { stylesOther: from.stylesOther } : {}),
+    ...(moods.length ? { moods: [...moods] } : {}),
+    ...(moodsOther.length ? { moodsOther: [...moodsOther] } : {}),
+    ...(first ? { style: first } : from.stylesOther[0] ? { style: "other", styleOther: from.stylesOther[0] } : {}),
+  }
 }
 
 /** The practice of a server row: the server is the truth when it says (even "none"); an older server says nothing and the phone's own value stays. */
@@ -360,7 +394,7 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     authorId: remote.author_id,
     ...(remote.year ? { year: remote.year } : base?.year ? { year: base.year } : {}),
     ...languageOf(remote, base),
-    ...styleOf(remote, kind, base),
+    ...tagsOf(remote, kind, base),
     ...practiceOf(remote, kind, base),
     ...infoOfRemote(remote, kind, base),
     ...instrumentOfRemote(remote, kind, base),

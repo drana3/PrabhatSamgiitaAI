@@ -25,6 +25,8 @@ export const PRABHAT_SAMGIITA_TONE: readonly [string, string] = [amColors.orange
 /** Spiritual songs, Dance music and Baba's Audio Discourses have no sub-types either: one gradient each, apart from the other kinds. */
 export const SPIRITUAL_SONG_TONE: readonly [string, string] = [amColors.olive700, amColors.sage800]
 export const DANCE_SONG_TONE: readonly [string, string] = [amColors.gold500, amColors.orange800]
+/** Other mantras: a warm, still tone between the songs and Baba's voice. */
+export const OTHER_MANTRA_TONE: readonly [string, string] = [amColors.gold500, amColors.sage900]
 /** Baba's Audio Discourses: a quiet, deep tone of their own. */
 export const BABA_AUDIO_TONE: readonly [string, string] = [amColors.sage800, amColors.ink900]
 
@@ -34,6 +36,7 @@ export function kiirtanTone(type: string | null | undefined, kind?: string | nul
   if (kind === "spiritual_song") return SPIRITUAL_SONG_TONE
   if (kind === "dance_song") return DANCE_SONG_TONE
   if (kind === "baba_audio") return BABA_AUDIO_TONE
+  if (kind === "other_mantra") return OTHER_MANTRA_TONE
   if (kind === "bhajan" && (type ?? "other") === "other") return BHAJAN_OTHER_TONE
   return KIIRTAN_TYPE_TONES[type ?? "other"] ?? KIIRTAN_TYPE_TONES.other
 }

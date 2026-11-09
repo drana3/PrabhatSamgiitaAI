@@ -127,7 +127,10 @@ export type MenuRecording = {
   author: string
   /** ms since epoch (created_at) */
   createdAt: number
-  /** Kiirtan style id, when the uploader named one */
+  /** Kiirtan style ids (several), and the uploader's own style words the library may show (several); an older row has the one `style` below */
+  styles?: readonly string[] | null
+  stylesOther?: readonly string[] | null
+  /** the one style of the first form, when the uploader named one (read as a list of one when `styles` is absent) */
   style?: string | null
   /** the uploader's own name for the style, when `style` is "other" */
   styleOther?: string | null

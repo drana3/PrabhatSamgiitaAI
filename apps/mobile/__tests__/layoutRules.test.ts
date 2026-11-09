@@ -262,15 +262,31 @@ describe("Nothing overlaps and nothing sticks: neighbours are not closer than 16
     expect(own).toMatch(/\binputGroup:\s*\{\s*gap:\s*8\s*\}/)
   })
 
-  const TAG_FIELDS = ["components/kirtan/add/StyleField.tsx", "components/kirtan/add/InstrumentField.tsx"]
+  // Style, Mood and the main instrument are the compact picker (TagPicker): no bare TextInput of their own, and no input beside a wall of chips
+  const TAG_FIELDS = ["components/kirtan/add/StyleField.tsx", "components/kirtan/add/MoodField.tsx", "components/kirtan/add/InstrumentField.tsx"]
   for (const file of TAG_FIELDS) {
-    it(`${file}: the own-word box is OwnWord inside a TAG_INPUT_GAP stack, not a bare TextInput under the chips`, () => {
+    it(`${file}: draws the compact TagPicker, not chips with a bare TextInput under them`, () => {
       const source = read(file)
-      expect(source).toContain("<OwnWord")
-      expect(source).toMatch(/\btags:\s*\{\s*gap:\s*TAG_INPUT_GAP\s*\}/)
+      expect(source).toContain("<TagPicker")
       expect(source).not.toContain("<TextInput")
+      expect(source).not.toContain("<Press")
     })
   }
+
+  it("the compact picker keeps its own word in the sheet's search row (never beside the chips), rows 8 apart, and a one-line field", () => {
+    const source = read("components/kirtan/add/TagPicker.tsx")
+    // the field on the form is ONE line: the chips and the plus sit in one box (rail), they do not wrap
+    expect(source).toMatch(/\brail:\s*\{[^}]*flexDirection:\s*"row"/)
+    expect(source).toMatch(/\brailChips:\s*\{[^}]*flexWrap|\brailChips:\s*\{[^}]*overflow:\s*"hidden"/)
+    expect(source).not.toMatch(/\brailChips:\s*\{[^}]*flexWrap:\s*"wrap"/)
+    // inside the sheet: search, then the list, then the footer, 12 apart; the rows are 8 apart and at least 48 high
+    expect(source).toMatch(/\bsheetBody:\s*\{[^}]*\bgap:\s*12/)
+    expect(source).toMatch(/\blistContent:\s*\{[^}]*\bgap:\s*8/)
+    expect(Number(/\brow:\s*\{[^}]*minHeight:\s*(\d+)/.exec(source)![1])).toBeGreaterThanOrEqual(48)
+    // the only TextInput is the search/own-word box; the typed word is added through a row, so no input sits next to chips
+    expect((source.match(/<TextInput/g) ?? []).length).toBe(1)
+    expect(source).not.toContain("<OwnWord")
+  })
 
   it("the language picker writes its own word with OwnWord and keeps its stack TAG_INPUT_GAP apart", () => {
     const source = read("components/kirtan/add/KindFields.tsx")

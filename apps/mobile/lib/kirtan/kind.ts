@@ -1,9 +1,9 @@
 import { t } from "@/lib/i18n"
 import { artistForAuthor, type Artist } from "@/lib/kirtan/artists"
-import { BHAJAN_TYPES, DANCE_KINDS, DISCOURSE_KINDS, KIND_LANGUAGE_RULE, KIRTAN_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type LanguageRule, type RecordingKind } from "@/lib/kirtan/types"
+import { BHAJAN_TYPES, DANCE_KINDS, DISCOURSE_KINDS, KIND_LANGUAGE_RULE, KIRTAN_TYPES, MANTRA_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type LanguageRule, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * The six kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio Discourses) and every visible word that
+ * The seven kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio Discourses, Other mantras) and every visible word that
  * depends on the kind. One recordings system: the kind is a field, not a second system. Pure, no React, no stores.
  * Code identifiers and routes keep the `kirtan` spelling; only the strings below are shown to people.
  * Every word of a kind lives under keys named by the kind id (`kind.<id>`, `kt.head.<id>`, ...), so a new kind needs
@@ -83,9 +83,9 @@ export function filterByKind<T extends { kind?: RecordingKind | null }>(list: re
   return kind === "all" ? [...list] : list.filter((k) => kindOf(k) === kind)
 }
 
-/** Only Kiirtans and Bhajans have sub-types (Lila, Morning...). The other kinds are always type "other". */
+/** Kiirtans, Bhajans and Other mantras have sub-types (Lila, Morning, Guru Puja...). The other kinds are always type "other". */
 export function kindHasTypes(kind: RecordingKind): boolean {
-  return kind === "kiirtan" || kind === "bhajan"
+  return kind === "kiirtan" || kind === "bhajan" || kind === "other_mantra"
 }
 
 /** "Words and music by" is asked for a Bhajan, not for chanting or a Prabhat Samgiita performance. */
@@ -138,7 +138,7 @@ const OTHER_ONLY: readonly { id: KirtanTypeId; label: string }[] = [{ id: "other
 
 /** The type choices of a kind, in the order the add form and the type shelf show them. */
 export function typesOfKind(kind: RecordingKind): readonly { id: KirtanTypeId; label: string }[] {
-  return kind === "bhajan" ? BHAJAN_TYPES : kind === "kiirtan" ? KIRTAN_TYPES : OTHER_ONLY
+  return kind === "bhajan" ? BHAJAN_TYPES : kind === "kiirtan" ? KIRTAN_TYPES : kind === "other_mantra" ? MANTRA_TYPES : OTHER_ONLY
 }
 
 /** Is this type id valid for this kind? ("other" is valid for both.) */

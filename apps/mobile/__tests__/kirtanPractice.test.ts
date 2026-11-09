@@ -98,7 +98,7 @@ describe("the Avarta flag in a bulk queue", () => {
 })
 
 describe("the Avarta flag in an event playlist", () => {
-  const draft = (patch: Partial<SetDraft> = {}) => addTracks({ ...newSetDraft("s"), title: "Retreat", defaultStyle: "bengali", ...patch }, [file("a.mp3"), file("b.mp3")], newId, false).draft
+  const draft = (patch: Partial<SetDraft> = {}) => addTracks({ ...newSetDraft("s"), title: "Retreat", defaultStyles: ["indian"], ...patch }, [file("a.mp3"), file("b.mp3")], newId, false).draft
 
   it("tracks follow the playlist's tick; one track may say otherwise", () => {
     let d = draft({ defaultPractice: "avarta" })

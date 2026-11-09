@@ -32,6 +32,7 @@ import {
   type StartBlock,
 } from "@/lib/kirtan/sets"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
+import { fixKiirtanSpelling, fixKiirtanSpellingIn } from "@/lib/kirtan/kiirtanSpelling"
 
 /**
  * The playlists the person is putting up (docs/kiirtan-sets.md). Unlike the single-file queue this store IS kept on
@@ -196,7 +197,7 @@ export const useUploadSetStore = create<SetStoreState>()(
           for (const track of draft.tracks) if (track.status === "similar" && track.similar) void cancelSimilar(track.similar.key)
           set({ drafts: get().drafts.filter((d) => d.id !== id) })
         },
-        details: (id, patch) => update(id, (d) => ({ ...d, ...patch, tracks: d.tracks })),
+        details: (id, patch) => update(id, (d) => ({ ...d, ...fixKiirtanSpellingIn(patch, ["title", "performer", "place"]), tracks: d.tracks })),
         cover: (id, uri) => update(id, (d) => ({ ...d, coverUri: uri, coverState: uri ? "pending" : "none" })),
         addFiles: (id, files) => {
           const draft = draftOf(id)
@@ -217,7 +218,7 @@ export const useUploadSetStore = create<SetStoreState>()(
           // removing the last failed track can finish the set
           void settle(id)
         },
-        title: (id, trackId, title) => update(id, (d) => setTrackTitle(d, trackId, title)),
+        title: (id, trackId, title) => update(id, (d) => setTrackTitle(d, trackId, fixKiirtanSpelling(title))),
         day: (id, trackId, text) => update(id, (d) => setTrackDay(d, trackId, text)),
         kind: (id, trackId, kind) => update(id, (d) => setTrackKind(d, trackId, kind)),
         fields: (id, trackId, patch) => update(id, (d) => setTrackFields(d, trackId, patch)),

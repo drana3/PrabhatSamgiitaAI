@@ -16,6 +16,7 @@ export const KIRTAN_TAB_CHIPS = [
   { id: "prabhat_samgiita", get label() { return t("kind.prabhat_samgiita") } },
   { id: "spiritual_song", get label() { return t("kind.spiritual_song") } },
   { id: "dance_song", get label() { return t("kind.dance_song") } },
+  { id: "other_mantra", get label() { return t("kind.other_mantra") } },
   { id: "baba_audio", get label() { return t("kind.baba_audio") } },
   { id: "saved", get label() { return t("kt.chip.saved") } },
   { id: "downloaded", get label() { return t("kt.chip.downloaded") } },

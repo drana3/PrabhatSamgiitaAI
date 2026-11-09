@@ -101,8 +101,16 @@ How it is built. One component, `OwnWord` (`components/kirtan/add/OwnWord.tsx`),
 16 gap; the caller puts the chips and `OwnWord` in a stack with `gap: TAG_INPUT_GAP` (16). Style, instrument and language all use it,
 so a new "create your own tag" field (dance, mood ...) uses `OwnWord` and does not write its own `TextInput`.
 
-How it is checked. `layoutRules.test.ts`, "Nothing overlaps and nothing sticks": `OwnWord` keeps 16 and 8, the style and
-instrument fields use `OwnWord` inside a `TAG_INPUT_GAP` stack and have no bare `TextInput`, the language picker uses it.
+How it is checked. `layoutRules.test.ts`, "Nothing overlaps and nothing sticks": `OwnWord` keeps 16 and 8, and the language picker
+uses it inside a `TAG_INPUT_GAP` stack.
+
+Update, same day (9 Nov 2026): Style, Mood and the main instrument are now the compact picker (`components/kirtan/add/TagPicker.tsx`).
+On the form each is ONE line (the chips and a "+" in one box, never a wrapped wall of chips). The person's own word is typed in the
+search box at the top of the picker's bottom sheet and added through a row "Add your own: word", so there is no input next to a group
+of chips there at all. The rule for any NEW field that creates tags: either use `TagPicker`, or put the chips and `OwnWord` in a stack
+with `gap: TAG_INPUT_GAP`. A bare `TextInput` under a row of chips is never written. The test checks that `StyleField`, `MoodField` and
+`InstrumentField` draw `TagPicker` with no `TextInput` of their own, and that the picker keeps a one-line rail, 12 between its blocks,
+8 between rows (at least 48 high) and one `TextInput`.
 
 ## Nothing overlaps and nothing sticks (9 Nov 2026)
 

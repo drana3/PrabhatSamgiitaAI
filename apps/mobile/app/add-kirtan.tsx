@@ -13,10 +13,14 @@ import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
+import { MoodField } from "@/components/kirtan/add/MoodField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
 import { useSendVideoLink } from "@/components/kirtan/add/useSendVideoLink"
 import { VideoLinkField } from "@/components/kirtan/add/VideoLinkField"
 import { kindHasInstrument } from "@/lib/kirtan/instruments"
+import { fixKiirtanSpelling } from "@/lib/kirtan/kiirtanSpelling"
+import { kindHasMood } from "@/lib/kirtan/moods"
+import { kindHasStyle } from "@/lib/kirtan/styles"
 import { effectiveRecordingType, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { offersVideoLink } from "@/lib/recordingVideos/uploadLink"
@@ -311,8 +315,10 @@ export default function AddKirtanScreen() {
       author: draft.performer,
       psSong: draft.psSong?.number ?? null,
       year: yearOf(draft.year),
-      style: draft.style,
-      styleOther: draft.styleOther,
+      styles: draft.styles,
+      stylesOther: draft.stylesOther,
+      moods: draft.moods,
+      moodsOther: draft.moodsOther,
       recordingType: effectiveRecordingType(first.recordingType, draft.recordingType, kind),
       tempo: draft.tempo,
       performance: draft.performance,
@@ -435,7 +441,7 @@ export default function AddKirtanScreen() {
             <Reveal index={2} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.type.label")}</Text>
               <View style={styles.kinds} accessibilityRole="radiogroup">
-                {RECORDING_KINDS.map((k) => {
+                {RECORDING_KINDS.filter((k) => k !== "other_mantra").map((k) => {
                   const on = k === kind
                   const blurb = t(`ugc.add.blurb.${k}`, { count: PS_SONG_COUNT })
                   return (
@@ -528,19 +534,22 @@ export default function AddKirtanScreen() {
             </Reveal>
             ) : null}
 
-            {/* Kiirtan only: the style is required (ticks nothing by itself), the Avarta tick is optional and covers the whole queue */}
+            {/* Kiirtan only: the Avarta tick is optional and covers the whole queue (the style is asked in "How it sounds") */}
             {kind === "kiirtan" ? (
               <Reveal index={3} style={styles.group}>
-                <View {...form.field("style")} style={styles.field}>
-                  <StyleField theme={theme} kind={kind} value={{ style: draft.style, styleOther: draft.styleOther }} onChange={(next) => store().setDraft({ style: next.style, styleOther: next.styleOther })} invalid={formError === "style" || !!form.error("style")} errorText={form.error("style")} disabled={locked} />
-                </View>
                 <PracticeField theme={theme} kind={kind} on={draft.practice === AVARTA} onChange={(on) => store().setDraft({ practice: on ? AVARTA : null })} disabled={locked} />
               </Reveal>
             ) : null}
 
             {/* How it sounds: how it was recorded, solo or group, the tempo and the main instrument. Each shows for the kinds that carry it. */}
-            {kindHasRecordingType(kind) || kindHasInstrument(kind) ? (
+            {kindHasRecordingType(kind) || kindHasInstrument(kind) || kindHasStyle(kind) || kindHasMood(kind) ? (
               <Reveal index={3} style={styles.group}>
+                <View {...form.field("mood")} style={styles.field}>
+                  <MoodField theme={theme} kind={kind} value={{ moods: draft.moods, moodsOther: draft.moodsOther }} onChange={(next) => store().setDraft({ moods: [...next.moods], moodsOther: [...next.moodsOther] })} disabled={locked} />
+                </View>
+                <View {...form.field("style")} style={styles.field}>
+                  <StyleField theme={theme} kind={kind} value={{ styles: draft.styles, stylesOther: draft.stylesOther }} onChange={(next) => store().setDraft({ styles: [...next.styles], stylesOther: [...next.stylesOther] })} invalid={formError === "style" || !!form.error("style")} errorText={form.error("style")} disabled={locked} />
+                </View>
                 {kindHasRecordingType(kind) ? (
                   <View {...form.field("recordingType")} style={styles.field}>
                     <RecordingTypeField theme={theme} kind={kind} value={draft.recordingType} onChange={(next) => store().setDraft({ recordingType: next })} invalid={formError === "recordingType" || !!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
@@ -735,12 +744,16 @@ function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMe
           <LanguageField theme={theme} kind={kind} value={{ language: draft.language, languageOther: draft.languageOther }} onOpen={onOpenLanguage} errorText={languageMessage} invalid={!!languageMessage} disabled={locked} />
         </View>
       ) : null}
-      {has.discourse ? (
+      {has.place ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.place.label")}</Text>
           <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
-            <TextInput value={draft.place} onChangeText={(text) => setDraft({ place: text })} editable={!locked} placeholder={t("rec.place.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.place.label")} maxLength={200} style={[styles.input, { color: theme.textHeading }]} />
+            <TextInput value={draft.place} onChangeText={(text) => setDraft({ place: fixKiirtanSpelling(text) })} onBlur={() => setDraft({ place: fixKiirtanSpelling(draft.place) })} editable={!locked} placeholder={t("rec.place.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.place.label")} maxLength={200} style={[styles.input, { color: theme.textHeading }]} />
           </View>
+        </>
+      ) : null}
+      {has.discourse ? (
+        <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.discourse.label")}</Text>
           <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
             <TextInput value={draft.discourse} onChangeText={(text) => setDraft({ discourse: text })} editable={!locked} placeholder={t("rec.discourse.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.discourse.label")} maxLength={200} style={[styles.input, { color: theme.textHeading }]} />

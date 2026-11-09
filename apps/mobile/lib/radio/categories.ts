@@ -8,13 +8,14 @@ import { RECORDING_KINDS, type RecordingKind } from "@/lib/kirtan/types"
 
 export type RadioCategory = RecordingKind
 
-/** In the order the chips show: the songs first, Baba's voice last. */
+/** In the order the chips show: the songs first, then the mantras, Baba's voice last. */
 export const RADIO_CATEGORIES: readonly RadioCategory[] = [
   "prabhat_samgiita",
   "kiirtan",
   "bhajan",
   "spiritual_song",
   "dance_song",
+  "other_mantra",
   "baba_audio",
 ]
 
@@ -39,6 +40,7 @@ export const NO_COUNTS: RadioCounts = {
   spiritual_song: 0,
   dance_song: 0,
   baba_audio: 0,
+  other_mantra: 0,
 }
 
 export function isRadioCategory(value: unknown): value is RadioCategory {

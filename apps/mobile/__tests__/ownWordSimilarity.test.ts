@@ -8,8 +8,9 @@ import { similarStyle } from "@/lib/kirtan/styles"
 
 describe("one similarity rule for every own-word field", () => {
   it("style: a near spelling of a listed style is offered, a listed one is not", () => {
-    expect(similarStyle("Dhrupat")).toBe("dhrupad")
-    expect(similarStyle("dhrupad")).toBeNull()
+    expect(similarStyle("Electonic")).toBe("electronic")
+    expect(similarStyle("acoustic guitr")).toBe("acoustic_guitar")
+    expect(similarStyle("electronic")).toBeNull()
     expect(similarStyle("Jazz")).toBeNull()
     expect(similarStyle("")).toBeNull()
   })

@@ -1,6 +1,8 @@
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import { cleanInstrument, OTHER_INSTRUMENT } from "@/lib/kirtan/instruments"
 import { cleanRecordingInfo, kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
+import { kindHasMood } from "@/lib/kirtan/moods"
+import { kindHasStyle } from "@/lib/kirtan/styles"
 import { kindHasCredits, kindHasDance, kindHasDiscourse, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 
@@ -10,7 +12,8 @@ import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/typ
  *  - the sung LANGUAGE is asked for every kind but Kiirtan; it is REQUIRED for a Bhajan, a Spiritual song and a Baba's Audio Discourse (KIND_LANGUAGE_RULE);
  *  - "Other" names its language in words (`languageOther`), and the name is required once "Other" is chosen;
  *  - a Dance music names its DANCE (Tandava or Kaoshiki), and must;
- *  - "words and music by" is asked for a Bhajan only; the place and the discourse name or number for Baba's Audio only (no performer is asked there);
+ *  - "words and music by" is asked for a Bhajan only; the PLACE (where it was recorded or performed) is asked for every kind, the discourse name or number for Baba's Audio only (no performer is asked there);
+ *  - the styles and moods are asked for every kind but Baba's Audio (a Kiirtan must name a style); the tempo for Dance music only;
  *  - the song number belongs to a Prabhat Samgiita recording only.
  * Changing the type clears the fields the new type does not have, so nothing hidden is ever sent.
  */
@@ -24,9 +27,12 @@ type TypeFields = {
   place: string
   discourse: string
   psSong: { number: number; title: string } | null
-  /** Kiirtan only: the style (lib/kirtan/styles.ts; REQUIRED for a Kiirtan); forms without it leave these out */
-  style?: string | null
-  styleOther?: string
+  /** the styles (ids) and the person's own style words (lib/kirtan/styles.ts; REQUIRED for a Kiirtan); forms without them leave these out */
+  styles?: readonly string[]
+  stylesOther?: readonly string[]
+  /** the moods (ids) and own mood words (lib/kirtan/moods.ts); optional */
+  moods?: readonly string[]
+  moodsOther?: readonly string[]
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan (lib/kirtan/practice.ts); forms without it leave it out */
   practice?: string | null
   /** how it was recorded, the tempo, solo or group (lib/kirtan/recordingInfo.ts); forms without them leave them out */
@@ -47,14 +53,17 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
   if (next.language !== OTHER_LANGUAGE) next.languageOther = ""
   if (!kindHasDance(next.kind)) next.dance = null
   if (!kindHasCredits(next.kind)) next.credits = ""
-  if (!kindHasDiscourse(next.kind)) {
-    next.place = ""
-    next.discourse = ""
-  }
+  // the place is asked for every kind; the discourse name or number only for Baba's Audio
+  if (!kindHasDiscourse(next.kind)) next.discourse = ""
   if (next.kind !== "prabhat_samgiita") next.psSong = null
-  if (next.kind !== "kiirtan" && "style" in next) {
-    ;(next as TypeFields).style = null
-    ;(next as TypeFields).styleOther = ""
+  // styles and moods go with the kind that has none (Baba's Audio); the other kinds keep what the person chose
+  if (!kindHasStyle(next.kind) && "styles" in next) {
+    ;(next as TypeFields).styles = []
+    ;(next as TypeFields).stylesOther = []
+  }
+  if (!kindHasMood(next.kind) && "moods" in next) {
+    ;(next as TypeFields).moods = []
+    ;(next as TypeFields).moodsOther = []
   }
   if (next.kind !== "kiirtan" && "practice" in next) (next as TypeFields).practice = null
   // the recording info follows the type too: a field the new type does not carry goes, and an AI recording is not a Bhajan
@@ -89,8 +98,9 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
 }
 
 /** Which optional fields "More details" shows for a type (a language that is REQUIRED sits above it, not in it). */
-export function moreDetailsFor(kind: RecordingKind): { language: boolean; credits: boolean; discourse: boolean } {
-  return { language: kindLanguageRule(kind) === "optional", credits: kindHasCredits(kind), discourse: kindHasDiscourse(kind) }
+export function moreDetailsFor(kind: RecordingKind): { language: boolean; credits: boolean; discourse: boolean; place: boolean } {
+  // the place where it was recorded or performed is asked for every kind (Dada, 9 Nov 2026)
+  return { language: kindLanguageRule(kind) === "optional", credits: kindHasCredits(kind), discourse: kindHasDiscourse(kind), place: true }
 }
 
 /** The key of the one-line hint under the closed "More details" header, in the words of the type. */

@@ -13,7 +13,10 @@ import { kindHasByAuthor, kindHasRecordingType } from "@/lib/kirtan/recordingInf
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
+import { MoodField } from "@/components/kirtan/add/MoodField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
+import { kindHasMood } from "@/lib/kirtan/moods"
+import { kindHasStyle } from "@/lib/kirtan/styles"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { DanceField, FieldError, LanguageField, LanguagePicker, RequiredMark, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar } from "@/components/kirtan/add/QueueRows"
@@ -458,7 +461,7 @@ export default function UploadSetScreen() {
         <View style={styles.field}>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("set.d.kind")}</Text>
           <View style={styles.chips} accessibilityRole="radiogroup">
-            {RECORDING_KINDS.map((kind) => {
+            {RECORDING_KINDS.filter((k) => k !== "other_mantra").map((kind) => {
               const on = d.defaultKind === kind
               return (
                 <KPress
@@ -469,7 +472,7 @@ export default function UploadSetScreen() {
                   onActivate={() => {
                     if (locked) return
                     const clear = kindHasLanguage(kind) ? {} : { defaultLanguage: null, defaultLanguageOther: "" }
-                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultStyle: null, defaultStyleOther: "", defaultPractice: null }), ...(kind === d.defaultKind ? {} : { defaultRecordingType: null, defaultTempo: null, defaultPerformance: null, defaultLeadInstrument: null, defaultLeadInstrumentOther: "" }), ...(kindHasByAuthor(kind) ? {} : { defaultByAuthor: false }) })
+                    store().details(d.id, { defaultKind: kind, ...clear, ...(kindHasDance(kind) ? {} : { defaultDance: null }), ...(kind === "kiirtan" ? {} : { defaultPractice: null }), ...(kindHasStyle(kind) ? {} : { defaultStyles: [], defaultStylesOther: [] }), ...(kindHasMood(kind) ? {} : { defaultMoods: [], defaultMoodsOther: [] }), ...(kind === d.defaultKind ? {} : { defaultRecordingType: null, defaultTempo: null, defaultPerformance: null, defaultLeadInstrument: null, defaultLeadInstrumentOther: "" }), ...(kindHasByAuthor(kind) ? {} : { defaultByAuthor: false }) })
                   }}
                   pressedScale={0.96}
                   style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line }]}
@@ -487,13 +490,16 @@ export default function UploadSetScreen() {
             <DanceField theme={theme} value={d.defaultDance} onChange={(dance) => { form.clear(); store().details(d.id, { defaultDance: dance }) }} invalid={!!form.error("dance")} errorText={form.error("dance")} disabled={locked} />
           </View>
         ) : null}
-        {/* a Kiirtan's style is required; the playlist gives it once to all its Kiirtans. The Avarta tick is optional (a track can say otherwise). */}
-        {setNeedsStyle(d) ? (
+        {/* the playlist gives its mood and style once to all its tracks. A Kiirtan's style is required; the Avarta tick is optional (a track can say otherwise). */}
+        {kindHasMood(d.defaultKind) || kindHasStyle(d.defaultKind) || setNeedsStyle(d) ? (
           <View style={styles.group}>
-            <View {...form.field("style")} style={styles.field}>
-              <StyleField theme={theme} kind="kiirtan" value={{ style: d.defaultStyle, styleOther: d.defaultStyleOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultStyle: next.style, defaultStyleOther: next.styleOther }) }} invalid={!!form.error("style")} errorText={form.error("style")} disabled={locked} />
+            <View {...form.field("mood")} style={styles.field}>
+              <MoodField theme={theme} kind={d.defaultKind} value={{ moods: d.defaultMoods, moodsOther: d.defaultMoodsOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultMoods: [...next.moods], defaultMoodsOther: [...next.moodsOther] }) }} disabled={locked} />
             </View>
-            <PracticeField theme={theme} kind="kiirtan" on={d.defaultPractice === AVARTA} onChange={(on) => store().details(d.id, { defaultPractice: on ? AVARTA : null })} disabled={locked} />
+            <View {...form.field("style")} style={styles.field}>
+              <StyleField theme={theme} kind={setNeedsStyle(d) ? "kiirtan" : d.defaultKind} value={{ styles: d.defaultStyles, stylesOther: d.defaultStylesOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultStyles: [...next.styles], defaultStylesOther: [...next.stylesOther] }) }} invalid={!!form.error("style")} errorText={form.error("style")} disabled={locked} />
+            </View>
+            {setNeedsStyle(d) ? <PracticeField theme={theme} kind="kiirtan" on={d.defaultPractice === AVARTA} onChange={(on) => store().details(d.id, { defaultPractice: on ? AVARTA : null })} disabled={locked} /> : null}
           </View>
         ) : null}
         {/* how it sounds: how it was recorded, solo or group, the tempo and the main instrument (the fields of a Kiirtan when the playlist holds one) */}

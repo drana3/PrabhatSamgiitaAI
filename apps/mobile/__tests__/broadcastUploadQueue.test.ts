@@ -34,7 +34,7 @@ beforeEach(() => {
   runUpload.mockReset()
   useKirtanStore.getState().reset()
   queue().reset()
-  queue().setDraft({ performer: "Priya Devi", style: "bengali", recordingType: "studio", performance: "solo" })
+  queue().setDraft({ performer: "Priya Devi", styles: ["indian"], recordingType: "studio", performance: "solo" })
 })
 
 describe("the queue and a broadcast", () => {
@@ -64,7 +64,7 @@ describe("the queue and a broadcast", () => {
     await queue().start()
     expect(useKirtanStore.getState().submissions[0]).toMatchObject({ broadcastId: "b-1" })
     queue().reset()
-    queue().setDraft({ performer: "Priya Devi", style: "bengali", recordingType: "studio", performance: "solo" })
+    queue().setDraft({ performer: "Priya Devi", styles: ["indian"], recordingType: "studio", performance: "solo" })
     useKirtanStore.getState().reset()
     queue().addFiles([{ name: "other.mp3", uri: "blob:b", size: 1000, type: "audio/mpeg" }])
     await queue().start()

@@ -7,6 +7,7 @@ import { kindHasChords, kindHasLanguage } from "@/lib/kirtan/kind"
 import { effectiveRecordingType } from "@/lib/kirtan/recordingInfo"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
+import { fixKiirtanSpelling, fixKiirtanSpellingIn } from "@/lib/kirtan/kiirtanSpelling"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { useRecordingChordsPendingStore } from "@/stores/recordingChordsPendingStore"
 
@@ -29,16 +30,18 @@ export type QueueDraft = {
   /** Dance music: Tandava or Kaoshiki */
   dance: DanceId | null
   credits: string
-  /** Baba's Audio Discourses: where, and the name or number of the discourse (both optional) */
+  /** where it was recorded or performed (every kind, optional), and Baba's Audio Discourses: the name or number of the discourse */
   place: string
   discourse: string
   year: string
   notes: string
   /** Prabhat Samgiita: the song this is a performance of */
   psSong: { number: number; title: string } | null
-  /** Kiirtan only, optional: the style, and its name when it is "other" (applies to every row) */
-  style: string | null
-  styleOther: string
+  /** the styles (ids) and the person's own style words, REQUIRED for a Kiirtan, optional for the kinds that keep one; and the moods the same way (apply to every row) */
+  styles: string[]
+  stylesOther: string[]
+  moods: string[]
+  moodsOther: string[]
   /** Kiirtan only, optional: "avarta" marks the whole queue as Avarta Kiirtan; a row may say otherwise (QueueItem.practice) */
   practice: string | null
   /** how it was recorded (REQUIRED for a Kiirtan), the tempo, solo or group: lib/kirtan/recordingInfo.ts; a row may say another type (QueueItem.recordingType) */
@@ -51,7 +54,7 @@ export type QueueDraft = {
   byAuthor: boolean
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false }
 
 type QueueState = {
   items: QueueItem[]
@@ -136,8 +139,10 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       discourse: draft.discourse,
       notes: draft.notes,
       psSong: draft.psSong?.number ?? null,
-      style: draft.style,
-      styleOther: draft.styleOther,
+      styles: draft.styles,
+      stylesOther: draft.stylesOther,
+      moods: draft.moods,
+      moodsOther: draft.moodsOther,
       practice: effectivePractice(item, draft.kind, draft.practice),
       recordingType: effectiveRecordingType(item.recordingType, draft.recordingType, draft.kind),
       tempo: draft.tempo,
@@ -185,7 +190,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     // The picked files stay when the type changes (they are the same files); what the old type's fields and rows said does not.
     setDraft: (change) => {
       const before = get().draft
-      const draft = draftWithPatch(before, change)
+      const draft = draftWithPatch(before, fixKiirtanSpellingIn(change, ["performer", "place", "discourse", "credits"]))
       set({ draft, ...(draft.kind !== before.kind ? { items: withoutKindBoundChoices(get().items) } : {}) })
     },
     openFresh: () => {
@@ -199,7 +204,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       set({ items: result.items })
       return { added: result.added, skipped: result.skipped }
     },
-    setTitle: (id, title) => set({ items: setItemTitle(get().items, id, title) }),
+    setTitle: (id, title) => set({ items: setItemTitle(get().items, id, fixKiirtanSpelling(title)) }),
     setRowFields: (id, change) => set({ items: setRowFields(get().items, id, change) }),
     applyToAll: (change) => set({ items: applyToAll(get().items, change) }),
     remove: (id) => {

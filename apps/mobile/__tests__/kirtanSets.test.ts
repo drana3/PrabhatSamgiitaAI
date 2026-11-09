@@ -43,7 +43,7 @@ let counter = 0
 const newId = () => `t${(counter += 1)}`
 
 function draftWith(names: string[], patch: Partial<SetDraft> = {}): SetDraft {
-  const base: SetDraft = { ...newSetDraft("set-1", NOW), title: "Dhanbad retreat", eventYear: 2026, eventMonth: null, performer: "Priya Devi", defaultStyle: "bengali", defaultRecordingType: "studio", defaultPerformance: "solo", confirmed: true, ...patch }
+  const base: SetDraft = { ...newSetDraft("set-1", NOW), title: "Dhanbad retreat", eventYear: 2026, eventMonth: null, performer: "Priya Devi", defaultStyles: ["indian"], defaultRecordingType: "studio", defaultPerformance: "solo", confirmed: true, ...patch }
   return addTracks(base, names.map((name) => file(name)), newId, false).draft
 }
 
@@ -69,21 +69,21 @@ describe("details of the set", () => {
     expect(validateSetDetails(empty, NOW)).toBe("title")
     // a Kiirtan playlist names its style (the rule of a single Kiirtan upload)
     expect(validateSetDetails({ ...empty, title: "A" }, NOW)).toBe("style")
-    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "other", defaultStyleOther: " " }, NOW)).toBe("style")
-    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "other", defaultStyleOther: "Manipuri", defaultRecordingType: "studio", defaultPerformance: "solo" }, NOW)).toBeNull()
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyles: [], defaultStylesOther: [" "] }, NOW)).toBe("style")
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyles: [], defaultStylesOther: ["Manipuri"], defaultRecordingType: "studio", defaultPerformance: "solo" }, NOW)).toBeNull()
     // only the title and the style: no year, no month, no place, no performer
-    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "bengali", defaultRecordingType: "studio", defaultPerformance: "solo" }, NOW)).toBeNull()
-    expect(validateSetDetails({ ...empty, title: "A", defaultStyle: "bengali", defaultRecordingType: "studio", defaultPerformance: "solo", eventYear: 2026, eventMonth: 3, performer: "", place: "" }, NOW)).toBeNull()
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyles: ["indian"], defaultRecordingType: "studio", defaultPerformance: "solo" }, NOW)).toBeNull()
+    expect(validateSetDetails({ ...empty, title: "A", defaultStyles: ["indian"], defaultRecordingType: "studio", defaultPerformance: "solo", eventYear: 2026, eventMonth: 3, performer: "", place: "" }, NOW)).toBeNull()
     // another type has no style to give
     expect(validateSetDetails({ ...empty, title: "A", defaultKind: "bhajan" }, NOW)).toBeNull()
   })
 
   it("a track that is a Kiirtan in a playlist of another type brings the style requirement with it", () => {
-    let draft = draftWith(["a.mp3"], { defaultKind: "bhajan", defaultLanguage: "bn", defaultStyle: null })
+    let draft = draftWith(["a.mp3"], { defaultKind: "bhajan", defaultLanguage: "bn", defaultStyles: [] })
     expect(validateSetDetails(draft, NOW)).toBeNull()
     draft = setTrackKind(draft, draft.tracks[0]!.id, "kiirtan")
     expect(validateSetDetails(draft, NOW)).toBe("style")
-    expect(startBlock({ ...draft, defaultStyle: "hindi", defaultRecordingType: "studio", defaultPerformance: "solo" }, NOW)).toBeNull()
+    expect(startBlock({ ...draft, defaultStyles: ["western"], defaultRecordingType: "studio", defaultPerformance: "solo" }, NOW)).toBeNull()
   })
 
   it("a playlist without a date files its tracks under no day", () => {
@@ -93,7 +93,7 @@ describe("details of the set", () => {
   })
 
   it("a year or month ahead of today is the future", () => {
-    const base = { ...newSetDraft("x", NOW), title: "A", defaultStyle: "bengali", defaultRecordingType: "studio", defaultPerformance: "solo" }
+    const base = { ...newSetDraft("x", NOW), title: "A", defaultStyles: ["indian"], defaultRecordingType: "studio", defaultPerformance: "solo" }
     expect(validateSetDetails({ ...base, eventYear: 2027 }, NOW)).toBe("future")
     expect(validateSetDetails({ ...base, eventYear: 2026, eventMonth: 12 }, NOW)).toBe("future")
     expect(validateSetDetails({ ...base, eventYear: 2026, eventMonth: 11 }, NOW)).toBeNull()

@@ -185,11 +185,13 @@ describe("filtering by kind", () => {
     expect(typeCards(approved, "bhajan").map((c) => c.label)).toEqual(["Morning", "Evening", "Devotional", "Other"])
     expect(typeCards(approved, "kiirtan").map((c) => c.label)).toEqual(["Baba Nam Kevalam", "Lila kiirtan", "Festival", "Other"])
     const all = typeCards(approved, "all")
-    expect(all).toHaveLength(8)
+    expect(all).toHaveLength(11)
     expect(all.slice(0, 4).every((c) => c.kind === "kiirtan")).toBe(true)
-    expect(all.slice(4).every((c) => c.kind === "bhajan")).toBe(true)
-    // only Kiirtan and Bhajan have sub-types; Prabhat Samgiita has no type cards
-    expect(all.reduce((n, c) => n + c.count, 0)).toBe(filterByKind(approved, "kiirtan").length + filterByKind(approved, "bhajan").length)
+    expect(all.slice(4, 8).every((c) => c.kind === "bhajan")).toBe(true)
+    expect(all.slice(8).every((c) => c.kind === "other_mantra")).toBe(true)
+    expect(typeCards(approved, "other_mantra").map((c) => c.label)).toEqual(["Guru Puja", "Pitriyajina", "Other mantra"])
+    // only Kiirtan, Bhajan and Other mantras have sub-types; Prabhat Samgiita has no type cards
+    expect(all.reduce((n, c) => n + c.count, 0)).toBe(filterByKind(approved, "kiirtan").length + filterByKind(approved, "bhajan").length + filterByKind(approved, "other_mantra").length)
     expect(typeCards(approved, "prabhat_samgiita")).toEqual([])
     expect(typeCardCount({ kind: "bhajan", count: 1 })).toBe("1 bhajan")
     expect(typeCardCount({ kind: "kiirtan", count: 5 })).toBe("5 kiirtans")
@@ -258,7 +260,7 @@ describe("submissions carry the kind", () => {
     expect(validateSubmission(base)).toBe("language") // a Bhajan names its language
     expect(validateSubmission({ ...base, language: "bn" })).toBeNull()
     expect(validateSubmission({ ...base, kind: "kiirtan" })).toBe("style") // a Kiirtan names its style
-    expect(validateSubmission({ ...base, kind: "kiirtan", style: "hindi", recordingType: "studio", performance: "solo" })).toBeNull()
+    expect(validateSubmission({ ...base, kind: "kiirtan", styles: ["indian"], recordingType: "studio", performance: "solo" })).toBeNull()
     expect(buildSubmission({ ...base, kind: "kiirtan" }, 1).type).toBe("other")
   })
 

@@ -1,10 +1,10 @@
 import { t } from "@/lib/i18n"
-import { kindHasCycle } from "@/lib/recordingChords/kinds"
 
 import { infoTags } from "./recordingInfo"
 import { isAvarta } from "./practice"
 import { kindHasInstrument } from "./instruments"
-import { styleLabel } from "./styles"
+import { moodLabel } from "./moods"
+import { kindHasStyle, styleLabel, stylesOfRecord } from "./styles"
 import type { Kirtan } from "./types"
 
 /**
@@ -15,10 +15,16 @@ import type { Kirtan } from "./types"
  */
 export type PageTag = { id: string; label: string; tone: "plain" | "ai" | "practice" }
 
-export function pageTags(k: Pick<Kirtan, "kind" | "style" | "styleOther" | "practice" | "recordingType" | "tempo" | "performance" | "leadInstrument" | "leadInstrumentOther">): PageTag[] {
+export function pageTags(k: Pick<Kirtan, "kind" | "style" | "styleOther" | "styles" | "stylesOther" | "moods" | "moodsOther" | "practice" | "recordingType" | "tempo" | "performance" | "leadInstrument" | "leadInstrumentOther">): PageTag[] {
   const out: PageTag[] = []
-  const style = kindHasCycle(k.kind) ? styleLabel(k.style, k.styleOther) : ""
-  if (style && k.style) out.push({ id: `style-${k.style}`, label: t("recTag.style", { style }), tone: "plain" })
+  // every style it carries, then every mood: the lists, or the one old `style` as a list of one
+  if (kindHasStyle(k.kind)) {
+    const carried = stylesOfRecord(k)
+    for (const id of carried.styles) out.push({ id: `style-${id}`, label: t("recTag.style", { style: styleLabel(id) }), tone: "plain" })
+    for (const word of carried.stylesOther) out.push({ id: `style-own-${word}`, label: t("recTag.style", { style: word }), tone: "plain" })
+    for (const id of k.moods ?? []) out.push({ id: `mood-${id}`, label: moodLabel(id), tone: "plain" })
+    for (const word of k.moodsOther ?? []) out.push({ id: `mood-own-${word}`, label: word, tone: "plain" })
+  }
   for (const tag of infoTags(k)) {
     if (tag.id.startsWith("instrument-") && !kindHasInstrument(k.kind)) continue
     out.push({ id: tag.id, label: tag.label, tone: tag.ai ? "ai" : "plain" })

@@ -161,20 +161,26 @@ describe("the video link of the Kiirtan upload form", () => {
 })
 
 describe("the tag row of a recording's page", () => {
-  const base = { kind: "kiirtan" as const, style: undefined, styleOther: undefined, practice: undefined, recordingType: undefined, tempo: undefined, performance: undefined, leadInstrument: undefined, leadInstrumentOther: undefined }
+  const base = { kind: "kiirtan" as const, style: undefined, styleOther: undefined, styles: undefined, stylesOther: undefined, moods: undefined, moodsOther: undefined, practice: undefined, recordingType: undefined, tempo: undefined, performance: undefined, leadInstrument: undefined, leadInstrumentOther: undefined }
   it("has nothing for a recording that states nothing", () => {
     expect(pageTags(base)).toEqual([])
   })
   it("names the style first, then how it was recorded, tempo, solo or group, instrument and Avarta", () => {
-    const tags = pageTags({ ...base, style: "bengali", recordingType: "studio", tempo: "slow", performance: "group", leadInstrument: "harmonium", practice: "avarta" })
-    expect(tags.map((tag) => tag.id)).toEqual(["style-bengali", "type-studio", "tempo-slow", "performance-group", "instrument-harmonium", "practice-avarta"])
-    expect(tags[0]?.label).toMatch(/Bengali/i)
+    const tags = pageTags({ ...base, styles: ["indian"], recordingType: "studio", tempo: "slow", performance: "group", leadInstrument: "harmonium", practice: "avarta" })
+    expect(tags.map((tag) => tag.id)).toEqual(["style-indian", "type-studio", "tempo-slow", "performance-group", "instrument-harmonium", "practice-avarta"])
+    expect(tags[0]?.label).toMatch(/Indian/i)
+  })
+  it("names every style and mood a recording carries, an older row's single style too", () => {
+    const tags = pageTags({ ...base, styles: ["indian", "electronic"], stylesOther: ["Baul"], moods: ["joyful", "mix"], moodsOther: ["Deep peace"] })
+    expect(tags.map((tag) => tag.id)).toEqual(["style-indian", "style-electronic", "style-own-Baul", "mood-joyful", "mood-mix", "mood-own-Deep peace"])
+    expect(pageTags({ ...base, style: "bengali" }).map((tag) => tag.id)).toEqual(["style-bengali"])
   })
   it("marks an AI-made recording", () => {
     expect(pageTags({ ...base, recordingType: "ai" }).find((tag) => tag.id === "type-ai")?.tone).toBe("ai")
   })
-  it("has no style for another kind, and no instrument for Baba's Audio Discourses", () => {
-    expect(pageTags({ ...base, kind: "bhajan", style: "bengali" }).some((tag) => tag.id.startsWith("style-"))).toBe(false)
+  it("has no style or mood for Baba's Audio Discourses, and no instrument either", () => {
+    expect(pageTags({ ...base, kind: "bhajan", styles: ["indian"] }).some((tag) => tag.id.startsWith("style-"))).toBe(true)
+    expect(pageTags({ ...base, kind: "baba_audio", styles: ["indian"], moods: ["joyful"] })).toEqual([])
     expect(pageTags({ ...base, kind: "baba_audio", leadInstrument: "harmonium" }).some((tag) => tag.id.startsWith("instrument-"))).toBe(false)
   })
 })

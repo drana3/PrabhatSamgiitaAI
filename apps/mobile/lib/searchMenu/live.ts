@@ -72,6 +72,8 @@ export function toMenuRecording(k: MenuKirtan): MenuRecording {
     createdAt: k.addedAt,
     plays: typeof k.plays === "number" ? k.plays : null,
     collectionId: k.collectionId ?? null,
+    styles: k.styles ?? null,
+    stylesOther: k.stylesOther ?? null,
     style: k.style ?? null,
     styleOther: k.styleOther ?? null,
     dance: k.dance ?? null,
@@ -122,20 +124,25 @@ function newest(list: readonly MenuKirtan[]): MenuKirtan[] {
 
 const byAuthorKey = (k: Pick<Kirtan, "author">, key: string) => splitAuthors(k.author).some((name) => artistKey(name) === key)
 
-/** The style key a Kiirtan counts under: a listed id, "other:<slug>" for a typed name, "other" for an unnamed one; "" without a style. */
-function styleKey(k: MenuKirtan): string {
-  if (!k.style) return ""
-  if (k.style !== "other") return k.style
+/**
+ * The style keys a Kiirtan counts under (it may carry several): a listed id, "other:<slug>" for a typed name, "other" for an unnamed
+ * one. A row from before the lists carries the one `style`. None without a style.
+ */
+function styleKeys(k: MenuKirtan): string[] {
+  if (k.styles != null || k.stylesOther != null) {
+    const own = (k.stylesOther ?? []).map((w) => slugOf(w)).filter(Boolean).map((slug) => `${CUSTOM_STYLE_PREFIX}${slug}`)
+    return [...new Set([...(k.styles ?? []), ...own])]
+  }
+  if (!k.style) return []
+  if (k.style !== "other") return [k.style]
   const slug = slugOf(k.styleOther)
-  return slug ? `${CUSTOM_STYLE_PREFIX}${slug}` : "other"
+  return [slug ? `${CUSTOM_STYLE_PREFIX}${slug}` : "other"]
 }
 
 /** The Kiirtan carries "Other" styles that have no shelf of their own (yet): they are the list behind "Other styles". */
 function isRestStyle(k: MenuKirtan, stats: Partial<Pick<MenuStats, "kiirtanStyles" | "memory">>, now: number): boolean {
-  const key = styleKey(k)
-  if (key === "other") return true
-  if (!key.startsWith(CUSTOM_STYLE_PREFIX)) return false
-  return !splitStyles({ kiirtanStyles: stats.kiirtanStyles, memory: stats.memory, now }).own.some((o) => o.id === key)
+  const own = splitStyles({ kiirtanStyles: stats.kiirtanStyles, memory: stats.memory, now }).own
+  return styleKeys(k).some((key) => key === "other" || (key.startsWith(CUSTOM_STYLE_PREFIX) && !own.some((o) => o.id === key)))
 }
 
 /** Values of one tag facet on a recording, as the keys discovery counts them under. */
@@ -165,7 +172,7 @@ export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stat
   }
   const [head, mid, tail] = shelfId.split(":")
   if (head === "kiirtan" && mid === "type") return newest(kiirtans().filter((k) => (k.type || "other") === tail))
-  if (head === "kiirtan" && mid === "style") return newest(kiirtans().filter((k) => styleKey(k) === shelfId.slice("kiirtan:style:".length) || (tail === "other" && shelfId === "kiirtan:style:other" && isRestStyle(k, stats, now))))
+  if (head === "kiirtan" && mid === "style") return newest(kiirtans().filter((k) => styleKeys(k).includes(shelfId.slice("kiirtan:style:".length)) || (tail === "other" && shelfId === "kiirtan:style:other" && isRestStyle(k, stats, now))))
   if (head === "author") return newest(kirtans.filter((k) => kind(k) === "kiirtan" && byAuthorKey(k, shelfId.slice("author:".length))))
   if (head === "bhajan" && mid === "type") return newest(kirtans.filter((k) => kind(k) === "bhajan" && (k.type || "other") === tail))
   if (head === "bhajan" && mid === "lang") {

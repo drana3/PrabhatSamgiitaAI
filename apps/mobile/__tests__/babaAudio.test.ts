@@ -75,18 +75,20 @@ describe("Baba's Audio Discourses on the phone", () => {
     const bare = buildSubmission({ ...base, language: "en" }, 2)
     expect(bare).not.toHaveProperty("place")
     expect(bare).not.toHaveProperty("discourse")
-    // another kind never stores them
-    expect(buildSubmission({ ...base, kind: "bhajan", author: "A", language: "en", place: "Ranchi", discourse: "1" }, 3)).not.toHaveProperty("place")
+    // every kind keeps the place (Dada, 9 Nov 2026); only Baba's Audio keeps the discourse name
+    const bhajan = buildSubmission({ ...base, kind: "bhajan", author: "A", language: "en", place: "Ranchi", discourse: "1" }, 3)
+    expect(bhajan).toMatchObject({ place: "Ranchi" })
+    expect(bhajan).not.toHaveProperty("discourse")
   })
 
-  it("clears the place and the discourse when the kind changes away", () => {
+  it("clears the discourse when the kind changes away, and keeps the place (every kind has one)", () => {
     const draft: Parameters<typeof draftWithPatch>[0] = { kind: "baba_audio", language: "en", languageOther: "", dance: null, credits: "", place: "Ranchi", discourse: "12", psSong: null }
     expect(draftWithPatch(draft, {})).toMatchObject({ place: "Ranchi", discourse: "12" })
-    expect(draftWithPatch(draft, { kind: "bhajan" })).toMatchObject({ place: "", discourse: "" })
-    expect(moreDetailsFor("baba_audio")).toEqual({ language: false, credits: false, discourse: true })
+    expect(draftWithPatch(draft, { kind: "bhajan" })).toMatchObject({ place: "Ranchi", discourse: "" })
+    expect(moreDetailsFor("baba_audio")).toEqual({ language: false, credits: false, discourse: true, place: true })
   })
 
-  it("sends place and discourse to the server for this kind only, and reads them back", async () => {
+  it("sends the place for every kind and the discourse for this kind only, and reads them back", async () => {
     const calls: { body: Record<string, unknown> }[] = []
     const rec = { id: "r1", kind: "baba_audio", type: "other", title: "T", author: BABA_AUTHOR, added_by: "A", author_id: null, by_author: false, status: "published", duration_sec: null, plays: 0, audio_url: "u", thumbnail_url: null, published_at: null, created_at: "2026-01-01T00:00:00Z" } as RemoteRecording
     const fake = (async (_url: string, init?: RequestInit) => {
@@ -98,7 +100,7 @@ describe("Baba's Audio Discourses on the phone", () => {
     await publishRecording(cfg, { ...common, kind: "baba_audio" })
     expect(calls[0]!.body).toMatchObject({ kind: "baba_audio", language: "en", place: "Ranchi", discourse: "12" })
     await publishRecording(cfg, { ...common, kind: "bhajan" })
-    expect(calls[1]!.body).not.toHaveProperty("place")
+    expect(calls[1]!.body).toMatchObject({ place: "Ranchi" })
     expect(calls[1]!.body).not.toHaveProperty("discourse")
     expect(fromRemote({ ...rec, place: "Ranchi", discourse: "12", language: "en" })).toMatchObject({ kind: "baba_audio", place: "Ranchi", discourse: "12" })
     expect(fromRemote(rec)).not.toHaveProperty("place")

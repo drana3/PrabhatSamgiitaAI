@@ -67,7 +67,7 @@ function run(w: ReturnType<typeof world>, seed: number, picks: number) {
 }
 
 describe("pool and keys", () => {
-  it("sorts tracks into the six categories and counts them, empty ones too", () => {
+  it("sorts tracks into the seven categories and counts them, empty ones too", () => {
     const w = world()
     const built = buildRadioPools(w.deps.source())
     expect(built.pools.map((p) => p.category)).toEqual([
@@ -76,6 +76,7 @@ describe("pool and keys", () => {
       "bhajan",
       "spiritual_song",
       "dance_song",
+      "other_mantra",
       "baba_audio",
     ])
     expect(built.counts).toEqual({
@@ -84,6 +85,7 @@ describe("pool and keys", () => {
       bhajan: 12,
       spiritual_song: 8,
       dance_song: 0,
+      other_mantra: 0,
       baba_audio: 3,
     })
   })

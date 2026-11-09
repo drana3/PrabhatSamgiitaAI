@@ -23,7 +23,7 @@ export type ReportReason = "impersonation" | "offensive" | "spam" | "copyright" 
 export type StatsPeriod = 7 | 30 | 90
 export type DirectorySort = "listeners" | "new" | "name"
 /** The recording kinds the directory can filter by (the server's list). */
-export const DIRECTORY_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song"] as const
+export const DIRECTORY_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "other_mantra"] as const
 export type DirectoryKind = (typeof DIRECTORY_KINDS)[number]
 export type DirectoryQuery = { q?: string; sort?: DirectorySort; kind?: DirectoryKind; language?: string; offset?: number; limit?: number }
 

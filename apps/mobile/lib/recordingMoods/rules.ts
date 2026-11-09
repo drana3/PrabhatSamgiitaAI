@@ -1,4 +1,4 @@
-import { MOODS } from "@/lib/kirtan/moods"
+import { LEGACY_MOODS, UPLOAD_MOODS } from "@/lib/kirtan/moods"
 
 import type { MoodState, MoodStatus, RecordingMoods } from "./types"
 
@@ -11,7 +11,7 @@ export const YES_NEEDED_LISTENERS = 5
 export const YES_SHARE = 0.7
 export const REJECT_AFTER_VOTES = 5
 export const REJECT_BELOW_SHARE = 0.3
-export const UPLOADER_MOODS_MAX = 2
+export const UPLOADER_MOODS_MAX = 5
 
 /** The status the votes give (the server also asks for one "yes" of an account older than 30 days; the stand-in does not). */
 export function decideMood(source: "uploader" | "listeners" | "team", yes: number, no: number): MoodStatus {
@@ -25,7 +25,9 @@ export function decideMood(source: "uploader" | "listeners" | "team", yes: numbe
 /** The six moods in the app's order, each with the state the server sent (or "none"). */
 export function orderedMoods(page: Pick<RecordingMoods, "moods">): MoodState[] {
   const found = new Map(page.moods.map((m) => [m.mood, m]))
-  return MOODS.map((mood) => found.get(mood) ?? { mood, status: "none", source: null, locked: false, yes: 0, no: 0, mine: null })
+  // the five the form offers always; an older word (Calm, Ecstatic, Devotion, Sad) only while the recording carries it
+  const ids = [...UPLOAD_MOODS, ...LEGACY_MOODS.filter((mood) => found.has(mood))]
+  return ids.map((mood) => found.get(mood) ?? { mood, status: "none", source: null, locked: false, yes: 0, no: 0, mine: null })
 }
 
 /** Moods somebody proposed and nobody rejected: what a listener is asked about. */

@@ -45,14 +45,17 @@ export type UploadSource = {
   broadcastId?: string | null
   credits?: string
   notes?: string
-  /** Baba's Audio Discourses only */
+  /** where it was recorded or performed (every kind, optional) */
   place?: string
+  /** Baba's Audio Discourses only: the name or number of the discourse */
   discourse?: string
   /** Prabhat Samgiita only: the number of the song */
   psSong?: number | null
-  /** Kiirtan only: the optional style and the name of an "other" style */
-  style?: string | null
-  styleOther?: string | null
+  /** the styles (listed ids) and the person's own style words, and the moods the same way (Dada, 9 Nov 2026) */
+  styles?: readonly string[] | null
+  stylesOther?: readonly string[] | null
+  moods?: readonly string[] | null
+  moodsOther?: readonly string[] | null
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
   practice?: string | null
   /** how it was recorded, the tempo, solo or group (lib/kirtan/recordingInfo.ts) */
@@ -133,8 +136,10 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       place: source.place,
       discourse: source.discourse,
       psSong: source.psSong,
-      style: source.style,
-      styleOther: source.styleOther,
+      styles: source.styles,
+      stylesOther: source.stylesOther,
+      moods: source.moods,
+      moodsOther: source.moodsOther,
       practice: source.practice,
       recordingType: source.recordingType,
       tempo: source.tempo,

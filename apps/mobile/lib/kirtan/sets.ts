@@ -1,5 +1,5 @@
 import { addFiles, effectiveFields, effectivePractice, patchItem, queueCounts, removeItem, requeue, requeueAll, runQueue, setRowFields, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
-import { cleanStyle } from "@/lib/kirtan/styles"
+import { cleanStyles, stylesOfRecord } from "@/lib/kirtan/styles"
 import { cleanInstrument } from "@/lib/kirtan/instruments"
 import { cleanRecordingInfo, kindHasByAuthor, performanceMissing, recordingTypeMissing, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { kindHasDance, kindHasLanguage, normalizeKind } from "@/lib/kirtan/kind"
@@ -71,9 +71,11 @@ export type SetDraft = {
   defaultLanguage: string | null
   defaultLanguageOther: string
   defaultDance: DanceId | null
-  /** Kiirtan only, optional: the style every track gets (lib/kirtan/styles.ts), and its name when it is "other" */
-  defaultStyle: string | null
-  defaultStyleOther: string
+  /** the styles every track gets (lib/kirtan/styles.ts: ids, then the person's own words; REQUIRED once the playlist holds a Kiirtan) and the moods (optional) */
+  defaultStyles: string[]
+  defaultStylesOther: string[]
+  defaultMoods: string[]
+  defaultMoodsOther: string[]
   /** Kiirtan only, optional: "avarta" marks every Kiirtan track as Avarta Kiirtan; a track may say otherwise (SetTrack.practice) */
   defaultPractice: string | null
   /** Kiirtan only, REQUIRED: how every Kiirtan track was recorded (lib/kirtan/recordingInfo.ts); tempo and solo or group are optional */
@@ -138,8 +140,10 @@ export function newSetDraft(id: string, now: Date = new Date()): SetDraft {
     defaultLanguage: null,
     defaultLanguageOther: "",
     defaultDance: null,
-    defaultStyle: null,
-    defaultStyleOther: "",
+    defaultStyles: [],
+    defaultStylesOther: [],
+    defaultMoods: [],
+    defaultMoodsOther: [],
     defaultPractice: null,
     defaultRecordingType: null,
     defaultTempo: null,
@@ -224,10 +228,9 @@ export function setNeedsStyle(draft: SetDraft): boolean {
   return draft.tracks.some((track) => track.status === "waiting" && trackKind(track, draft) === "kiirtan")
 }
 
-/** The playlist has a usable style ("other" needs its name). */
-export function hasSetStyle(draft: Pick<SetDraft, "defaultStyle" | "defaultStyleOther">): boolean {
-  const clean = cleanStyle("kiirtan", draft.defaultStyle, draft.defaultStyleOther)
-  return !!clean.style && !clean.missingName
+/** The playlist names at least one style (a listed one or its own word). */
+export function hasSetStyle(draft: Pick<SetDraft, "defaultStyles" | "defaultStylesOther">): boolean {
+  return !cleanStyles("kiirtan", draft.defaultStyles, draft.defaultStylesOther).missing
 }
 
 /**
@@ -443,6 +446,19 @@ export async function runSet(deps: SetRunDeps): Promise<SetRunStop> {
 
 /* ------------------------------------------------------------------ after the app was closed */
 
+/** The styles and moods of a draft saved before the lists: its one `defaultStyle` (with `defaultStyleOther`) reads as a list of one. */
+function restoreTags(draft: SetDraft): Pick<SetDraft, "defaultStyles" | "defaultStylesOther" | "defaultMoods" | "defaultMoodsOther"> {
+  const old = draft as SetDraft & { defaultStyle?: string | null; defaultStyleOther?: string }
+  const fromOld = stylesOfRecord({ style: old.defaultStyle, styleOther: old.defaultStyleOther })
+  return {
+    defaultStyles: draft.defaultStyles ?? fromOld.styles,
+    defaultStylesOther: draft.defaultStylesOther ?? fromOld.stylesOther,
+    defaultMoods: draft.defaultMoods ?? [],
+    defaultMoodsOther: draft.defaultMoodsOther ?? [],
+  }
+}
+
+
 /**
  * A draft read back from the phone's storage. The app may have been killed in the middle of a track: that track was
  * "uploading" and goes back to "waiting" (the server answers "already yours" if the file did arrive; the row then says
@@ -458,5 +474,5 @@ export function restoreDraft(draft: SetDraft): SetDraft {
   })
   // a cover picked in the browser is a blob address that does not survive a reload: choosing it again is one tap
   const lostCover = draft.coverUri.startsWith("blob:")
-  return { ...draft, defaultStyle: draft.defaultStyle ?? null, defaultStyleOther: draft.defaultStyleOther ?? "", defaultPractice: draft.defaultPractice ?? null, defaultRecordingType: draft.defaultRecordingType ?? null, defaultTempo: draft.defaultTempo ?? null, defaultPerformance: draft.defaultPerformance ?? null, defaultLeadInstrument: draft.defaultLeadInstrument ?? null, defaultLeadInstrumentOther: draft.defaultLeadInstrumentOther ?? "", defaultByAuthor: draft.defaultByAuthor ?? false, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
+  return { ...draft, ...restoreTags(draft), defaultPractice: draft.defaultPractice ?? null, defaultRecordingType: draft.defaultRecordingType ?? null, defaultTempo: draft.defaultTempo ?? null, defaultPerformance: draft.defaultPerformance ?? null, defaultLeadInstrument: draft.defaultLeadInstrument ?? null, defaultLeadInstrumentOther: draft.defaultLeadInstrumentOther ?? "", defaultByAuthor: draft.defaultByAuthor ?? false, tracks, ...(lostCover ? { coverUri: "", coverState: "none" as const } : {}) }
 }

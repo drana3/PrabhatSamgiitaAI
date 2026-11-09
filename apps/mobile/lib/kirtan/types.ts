@@ -12,8 +12,11 @@ import { t } from "@/lib/i18n"
  * no I/O. Visible words for a kind come from lib/kirtan/kind.ts.
  */
 
-/** The six kinds of one recording. Old data without a kind is a Kiirtan. */
-export const RECORDING_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"] as const
+/**
+ * The seven kinds of one recording. Old data without a kind is a Kiirtan. `other_mantra` (Dada, 9 Nov 2026): a Kiirtan is only
+ * Baba Nam Kevalam, so Guru Puja, Pitriyajina and every other mantra of Ananda Marga is a kind of its own, with its own upload page.
+ */
+export const RECORDING_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio", "other_mantra"] as const
 export type RecordingKind = (typeof RECORDING_KINDS)[number]
 /** Kinds that were removed but may still sit in stored data or in old server rows, and the kind they now read as. */
 export const LEGACY_KINDS: Readonly<Record<string, RecordingKind>> = { devotional_song: "bhajan" }
@@ -25,6 +28,7 @@ export type LanguageRule = "none" | "optional" | "required"
  * earlier without a language stays valid). Prabhat Samgiita: optional.
  * Dance music: language optional (the dance is what is required, see DANCES).
  * Baba's Audio Discourses: REQUIRED (a talk is given in a language).
+ * Other mantras: optional (a mantra is usually Sanskrit; the language may be named).
  */
 export const KIND_LANGUAGE_RULE: Readonly<Record<RecordingKind, LanguageRule>> = {
   kiirtan: "none",
@@ -33,6 +37,7 @@ export const KIND_LANGUAGE_RULE: Readonly<Record<RecordingKind, LanguageRule>> =
   spiritual_song: "required",
   dance_song: "optional",
   baba_audio: "required",
+  other_mantra: "optional",
 }
 /** The kinds whose add form asks for the sung language (everything but Kiirtan). */
 export const LANGUAGE_KINDS: readonly RecordingKind[] = RECORDING_KINDS.filter((kind) => KIND_LANGUAGE_RULE[kind] !== "none")
@@ -63,6 +68,13 @@ export const KIRTAN_TYPES = [
   { id: "other", get label() { return t("kt.type.other") } },
 ] as const
 
+/** Types of an Other mantra (Dada, 9 Nov 2026): Guru Puja, Pitriyajina, or any other mantra of Ananda Marga. Same ids as the API's MANTRA_TYPES. */
+export const MANTRA_TYPES = [
+  { id: "guru_puja", get label() { return t("kt.mtype.guru_puja") } },
+  { id: "pitriyajina", get label() { return t("kt.mtype.pitriyajina") } },
+  { id: "other", get label() { return t("kt.mtype.other") } },
+] as const
+
 /** Types of a Bhajan: the time it is sung, devotional, or something else. "other" exists in both kinds. */
 export const BHAJAN_TYPES = [
   { id: "morning", get label() { return t("kt.btype.morning") } },
@@ -73,8 +85,9 @@ export const BHAJAN_TYPES = [
 
 export type KiirtanKindTypeId = (typeof KIRTAN_TYPES)[number]["id"]
 export type BhajanTypeId = (typeof BHAJAN_TYPES)[number]["id"]
+export type MantraTypeId = (typeof MANTRA_TYPES)[number]["id"]
 /** Any type id of either kind. Read it together with `kind` ("other" is in both). */
-export type KirtanTypeId = KiirtanKindTypeId | BhajanTypeId
+export type KirtanTypeId = KiirtanKindTypeId | BhajanTypeId | MantraTypeId
 export type KirtanTypeFilter = KirtanTypeId | "all"
 
 /** Chips of the list: All, then the four types. */
@@ -162,15 +175,21 @@ export type Kirtan = {
   language?: RecordingLanguage
   /** the uploader's own name for the language, when `language` is "other" */
   languageOther?: string
-  /** Kiirtan only: the Indian Kiirtan style (a KIIRTAN_STYLES id or "other"), when named (lib/kirtan/styles.ts) */
+  /** The styles it was marked with (STYLES ids, lib/kirtan/styles.ts) and the uploader's own words, several of each (Dada, 9 Nov 2026). */
+  styles?: readonly string[]
+  stylesOther?: readonly string[]
+  /** The moods the uploader chose (MOODS ids, lib/kirtan/moods.ts) and the own words. */
+  moods?: readonly string[]
+  moodsOther?: readonly string[]
+  /** The first style, as before the lists existed ("other" with `styleOther` when it is an own word). Older items carry only this. */
   style?: string
   /** the uploader's own name for the style, when `style` is "other" */
   styleOther?: string
   /** Kiirtan only: the practice it is for ("avarta" = Avarta Kiirtan), when marked (lib/kirtan/practice.ts) */
   practice?: string
-  /** how it was recorded: studio, live, home or ai (lib/kirtan/recordingInfo.ts); required for a new Kiirtan, absent on older items */
+  /** how it was recorded: studio, live or ai (lib/kirtan/recordingInfo.ts; an older "home" reads as studio); required for a new Kiirtan, absent on older items */
   recordingType?: string
-  /** slow, medium or fast, when named */
+  /** Dance music only: slow, medium, fast or mix, when named */
   tempo?: string
   /** solo or group, when named */
   performance?: string
@@ -181,7 +200,7 @@ export type Kirtan = {
   leadInstrumentChecked?: boolean
   /** Dance music: which dance (a DANCES id) */
   dance?: DanceId
-  /** Baba's Audio Discourses: where it was given (optional) */
+  /** Where it was recorded or performed (every kind, optional; for Baba's Audio Discourses: where it was given) */
   place?: string
   /** Baba's Audio Discourses: the name or number of the discourse (optional) */
   discourse?: string
@@ -204,12 +223,12 @@ export type Kirtan = {
 }
 
 export function isKirtanType(value: unknown): value is KirtanTypeId {
-  return KIRTAN_TYPES.some((t) => t.id === value) || BHAJAN_TYPES.some((t) => t.id === value)
+  return KIRTAN_TYPES.some((t) => t.id === value) || BHAJAN_TYPES.some((t) => t.id === value) || MANTRA_TYPES.some((t) => t.id === value)
 }
 
 /** Label of a type; pass the kind so "Other" of a Bhajan and of a Kiirtan stay what they are. */
 export function kirtanTypeLabel(id: KirtanTypeId, kind: RecordingKind = "kiirtan"): string {
-  const list: readonly { id: string; label: string }[] = kind === "bhajan" ? BHAJAN_TYPES : KIRTAN_TYPES
+  const list: readonly { id: string; label: string }[] = kind === "bhajan" ? BHAJAN_TYPES : kind === "other_mantra" ? MANTRA_TYPES : KIRTAN_TYPES
   return list.find((t) => t.id === id)?.label ?? t("kt.type.other")
 }
 

@@ -1,9 +1,11 @@
+import { fixKiirtanSpelling } from "@/lib/kirtan/kiirtanSpelling"
 import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import { cleanPractice } from "@/lib/kirtan/practice"
 import { cleanInstrument } from "@/lib/kirtan/instruments"
 import { cleanRecordingInfo, kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
-import { cleanStyle } from "@/lib/kirtan/styles"
+import { cleanMoods } from "@/lib/kirtan/moods"
+import { cleanStyles } from "@/lib/kirtan/styles"
 import type { ReportReason } from "@/lib/kirtan/rules"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
 
@@ -48,12 +50,17 @@ export type RemoteRecording = {
   /** an ISO code, `other` (then `language_other` names it) or an old word of the first form */
   language?: string | null
   language_other?: string | null
-  /** Kiirtan only: the Indian Kiirtan style id, or `other` (then `style_other` names it) */
+  /** the styles (listed ids) and the uploader's own style words, and the moods the same way; a stranger gets an own word only once the team accepted it */
+  styles?: string[] | null
+  styles_other?: string[] | null
+  moods?: string[] | null
+  moods_other?: string[] | null
+  /** the first style as before the lists (`other` then names its word in `style_other`): older rows carry only this */
   style?: string | null
   style_other?: string | null
   /** Kiirtan only: "avarta" for an Avarta Kiirtan */
   practice?: string | null
-  /** studio, live, home or ai; slow, medium or fast; solo or group (lib/kirtan/recordingInfo.ts) */
+  /** studio, live or ai (an old home reads as studio); slow, medium, fast or mix (Dance music); solo or group (lib/kirtan/recordingInfo.ts) */
   recording_type?: string | null
   tempo?: string | null
   performance?: string | null
@@ -238,9 +245,11 @@ export type PublishPayload = {
   language?: string | null
   /** the person's own name for the language, sent only with `language: "other"` */
   languageOther?: string | null
-  /** Kiirtan only: the Indian Kiirtan style id or `other` (then `styleOther` names it); optional */
-  style?: string | null
-  styleOther?: string | null
+  /** the styles (listed ids) and the person's own style words, and the moods the same way */
+  styles?: readonly string[] | null
+  stylesOther?: readonly string[] | null
+  moods?: readonly string[] | null
+  moodsOther?: readonly string[] | null
   /** Kiirtan only: "avarta" marks an Avarta Kiirtan */
   practice?: string | null
   /** how it was recorded (required for a Kiirtan), the tempo and solo or group; each only for the kinds that carry it */
@@ -260,7 +269,7 @@ export type PublishPayload = {
   broadcastId?: string | null
   credits?: string | null
   notes?: string | null
-  /** Baba's Audio Discourses only */
+  /** where it was recorded or performed (every kind, optional); the discourse is Baba's Audio Discourses only */
   place?: string | null
   discourse?: string | null
   /** required for the Prabhat Samgiita kind, refused for the others */
@@ -274,8 +283,9 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     key: payload.key,
     kind: payload.kind,
     type: payload.type,
-    title: payload.title,
-    author: payload.author,
+    // "Kiirtan" with two i's once more, for a title that did not come through the form (a file name)
+    title: fixKiirtanSpelling(payload.title),
+    author: fixKiirtanSpelling(payload.author),
     by_author: payload.byAuthor && kindHasByAuthor(payload.kind),
     terms_accepted: true,
     terms_version: payload.termsVersion,
@@ -284,8 +294,14 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     ...(payload.language && kindHasLanguage(payload.kind) ? { language: payload.language } : {}),
     ...(payload.language === OTHER_LANGUAGE && kindHasLanguage(payload.kind) && cleanLanguageOther(payload.languageOther) ? { language_other: cleanLanguageOther(payload.languageOther) } : {}),
     ...(() => {
-      const st = cleanStyle(payload.kind, payload.style, payload.styleOther)
-      return st.style && !st.missingName ? { style: st.style, ...(st.styleOther ? { style_other: st.styleOther } : {}) } : {}
+      const st = cleanStyles(payload.kind, payload.styles, payload.stylesOther)
+      const mood = cleanMoods(payload.kind, payload.moods, payload.moodsOther)
+      return {
+        ...(st.styles.length ? { styles: st.styles } : {}),
+        ...(st.stylesOther.length ? { styles_other: st.stylesOther } : {}),
+        ...(mood.moods.length ? { moods: mood.moods } : {}),
+        ...(mood.moodsOther.length ? { moods_other: mood.moodsOther } : {}),
+      }
     })(),
     ...(cleanPractice(payload.kind, payload.practice) ? { practice: cleanPractice(payload.kind, payload.practice) } : {}),
     ...(() => {
@@ -306,7 +322,7 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     ...(payload.broadcastId ? { broadcast_id: payload.broadcastId } : {}),
     ...(payload.credits?.trim() ? { credits: payload.credits.trim() } : {}),
     ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
-    ...(payload.place?.trim() && kindHasDiscourse(payload.kind) ? { place: payload.place.trim() } : {}),
+    ...(payload.place?.trim() ? { place: fixKiirtanSpelling(payload.place.trim()) } : {}),
     ...(payload.discourse?.trim() && kindHasDiscourse(payload.kind) ? { discourse: payload.discourse.trim() } : {}),
     ...(payload.psSong ? { ps_song_number: payload.psSong } : {}),
     ...(payload.durationSec ? { duration_sec: Math.max(1, Math.round(payload.durationSec)) } : {}),
@@ -344,9 +360,9 @@ export async function fetchPublished(cfg: RemoteConfig, query: { kind?: Recordin
   return (await call<{ items: RemoteRecording[] }>(cfg, "GET", `?${params.toString()}`)).items
 }
 
-/** The words the team accepted under "Add your own" (a main instrument or a style), for the form to offer next to the fixed list. */
+/** The words the team accepted under "Add your own" (a main instrument, a style or a mood), for the form to offer next to the fixed list. */
 export type ValueOptions = { accepted: { key: string; label: string }[]; newWordsPerWeek: number }
-export async function fetchValueOptions(cfg: RemoteConfig, field: "instrument" | "style"): Promise<ValueOptions> {
+export async function fetchValueOptions(cfg: RemoteConfig, field: "instrument" | "style" | "mood"): Promise<ValueOptions> {
   const out = await call<{ accepted: { key: string; label: string }[]; new_words_per_week: number }>(cfg, "GET", `/value-options?field=${field}`)
   return { accepted: out.accepted ?? [], newWordsPerWeek: out.new_words_per_week }
 }

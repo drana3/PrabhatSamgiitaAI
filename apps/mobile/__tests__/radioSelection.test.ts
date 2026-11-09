@@ -37,6 +37,7 @@ const counts = (over: Partial<RadioCounts> = {}): RadioCounts => ({
   spiritual_song: 8,
   dance_song: 0,
   baba_audio: 3,
+  other_mantra: 0,
   ...over,
 })
 
@@ -44,6 +45,7 @@ describe("radio categories", () => {
   it("are exactly the app's recording kinds, in chip order", () => {
     expect([...RADIO_CATEGORIES].sort()).toEqual([...RECORDING_KINDS].sort())
     expect(RADIO_CATEGORIES[0]).toBe("prabhat_samgiita")
+    expect(RADIO_CATEGORIES.at(-2)).toBe("other_mantra")
     expect(RADIO_CATEGORIES.at(-1)).toBe("baba_audio")
   })
 
@@ -172,7 +174,7 @@ describe("radio selection store", () => {
   it("All ticks every category", () => {
     useRadioSelectionStore.getState().setSelected(["kiirtan"])
     useRadioSelectionStore.getState().chooseAll(counts())
-    expect(useRadioSelectionStore.getState().selected).toHaveLength(6)
+    expect(useRadioSelectionStore.getState().selected).toHaveLength(7)
   })
 
   it("is remembered: written under a versioned key", async () => {

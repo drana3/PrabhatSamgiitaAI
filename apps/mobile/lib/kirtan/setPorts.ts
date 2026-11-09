@@ -87,9 +87,11 @@ const realPorts: SetPorts = {
       language: fields.language,
       languageOther: fields.languageOther,
       dance: fields.dance,
-      // the style belongs to a Kiirtan only; a track of another type sends none
-      style: fields.kind === "kiirtan" ? draft.defaultStyle : null,
-      styleOther: fields.kind === "kiirtan" ? draft.defaultStyleOther : null,
+      // every kind but Baba's Audio keeps the styles and moods (the server drops them there)
+      styles: draft.defaultStyles,
+      stylesOther: draft.defaultStylesOther,
+      moods: draft.defaultMoods,
+      moodsOther: draft.defaultMoodsOther,
       practice: fields.practice,
       recordingType: fields.recordingType,
       tempo: fields.tempo,

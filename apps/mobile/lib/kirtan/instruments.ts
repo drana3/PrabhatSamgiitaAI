@@ -18,6 +18,11 @@ import { titleCase } from "@/lib/searchMenu/facets"
  */
 export const INSTRUMENT_IDS = ["guitar", "harmonium", "piano", "synthesizer", "keyboard", "tabla", "dholak", "khol", "kartal", "flute", "violin", "sitar", "esraj", "bass_guitar", "ukulele", "voice_only"] as const
 export type InstrumentId = (typeof INSTRUMENT_IDS)[number]
+/**
+ * What the add form OFFERS (Dada, 9 Nov 2026): four instruments, then "add your own" (and the words the team accepted). The others in
+ * INSTRUMENT_IDS stay valid: a recording that carries one still reads, the API still accepts it, and a typed "tabla" still becomes it.
+ */
+export const FORM_INSTRUMENT_IDS: readonly InstrumentId[] = ["guitar", "harmonium", "piano", "voice_only"]
 export const OTHER_INSTRUMENT = "other"
 /** the ones that are not acoustic: the label says so ("electronic") */
 export const ELECTRONIC_INSTRUMENTS: readonly InstrumentId[] = ["synthesizer", "keyboard"]
@@ -79,6 +84,11 @@ export function instrumentChipLabel(id: InstrumentId): string {
 /** The picker: the listed instruments, then "Other" (which asks for a word). */
 export function instrumentChoices(): { id: string; label: string }[] {
   return [...INSTRUMENT_IDS.map((id) => ({ id: id as string, label: instrumentChipLabel(id) })), { id: OTHER_INSTRUMENT, label: t("instrument.addOwn") }]
+}
+
+/** The picker of the add form: the four it offers (see FORM_INSTRUMENT_IDS); "add your own" is the picker's own row. */
+export function formInstrumentChoices(): { id: string; label: string }[] {
+  return FORM_INSTRUMENT_IDS.map((id) => ({ id: id as string, label: instrumentChipLabel(id) }))
 }
 
 /* ------------------------------------------------------------------ normalization */

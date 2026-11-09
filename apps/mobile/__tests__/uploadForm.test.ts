@@ -7,13 +7,13 @@ import { LANGUAGE_KINDS, RECORDING_KINDS } from "@/lib/kirtan/types"
 import { draftWithPatch, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import type { QueueDraft } from "@/stores/uploadQueueStore"
 
-const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, style: null, styleOther: "", practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false }
+const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false }
 const FULL: QueueDraft = { ...EMPTY_DRAFT, kind: "bhajan", language: "bn", credits: "Words and music by A. Sen", year: "1998", notes: "n" }
 
 describe("the types of the add form", () => {
-  it("are Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music and Baba's Audio: Devotional song is gone", () => {
-    expect(RECORDING_KINDS).toEqual(["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"])
-    expect(RECORDING_KINDS.map((k) => kindLabel(k))).toEqual(["Kiirtan", "Bhajan", "Prabhat Samgiita", "Spiritual song", "Dance music", "Baba's Audio Discourses"])
+  it("are Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio and Other mantras: Devotional song is gone", () => {
+    expect(RECORDING_KINDS).toEqual(["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio", "other_mantra"])
+    expect(RECORDING_KINDS.map((k) => kindLabel(k))).toEqual(["Kiirtan", "Bhajan", "Prabhat Samgiita", "Spiritual song", "Dance music", "Baba's Audio Discourses", "Other mantras"])
     expect(isRecordingKind("devotional_song")).toBe(false)
     expect(KIRTAN_TAB_CHIPS.some((c) => c.id === ("devotional_song" as string))).toBe(false)
   })
@@ -35,16 +35,16 @@ describe("the language field", () => {
     expect(kindHasLanguage("dance_song")).toBe(true)
     expect(kindHasLanguage("baba_audio")).toBe(true)
     expect(kindHasLanguage(undefined)).toBe(false) // an unknown kind is a Kiirtan
-    expect(moreDetailsFor("kiirtan")).toEqual({ language: false, credits: false, discourse: false })
-    expect(moreDetailsFor("bhajan")).toEqual({ language: false, credits: true, discourse: false }) // its language is REQUIRED: asked above "More details"
-    expect(moreDetailsFor("prabhat_samgiita")).toEqual({ language: true, credits: false, discourse: false })
-    expect(moreDetailsFor("dance_song")).toEqual({ language: true, credits: false, discourse: false })
-    expect(moreDetailsFor("spiritual_song")).toEqual({ language: false, credits: false, discourse: false })
-    expect(moreDetailsFor("baba_audio")).toEqual({ language: false, credits: false, discourse: true }) // its language is REQUIRED, asked above
+    expect(moreDetailsFor("kiirtan")).toEqual({ language: false, credits: false, discourse: false, place: true })
+    expect(moreDetailsFor("bhajan")).toEqual({ language: false, credits: true, discourse: false, place: true }) // its language is REQUIRED: asked above "More details"
+    expect(moreDetailsFor("prabhat_samgiita")).toEqual({ language: true, credits: false, discourse: false, place: true })
+    expect(moreDetailsFor("dance_song")).toEqual({ language: true, credits: false, discourse: false, place: true })
+    expect(moreDetailsFor("spiritual_song")).toEqual({ language: false, credits: false, discourse: false, place: true })
+    expect(moreDetailsFor("baba_audio")).toEqual({ language: false, credits: false, discourse: true, place: true }) // its language is REQUIRED, asked above
   })
 
   it("is decided by ONE constant (flip it to hide the language for Prabhat Samgiita)", () => {
-    expect(LANGUAGE_KINDS).toEqual(["bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"])
+    expect(LANGUAGE_KINDS).toEqual(["bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio", "other_mantra"])
   })
 
   it("is cleared when the type changes to one that hides it", () => {

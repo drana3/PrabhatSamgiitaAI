@@ -26,7 +26,7 @@ const input: SubmissionInput = {
   fileUri: "blob:morning",
   title: "  Baba   Nam Kevalam ",
   author: "Group",
-  style: "bengali",
+  styles: ["indian"],
   recordingType: "studio", performance: "solo",
   byAuthor: true,
   addedBy: "Dada",
