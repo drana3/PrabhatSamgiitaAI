@@ -18,6 +18,8 @@ Keys are salted hashes of the address or the account: no raw IP address is store
 from __future__ import annotations
 
 import hashlib
+import hmac
+import ipaddress
 import logging
 import re
 import secrets
@@ -204,9 +206,27 @@ def hashed(value: str, settings: Settings | None = None) -> str:
     return digest[:24]
 
 
+def _web_client_ip(request: Request, settings: Settings) -> str | None:
+    key = settings.web_proxy_key
+    provided = request.headers.get("x-web-proxy-key")
+    claimed = (request.headers.get("x-web-client-ip") or "").strip()
+    if not key or not provided or not claimed or not hmac.compare_digest(key, provided):
+        return None
+    try:
+        return str(ipaddress.ip_address(claimed))
+    except ValueError:
+        return None
+
+
 def client_ip(request: Request, settings: Settings | None = None) -> str:
     """The caller's address. Behind the Azure ingress it is the `hops`-th from the right."""
     settings = settings or get_settings()
+    # The website forwards its visitors, so every one of them arrives from the website's own
+    # address. It says who the visitor was in X-Web-Client-Ip, and that is believed only together
+    # with the key that only the website server holds (never an app, never a visitor).
+    web_ip = _web_client_ip(request, settings)
+    if web_ip is not None:
+        return web_ip
     hops = settings.rate_limit_trusted_proxy_hops
     forwarded = request.headers.get("x-forwarded-for") or ""
     parts = [part.strip() for part in forwarded.split(",") if part.strip()]

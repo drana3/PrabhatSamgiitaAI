@@ -233,20 +233,21 @@ async def test_one_sender_cannot_flood_the_queue(world: World) -> None:
     assert other.status_code == 201
 
 
-async def test_a_global_cap_protects_the_team(
+async def test_a_flood_of_senders_cannot_shut_real_rights_holders_out(
     world: World, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(service, "MAX_NEW_PER_DAY", 2)
-    for index in range(2):
+    """There is no shared cap that one stranger could use up: past the warning level every notice
+    is still accepted (as "new", nothing is acted on before the team reads it)."""
+    monkeypatch.setattr(service, "FLOOD_WARN_PER_DAY", 2)
+    for index in range(5):
         r = await world.http.post(
             "/api/v1/takedown",
             json=notice_body(f"Track {index}", email=f"s{index}@example.org"),
         )
         assert r.status_code == 201
-    r = await world.http.post(
-        "/api/v1/takedown", json=notice_body("Track 9", email="s9@example.org")
-    )
-    assert r.status_code == 503
+    async with world.sessions() as session:
+        rows = (await session.scalars(select(TakedownRequest))).all()
+    assert len(rows) == 5 and {row.status for row in rows} == {"new"}
 
 
 async def test_the_sender_address_is_not_kept_in_the_abuse_key(world: World) -> None:
@@ -492,3 +493,110 @@ async def test_the_claimant_letter_follows_the_status(world: World) -> None:
     assert "we could not find the recording" in service.letter_to_claimant(row).body
     row.status = "forwarded"
     assert "counter-notice" in service.letter_to_claimant(row).body
+
+
+# --------------------------------------------------------------------------- two requests, one file
+
+
+async def second_notice_taken_down(world: World) -> TakedownRequest:
+    """A different rights holder also asks for the same recording, and the team agrees."""
+    reference = (await file(world, email="other.holder@example.org")).json()["reference"]
+    row = await one(world, TakedownRequest, reference=reference)
+    assert (await take_down(world, str(row.id))).status_code == 200
+    return cast(TakedownRequest, await one(world, TakedownRequest, id=row.id))
+
+
+async def forwarded_counter(world: World, original: TakedownRequest) -> str:
+    await counter(world, original.reference)
+    row = await counter_row(world)
+    base = f"/api/v1/admin/takedowns/{row.id}"
+    assert (await world.http.post(f"{base}/forward")).status_code == 200
+    return base
+
+
+async def test_the_block_is_one_row_per_request_and_lifting_one_keeps_the_other(
+    world: World,
+) -> None:
+    first, second = uuid4(), uuid4()
+    async with world.sessions() as session:
+        await blocked_hashes.block(session, "C" * 64, reason="one", by="team", takedown_id=first)
+        await blocked_hashes.block(session, "C" * 64, reason="two", by="team", takedown_id=second)
+        await blocked_hashes.block(session, "C" * 64, reason="again", by="team", takedown_id=first)
+        await session.commit()
+        assert len((await session.scalars(select(BlockedAudioHash))).all()) == 2
+        await blocked_hashes.unblock(session, "C" * 64, takedown_id=first)
+        await session.commit()
+        assert await blocked_hashes.is_blocked(session, "C" * 64) is True
+        await blocked_hashes.unblock(session, "C" * 64, takedown_id=second)
+        await session.commit()
+        assert await blocked_hashes.is_blocked(session, "C" * 64) is False
+
+
+async def test_restoring_for_one_request_does_not_undo_another_that_still_holds_the_file(
+    world: World,
+) -> None:
+    original = await taken_down(world)
+    other = await second_notice_taken_down(world)
+    base = await forwarded_counter(world, original)
+
+    refused = await world.http.post(f"{base}/restore", json={"claimant_withdrew": True})
+
+    assert refused.status_code == 409
+    assert other.reference in refused.json()["detail"]
+    assert (await recording(world)).status == "removed"
+    async with world.sessions() as session:
+        rows = (await session.scalars(select(BlockedAudioHash))).all()
+    assert len(rows) == 2  # one per request, nothing lifted
+    assert (await one(world, TakedownRequest, id=original.id)).status == "counter_received"
+
+
+async def test_a_closed_request_on_the_same_file_also_holds_it(world: World) -> None:
+    original = await taken_down(world)
+    other = await second_notice_taken_down(world)
+    closed = await world.http.post(
+        f"/api/v1/admin/takedowns/{other.id}/close", json={"reason": "claimant filed a suit"}
+    )
+    assert closed.status_code == 200
+    base = await forwarded_counter(world, original)
+
+    refused = await world.http.post(f"{base}/restore", json={"claimant_withdrew": True})
+
+    assert refused.status_code == 409
+    assert (await recording(world)).status == "removed"
+
+
+async def test_a_request_that_was_not_acted_on_does_not_hold_anything(world: World) -> None:
+    original = await taken_down(world)
+    # a second notice that is only waiting (new) or was rejected does not hold the file
+    await file(world, email="waiting@example.org")
+    rejected_ref = (await file(world, email="no.proof@example.org")).json()["reference"]
+    rejected = await one(world, TakedownRequest, reference=rejected_ref)
+    assert (
+        await world.http.post(
+            f"/api/v1/admin/takedowns/{rejected.id}/reject",
+            json={"reason": "no proof of the right"},
+        )
+    ).status_code == 200
+    base = await forwarded_counter(world, original)
+
+    done = await world.http.post(f"{base}/restore", json={"claimant_withdrew": True})
+
+    assert done.status_code == 200
+    assert (await recording(world)).status == "published"
+    assert await one(world, BlockedAudioHash, sha256=SHA) is None
+
+
+async def test_restore_needs_the_original_to_still_be_waiting(world: World) -> None:
+    original = await taken_down(world)
+    base = await forwarded_counter(world, original)
+    async with world.sessions() as session:
+        stored = await session.get(TakedownRequest, original.id)
+        assert stored is not None
+        stored.status = "closed"  # decided in the meantime
+        await session.commit()
+
+    refused = await world.http.post(f"{base}/restore", json={"claimant_withdrew": True})
+
+    assert refused.status_code == 409
+    assert (await recording(world)).status == "removed"
+    assert await one(world, BlockedAudioHash, sha256=SHA) is not None

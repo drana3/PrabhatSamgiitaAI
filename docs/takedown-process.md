@@ -21,7 +21,7 @@ below before the first real case (see "Needs the owner's check").
 | What | Where |
 | --- | --- |
 | Public page (English) | `apps/web/app/takedown/page.tsx`, form in `apps/web/components/takedown-form.tsx` |
-| Web proxy | `apps/web/app/api/takedown/route.ts` (passes `X-Forwarded-For` on, so the per-address limit works) |
+| Web proxy | `apps/web/app/api/takedown/route.ts` (never copies the visitor's `X-Forwarded-For`; sends the address the platform saw in `X-Web-Client-Ip`, together with the website-only key, so the per-address limit works. See `docs/rate-limits.md`) |
 | Public endpoints | `POST /api/v1/takedown`, `POST /api/v1/takedown/{reference}/counter-notice` (signed-in member) |
 | Team endpoints | `/api/v1/admin/takedowns` (admin key): list, detail, `link`, `take-down`, `reject`, `forward`, `restore`, `close`, `letters` |
 | Logic | `apps/api/app/services/takedowns.py`, `apps/api/app/services/blocked_hashes.py` |
@@ -57,7 +57,8 @@ counter-notice:  new --forward----> forwarded --restore--> restored
 - The recording status becomes `removed`, with a reason that says a rights holder asked.
   It disappears from lists, search, the player and the radio the same way a recording removed by
   an admin does (the same `remove_recording` code, not a second path).
-- The SHA-256 of the audio file goes into `blocked_audio_hashes`. An upload of the same bytes
+- The SHA-256 of the audio file goes into `blocked_audio_hashes`, one row per request (two
+  requests about the same file hold the file separately; lifting one never lifts the other). An upload of the same bytes
   answers 409 with code `removed_duplicate` and a plain message. Re-encoding the file changes the
   hash, so this stops the simple re-upload only. Near-duplicates are caught by the existing
   duplicate check (`docs/duplicate-check.md`) and by a person.
@@ -67,6 +68,14 @@ counter-notice:  new --forward----> forwarded --restore--> restored
 - The sender's data is kept in the request row only. It is shown to the team and in the letters,
   and is not given to the uploader.
 
+## Restoring is guarded
+
+Restoring (`restore` on the counter-notice) is refused with 409 unless the notice it answers is
+still `counter_received`, and also while any OTHER notice about the same recording or file is
+`taken_down`, `counter_received` or `closed` (a legal process). The reply names the other
+references. Only the restored request's own block row is removed, so a file with another request
+behind it stays blocked. One request cannot undo the action taken on another.
+
 ## Anti-spam
 
 - A hidden form field (`website`): a bot that fills it gets a normal-looking answer and nothing is
@@ -74,8 +83,11 @@ counter-notice:  new --forward----> forwarded --restore--> restored
 - Both confirmations (good faith, accuracy) and a signature are required.
 - The same sender (salted hash of the email) can file 3 requests a day. Sending the same request
   twice returns the first reference instead of making a second row.
-- At most 200 new requests a day in total. Above that the form answers 503, so the queue cannot
-  be flooded.
+- There is deliberately **no cap for the whole service**. Anyone can send a notice without an
+  account, so a shared cap would let one stranger shut every real rights holder out (the form would
+  answer 503 to everyone). Instead every notice is accepted as `new`, and nothing is acted on until
+  the team reads it. Past 200 new notices in a day a warning is logged so someone looks at the
+  queue. What limits a flood is the per-sender limit (3 a day) and the per-address limit below.
 - A per-address limit in front of the route (5 a day) and 3 counter-notices a day per account.
   See `docs/rate-limits.md`.
 - The answer to the sender is the same whether or not the recording exists. The form is not a way

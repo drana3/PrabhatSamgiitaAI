@@ -2,6 +2,9 @@
 
 Kept apart from `takedowns.py` so the upload code can ask it without importing the whole
 take-down flow (which itself imports the recordings service).
+
+One row per take-down request: a file stays blocked while any request holds it, and lifting a
+request removes only its own row.
 """
 
 from __future__ import annotations
@@ -22,7 +25,7 @@ BLOCKED_MESSAGE = (
 
 async def is_blocked(session: AsyncSession, sha256: str) -> bool:
     found = await session.scalar(
-        select(BlockedAudioHash.sha256).where(BlockedAudioHash.sha256 == sha256.lower())
+        select(BlockedAudioHash.id).where(BlockedAudioHash.sha256 == sha256.lower()).limit(1)
     )
     return found is not None
 
@@ -30,9 +33,15 @@ async def is_blocked(session: AsyncSession, sha256: str) -> bool:
 async def block(
     session: AsyncSession, sha256: str, *, reason: str, by: str, takedown_id: UUID | None = None
 ) -> None:
-    """Add a file to the list. Does not commit. Safe to call twice."""
+    """Add a row for this file and this request. Does not commit. Safe to call twice."""
     digest = sha256.lower()
-    if await is_blocked(session, digest):
+    same = BlockedAudioHash.takedown_id == takedown_id
+    if takedown_id is None:
+        same = BlockedAudioHash.takedown_id.is_(None)
+    existing = await session.scalar(
+        select(BlockedAudioHash.id).where(BlockedAudioHash.sha256 == digest, same).limit(1)
+    )
+    if existing is not None:
         return
     session.add(
         BlockedAudioHash(
@@ -45,6 +54,11 @@ async def block(
     )
 
 
-async def unblock(session: AsyncSession, sha256: str) -> None:
-    """Remove a file from the list. Does not commit."""
-    await session.execute(delete(BlockedAudioHash).where(BlockedAudioHash.sha256 == sha256.lower()))
+async def unblock(session: AsyncSession, sha256: str, *, takedown_id: UUID) -> None:
+    """Remove the row of ONE request for this file. Other requests' rows stay, and so does the
+    block. Does not commit."""
+    await session.execute(
+        delete(BlockedAudioHash).where(
+            BlockedAudioHash.sha256 == sha256.lower(), BlockedAudioHash.takedown_id == takedown_id
+        )
+    )

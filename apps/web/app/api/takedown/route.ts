@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server"
 
+import { trustedClientIp, trustedProxyHops } from "@/lib/client-ip"
 import { backendBaseUrl } from "@/lib/member-admin-proxy"
+import { runtimeEnv } from "@/lib/runtime-env"
 
 export const dynamic = "force-dynamic"
 
@@ -16,10 +18,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ detail: "Invalid request" }, { status: 400 })
   }
 
-  // The API limits requests per visitor address; pass on the address this server saw.
+  // The API limits requests per visitor address. The incoming X-Forwarded-For is never copied (its left
+  // part is typed by the visitor): the address is rebuilt from the entry the platform added and sent
+  // in a header the API accepts only together with the website-only key.
   const headers: Record<string, string> = { "Content-Type": "application/json" }
-  const forwarded = request.headers.get("x-forwarded-for")
-  if (forwarded) headers["X-Forwarded-For"] = forwarded
+  const webKey = runtimeEnv("WEB_PROXY_KEY")
+  const ip = trustedClientIp(
+    request.headers.get("x-forwarded-for"),
+    trustedProxyHops(runtimeEnv("WEB_TRUSTED_PROXY_HOPS")),
+  )
+  if (webKey && ip) {
+    headers["X-Web-Proxy-Key"] = webKey
+    headers["X-Web-Client-Ip"] = ip
+  }
 
   let response: Response
   try {

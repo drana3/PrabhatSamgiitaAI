@@ -198,6 +198,27 @@ def test_client_ip_trusts_only_the_proxy_hop() -> None:
     assert rl.client_ip(direct, settings(RATE_LIMIT_TRUSTED_PROXY_HOPS=0)) == "192.0.2.5"
 
 
+def test_a_visitor_address_from_the_website_is_believed_only_with_the_website_key() -> None:
+    web = settings(WEB_PROXY_KEY="web-only-key-0123456789")
+    headers = {"X-Forwarded-For": "6.6.6.6, 10.0.0.1", "X-Web-Client-Ip": "203.0.113.77"}
+    # no key (a phone, or a visitor typing the header): the header means nothing
+    assert rl.client_ip(request_with(headers), web) == "10.0.0.1"
+    # a wrong key: same
+    wrong = {**headers, "X-Web-Proxy-Key": "guess"}
+    assert rl.client_ip(request_with(wrong), web) == "10.0.0.1"
+    # the shared app key is not the website key
+    shared = {**headers, "X-Member-Proxy-Key": "shared"}
+    assert rl.client_ip(request_with(shared), web) == "10.0.0.1"
+    # the website's own key: the visitor's address it saw
+    right = {**headers, "X-Web-Proxy-Key": "web-only-key-0123456789"}
+    assert rl.client_ip(request_with(right), web) == "203.0.113.77"
+    # something that is not an address is refused even with the key
+    junk = {**right, "X-Web-Client-Ip": "not-an-ip"}
+    assert rl.client_ip(request_with(junk), web) == "10.0.0.1"
+    # and with no website key configured at all the header can never be believed
+    assert rl.client_ip(request_with(right), settings()) == "10.0.0.1"
+
+
 def test_the_account_comes_only_from_a_valid_signed_token() -> None:
     from uuid import uuid4
 

@@ -57,6 +57,14 @@ does not buy a new allowance. If you put another proxy in front (for example Fro
 number to 2. **Check this on the real deployment**; if the number is wrong, either everybody shares
 one address or the header can be forged.
 
+Visitors of the **website** reach the API through the website's server, so they would all look like
+one address. The website therefore sends the visitor's address in `X-Web-Client-Ip`, and the API
+believes that header only when the same request carries the correct `X-Web-Proxy-Key` (the key only
+the website server holds). The website builds that address from the entry its own platform added to
+`X-Forwarded-For`, counted from the right (`WEB_TRUSTED_PROXY_HOPS` on the website, default 1); it
+never copies the visitor's own header. If the website has no `WEB_PROXY_KEY`, it sends no address and
+the API sees the website's address for everybody (nothing breaks, the limit is just shared).
+
 ## Settings (`.env.example`)
 
 | Variable | Meaning |

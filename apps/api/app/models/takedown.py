@@ -9,7 +9,16 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -90,11 +99,18 @@ class TakedownRequest(Base, TimestampMixin):
 
 
 class BlockedAudioHash(Base):
-    """A file (by SHA-256) that cannot be uploaded again because of a take-down."""
+    """A file (by SHA-256) that cannot be uploaded again because of a take-down.
+
+    One row per take-down request, not one per file: two requests about the same file each hold
+    their own row, and lifting one never lifts the other. The file stays blocked while any row
+    for it exists.
+    """
 
     __tablename__ = "blocked_audio_hashes"
+    __table_args__ = (UniqueConstraint("sha256", "takedown_id", name="uq_blocked_audio_request"),)
 
-    sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     takedown_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("takedown_requests.id", ondelete="SET NULL")
     )

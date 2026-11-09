@@ -17,6 +17,7 @@ The flow, in the order a request lives:
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import secrets
 from dataclasses import dataclass
@@ -24,7 +25,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.recordings import MemberNotice, Recording
@@ -35,9 +36,13 @@ from app.services import recordings as recordings_service
 # Days between passing a counter-notice to the claimant and putting the recording back. The usual
 # range in public take-down procedures is 10 to 14 business days; the team may set it, see docs.
 COUNTER_WAIT_DAYS = 14
-# At most this many new notices from one sender in a day, and in the whole service in a day.
+# At most this many new notices from one sender in a day. There is deliberately no cap for the whole
+# service: anyone can send a notice without an account, so a shared cap would let one stranger shut
+# every real rights holder out. Past FLOOD_WARN_PER_DAY new notices a day the service still accepts
+# them and logs a warning, so the team looks at the queue (docs/takedown-process.md).
 MAX_PER_SENDER_PER_DAY = 3
-MAX_NEW_PER_DAY = 200
+FLOOD_WARN_PER_DAY = 200
+logger = logging.getLogger(__name__)
 UUID_PATTERN = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
@@ -117,11 +122,9 @@ async def file_notice(
         .select_from(TakedownRequest)
         .where(TakedownRequest.kind == "notice", TakedownRequest.created_at >= since)
     )
-    if (total or 0) >= MAX_NEW_PER_DAY:
-        raise HTTPException(
-            status_code=503,
-            detail="We are receiving many requests right now. Please email us instead.",
-        )
+    if (total or 0) >= FLOOD_WARN_PER_DAY:
+        # Accepted anyway, as "new" (nothing is acted on before the team reads it).
+        logger.warning("takedown notices: %d new in the last day, check the queue", total)
     recent = (
         await session.scalars(
             select(TakedownRequest).where(
@@ -336,6 +339,28 @@ async def _original_of(session: AsyncSession, counter: TakedownRequest) -> Taked
     return await session.get(TakedownRequest, counter.related_id)
 
 
+HOLDING_STATUSES = ("taken_down", "counter_received", "closed")
+
+
+async def _other_holds(
+    session: AsyncSession, original: TakedownRequest, recording: Recording
+) -> list[str]:
+    """References of the OTHER notices that still hold this recording or its file: taken down,
+    answered and waiting, or closed (a legal process). Restoring is refused while any exists."""
+    same_thing = [TakedownRequest.recording_id == recording.id]
+    if recording.audio_sha256:
+        same_thing.append(TakedownRequest.audio_sha256 == recording.audio_sha256)
+    rows = await session.scalars(
+        select(TakedownRequest.reference).where(
+            TakedownRequest.kind == "notice",
+            TakedownRequest.id != original.id,
+            TakedownRequest.status.in_(HOLDING_STATUSES),
+            or_(*same_thing),
+        )
+    )
+    return sorted(rows.all())
+
+
 async def restore(
     session: AsyncSession,
     counter: TakedownRequest,
@@ -360,15 +385,33 @@ async def restore(
             ),
         )
     original = await _original_of(session, counter)
+    if original is None or original.status != "counter_received":
+        # The request this counter-notice answered was closed or decided in the meantime.
+        raise HTTPException(
+            status_code=409, detail="The request this answers is no longer waiting for it."
+        )
     if counter.recording_id is None:
         raise HTTPException(status_code=422, detail="There is no recording to restore.")
     recording = await session.get(Recording, counter.recording_id)
     if recording is None:
         raise HTTPException(status_code=404, detail="Recording not found")
+    holding = await _other_holds(session, original, recording)
+    if holding:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Another request still holds this recording or file ("
+                + ", ".join(holding)
+                + "). Settle it first; one request cannot undo another."
+            ),
+        )
     if recording.status == "removed":
         await recordings_service.restore_recording(session, recording, by=by)
-    if counter.audio_sha256:
-        await blocked_hashes.unblock(session, counter.audio_sha256)
+    if counter.audio_sha256 or original.audio_sha256:
+        # only this request's own row: any other request's row keeps the file blocked
+        await blocked_hashes.unblock(
+            session, (counter.audio_sha256 or original.audio_sha256 or ""), takedown_id=original.id
+        )
     counter.status = "restored"
     counter.decided_by = by
     counter.decided_at = now_utc()

@@ -8,7 +8,8 @@ takedown_requests
     with the decision, who decided and when. The sender's address is stored (needed to reply);
     the abuse counter stores only a salted hash.
 blocked_audio_hashes
-    SHA-256 of files that cannot be uploaded again after a take-down.
+    SHA-256 of files that cannot be uploaded again after a take-down. One row per request, so
+    lifting one request never lifts another one about the same file.
 
 Two new tables, nothing existing is touched. Safe to run twice. Works on PostgreSQL and SQLite.
 Downgrade drops both tables.
@@ -94,7 +95,8 @@ def upgrade() -> None:
     if not _has_table("blocked_audio_hashes"):
         op.create_table(
             "blocked_audio_hashes",
-            sa.Column("sha256", sa.String(64), primary_key=True),
+            sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+            sa.Column("sha256", sa.String(64), nullable=False),
             sa.Column(
                 "takedown_id",
                 postgresql.UUID(as_uuid=True),
@@ -103,7 +105,9 @@ def upgrade() -> None:
             sa.Column("reason", sa.Text(), nullable=False),
             sa.Column("blocked_by", sa.String(255)),
             sa.Column("blocked_at", sa.DateTime(timezone=True), nullable=False),
+            sa.UniqueConstraint("sha256", "takedown_id", name="uq_blocked_audio_request"),
         )
+        op.create_index("ix_blocked_audio_hashes_sha256", "blocked_audio_hashes", ["sha256"])
 
 
 def downgrade() -> None:
