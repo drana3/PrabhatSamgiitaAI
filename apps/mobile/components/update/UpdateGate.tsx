@@ -7,7 +7,6 @@ import { amGap, amRadius } from "@/constants/tokens/amSpacing"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import {
-  ANDROID_PACKAGE,
   appPlatform,
   storeTarget,
   useUpdateAnswer,
@@ -16,7 +15,7 @@ import {
 import { useT } from "@/lib/i18n"
 
 function openStore(answer: UpdateAnswer) {
-  const target = storeTarget(answer, appPlatform(), ANDROID_PACKAGE)
+  const target = storeTarget(answer, appPlatform())
   if (target) void Linking.openURL(target).catch(() => undefined)
   return target
 }
@@ -37,7 +36,7 @@ export function UpdateGate() {
 function RequiredScreen({ answer }: { answer: UpdateAnswer }) {
   const t = useT()
   const theme = useAmTheme()
-  const hasStore = storeTarget(answer, appPlatform(), ANDROID_PACKAGE) !== null
+  const hasStore = storeTarget(answer, appPlatform()) !== null
   return (
     <View style={[StyleSheet.absoluteFill, styles.cover, { backgroundColor: theme.page }]}>
       <NoticeScreen
@@ -58,7 +57,7 @@ function Banner({ answer, onDismiss }: { answer: UpdateAnswer; onDismiss: () => 
   const t = useT()
   const theme = useAmTheme()
   const insets = useSafeAreaInsets()
-  const hasStore = storeTarget(answer, appPlatform(), ANDROID_PACKAGE) !== null
+  const hasStore = storeTarget(answer, appPlatform()) !== null
   return (
     <View
       pointerEvents="box-none"

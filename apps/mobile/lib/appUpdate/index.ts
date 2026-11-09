@@ -10,13 +10,27 @@ import {
   bannerDismissed,
   checkForUpdate,
   dismissBanner,
+  safeStoreUrl,
+  storeTarget as storeTargetFor,
   type UpdateAnswer,
   type UpdateDeps,
 } from "@/lib/appUpdate/policy"
 
-export { storeTarget, type UpdateAnswer } from "@/lib/appUpdate/policy"
+export { type UpdateAnswer } from "@/lib/appUpdate/policy"
 
 export const ANDROID_PACKAGE = "net.prabhatasamgiita.ai"
+
+/**
+ * App Store page of the app, set in the build environment (EAS) once the app exists in App Store Connect:
+ * EXPO_PUBLIC_IOS_APP_STORE_URL=https://apps.apple.com/app/id<number>. Empty on purpose until then.
+ * (The server may also hand out a link: `PUT /api/v1/admin/app-versions/ios`, which wins.)
+ */
+export const IOS_APP_STORE_URL = safeStoreUrl(process.env.EXPO_PUBLIC_IOS_APP_STORE_URL)
+
+/** The address of the "Update" button for this phone, or null when nothing is known. */
+export function storeTarget(answer: UpdateAnswer, platform: string | undefined) {
+  return storeTargetFor(answer, platform, ANDROID_PACKAGE, IOS_APP_STORE_URL)
+}
 
 const enabled = !MOCKUP_DATA && process.env.EXPO_PUBLIC_UPDATE_CHECK !== "off" && Boolean(apiBaseUrl)
 

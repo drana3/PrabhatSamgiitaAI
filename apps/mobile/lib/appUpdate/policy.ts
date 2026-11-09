@@ -140,11 +140,21 @@ export async function dismissBanner(deps: UpdateDeps, answer: UpdateAnswer): Pro
   }
 }
 
-/** The address of the button: the server's link, else (Android only) the store page of our package. */
-export function storeTarget(answer: UpdateAnswer, platform: string | undefined, androidPackage: string) {
+/**
+ * The address of the button: the server's link; else on Android the store page of our package; else on
+ * iOS the link the build was given (`EXPO_PUBLIC_IOS_APP_STORE_URL`, docs/forced-update.md). No App Store
+ * id is guessed: with none of these there is no button and the page tells people to look in the store.
+ */
+export function storeTarget(
+  answer: UpdateAnswer,
+  platform: string | undefined,
+  androidPackage: string,
+  iosConfigured?: string | null,
+) {
   if (answer.storeUrl) return answer.storeUrl
   if (platform === "android") {
     return `https://play.google.com/store/apps/details?id=${encodeURIComponent(androidPackage)}`
   }
+  if (platform === "ios") return safeStoreUrl(iosConfigured)
   return null
 }

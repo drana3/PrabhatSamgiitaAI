@@ -165,8 +165,34 @@ describe("store link", () => {
       "https://play.google.com/store/apps/details?id=net.example.app",
     )
     expect(storeTarget(OK, "ios", "net.example.app")).toBeNull()
+    expect(storeTarget(OK, undefined, "net.example.app", "https://apps.apple.com/app/id9")).toBeNull()
     expect(storeTarget({ ...OK, storeUrl: "https://apps.apple.com/app/id1" }, "ios", "x")).toBe(
       "https://apps.apple.com/app/id1",
+    )
+  })
+})
+
+describe("the App Store link from the build environment", () => {
+  const configured = "https://apps.apple.com/app/prabhat-samgiita-ai/id123456789"
+
+  it("is used on iOS when the server gave no link", () => {
+    expect(storeTarget(OK, "ios", "x", configured)).toBe(configured)
+  })
+
+  it("loses to the link the server gave", () => {
+    const server = { ...OK, storeUrl: "https://apps.apple.com/app/id1" }
+    expect(storeTarget(server, "ios", "x", configured)).toBe("https://apps.apple.com/app/id1")
+  })
+
+  it("is ignored when it is not a store link, or empty (no button, no guess)", () => {
+    expect(storeTarget(OK, "ios", "x", "https://evil.example/x")).toBeNull()
+    expect(storeTarget(OK, "ios", "x", "")).toBeNull()
+    expect(storeTarget(OK, "ios", "x", undefined)).toBeNull()
+  })
+
+  it("does not change Android", () => {
+    expect(storeTarget(OK, "android", "net.example.app", configured)).toBe(
+      "https://play.google.com/store/apps/details?id=net.example.app",
     )
   })
 })
