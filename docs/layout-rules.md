@@ -156,3 +156,16 @@ values of every row of "Search by" (`SearchByBlock`) and the collections that ma
 Left as they are on purpose: the eight "feeling" prompts of the empty Search page (a fixed set of examples, not tags of anything),
 the length filters of the Kiirtan list (four), the mood picker of an uploader (a fixed list of choices to tick, an editor), the author page
 (languages are one text line, not chips) and the upload form's own fields (already `TagPicker`).
+
+## One row, a sheet: a short list of choices (10 Nov 2026)
+
+A field with a few choices and one answer (Solo or group, How was it recorded, Tempo, Which dance) is NOT a row of big chips: three
+wrapped chips and their hint took about 100 pt, four such fields made the "How it sounds" block a wall of buttons. It is ONE row of 60 pt:
+the label with its Required / Optional mark on the first line, the chosen value (or "Not chosen") on the second, a round chevron on the
+right. A tap opens the same white `SpringSheet` as the key picker and the tag picker, with TagPicker's rows; one tap picks and the sheet
+leaves. The one-line explanation lives in the sheet, not on the page. A required field has no way to empty it; an optional one gets a first
+row "Not chosen". The error line and the red border stay on the row. The component is `components/kirtan/add/ChoiceField.tsx`, the rules are
+pure (`lib/kirtan/choiceField.ts`, `__tests__/choiceField.test.ts`). A NEW short single-choice field on a form uses `ChoiceField`; it never
+writes a wrapping `flexWrap` row of chips. Left as they are on purpose: the type of recording tiles (what the form is about, they change
+the whole form), the playlist's "Type of the recordings" chips, the small Tandava / Kaoshiki chips inside the rows of the bulk queue (one
+per file, inside a card), the Avarta and "I am the author" ticks (a tick, not a list), the date chips of a broadcast.

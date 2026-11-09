@@ -206,6 +206,8 @@ describe("Space between blocks: the upload forms", () => {
     "components/kirtan/sets/EventDateField.tsx",
     "components/kirtan/add/InstrumentField.tsx",
     "components/kirtan/add/SoundFields.tsx",
+    "components/kirtan/add/ChoiceField.tsx",
+    "components/kirtan/add/RecordingTypeField.tsx",
     "components/kirtan/add/AuthorTick.tsx",
     "components/kirtan/add/KindFields.tsx",
     "components/kirtan/add/QueueRows.tsx",

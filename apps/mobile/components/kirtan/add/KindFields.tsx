@@ -83,23 +83,8 @@ export function LanguageField({ theme, kind, value, onOpen, invalid, errorText, 
   )
 }
 
-/** A Dance music's dance: Tandava or Kaoshiki, two large choices. Always required. */
-export function DanceField({ theme, value, onChange, invalid, errorText, disabled }: { theme: SongsTheme; value: DanceId | null; onChange: (dance: DanceId) => void; invalid?: boolean; errorText?: string | null; disabled?: boolean }) {
-  const t = useT()
-  return (
-    <View style={styles.field}>
-      <View style={styles.labelRow}>
-        <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.dance.label")}</Text>
-        <RequiredMark theme={theme} required invalid={invalid} />
-      </View>
-      <DanceChoices theme={theme} value={value} onChange={onChange} invalid={invalid} disabled={disabled} large />
-      {errorText ? <FieldError theme={theme} text={errorText} /> : <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.dance.hint")}</Text>}
-    </View>
-  )
-}
-
-/** The dances as a row of round choices; the dance list is lib/kirtan/types.ts DANCES (one growable constant). */
-export function DanceChoices({ theme, value, onChange, invalid, disabled, large }: { theme: SongsTheme; value: DanceId | null; onChange: (dance: DanceId) => void; invalid?: boolean; disabled?: boolean; large?: boolean }) {
+/** The dances as a row of small round choices, for the rows of the bulk queue (the form itself uses SoundFields' DanceField, a one-row dropdown); the dance list is lib/kirtan/types.ts DANCES (one growable constant). */
+export function DanceChoices({ theme, value, onChange, invalid, disabled }: { theme: SongsTheme; value: DanceId | null; onChange: (dance: DanceId) => void; invalid?: boolean; disabled?: boolean }) {
   const t = useT()
   return (
     <View style={styles.chips} accessibilityRole="radiogroup">
@@ -114,8 +99,7 @@ export function DanceChoices({ theme, value, onChange, invalid, disabled, large 
             accessibilityLabel={name}
             onActivate={() => !disabled && onChange(dance)}
             pressedScale={0.96}
-            outerStyle={large ? styles.chipOuterLarge : undefined}
-            style={[styles.chip, large && styles.chipLarge, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : invalid ? amColors.danger : theme.line }]}
+            style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : invalid ? amColors.danger : theme.line }]}
           >
             <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{name}</Text>
           </KPress>
@@ -273,9 +257,7 @@ const styles = StyleSheet.create({
   boxButton: { height: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   boxButtonText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chipOuterLarge: { flexGrow: 1, flexBasis: "45%" },
   chip: { minHeight: 40, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
-  chipLarge: { minHeight: 56, borderRadius: 24 },
   chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
   searchRow: { height: 56, paddingHorizontal: PICKER_INSET, flexDirection: "row", marginBottom: 8 },
   count: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },

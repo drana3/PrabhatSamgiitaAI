@@ -29,6 +29,10 @@ on both sides plus a label in en, ru, es: no migration.
   once, a stranger sees it only after the matching suggestion (`value_suggestions`, field `style` or `mood`) is accepted. One shared
   resolution path for every moderation route.
 * **Lead instrument**: ONE choice, shown as one row (the chosen value and a Choose / Change button, no chips). The button opens the white sheet with a search box and a scrollable list of all sixteen instruments (guitar, harmonium, piano, synthesizer and keyboard marked electronic, tabla, dholak, khol, kartal, flute, violin, sitar, esraj, bass guitar, ukulele, voice only), and "Add your own" inside the sheet (own words wait for the team, as before).
+* **One-row dropdowns (10 Nov 2026)**: "How was it recorded?", "Solo or group", "Tempo" (Dance music) and "Which dance?" are no longer rows of
+  big chips. Each is ONE row (label, Required / Optional mark, the chosen value, a chevron) that opens the white sheet of the key picker; an optional
+  one has "Not chosen" as the first row, a required one cannot be emptied. Ids, rules, API payloads and error lines did not change; the AI note shows
+  in the sheet and under the row. Code: `components/kirtan/add/ChoiceField.tsx`, `lib/kirtan/choiceField.ts`; layout rule in `docs/layout-rules.md`.
 * **Place** where it was recorded or performed: optional, in "More details", for every kind.
 * **Compact picker** (`components/kirtan/add/TagPicker.tsx`): Style, Mood and Main instrument show as one line of chosen chips and a
   "+"; a tap opens a bottom sheet with a scrollable list and a search box. The search box doubles as "add your own", so no text input

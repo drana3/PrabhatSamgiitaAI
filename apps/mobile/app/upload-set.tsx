@@ -7,9 +7,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
-import { PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
+import { DanceField, PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { kindHasInstrument } from "@/lib/kirtan/instruments"
-import { kindHasByAuthor, kindHasRecordingType } from "@/lib/kirtan/recordingInfo"
+import { kindHasByAuthor, kindHasPerformance, kindHasRecordingType } from "@/lib/kirtan/recordingInfo"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
@@ -18,7 +18,7 @@ import { StyleField } from "@/components/kirtan/add/StyleField"
 import { kindHasMood } from "@/lib/kirtan/moods"
 import { kindHasStyle } from "@/lib/kirtan/styles"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
-import { DanceField, FieldError, LanguageField, LanguagePicker, RequiredMark, type LanguageValue } from "@/components/kirtan/add/KindFields"
+import { FieldError, LanguageField, LanguagePicker, RequiredMark, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar } from "@/components/kirtan/add/QueueRows"
 import { CoverField } from "@/components/kirtan/sets/CoverField"
 import { EventDateField } from "@/components/kirtan/sets/EventDateField"
@@ -510,9 +510,11 @@ export default function UploadSetScreen() {
                 <RecordingTypeField theme={theme} kind={soundKind(d)} value={d.defaultRecordingType} onChange={(next) => { form.clear(); store().details(d.id, { defaultRecordingType: next }) }} invalid={!!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
               </View>
             ) : null}
-            <View {...form.field("performance")} style={styles.field}>
-              <PerformanceField theme={theme} kind={soundKind(d)} value={d.defaultPerformance} onChange={(next) => { form.clear(); store().details(d.id, { defaultPerformance: next }) }} invalid={!!form.error("performance")} errorText={form.error("performance")} disabled={locked} />
-            </View>
+            {kindHasPerformance(soundKind(d)) ? (
+              <View {...form.field("performance")} style={styles.field}>
+                <PerformanceField theme={theme} kind={soundKind(d)} value={d.defaultPerformance} onChange={(next) => { form.clear(); store().details(d.id, { defaultPerformance: next }) }} invalid={!!form.error("performance")} errorText={form.error("performance")} disabled={locked} />
+              </View>
+            ) : null}
             <TempoField theme={theme} kind={soundKind(d)} value={d.defaultTempo} onChange={(next) => store().details(d.id, { defaultTempo: next })} disabled={locked} />
             <View {...form.field("instrument")} style={styles.field}>
               <InstrumentField theme={theme} kind={soundKind(d)} value={{ instrument: d.defaultLeadInstrument, instrumentOther: d.defaultLeadInstrumentOther }} onChange={(next) => { form.clear(); store().details(d.id, { defaultLeadInstrument: next.instrument, defaultLeadInstrumentOther: next.instrumentOther }) }} accepted={instrumentWords.accepted} newWordsPerWeek={instrumentWords.newWordsPerWeek} invalid={!!form.error("instrument")} errorText={form.error("instrument")} disabled={locked} />

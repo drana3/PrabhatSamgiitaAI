@@ -1,61 +1,38 @@
-import { StyleSheet, Text, View } from "react-native"
-
-import { FieldError, RequiredMark } from "@/components/kirtan/add/KindFields"
-import { Press } from "@/components/songs-v2/Press"
+import { ChoiceField } from "@/components/kirtan/add/ChoiceField"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
-import { amColors } from "@/constants/tokens/amColors"
-import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
-import { kindHasRecordingType, kindRequiresRecordingType, recordingTypeLabel, recordingTypesFor } from "@/lib/kirtan/recordingInfo"
+import type { ChoiceOption } from "@/lib/kirtan/choiceField"
+import { AI_TYPE, kindHasRecordingType, kindRequiresRecordingType, normalizeRecordingType, recordingTypeLabel, recordingTypesFor } from "@/lib/kirtan/recordingInfo"
 
 /**
- * "How was it recorded": studio, live at a programme, at home, or made by AI. REQUIRED for a Kiirtan, optional for the
- * other kinds that carry it. A short row of choices; holds no state (the caller passes the value and takes the change).
- * Words and rules: lib/kirtan/recordingInfo.ts, docs/kiirtan-recording-info.md. This is the form's stop-gap until the upload
- * wizard replaces it (docs/kiirtan-upload-wizard.md is a proposal); the ids and the rules stay.
+ * "How was it recorded": studio, live at a programme, or made by AI. REQUIRED for a Kiirtan, optional for the other kinds that carry it.
+ * ONE row with a sheet (ChoiceField, Dada, 10 Nov 2026), no longer a row of big chips; holds no state (the caller passes the value and
+ * takes the change). The AI note shows in the sheet and again under the row once AI is chosen. Words and rules: lib/kirtan/recordingInfo.ts,
+ * docs/kiirtan-recording-info.md. The ids and the rules did not change.
  */
 export function RecordingTypeField({ theme, kind, value, onChange, invalid, errorText, disabled }: { theme: SongsTheme; kind: string; value: string | null; onChange: (next: string | null) => void; invalid?: boolean; errorText?: string | null; disabled?: boolean }) {
   const t = useT()
   if (!kindHasRecordingType(kind)) return null
   const required = kindRequiresRecordingType(kind)
+  const options: ChoiceOption[] = recordingTypesFor(kind).map((id) => ({ id, label: recordingTypeLabel(id) }))
+  // an older draft may still say "home": it reads as the studio recording it has become
+  const shown = normalizeRecordingType(value)
   return (
-    <View style={s.root}>
-      <View style={s.head}>
-        <Text style={[s.label, { color: theme.textHeading }]}>{t("recinfo.type.field")}</Text>
-        {required ? <RequiredMark theme={theme} required invalid={invalid} /> : null}
-      </View>
-      <Text style={[s.hint, { color: theme.textBody }]}>{t(required ? "recinfo.type.hint" : "recinfo.type.hintOptional")}</Text>
-      <View style={s.chips}>
-        {recordingTypesFor(kind).map((id) => {
-          const on = value === id
-          return (
-            <Press
-              key={id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on, disabled: !!disabled }}
-              disabled={disabled}
-              accessibilityLabel={recordingTypeLabel(id)}
-              onPress={() => onChange(on && !required ? null : id)}
-              pressedScale={0.95}
-              style={[s.chip, { backgroundColor: on ? theme.brand : theme.card, borderColor: on ? theme.brand : invalid ? amColors.danger : theme.line }]}
-            >
-              <Text style={[s.chipText, { color: on ? theme.onBrand : theme.textHeading }]}>{recordingTypeLabel(id)}</Text>
-            </Press>
-          )
-        })}
-      </View>
-      {value === "ai" ? <Text style={[s.hint, { color: theme.textBody }]}>{t("recinfo.type.aiNote")}</Text> : null}
-      {errorText ? <FieldError theme={theme} text={errorText} /> : null}
-    </View>
+    <ChoiceField
+      theme={theme}
+      label={t("recinfo.type.field")}
+      hint={t(required ? "recinfo.type.hint" : "recinfo.type.hintOptional")}
+      options={options}
+      value={shown}
+      onChange={onChange}
+      required={required}
+      showOptional={required}
+      invalid={invalid}
+      errorText={errorText}
+      disabled={disabled}
+      noteOf={(id) => (id === AI_TYPE ? t("recinfo.type.aiNote") : undefined)}
+      below={shown === AI_TYPE ? t("recinfo.type.aiNote") : null}
+      testID="recording-type-field"
+    />
   )
 }
-
-const s = StyleSheet.create({
-  root: { gap: 8 },
-  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
-  hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { minHeight: 40, paddingHorizontal: 14, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
-})

@@ -12,7 +12,7 @@ import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { MantraField } from "@/components/kirtan/add/MantraField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
-import { PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
+import { DanceField, PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
 import { MoodField } from "@/components/kirtan/add/MoodField"
 import { StyleField } from "@/components/kirtan/add/StyleField"
@@ -22,11 +22,11 @@ import { kindHasInstrument } from "@/lib/kirtan/instruments"
 import { fixKiirtanSpelling } from "@/lib/kirtan/kiirtanSpelling"
 import { kindHasMood } from "@/lib/kirtan/moods"
 import { kindHasStyle } from "@/lib/kirtan/styles"
-import { effectiveRecordingType, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
+import { effectiveRecordingType, kindHasPerformance, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { offersVideoLink } from "@/lib/recordingVideos/uploadLink"
 import { videoFailureText } from "@/lib/recordingVideos/words"
-import { DanceField, FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
+import { FieldError, LanguageField, LanguagePicker, type LanguageValue } from "@/components/kirtan/add/KindFields"
 import { ApplyToAllCard, QueueBar, QueueRow, QueueSummaryCard } from "@/components/kirtan/add/QueueRows"
 import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
@@ -585,9 +585,11 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
                     <RecordingTypeField theme={theme} kind={kind} value={draft.recordingType} onChange={(next) => store().setDraft({ recordingType: next })} invalid={formError === "recordingType" || !!form.error("recordingType")} errorText={form.error("recordingType")} disabled={locked} />
                   </View>
                 ) : null}
-                <View {...form.field("performance")} style={styles.field}>
-                  <PerformanceField theme={theme} kind={kind} value={draft.performance} onChange={(next) => store().setDraft({ performance: next })} invalid={formError === "performance" || !!form.error("performance")} errorText={form.error("performance")} disabled={locked} />
-                </View>
+                {kindHasPerformance(kind) ? (
+                  <View {...form.field("performance")} style={styles.field}>
+                    <PerformanceField theme={theme} kind={kind} value={draft.performance} onChange={(next) => store().setDraft({ performance: next })} invalid={formError === "performance" || !!form.error("performance")} errorText={form.error("performance")} disabled={locked} />
+                  </View>
+                ) : null}
                 <TempoField theme={theme} kind={kind} value={draft.tempo} onChange={(next) => store().setDraft({ tempo: next })} disabled={locked} />
                 <View {...form.field("instrument")} style={styles.field}>
                   <InstrumentField theme={theme} kind={kind} value={{ instrument: draft.leadInstrument, instrumentOther: draft.leadInstrumentOther }} onChange={(next) => store().setDraft({ leadInstrument: next.instrument, leadInstrumentOther: next.instrumentOther })} accepted={instrumentWords.accepted} newWordsPerWeek={instrumentWords.newWordsPerWeek} invalid={formError === "instrument" || !!form.error("instrument")} errorText={form.error("instrument")} disabled={locked} />

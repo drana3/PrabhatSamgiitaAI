@@ -6,6 +6,7 @@ import { duplicatesRu } from "./duplicates"
 import { recordingInfoRu } from "./recordingInfo"
 import { recordingChartsRu } from "./recordingCharts"
 import { chordInstrumentsRu } from "./chordInstruments"
+import { choiceFieldRu } from "./choiceField"
 import { keyPickerRu } from "./keyPicker"
 import { recordingCycleRu } from "./recordingCycle"
 import { chordCardRu } from "./chordCard"
@@ -1414,4 +1415,5 @@ export const ru: Dictionary = {
   ...radioRu,
   ...chordInstrumentsRu,
   ...keyPickerRu,
+  ...choiceFieldRu,
 }
