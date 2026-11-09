@@ -1,9 +1,11 @@
-"""The team's queue of words authors write under "Add your own" (instrument, style, language).
+"""The team's queue of words authors write under "Add your own" (instrument, style, mood, language).
 
 Dada, 8 Nov 2026: a custom value goes to a suggestion queue. The author sees the word at once; the
 team accepts it, merges it into a listed value or rejects it; the word is normalized; one person may
-bring at most three NEW words a week; an instrument, a style and a language work this way (a
+bring at most three NEW words a week; an instrument, a style, a mood and a language work this way (a
 language is "Add a language" in the language list; its code is `other`, its word `language_other`).
+A style and a mood are lists (9 Nov 2026): the own words of a recording sit in `styles_other` and
+`moods_other`, and the team's decision works on the word inside that list.
 
 Normalization (`normalized_key`): case, spaces, punctuation, marks and accents do not matter, so
 "Harmonium", " harmonium." and "HÁRMONIUM" are one word. A word that IS a listed value ("piano",
@@ -42,15 +44,29 @@ from app.services.invisible_text import strip_invisible
 from app.services.recording_instruments import INSTRUMENTS, NAMES, OTHER_MAX, OTHER_MIN
 from app.services.recording_languages import LANGUAGE_CODES, LANGUAGE_OTHER_MAX, LANGUAGES
 from app.services.recording_styles import STYLES
+from app.services.recording_tags import UPLOAD_MOODS, effective_tags, legacy_single
 
 INSTRUMENT = "instrument"
 STYLE = "style"
+MOOD = "mood"
 LANGUAGE = "language"
-FIELDS = (INSTRUMENT, STYLE, LANGUAGE)
+FIELDS = (INSTRUMENT, STYLE, MOOD, LANGUAGE)
+# The fields that hold a LIST of own words on the recording (the others hold one word).
+LIST_FIELDS = (STYLE, MOOD)
 # One person may bring this many NEW words in any seven days (words already in the queue are free).
 NEW_WORDS_PER_WEEK = 3
 WEEK = timedelta(days=7)
 SIMILAR_RATIO = 0.85
+
+
+# English words that mean a listed style ("Acoustic guitar" is `acoustic_guitar`).
+STYLE_NAMES: dict[str, tuple[str, ...]] = {
+    "indian": ("indian style", "indian"),
+    "electronic": ("electronic", "electro"),
+    "acoustic_guitar": ("acoustic guitar", "acoustic"),
+    "african": ("african", "african style"),
+    "western": ("western", "western style"),
+}
 
 
 def normalized_key(text: str | None) -> str:
@@ -85,6 +101,8 @@ def valid_codes(field: str) -> tuple[str, ...]:
         return INSTRUMENTS
     if field == LANGUAGE:
         return LANGUAGE_CODES
+    if field == MOOD:
+        return UPLOAD_MOODS
     return tuple(STYLES)
 
 
@@ -94,7 +112,11 @@ def listed_names(field: str) -> dict[str, tuple[str, ...]]:
         return NAMES
     if field == LANGUAGE:
         return {code: (name,) for code, name in LANGUAGES}
-    return {code: (code,) for code in STYLES}
+    if field == MOOD:
+        return {code: (code,) for code in UPLOAD_MOODS}
+    return {
+        code: (code, *STYLE_NAMES.get(code, ())) for code in STYLES
+    }
 
 
 def listed_code(field: str, text: str | None) -> str | None:
@@ -257,7 +279,52 @@ def _recording_field_names(field: str) -> tuple[str, str]:
         return ("lead_instrument", "lead_instrument_other")
     if field == LANGUAGE:
         return ("language", "language_other")
-    return ("style", "style_other")
+    if field == MOOD:
+        return ("moods", "moods_other")
+    return ("styles", "styles_other")
+
+
+def _list_state(rec: Recording, field: str) -> tuple[list[str], list[str]]:
+    """(listed ids, own words) of a style or mood field, whichever shape the row has."""
+    if field == MOOD:
+        return effective_tags(rec.moods, rec.moods_other)
+    return effective_tags(rec.styles, rec.styles_other, rec.style, rec.style_other)
+
+
+def _store_list(rec: Recording, field: str, ids: list[str], own: list[str]) -> None:
+    """Write the two lists back; a style also keeps the old single value in step (an older phone
+    and the search shelves read it)."""
+    if field == MOOD:
+        rec.moods, rec.moods_other = ids, own
+        return
+    rec.styles, rec.styles_other = ids, own
+    rec.style, rec.style_other = legacy_single(ids, own)
+
+
+def _has_word(rec: Recording, row: ValueSuggestion) -> bool:
+    return any(normalized_key(word) == row.key for word in _list_state(rec, row.field)[1])
+
+
+def _decide_in_lists(
+    rec: Recording, row: ValueSuggestion, action: str, merge_into: str | None
+) -> bool:
+    """Apply the team's answer to the own word inside the recording's lists. True when the word
+    was there (so the author may have to be told)."""
+    ids, own = _list_state(rec, row.field)
+    kept = [word for word in own if normalized_key(word) != row.key]
+    if len(kept) == len(own):
+        return False
+    if action == "accept":
+        # the word stays, spelled the way the team fixed it
+        own = [row.label if normalized_key(word) == row.key else word for word in own]
+        _store_list(rec, row.field, ids, own)
+    elif action == "merge":
+        if merge_into and merge_into not in ids:
+            ids = [*ids, merge_into]
+        _store_list(rec, row.field, ids, kept)
+    else:  # reject: the word is gone from the recording
+        _store_list(rec, row.field, ids, kept)
+    return True
 
 
 async def _recordings_of(session: AsyncSession, row: ValueSuggestion) -> list[Recording]:
@@ -292,6 +359,8 @@ async def decide(
     code_name, other_name = _recording_field_names(row.field)
     recordings = await _recordings_of(session, row)
     notices: list[MemberNotice] = []
+    if row.field in LIST_FIELDS:
+        return await _decide_list_word(session, row, recordings, action, by, merge_into, label)
     if action == "accept":
         if label:
             try:
@@ -349,6 +418,54 @@ async def decide(
                     notices.append(notice)
     else:
         raise HTTPException(status_code=422, detail="Choose accept, merge or reject.")
+    row.decided_by = by
+    row.decided_at = datetime.now(UTC)
+    await session.commit()
+    return notices
+
+
+async def _decide_list_word(
+    session: AsyncSession,
+    row: ValueSuggestion,
+    recordings: list[Recording],
+    action: str,
+    by: str,
+    merge_into: str | None,
+    label: str | None,
+) -> list[MemberNotice]:
+    """The team's answer for a style or a mood word (a list on the recording)."""
+    if action not in ("accept", "merge", "reject"):
+        raise HTTPException(status_code=422, detail="Choose accept, merge or reject.")
+    if action == "accept" and label:
+        try:
+            row.label = clean_word(label, max_length(row.field))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if action == "merge" and merge_into not in valid_codes(row.field):
+        raise HTTPException(status_code=422, detail="Choose the listed value to merge into.")
+    row.status = {"accept": "accepted", "merge": "merged", "reject": "rejected"}[action]
+    if action == "merge":
+        row.merged_into = merge_into
+    notices: list[MemberNotice] = []
+    for rec in recordings:
+        if not _decide_in_lists(rec, row, action, merge_into):
+            continue
+        if action == "reject" and rec.author_id is not None:
+            what = "mood" if row.field == MOOD else "style"
+            notice = MemberNotice(
+                user_id=rec.author_id,
+                kind="value_rejected",
+                recording_id=rec.id,
+                title="The team did not accept a word",
+                body=(
+                    f"For “{rec.title}” you wrote “{row.label}” as a {what}. The team did not "
+                    "accept it, so it is not shown. You can pick a value from the list when you "
+                    "edit the recording."
+                ),
+                payload={"field": row.field, "word": row.label},
+            )
+            session.add(notice)
+            notices.append(notice)
     row.decided_by = by
     row.decided_at = datetime.now(UTC)
     await session.commit()

@@ -26,10 +26,11 @@ from app.services.recording_info import (
 
 
 def test_the_lists_are_the_ones_the_phone_uses() -> None:
-    assert RECORDING_TYPES == ("studio", "live", "home", "ai")
-    assert TEMPOS == ("slow", "medium", "fast")
+    assert RECORDING_TYPES == ("studio", "live", "ai")  # exactly three (Dada, 9 Nov 2026)
+    assert TEMPOS == ("slow", "medium", "fast", "mix")  # and only dance music has a tempo
     assert PERFORMANCES == ("solo", "group")
     assert normalize_recording_type(" AI ") == "ai"
+    assert normalize_recording_type("home") == "studio"  # the removed third kind, from old phones
     assert normalize_tempo("") is None and normalize_performance(None) is None
     with pytest.raises(ValueError, match="how this was recorded"):
         normalize_recording_type("tape")
@@ -55,18 +56,17 @@ async def test_a_kiirtan_needs_a_recording_type_and_says_so(world: World) -> Non
     assert none.status_code == 422 and "recorded" in none.text.lower()
     wrong = await world.publish("a", mp3(2001), recording_type="tape")
     assert wrong.status_code == 422
-    ok = await world.publish(
-        "a", mp3(2002), recording_type="live", tempo="fast", performance="group"
-    )
+    ok = await world.publish("a", mp3(2002), recording_type="live", performance="group")
     assert ok.status_code == 201, ok.text
     body = ok.json()
-    assert (body["recording_type"], body["tempo"], body["performance"]) == ("live", "fast", "group")
+    assert (body["recording_type"], body["performance"]) == ("live", "group")
+    assert body["tempo"] is None  # a tempo is asked of dance music only
 
 
-async def test_tempo_is_optional_but_solo_or_group_is_required_for_a_kiirtan(
+async def test_a_kiirtan_has_no_tempo_but_solo_or_group_is_required(
     world: World,
 ) -> None:
-    done = await world.publish("a", mp3(2010), tempo=None, performance="group")
+    done = await world.publish("a", mp3(2010), tempo="fast", performance="group")
     assert done.status_code == 201
     assert done.json()["tempo"] is None and done.json()["performance"] == "group"
     for seed, value in ((2011, None), (2012, "")):
@@ -93,11 +93,11 @@ async def test_each_category_keeps_only_the_fields_it_carries(world: World) -> N
         kind="dance_song",
         dance="tandava",
         recording_type="studio",
-        tempo="slow",
+        tempo="mix",
         performance="solo",
     )
     assert dance.status_code == 201, dance.text
-    assert (dance.json()["recording_type"], dance.json()["tempo"]) == ("studio", "slow")
+    assert (dance.json()["recording_type"], dance.json()["tempo"]) == ("studio", "mix")
     assert dance.json()["performance"] is None  # dance music has no solo or group
     bhajan = await world.publish(
         "a",
@@ -105,12 +105,12 @@ async def test_each_category_keeps_only_the_fields_it_carries(world: World) -> N
         kind="bhajan",
         language="hi",
         style=None,
-        recording_type="home",
+        recording_type="home",  # an old phone: stored as a studio recording
         tempo="fast",
         performance="solo",
     )
     assert bhajan.status_code == 201, bhajan.text
-    assert (bhajan.json()["recording_type"], bhajan.json()["performance"]) == ("home", "solo")
+    assert (bhajan.json()["recording_type"], bhajan.json()["performance"]) == ("studio", "solo")
     assert bhajan.json()["tempo"] is None
     ps = await world.publish(
         "a",
@@ -121,7 +121,11 @@ async def test_each_category_keeps_only_the_fields_it_carries(world: World) -> N
         recording_type="studio",
     )
     assert ps.status_code == 201, ps.text
-    assert ps.json()["recording_type"] is None  # not carried by this category
+    assert ps.json()["recording_type"] == "studio"  # every sung category carries it now
+    slow = await world.publish("a", mp3(2033), kind="dance_song", dance="kaoshiki", tempo="slow")
+    assert slow.json()["tempo"] == "slow"
+    bad = await world.publish("a", mp3(2034), kind="dance_song", dance="kaoshiki", tempo="presto")
+    assert bad.status_code == 422
 
 
 async def test_a_bhajan_made_by_ai_is_accepted_and_shown_as_ai(world: World) -> None:
@@ -145,7 +149,7 @@ async def test_a_kiirtan_track_of_a_playlist_carries_its_fields(world: World) ->
     assert refused.status_code == 422, refused.text
     ok = await add_track(world, item["id"], 2051, recording_type="live", tempo="medium")
     assert ok.status_code == 201, ok.text
-    assert (ok.json()["recording_type"], ok.json()["tempo"]) == ("live", "medium")
+    assert (ok.json()["recording_type"], ok.json()["tempo"]) == ("live", None)
 
 
 # --------------------------------------------------------------------------- the title
@@ -181,12 +185,13 @@ def test_the_schema_accepts_a_kiirtan_with_the_three_fields_cleaned() -> None:
         author="x",
         terms_accepted=True,
         terms_version="x",
-        style="bengali",
+        style="indian",
         recording_type=" Home ",
         tempo=" FAST ",
         performance=" Solo",
     )
-    assert (made.recording_type, made.tempo, made.performance) == ("home", "fast", "solo")
+    # a Kiirtan has no tempo any more; "home" (old phones) is a studio recording
+    assert (made.recording_type, made.tempo, made.performance) == ("studio", None, "solo")
 
 
 # --------------------------------------------------------------------------- migration 0046

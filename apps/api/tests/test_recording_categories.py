@@ -38,7 +38,7 @@ from app.schemas.recordings import RecordingCreate
 AS_A = {"X-Test-Member": "a"}
 
 
-def test_there_are_six_categories() -> None:
+def test_there_are_seven_categories() -> None:
     # "Devotional song" is gone: a Bhajan already is one. The word stays storable for old rows only.
     # The newest are NOT it: "spiritual_song" (any language, required), "dance_song" and
     # "baba_audio" (Baba's Audio Discourses).
@@ -49,6 +49,7 @@ def test_there_are_six_categories() -> None:
         "spiritual_song",
         "dance_song",
         "baba_audio",
+        "other_mantra",  # Guru Puja, Pitriyajina and the other mantras (own page, 9 Nov 2026)
     )
     assert STORED_KINDS == (*RECORDING_KINDS, "devotional_song")
     assert public_kind("devotional_song") == "bhajan"

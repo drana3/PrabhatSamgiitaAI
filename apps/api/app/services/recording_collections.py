@@ -370,6 +370,9 @@ def with_set_defaults(payload: RecordingCreate, collection: RecordingCollection)
     if payload.language is None and collection.default_language:
         merged["language"] = collection.default_language
         merged["language_other"] = collection.default_language_other
+    # Where and when the event was is the track's place unless the track says its own.
+    if not (payload.place or "").strip() and collection.place:
+        merged["place"] = collection.place
     if payload.dance is None and merged["kind"] == "dance_song":
         merged["dance"] = collection.default_dance
     try:

@@ -2,23 +2,25 @@
 
 These are the fields the team already sorts the library by on anandamarga.org/music (the
 "Sorting the music" page; its words are in `apps/web/src/lib/razbor/vocab.ts` of the website
-repository: tempo slow/medium/fast, performance solo or group/choir, recording studio / phone or
-voice recorder / live recording / AI-generated). The phone keeps the same ids in
-`apps/mobile/lib/kirtan/recordingInfo.ts`; `tests/test_recording_info.py` and
-`__tests__/recordingInfo.test.ts` pin the two sides. The database stores the ids only, so another
-value later is a new id in the list on both sides and no migration.
-See docs/kiirtan-recording-info.md.
+repository). The phone keeps the same ids in `apps/mobile/lib/kirtan/recordingInfo.ts`;
+`tests/test_recording_info.py` and `__tests__/recordingInfo.test.ts` pin the two sides. The
+database stores the ids only, so another value later is a new id in the list on both sides and no
+migration. See docs/kiirtan-recording-info.md.
 
-* `recording_type` (how it was recorded): `studio`, `live` (at a programme or a concert), `home`
-  (at home, on a phone or a voice recorder) or `ai` (made by an AI tool). REQUIRED for a Kiirtan,
-  optional for dance music, a Bhajan and a spiritual song. An AI recording is never hidden: the
-  value is stored, sent with the recording and shown to the listener. Every kind that carries the
-  field accepts `ai`, a Bhajan too (Dada, 8 Nov 2026: the earlier ban on an AI Bhajan is gone).
-* `tempo`: `slow`, `medium`, `fast`. Optional, Kiirtan and dance music.
+* `recording_type` (how it was recorded): EXACTLY three, `studio` (Studio recording), `live` (Live
+  recording, a concert or a programme) and `ai` (AI-generated). Dada, 9 Nov 2026: three everywhere.
+  REQUIRED for a Kiirtan, optional for the other kinds that carry it. The old `home` ("at home, on
+  a phone") is gone: a stored row was turned into `studio` by migration 0064, and an older phone
+  that still sends `home` is read as `studio`. An AI recording is never hidden: the value is
+  stored, sent with the recording and shown to the listener. Every kind that carries the field
+  accepts `ai`, a Bhajan too (Dada, 8 Nov 2026).
+* `tempo`: Dance music ONLY (Dada, 9 Nov 2026): `slow`, `medium`, `fast` or `mix`. Optional. Every
+  other kind drops it, and a Kiirtan row stored with one no longer shows it.
 * `performance`: `solo` or `group` (a group or a choir). REQUIRED for a Kiirtan, optional for a
-  Bhajan.
+  Bhajan and Other mantras.
 * `by_author` ("I composed this melody or song myself"): every kind except Prabhat Samgiita (it has
-  one author) and Baba's Audio Discourses. A kind that does not carry it drops it silently.
+  one author), Baba's Audio Discourses and Other mantras (a mantra is not composed by the
+  uploader). A kind that does not carry it drops it silently.
 
 A kind that does not carry a field drops it silently, the way a style does.
 """
@@ -29,21 +31,31 @@ import unicodedata
 
 STUDIO = "studio"
 LIVE = "live"
-HOME = "home"
 AI = "ai"
-RECORDING_TYPES: tuple[str, ...] = (STUDIO, LIVE, HOME, AI)
-TEMPOS: tuple[str, ...] = ("slow", "medium", "fast")
+RECORDING_TYPES: tuple[str, ...] = (STUDIO, LIVE, AI)
+# Ids that an older phone, an old import file or an old row may still carry, and what they mean now.
+LEGACY_RECORDING_TYPES: dict[str, str] = {"home": STUDIO}
+TEMPOS: tuple[str, ...] = ("slow", "medium", "fast", "mix")
 PERFORMANCES: tuple[str, ...] = ("solo", "group")
 
 # Which categories carry which field. Names are the API's category ids (models/recordings.py).
-KINDS_WITH_RECORDING_TYPE: tuple[str, ...] = ("kiirtan", "dance_song", "bhajan", "spiritual_song")
+KINDS_WITH_RECORDING_TYPE: tuple[str, ...] = (
+    "kiirtan",
+    "dance_song",
+    "bhajan",
+    "spiritual_song",
+    "prabhat_samgiita",
+    "other_mantra",
+)
 KINDS_NEEDING_RECORDING_TYPE: tuple[str, ...] = ("kiirtan",)
 KINDS_WITH_AI: tuple[str, ...] = KINDS_WITH_RECORDING_TYPE
-KINDS_WITH_TEMPO: tuple[str, ...] = ("kiirtan", "dance_song")
-KINDS_WITH_PERFORMANCE: tuple[str, ...] = ("kiirtan", "bhajan")
+# Tempo is asked for Dance music and for nothing else.
+KINDS_WITH_TEMPO: tuple[str, ...] = ("dance_song",)
+KINDS_WITH_PERFORMANCE: tuple[str, ...] = ("kiirtan", "bhajan", "other_mantra")
 KINDS_NEEDING_PERFORMANCE: tuple[str, ...] = ("kiirtan",)
-# "I composed this melody or song myself": not for Prabhat Samgiita (one author) or Baba's talks.
-KINDS_WITHOUT_BY_AUTHOR: tuple[str, ...] = ("prabhat_samgiita", "baba_audio")
+# "I composed this melody or song myself": not for Prabhat Samgiita (one author), Baba's talks or
+# a mantra.
+KINDS_WITHOUT_BY_AUTHOR: tuple[str, ...] = ("prabhat_samgiita", "baba_audio", "other_mantra")
 
 
 def _one_of(value: str | None, allowed: tuple[str, ...], message: str) -> str | None:
@@ -58,8 +70,13 @@ def _one_of(value: str | None, allowed: tuple[str, ...], message: str) -> str | 
 
 
 def normalize_recording_type(value: str | None) -> str | None:
-    """A known id or None. Anything else is refused by the schema."""
-    return _one_of(value, RECORDING_TYPES, "Choose how this was recorded from the list.")
+    """A known id or None. The removed `home` reads as `studio`; anything else is refused."""
+    word = _one_of(
+        value,
+        (*RECORDING_TYPES, *LEGACY_RECORDING_TYPES),
+        "Choose how this was recorded from the list.",
+    )
+    return LEGACY_RECORDING_TYPES.get(word, word) if word else None
 
 
 def normalize_tempo(value: str | None) -> str | None:

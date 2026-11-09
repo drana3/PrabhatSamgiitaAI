@@ -37,6 +37,7 @@ from app.core.security import require_admin
 from app.models import Base, UserAccount
 from app.models.broadcasts import Broadcast, BroadcastRecording
 from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
+from app.models.recording_moods import RecordingMood
 from app.models.recordings import (
     AuthorBlock,
     MemberNotice,
@@ -353,7 +354,7 @@ class World:
         base: dict[str, object] = {
             "key": key,
             "kind": "kiirtan",
-            "style": "bengali",
+            "style": "indian",
             "recording_type": "studio",
             "performance": "solo",
             # A new number each time: the fake fpcalc gives every file the same length, so two
@@ -422,6 +423,7 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
             RecordingCollection,
             RecordingCollectionCover,
             Recording,
+            RecordingMood,
             RecordingReport,
             RecordingSimilarConfirm,
             AuthorBlock,

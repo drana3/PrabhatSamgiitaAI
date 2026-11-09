@@ -50,6 +50,7 @@ def test_the_language_rule_of_every_category_is_in_one_table() -> None:
         "spiritual_song": "required",
         "dance_song": "optional",
         "baba_audio": "required",
+        "other_mantra": "optional",
     }
     assert set(KIND_LANGUAGE_RULE) == set(RECORDING_KINDS)
     assert KINDS_WITH_LANGUAGE == (
@@ -58,6 +59,7 @@ def test_the_language_rule_of_every_category_is_in_one_table() -> None:
         "spiritual_song",
         "dance_song",
         "baba_audio",
+        "other_mantra",
     )
     assert DANCES == ("tandava", "kaoshiki")
     # the old id is still only an alias of Bhajan
@@ -291,14 +293,17 @@ async def test_baba_audio_needs_a_language_and_names_no_performer(world: World) 
         assert r.status_code == 422, extra
 
 
-async def test_place_and_discourse_are_dropped_for_the_other_categories(world: World) -> None:
+async def test_the_place_is_kept_by_every_category_and_the_discourse_only_by_baba(
+    world: World,
+) -> None:
     for n, kind in enumerate(("kiirtan", "bhajan")):
         extra = {"language": "en"} if kind == "bhajan" else {}
         r = await world.publish(
             "a", mp3(720 + n), kind=kind, place="Ranchi", discourse="12", title=kind, **extra
         )
         assert r.status_code == 201, r.text
-        assert r.json()["place"] is None and r.json()["discourse"] is None
+        # the place where it was recorded is asked of every category (9 Nov 2026)
+        assert r.json()["place"] == "Ranchi" and r.json()["discourse"] is None
     # a performer is still required for every other single upload
     missing = await world.publish("a", mp3(725), kind="kiirtan", author="")
     assert missing.status_code == 422

@@ -48,7 +48,8 @@ def suggestion_out(row: ValueSuggestion) -> SuggestionOut:
 
 @router.get("/value-options", response_model=ValueOptions)
 async def value_options(
-    session: DatabaseSession, field: Annotated[str, Query(pattern="^(instrument|style|language)$")]
+    session: DatabaseSession,
+    field: Annotated[str, Query(pattern="^(instrument|style|mood|language)$")],
 ) -> ValueOptions:
     """The words the team accepted: the form offers them next to the fixed list."""
     rows = await words.accepted_words(session, field)
@@ -66,7 +67,7 @@ async def list_value_suggestions(
     status: Annotated[
         str | None, Query(pattern="^(pending|accepted|merged|rejected)$")
     ] = "pending",
-    field: Annotated[str | None, Query(pattern="^(instrument|style|language)$")] = None,
+    field: Annotated[str | None, Query(pattern="^(instrument|style|mood|language)$")] = None,
 ) -> SuggestionList:
     rows = await words.list_suggestions(session, status=status, field=field)
     return SuggestionList(items=[suggestion_out(r) for r in rows], total=len(rows))

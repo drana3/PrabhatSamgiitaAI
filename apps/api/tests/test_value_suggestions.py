@@ -88,13 +88,15 @@ def test_a_listed_instrument_typed_as_text_is_the_code() -> None:
     assert listed_code("instrument", "Mridangam") == "khol"
     assert listed_code("instrument", "A cappella") == "voice_only"
     assert listed_code("instrument", "theremin") is None
-    assert listed_code("style", "Bengali") == "bengali"
+    assert listed_code("style", "Acoustic guitar") == "acoustic_guitar"
+    assert listed_code("style", "Bengali") is None  # the first list is gone
+    assert listed_code("mood", "Joyful") == "joyful"
 
 
 def test_a_word_85_percent_like_a_listed_one_is_hinted() -> None:
     assert similar_code("instrument", "harmonyum") == "harmonium"
     assert similar_code("instrument", "Theremin") is None
-    assert similar_code("style", "dhrupat") == "dhrupad"
+    assert similar_code("style", "electronik") == "electronic"
 
 
 def test_a_written_word_is_2_to_40_characters() -> None:
@@ -264,14 +266,28 @@ async def test_the_week_runs_out_and_the_person_may_bring_new_words_again(world:
 
 
 async def test_a_style_written_under_other_goes_to_the_same_queue(world: World) -> None:
-    made = await world.publish("a", mp3(3300), style="other", style_other="Baul")
+    made = await world.publish("a", mp3(3300), style=None, styles_other=["Baul"])
     assert made.status_code == 201, made.text
+    assert made.json()["styles_other"] == ["Baul"]
     assert (made.json()["style"], made.json()["style_other"]) == ("other", "Baul")
     row = await world.scalar(select(ValueSuggestion))
     assert (row.field, row.key, row.status) == ("style", "baul", "pending")
     # a listed style typed as text is the id
-    listed = await world.publish("a", mp3(3301), style="other", style_other="Bengali")
-    assert (listed.json()["style"], listed.json()["style_other"]) == ("bengali", None)
+    listed = await world.publish("a", mp3(3301), style=None, styles_other=["African"])
+    assert (listed.json()["styles"], listed.json()["styles_other"]) == (["african"], [])
+    # an old phone writes the single field: it works the same way
+    old = await world.publish("a", mp3(3302), style="other", style_other="Western")
+    assert (old.json()["styles"], old.json()["styles_other"]) == (["western"], [])
+
+
+async def test_an_own_mood_goes_to_the_queue_and_a_listed_one_never_does(world: World) -> None:
+    made = await world.publish(
+        "a", mp3(3305), styles=["indian"], moods=["joyful"], moods_other=["Tender", "Joyful"]
+    )
+    assert made.status_code == 201, made.text
+    assert made.json()["moods"] == ["joyful"] and made.json()["moods_other"] == ["Tender"]
+    rows = await world.sessions_scalars(select(ValueSuggestion))
+    assert [(r.field, r.key, r.status) for r in rows] == [("mood", "tender", "pending")]
 
 
 async def test_both_words_of_one_recording_count_against_the_same_limit(world: World) -> None:
@@ -409,11 +425,13 @@ async def test_rejecting_removes_the_word_tells_the_author_and_refuses_it_next_t
     assert again.status_code == 422 and "did not accept" in again.text
 
 
-async def test_rejecting_a_style_keeps_the_kiirtan_with_style_other_and_no_word(
+async def test_rejecting_a_style_keeps_the_kiirtan_and_drops_only_that_word(
     world: World,
     as_team,  # type: ignore[no-untyped-def]
 ) -> None:
-    made = await world.publish("a", mp3(3440), style="other", style_other="Nonsense")
+    made = await world.publish(
+        "a", mp3(3440), style=None, styles=["indian"], styles_other=["Nonsense"]
+    )
     assert made.status_code == 201, made.text
     row = await world.scalar(select(ValueSuggestion))
     done = await world.client.post(
@@ -421,7 +439,36 @@ async def test_rejecting_a_style_keeps_the_kiirtan_with_style_other_and_no_word(
     )
     assert done.status_code == 200
     got = (await world.client.get(f"/api/v1/recordings/{made.json()['id']}", headers=AS_A)).json()
-    assert (got["style"], got["style_other"]) == ("other", None)
+    assert (got["styles"], got["styles_other"], got["style"]) == (["indian"], [], "indian")
+
+
+async def test_merging_and_accepting_a_style_or_mood_word_change_the_lists(
+    world: World,
+    as_team,  # type: ignore[no-untyped-def]
+) -> None:
+    made = await world.publish(
+        "a",
+        mp3(3445),
+        style=None,
+        styles=["indian"],
+        styles_other=["Electronik"],
+        moods_other=["Tender"],
+    )
+    assert made.status_code == 201, made.text
+    rows = {r.key: r for r in await world.sessions_scalars(select(ValueSuggestion))}
+    merged = await world.client.post(
+        f"{QUEUE}/{rows['electronik'].id}/decision",
+        headers=as_team,
+        json={"action": "merge", "merge_into": "electronic"},
+    )
+    assert merged.status_code == 200, merged.text
+    accepted = await world.client.post(
+        f"{QUEUE}/{rows['tender'].id}/decision", headers=as_team, json={"action": "accept"}
+    )
+    assert accepted.status_code == 200, accepted.text
+    got = (await world.client.get(f"/api/v1/recordings/{made.json()['id']}", headers=AS_A)).json()
+    assert got["styles"] == ["indian", "electronic"] and got["styles_other"] == []
+    assert got["moods_other"] == ["Tender"]  # an accepted word stays as the person's own word
 
 
 async def test_uses_are_counted_per_recording(world: World) -> None:

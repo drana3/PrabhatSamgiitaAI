@@ -192,5 +192,5 @@ async def test_a_kiirtan_track_of_a_playlist_still_needs_its_style(world: World)
     refused = await add_track(world, item["id"], 1120, style=None)
     assert refused.status_code == 422, refused.text
     assert "style" in refused.text.lower()
-    ok = await add_track(world, item["id"], 1121, style="folk")
+    ok = await add_track(world, item["id"], 1121, style="western")
     assert ok.status_code == 201

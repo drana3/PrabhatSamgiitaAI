@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
+from uuid import UUID
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
 
@@ -27,21 +28,33 @@ from app.api.v1 import search_menu as menu_api
 from app.core.db import get_session
 from app.core.security import require_admin
 from app.models import Base
+from app.models.recordings import Recording
 from app.models.search_menu import SearchMenuPin
 from app.schemas.recordings import RecordingCreate
-from app.services.recording_styles import STYLES, normalize_style
+from app.services.recording_styles import (
+    LEGACY_STYLES,
+    STYLES,
+    clean_styles_other,
+    normalize_style,
+    normalize_styles,
+)
 
 AS_A = {"X-Test-Member": "a"}
 
 
 def test_the_style_list_is_dadas_and_ids_are_normalised() -> None:
-    assert STYLES == ("bengali", "hindi", "brajabuli", "dhrupad", "folk")
-    assert normalize_style(" Folk ") == "folk"
+    assert STYLES == ("indian", "electronic", "acoustic_guitar", "african", "western")
+    # the first list stays readable on old rows, but is never accepted again
+    assert LEGACY_STYLES == ("bengali", "hindi", "brajabuli", "dhrupad", "folk")
+    assert normalize_style(" Indian ") == "indian"
     assert normalize_style("other") == "other"
     assert normalize_style("") is None
     assert normalize_style(None) is None
-    with pytest.raises(ValueError, match="Choose a style"):
-        normalize_style("klingon")
+    for refused in ("klingon", "folk", "bengali"):
+        with pytest.raises(ValueError, match="Choose a style"):
+            normalize_style(refused)
+    assert normalize_styles([" Indian", "African", "indian", "other"]) == ["indian", "african"]
+    assert clean_styles_other(["  Baul   folk ", "baul FOLK", ""]) == ["Baul folk"]
 
 
 def _body(**extra: object) -> dict[str, object]:
@@ -60,37 +73,85 @@ def _body(**extra: object) -> dict[str, object]:
     return base
 
 
-def test_other_needs_its_name_and_the_name_is_cleaned() -> None:
-    with pytest.raises(ValidationError, match="name of the style"):
-        RecordingCreate(**_body(style="other"))
-    ok = RecordingCreate(**_body(style="other", style_other="  Baul   folk "))
-    assert ok.style == "other"
-    assert ok.style_other == "Baul folk"
-    # the name is dropped when the style is a listed one
-    listed = RecordingCreate(**_body(style="folk", style_other="ignored"))
-    assert listed.style_other is None
+def test_own_words_are_cleaned_and_a_kiirtan_needs_one_style() -> None:
+    with pytest.raises(ValidationError, match="style"):
+        RecordingCreate(**_body())
+    with pytest.raises(ValidationError, match="style"):
+        RecordingCreate(**_body(style="other"))  # "other" alone names nothing
+    ok = RecordingCreate(**_body(styles=["indian", "african"], styles_other=["  Baul   folk "]))
+    assert ok.styles == ["indian", "african"] and ok.styles_other == ["Baul folk"]
+    # the old single fields mirror the first choice, for an older phone and the search shelves
+    assert (ok.style, ok.style_other) == ("indian", None)
+    own = RecordingCreate(**_body(styles_other=["Baul"]))
+    assert (own.style, own.style_other) == ("other", "Baul")
+    # an old phone still sends one style (and "other" with its name): it reads as a list of one
+    old = RecordingCreate(**_body(style="other", style_other="  Baul   folk "))
+    assert old.styles == [] and old.styles_other == ["Baul folk"]
+    assert RecordingCreate(**_body(style="western")).styles == ["western"]
 
 
-def test_a_style_belongs_to_a_kiirtan_only() -> None:
-    bhajan = RecordingCreate(**_body(kind="bhajan", language="bn", style="folk"))
-    assert bhajan.style is None
+def test_the_number_of_choices_is_limited() -> None:
+    with pytest.raises(ValidationError, match="at most 5"):
+        RecordingCreate(
+            **_body(
+                styles=["indian", "electronic", "acoustic_guitar", "african", "western"],
+                styles_other=["Aa"],
+            )
+        )
+    with pytest.raises(ValidationError, match="at most 2"):
+        RecordingCreate(**_body(styles=["indian"], styles_other=["Aa", "Bb", "Cc"]))
+    with pytest.raises(ValidationError, match="mood"):
+        RecordingCreate(**_body(styles=["indian"], moods=["furious"]))
+    ok = RecordingCreate(
+        **_body(styles=["indian"], moods=["joyful", "mix"], moods_other=["Tender"])
+    )
+    assert ok.moods == ["joyful", "mix"] and ok.moods_other == ["Tender"]
 
 
-async def test_a_kiirtan_keeps_its_style_and_the_others_drop_it(world: World) -> None:
-    kiirtan = await world.publish("a", mp3(7001), kind="kiirtan", style="dhrupad")
-    assert kiirtan.status_code == 201, kiirtan.text
-    assert kiirtan.json()["style"] == "dhrupad"
-    assert kiirtan.json()["style_other"] is None
-    other = await world.publish("a", mp3(7002), kind="kiirtan", style="other", style_other="Baul")
-    assert other.json()["style"] == "other"
-    assert other.json()["style_other"] == "Baul"
+def test_baba_audio_carries_no_style_and_no_mood_and_the_others_may() -> None:
+    talk = RecordingCreate(
+        **_body(kind="baba_audio", language="en", styles=["indian"], moods=["joyful"])
+    )
+    assert talk.styles == [] and talk.moods == [] and talk.style is None
+    bhajan = RecordingCreate(**_body(kind="bhajan", language="bn", styles=["western"]))
+    assert bhajan.styles == ["western"]
+
+
+async def test_styles_and_moods_are_stored_returned_and_old_rows_read_as_a_list(
+    world: World,
+) -> None:
+    several = await world.publish(
+        "a",
+        mp3(7001),
+        kind="kiirtan",
+        styles=["indian", "acoustic_guitar"],
+        moods=["joyful", "longing"],
+        style=None,
+    )
+    assert several.status_code == 201, several.text
+    body = several.json()
+    assert body["styles"] == ["indian", "acoustic_guitar"] and body["style"] == "indian"
+    assert body["moods"] == ["joyful", "longing"]
+    # a row from before the lists: only the single fields exist, and they read as a list of one
+    async with world.sessions() as session:
+        row = await session.get(Recording, UUID(body["id"]))
+        assert row is not None
+        row.styles = row.styles_other = row.moods = row.moods_other = None
+        row.style, row.style_other = "other", "Baul"
+        await session.commit()
+    again = (await world.client.get(f"/api/v1/recordings/{body['id']}", headers=AS_A)).json()
+    assert again["styles"] == [] and again["styles_other"] == ["Baul"]
+    assert again["style"] == "other" and again["moods"] == []
     plain = await world.publish("a", mp3(7003), kind="kiirtan", style=None)
-    assert plain.status_code == 422  # a Kiirtan must say how it is sung
-    bhajan = await world.publish("a", mp3(7004), kind="bhajan", language="bn", style="folk")
-    assert bhajan.status_code == 201, bhajan.text
-    assert bhajan.json()["style"] is None
-    bad = await world.publish("a", mp3(7005), kind="kiirtan", style="klingon")
-    assert bad.status_code == 422
+    assert plain.status_code == 422  # a Kiirtan must say how it sounds
+    for old in ("folk", "bengali", "klingon"):
+        bad = await world.publish("a", mp3(7005), kind="kiirtan", style=old)
+        assert bad.status_code == 422, old
+    talk = await world.publish(
+        "a", mp3(7006), kind="baba_audio", language="en", style=None, styles=["indian"]
+    )
+    assert talk.status_code == 201, talk.text
+    assert talk.json()["styles"] == [] and talk.json()["style"] is None
 
 
 # ----------------------------------------------------------------------------- menu pins

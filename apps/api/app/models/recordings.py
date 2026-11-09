@@ -41,6 +41,9 @@ RECORDING_KINDS = (
     "spiritual_song",
     "dance_song",
     "baba_audio",
+    # Other mantras of Ananda Marga (Guru Puja, Pitriyajina ...): a Kiirtan is only Baba Nam
+    # Kevalam, every other mantra has its own category and its own upload page (9 Nov 2026).
+    "other_mantra",
 )
 # "Devotional song" was a fourth category once. A Bhajan already is one, so it is gone from every
 # form and list. Rows stored with it stay valid (the database check still allows the word) and are
@@ -61,6 +64,8 @@ KIND_LANGUAGE_RULE: dict[str, str] = {
     "dance_song": "optional",
     # Baba's Audio Discourses: a talk, not a song, but it is spoken in a language: required.
     "baba_audio": "required",
+    # A mantra is usually Sanskrit: the language may be named, nothing forces it.
+    "other_mantra": "optional",
 }
 # Categories that carry a sung language at all.
 KINDS_WITH_LANGUAGE = tuple(k for k, rule in KIND_LANGUAGE_RULE.items() if rule != "none")
@@ -73,6 +78,9 @@ KINDS_WITH_DANCE = ("dance_song",)
 # this name is stored; the optional place and discourse name or number are asked for this kind only.
 BABA_AUTHOR = "Shrii Shrii Anandamurti"
 KINDS_WITH_DISCOURSE = ("baba_audio",)
+# Where it was recorded or performed (`place`): asked for EVERY category now (9 Nov 2026); it used
+# to be Baba's Audio Discourses only. Optional everywhere.
+MANTRA_TYPES = ("guru_puja", "pitriyajina", "other")
 
 
 def public_kind(stored: str) -> str:
@@ -105,7 +113,7 @@ class Recording(Base, TimestampMixin):
         Index("ix_recordings_audio_sha256", "audio_sha256", unique=True),
         CheckConstraint(
             "kind IN ('kiirtan', 'bhajan', 'devotional_song', 'prabhat_samgiita', "
-            "'spiritual_song', 'dance_song', 'baba_audio')",
+            "'spiritual_song', 'dance_song', 'baba_audio', 'other_mantra')",
             name="ck_recordings_kind",
         ),
         CheckConstraint(
@@ -114,6 +122,7 @@ class Recording(Base, TimestampMixin):
         CheckConstraint(
             "(kind = 'kiirtan' AND type IN ('bnk', 'lila', 'festival', 'other')) OR "
             "(kind = 'bhajan' AND type IN ('morning', 'evening', 'devotional', 'other')) OR "
+            "(kind = 'other_mantra' AND type IN ('guru_puja', 'pitriyajina', 'other')) OR "
             "(kind IN ('devotional_song', 'prabhat_samgiita', 'spiritual_song', 'dance_song', "
             "'baba_audio') AND type = 'other')",
             name="ck_recordings_type_for_kind",
@@ -219,16 +228,26 @@ class Recording(Base, TimestampMixin):
     language: Mapped[str | None] = mapped_column(String(16))
     # What the uploader called the language when they chose "other" (only then).
     language_other: Mapped[str | None] = mapped_column(String(80))
-    # How a Kiirtan is sung (services/recording_styles.py STYLES, or "other"); null otherwise.
+    # The OLD single style (a Kiirtan's only, before 9 Nov 2026) and its word for "other". Since
+    # `styles` exists they mirror the first of it, so an older phone and the search shelves read
+    # on; a row from before holds just these (services/recording_tags.effective_tags).
     style: Mapped[str | None] = mapped_column(String(16))
-    # What the uploader called the style when they chose "other" (only then).
     style_other: Mapped[str | None] = mapped_column(String(80))
+    # How it is sung or played: SEVERAL listed ids (services/recording_styles.py STYLES) and the
+    # uploader's own words. Null on a row from before the lists. Required for a Kiirtan.
+    styles: Mapped[list[str] | None] = mapped_column(PortableJSON)
+    styles_other: Mapped[list[str] | None] = mapped_column(PortableJSON)
+    # How it feels: several listed moods (services/recording_moods.py UPLOAD_MOODS) and own words.
+    # What the uploader SAYS; the listener-confirmed moods are the `recording_moods` table.
+    moods: Mapped[list[str] | None] = mapped_column(PortableJSON)
+    moods_other: Mapped[list[str] | None] = mapped_column(PortableJSON)
     # The practice a Kiirtan is for (services/recording_practice.py): "avarta", or null (the usual).
     practice: Mapped[str | None] = mapped_column(String(16))
     # How it was recorded (services/recording_info.py): studio, live, home or ai. Required for a
     # new Kiirtan; null for older rows and for the categories that do not carry it.
     recording_type: Mapped[str | None] = mapped_column(String(16))
-    # slow / medium / fast (Kiirtan, dance music), and solo / group (Kiirtan, Bhajan). Optional.
+    # slow / medium / fast / mix (Dance music only), and solo / group (Kiirtan, Bhajan, Other
+    # mantras). Optional.
     tempo: Mapped[str | None] = mapped_column(String(8))
     performance: Mapped[str | None] = mapped_column(String(8))
     # The main (lead) instrument (services/recording_instruments.py): a listed code, "other" or
@@ -239,7 +258,8 @@ class Recording(Base, TimestampMixin):
     lead_instrument_checked: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0", nullable=False
     )
-    # Baba's Audio Discourses only: where it was given, and the name or number of the discourse.
+    # Where it was recorded or performed (every category, optional); for Baba's Audio Discourses
+    # where it was given. `discourse` is the name or number of the discourse (that kind only).
     place: Mapped[str | None] = mapped_column(String(200))
     discourse: Mapped[str | None] = mapped_column(String(200))
     # The dance of a dance music (one of DANCES); null for every other category.
@@ -360,12 +380,12 @@ class MemberNotice(Base, TimestampMixin):
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-SUGGESTION_FIELDS = ("instrument", "style", "language")
+SUGGESTION_FIELDS = ("instrument", "style", "language", "mood")
 SUGGESTION_STATUSES = ("pending", "accepted", "merged", "rejected")
 
 
 class ValueSuggestion(Base, TimestampMixin):
-    """A word an author wrote under "Add your own" (an instrument or a style), waiting for the team.
+    """A word an author wrote under "Add your own" (instrument, style, mood), waiting for the team.
 
     One row per field and normalized word (services/value_suggestions.py): "Harmonium", "harmonium "
     and "HARMONIUM" are one row, with a counter of recordings and of people. The team accepts the
@@ -377,7 +397,8 @@ class ValueSuggestion(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("field", "key", name="uq_value_suggestions_word"),
         CheckConstraint(
-            "field IN ('instrument', 'style', 'language')", name="ck_value_suggestions_field"
+            "field IN ('instrument', 'style', 'language', 'mood')",
+            name="ck_value_suggestions_field",
         ),
         CheckConstraint(
             "status IN ('pending', 'accepted', 'merged', 'rejected')",

@@ -20,10 +20,16 @@ folder; when it is missing, the file whose name without extension equals the tit
     column), bhajan, prabhat_samgiita, spiritual_song, dance_song or baba_audio (Baba's Audio
     Discourses: the speaker is Baba, the performer cell is ignored; an old devotional_song reads
     as bhajan). Empty means `--category`. A Kiirtan has no language: the cell is ignored for it.
-  * `style`: how a Kiirtan is sung (bengali, hindi, brajabuli, dhrupad, folk or other; `other`
-    needs `style_name`). REQUIRED for every Kiirtan (Dada, 8 Nov 2026): a Kiirtan row with no style
-    in the cell and no `--style` is NOT imported (it is reported as `bad_row`). The cell is ignored
-    for the other categories.
+  * `style`: how it sounds. SEVERAL can be given, separated by `|` (for example
+    `indian|acoustic_guitar`): indian, electronic, acoustic_guitar, african, western, and `other`
+    (the person's own words go in `style_name`, also separated by `|`). REQUIRED for every Kiirtan
+    (Dada, 8 Nov 2026): a Kiirtan row with no style in the cell and no `--style` is NOT imported
+    (it is reported as `bad_row`). The other categories keep a style when it is given; Baba's
+    Audio Discourses ignore the cell. At most 5 styles in all and 2 own words.
+  * `mood`, `mood_name`: the same for the mood (joyful, meditative, longing, energetic, mix,
+    `other`). Optional. They are stored as the team's confirmed mood of the recording.
+  * `place`: where it was recorded or performed (all categories; a playlist's `--set-place` is the
+    default of its tracks).
   * `language`: an ISO code (bn, sa, hi, en, ru, ...) or the English name (Bengali, Hindi, ...);
     `other` needs `language_name`. REQUIRED for bhajan, spiritual_song and baba_audio (the cell, or
     `--language`). Empty cells take `--language` / `--language-name`.
@@ -90,6 +96,7 @@ from sqlalchemy.exc import IntegrityError  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker  # noqa: E402
 
 from app.models.recording_collections import RecordingCollection  # noqa: E402
+from app.models.recording_moods import RecordingMood  # noqa: E402
 from app.models.recordings import (  # noqa: E402
     BABA_AUTHOR,
     DANCES,
@@ -129,8 +136,16 @@ from app.services.recording_storage import (  # noqa: E402
 )
 from app.services.recording_styles import (  # noqa: E402
     STYLES,
-    clean_style_other,
-    normalize_style,
+    clean_styles_other,
+    keeps_style,
+    normalize_styles,
+)
+from app.services.recording_tags import (  # noqa: E402
+    UPLOAD_MOODS,
+    check_counts,
+    clean_own_words,
+    legacy_single,
+    normalize_listed,
 )
 from app.services.recordings import VISIBLE, clean_text, validate_type  # noqa: E402
 
@@ -161,6 +176,9 @@ REPORT_FIELDS = [
     "dance",
     "style",
     "style_name",
+    "mood",
+    "mood_name",
+    "place",
     "credits",
     "year",
     "song",
@@ -191,8 +209,11 @@ class Row:
     credits: str = ""
     song: int | None = None  # the Prabhat Samgiita song number
     type: str = "other"
-    style: str | None = None  # Kiirtan only: a STYLES id or "other" (required for a Kiirtan)
-    style_name: str | None = None  # the name, when the style is "other"
+    styles: tuple[str, ...] = ()  # STYLES ids (a Kiirtan needs one, or an own word)
+    styles_other: tuple[str, ...] = ()  # the person's own style words
+    moods: tuple[str, ...] = ()
+    moods_other: tuple[str, ...] = ()
+    place: str = ""
 
 
 def _read_table(path: Path) -> list[dict[str, str]]:
@@ -206,6 +227,12 @@ def _read_table(path: Path) -> list[dict[str, str]]:
     for raw in reader:
         rows.append({(k or "").strip().lower(): (v or "").strip() for k, v in raw.items()})
     return rows
+
+
+def split_cell(text: str | None) -> list[str]:
+    """A cell with several values: `a|b`, `a;b` or `a,b` (quote the cell when the table's own
+    separator is the same)."""
+    return [part.strip() for part in re.split(r"[|;,]", text or "") if part.strip()]
 
 
 AUDIO_SUFFIXES = {".mp3", ".m4a", ".aac", ".wav", ".ogg", ".flac", ".webm"}
@@ -235,8 +262,8 @@ def load_rows(
     default_language: str | None = None,
     default_language_name: str | None = None,
     default_dance: str | None = None,
-    default_style: str | None = None,
-    default_style_name: str | None = None,
+    default_styles: Sequence[str] = (),
+    default_styles_other: Sequence[str] = (),
 ) -> tuple[list[Row], list[dict[str, str]]]:
     """The rows of the table, and the report lines of rows that cannot be used.
 
@@ -292,27 +319,41 @@ def load_rows(
             language_name = None
         if not dance and effective in KINDS_WITH_DANCE:
             dance = default_dance
-        style_text = (raw.get("style") or "").strip()
-        style_name = clean_style_other(raw.get("style_name") or raw.get("style_other"))
-        style: str | None = None
-        if style_text:
+        styles: list[str] = []
+        styles_other: list[str] = []
+        moods: list[str] = []
+        moods_other: list[str] = []
+        if effective != "baba_audio":
             try:
-                style = normalize_style(style_text)
+                styles = normalize_styles(split_cell(raw.get("style")))
+                styles_other = clean_styles_other(
+                    split_cell(raw.get("style_name") or raw.get("style_other"))
+                )
+                if not styles and not styles_other and not (raw.get("style") or "").strip():
+                    styles = list(default_styles)
+                    styles_other = list(default_styles_other)
             except ValueError:
                 complaint = complaint or (
-                    f"style must be one of {', '.join(STYLES)} or other (with style_name)"
+                    f"style must be some of {', '.join(STYLES)} or other (with style_name)"
                 )
-        else:
-            style = default_style
-            style_name = style_name or default_style_name
-        if effective != "kiirtan":
-            style, style_name = None, None  # only a Kiirtan has a style: the cell is ignored
-        elif not complaint and not style:
+            try:
+                moods = normalize_listed(split_cell(raw.get("mood")), UPLOAD_MOODS, "mood")
+                moods_other = clean_own_words(
+                    split_cell(raw.get("mood_name") or raw.get("mood_other")), "mood"
+                )
+            except ValueError:
+                complaint = complaint or (
+                    f"mood must be some of {', '.join(UPLOAD_MOODS)} or other (with mood_name)"
+                )
+            if not complaint:
+                try:
+                    check_counts(styles, styles_other, "styles")
+                    check_counts(moods, moods_other, "moods")
+                except ValueError as error:
+                    complaint = str(error).rstrip(".")
+        if effective == "kiirtan" and not complaint and not styles and not styles_other:
             complaint = "a Kiirtan needs a style (a style cell, or --style)"
-        elif not complaint and style == OTHER and not style_name:
-            complaint = "style other needs style_name"
-        elif style != OTHER:
-            style_name = None
+        place = clean_text(raw.get("place"), 200)
         if not title or not name:
             complaint = "a title and a file are required"
         elif category and category not in RECORDING_KINDS:
@@ -356,8 +397,11 @@ def load_rows(
                 language=language,
                 language_name=language_name,
                 dance=dance if effective in KINDS_WITH_DANCE else None,
-                style=style,
-                style_name=style_name,
+                styles=tuple(styles),
+                styles_other=tuple(styles_other),
+                moods=tuple(moods),
+                moods_other=tuple(moods_other),
+                place=place,
                 recorded_on=recorded_on,
                 credits=clean_text(raw.get("credits"), 300),
                 song=song if effective == "prabhat_samgiita" else None,
@@ -458,8 +502,8 @@ class Config:
     language: str | None = None
     language_name: str | None = None
     dance: str | None = None
-    style: str | None = None  # a Kiirtan's style for rows whose style cell is empty
-    style_name: str | None = None
+    style: str | None = None  # style ids (separated by `|`) for rows whose style cell is empty
+    style_name: str | None = None  # own style words (separated by `|`)
     # a folder imported as a playlist from an event (docs/kiirtan-sets.md)
     set_title: str | None = None
     set_date: date | None = None
@@ -574,8 +618,8 @@ class Importer:
             default_language=normalize_language(config.language) if config.language else None,
             default_language_name=config.language_name,
             default_dance=config.dance,
-            default_style=normalize_style(config.style) if config.style else None,
-            default_style_name=clean_style_other(config.style_name),
+            default_styles=normalize_styles(split_cell(config.style)),
+            default_styles_other=clean_styles_other(split_cell(config.style_name)),
         )
         self.positions = {row.file: number for number, row in enumerate(rows, start=1)}
         for problem in problems:
@@ -797,6 +841,10 @@ class Importer:
         moment = datetime.now(UTC)
         try:
             async with self.sessions() as session:
+                keeps = keeps_style(category)
+                mirror_style, mirror_other = (
+                    legacy_single(row.styles, row.styles_other) if keeps else (None, None)
+                )
                 recording = Recording(
                     kind=category,
                     type=validate_type(category, row.type),
@@ -824,8 +872,13 @@ class Importer:
                     language=row.language if category in KINDS_WITH_LANGUAGE else None,
                     language_other=row.language_name if row.language == OTHER else None,
                     dance=row.dance if category in KINDS_WITH_DANCE else None,
-                    style=row.style if category == "kiirtan" else None,
-                    style_other=row.style_name if category == "kiirtan" else None,
+                    style=mirror_style,
+                    style_other=mirror_other,
+                    styles=list(row.styles) if keeps else None,
+                    styles_other=list(row.styles_other) if keeps else None,
+                    moods=list(row.moods) if keeps else None,
+                    moods_other=list(row.moods_other) if keeps else None,
+                    place=row.place or (config.set_place if self.collection_id else None) or None,
                     recorded_on=row.recorded_on,
                     collection_id=self.collection_id,
                     position=self.positions.get(row.file) if self.collection_id else None,
@@ -833,6 +886,18 @@ class Importer:
                     ps_song_number=row.song,
                 )
                 session.add(recording)
+                if keeps:
+                    await session.flush()
+                    for mood in row.moods:
+                        session.add(
+                            RecordingMood(
+                                recording_id=recording.id,
+                                mood=mood,
+                                source="team",
+                                status="confirmed",
+                                confirmed_at=moment,
+                            )
+                        )
                 await session.commit()
                 ident = str(recording.id)
         except IntegrityError:
@@ -894,8 +959,11 @@ class Importer:
                         "language": row.language or "" if row else "",
                         "language_name": row.language_name or "" if row else "",
                         "dance": row.dance or "" if row else "",
-                        "style": row.style or "" if row else "",
-                        "style_name": row.style_name or "" if row else "",
+                        "style": "|".join(row.styles) if row else "",
+                        "style_name": "|".join(row.styles_other) if row else "",
+                        "mood": "|".join(row.moods) if row else "",
+                        "mood_name": "|".join(row.moods_other) if row else "",
+                        "place": row.place if row else "",
                         "recorded_on": row.recorded_on or "" if row else "",
                         "credits": row.credits if row else "",
                         "year": row.year if row and row.year else "",
@@ -969,14 +1037,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--style",
         help=(
-            "the style of every Kiirtan row whose style cell is empty "
-            f"({', '.join(STYLES)} or other). A Kiirtan with no style is not imported."
+            "the style(s) of every row whose style cell is empty, separated by | "
+            f"({', '.join(STYLES)}). A Kiirtan with no style is not imported."
         ),
     )
-    parser.add_argument("--style-name", help="the style's name when --style is other")
+    parser.add_argument(
+        "--style-name", help="own style words, separated by | (the 'other' of the form)"
+    )
     parser.add_argument("--set-title", help="import the folder as ONE playlist with this title")
-    parser.add_argument("--set-date", type=date.fromisoformat, help="approximate date of the event, YYYY-MM-DD (the playlist shows only its year and month)")
-    parser.add_argument("--set-end-date", type=date.fromisoformat, help="last day, YYYY-MM-DD (kept for old data, not shown)")
+    parser.add_argument(
+        "--set-date",
+        type=date.fromisoformat,
+        help="approximate date of the event, YYYY-MM-DD (the playlist shows its year and month)",
+    )
+    parser.add_argument(
+        "--set-end-date",
+        type=date.fromisoformat,
+        help="last day, YYYY-MM-DD (kept for old data, not shown)",
+    )
     parser.add_argument("--set-place")
     parser.add_argument("--set-description")
     parser.add_argument("--added-by", default=DEFAULT_ADDED_BY)

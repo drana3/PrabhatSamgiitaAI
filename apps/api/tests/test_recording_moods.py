@@ -153,21 +153,22 @@ def test_the_numbers_of_the_rule() -> None:
 # --------------------------------------------------------------------------- the uploader
 
 
-async def test_the_uploader_suggests_one_or_two_moods(mworld: World) -> None:
+async def test_the_uploader_suggests_up_to_five_moods(mworld: World) -> None:
     rid = await mworld.recording(MEMBER_A, title="Mine")
     put = f"{API}/recordings/{rid}/suggest"
-    r = await mworld.client.put(put, headers=AS["a"], json={"moods": ["joyful", "calm"]})
+    r = await mworld.client.put(put, headers=AS["a"], json={"moods": ["joyful", "meditative"]})
     assert r.status_code == 204, r.text
     state = (await mworld.client.get(f"{API}/recordings/{rid}", headers=AS["a"])).json()
     by_mood = {m["mood"]: m for m in state["moods"]}
     assert by_mood["joyful"]["status"] == "suggested" and by_mood["joyful"]["source"] == "uploader"
-    assert by_mood["sad"]["status"] == "none"
+    assert by_mood["longing"]["status"] == "none"
     assert state["can_suggest"] is True and state["can_vote"] is False
     assert state["cannot_vote_because"] == "own"
     # a suggestion is not a confirmation: nothing is public yet
     assert await confirmed(mworld) == {}
-    three = await mworld.client.put(put, headers=AS["a"], json={"moods": ["joyful", "calm", "sad"]})
-    assert three.status_code == 422 and code(three) == "too_many"
+    six = ["joyful", "meditative", "longing", "energetic", "mix", "calm"]
+    too_many = await mworld.client.put(put, headers=AS["a"], json={"moods": six})
+    assert too_many.status_code == 422 and code(too_many) == "too_many"
     odd = await mworld.client.put(put, headers=AS["a"], json={"moods": ["furious"]})
     assert odd.status_code == 422 and code(odd) == "bad_mood"
     other = await mworld.client.put(put, headers=AS["b"], json={"moods": ["calm"]})

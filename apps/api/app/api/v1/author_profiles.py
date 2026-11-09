@@ -320,7 +320,13 @@ async def list_authors(
     sort: Literal["listeners", "new", "name"] = "listeners",
     kind: Annotated[
         Literal[
-            "kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"
+            "kiirtan",
+            "bhajan",
+            "prabhat_samgiita",
+            "spiritual_song",
+            "dance_song",
+            "baba_audio",
+            "other_mantra",
         ]
         | None,
         Query(description="only authors who hold a recording of this kind"),
@@ -417,7 +423,13 @@ async def public_recordings(
     session: DatabaseSession,
     member: OptionalMember,
     kind: Literal[
-        "kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"
+        "kiirtan",
+        "bhajan",
+        "prabhat_samgiita",
+        "spiritual_song",
+        "dance_song",
+        "baba_audio",
+        "other_mantra",
     ]
     | None = None,
     collection_id: UUID | None = None,

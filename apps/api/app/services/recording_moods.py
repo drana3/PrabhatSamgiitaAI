@@ -20,10 +20,15 @@ from app.models.recording_moods import RecordingMood, RecordingMoodVote
 from app.models.recordings import Recording
 from app.services.author_profiles import pepper
 from app.services.author_stats import LISTENER_SALT_ROTATION_DAYS, listener_key
+from app.services.recording_tags import LEGACY_MOODS, UPLOAD_MOODS
 from app.services.recordings import VISIBLE
 
-# The six words of the app (lib/kirtan/moods.ts), as ids.
-MOODS = ("joyful", "longing", "calm", "ecstatic", "devotion", "sad")
+# The mood words of the upload form (lib/kirtan/moods.ts), as ids: Dada's five of 9 Nov 2026
+# (services/recording_tags.py). The person may choose several, and add an own word (a `mood` word of
+# the team's queue, services/value_suggestions.py). The first six moods (8 Nov 2026) stay valid:
+# a row or a vote that carries one is kept, and the recording page still shows a mood that has a
+# row, but the form no longer offers them.
+MOODS = (*UPLOAD_MOODS, *LEGACY_MOODS)
 
 # Confirm: how many people must say "yes" ...
 YES_NEEDED_UPLOADER = 3  # the uploader suggested the mood
@@ -36,7 +41,7 @@ REJECT_BELOW_SHARE = 0.3
 VOTER_MIN_AGE_DAYS = 7
 VETERAN_AGE_DAYS = 30  # one "yes" of a confirmed mood must come from an account this old
 VOTES_PER_DAY = 30
-UPLOADER_MOODS_MAX = 2
+UPLOADER_MOODS_MAX = 5
 # A listener may need a play from the last N days to count; with a rotating salt the key changes
 # per period, so the check walks the days back (one key when the salt never rotates).
 PLAY_LOOKBACK_DAYS = 90
@@ -221,7 +226,8 @@ async def page(
     elif not await has_counted_play(session, settings, member, recording.id):
         why = "listen_first"
     items = []
-    for mood in MOODS:
+    # the five of the form, then an older mood only when a row of it exists
+    for mood in (*UPLOAD_MOODS, *(m for m in LEGACY_MOODS if m in rows)):
         row = rows.get(mood)
         if row is None:
             items.append({"mood": mood, "status": "none", "yes": 0, "no": 0, "mine": None})
@@ -258,14 +264,18 @@ async def page(
 async def suggest(
     session: AsyncSession, recording: Recording, member: UserAccount, moods: Iterable[str]
 ) -> None:
-    """The uploader names one or two moods; none means "I am not sure" and takes back the earlier
-    suggestions that no vote has confirmed. Only the uploader's own recordings: a person who did
-    not upload it votes instead."""
+    """The uploader names the moods (up to `UPLOADER_MOODS_MAX`); none means "I am not sure" and
+    takes back the earlier suggestions that no vote has confirmed. Only the uploader's own
+    recordings: a person who did not upload it votes instead."""
     if recording.author_id is None or recording.author_id != member.id:
         raise MoodError(403, "not_uploader", "Only the person who added it can suggest a mood.")
     chosen = list(dict.fromkeys(check_mood(m) for m in moods))
     if len(chosen) > UPLOADER_MOODS_MAX:
-        raise MoodError(422, "too_many", "Name one or two moods, or none if you are not sure.")
+        raise MoodError(
+            422,
+            "too_many",
+            f"Name at most {UPLOADER_MOODS_MAX} moods, or none if you are not sure.",
+        )
     existing = {
         r.mood: r
         for r in (

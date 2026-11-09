@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.models import UserAccount
+from app.models.recording_moods import RecordingMood
 from app.models.recordings import (
     BABA_AUTHOR,
     BHAJAN_TYPES,
@@ -36,6 +37,7 @@ from app.models.recordings import (
     KINDS_WITH_DISCOURSE,
     KINDS_WITH_LANGUAGE,
     KIRTAN_TYPES,
+    MANTRA_TYPES,
     AuthorBlock,
     MemberNotice,
     Recording,
@@ -64,7 +66,7 @@ from app.services.recording_fingerprint import (
     similar_matches,
     similarity,
 )
-from app.services.recording_info import clean_info, keeps_by_author
+from app.services.recording_info import LEGACY_RECORDING_TYPES, clean_info, keeps_by_author
 from app.services.recording_instruments import keeps_instrument
 from app.services.recording_languages import OTHER
 from app.services.recording_loudness import Loudness, measure_loudness
@@ -73,6 +75,8 @@ from app.services.recording_storage import (
     StorageError,
     key_belongs_to,
 )
+from app.services.recording_styles import keeps_style
+from app.services.recording_tags import effective_tags, legacy_single
 
 VISIBLE = ("published", "flagged")
 ALREADY_IN_LIBRARY = "This file is already in the library."
@@ -85,6 +89,7 @@ KIND_WORD = {
     "spiritual_song": "Spiritual song",
     "dance_song": "Dance music",
     "baba_audio": "Audio discourse",
+    "other_mantra": "Mantra",
 }
 # Bulk uploading by a team member (admin) is not held to the daily limit; the hourly brake is
 # only raised for them, so a script gone wrong still stops.
@@ -177,6 +182,10 @@ def _brief(recording: Recording, reasons: Sequence[str] = ()) -> RecordingBrief:
 
 
 def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
+    styles, styles_other = effective_tags(
+        recording.styles, recording.styles_other, recording.style, recording.style_other
+    )
+    moods, moods_other = effective_tags(recording.moods, recording.moods_other)
     return RecordingOut(
         id=str(recording.id),
         kind=recording.kind,  # type: ignore[arg-type]
@@ -202,11 +211,19 @@ def recording_out(recording: Recording, *, owner: bool = False) -> RecordingOut:
         discourse=recording.discourse,
         dance=recording.dance,
         language_other=recording.language_other,
+        styles=styles,
+        styles_other=styles_other,
         style=recording.style,
         style_other=recording.style_other,
+        moods=moods,
+        moods_other=moods_other,
         practice=recording.practice,
-        recording_type=recording.recording_type,
-        tempo=recording.tempo,
+        # the old "home" reads as studio (migration 0064 turned the stored ones); tempo is Dance
+        # music's only, a value stored with another kind no longer shows
+        recording_type=LEGACY_RECORDING_TYPES.get(
+            recording.recording_type or "", recording.recording_type
+        ),
+        tempo=recording.tempo if recording.kind == "dance_song" else None,
         performance=recording.performance,
         lead_instrument=recording.lead_instrument,
         # the word an author wrote under "Add your own": theirs at once, everyone's once accepted
@@ -324,11 +341,11 @@ async def set_practice(
 
 
 def validate_type(kind: str, type_id: str) -> str:
-    """The old sub-type (Kiirtan: BNK, lila, festival; Bhajan: morning, evening, devotional).
-    The two newer categories have none."""
-    if kind not in ("kiirtan", "bhajan"):
+    """The sub-type (Kiirtan: BNK, lila, festival; Bhajan: morning, evening, devotional; Other
+    mantras: Guru Puja, Pitriyajina). The other categories have none."""
+    if kind not in ("kiirtan", "bhajan", "other_mantra"):
         return "other"
-    allowed = KIRTAN_TYPES if kind == "kiirtan" else BHAJAN_TYPES
+    allowed = {"kiirtan": KIRTAN_TYPES, "bhajan": BHAJAN_TYPES, "other_mantra": MANTRA_TYPES}[kind]
     return type_id if type_id in allowed else "other"
 
 
@@ -617,34 +634,93 @@ async def inspect_stored_file(
         )
 
 
+@dataclass
+class CustomValues:
+    """The styles, moods, main instrument and language as they will be stored, and the words for
+    the queue. A word the team merged is already swapped for its listed value."""
+
+    styles: list[str]
+    styles_other: list[str]
+    moods: list[str]
+    moods_other: list[str]
+    lead: str | None
+    lead_other: str | None
+    language: str | None
+    language_other: str | None
+    custom: list[words.Resolved]
+
+
 async def _custom_values(
     session: AsyncSession, member_id: UUID, payload: RecordingCreate, *, team: bool
-) -> tuple[
-    str | None, str | None, str | None, str | None, str | None, str | None, list[words.Resolved]
-]:
-    """The style, main instrument and language as they will be stored, and the words for the queue.
+) -> CustomValues:
+    """Look up every written word of the upload ("Add your own": a style, a mood, a main
+    instrument, a language).
 
     A word the team merged is swapped for its listed value; a word they rejected is refused (422);
-    a NEW word counts against the three a week (429). Nothing is written here.
+    NEW words count against the three a week (429), all together. Nothing is written here.
     """
-    style, style_other = payload.style, payload.style_other
+    styles = list(payload.styles or [])
+    moods = list(payload.moods or [])
+    own_styles = list(payload.styles_other or [])
+    own_moods = list(payload.moods_other or [])
     lead, lead_other = payload.lead_instrument, payload.lead_instrument_other
     language, language_other = payload.language, payload.language_other
-    asked = []
-    if payload.kind == "kiirtan" and style == OTHER:
-        asked.append((words.STYLE, style_other))
+    asked: list[tuple[str, str | None]] = []
+    asked += [(words.STYLE, w) for w in own_styles] if keeps_style(payload.kind) else []
+    asked += [(words.MOOD, w) for w in own_moods] if keeps_style(payload.kind) else []
     if keeps_instrument(payload.kind) and lead == OTHER:
         asked.append((words.INSTRUMENT, lead_other))
     if language == OTHER:
         asked.append((words.LANGUAGE, language_other))
-    values, custom = await _resolve_words(session, member_id, asked, team=team)
-    if words.STYLE in values:
-        style, style_other = values[words.STYLE]
-    if words.INSTRUMENT in values:
-        lead, lead_other = values[words.INSTRUMENT]
-    if words.LANGUAGE in values:
-        language, language_other = values[words.LANGUAGE]
-    return style, style_other, lead, lead_other, language, language_other, custom
+    resolved_all = await _resolve_many(session, member_id, asked, team=team)
+    kept_styles: list[str] = []
+    kept_moods: list[str] = []
+    custom: list[words.Resolved] = []
+    for (field, _text), resolved in zip(asked, resolved_all, strict=True):
+        listed = resolved.kind in ("listed", "merged")
+        if field in (words.STYLE, words.MOOD):
+            ids = styles if field == words.STYLE else moods
+            own = kept_styles if field == words.STYLE else kept_moods
+            if listed:
+                if resolved.code and resolved.code not in ids:
+                    ids.append(resolved.code)
+            else:
+                own.append(resolved.label)
+        elif field == words.INSTRUMENT:
+            lead, lead_other = (resolved.code, None) if listed else (OTHER, resolved.label)
+        else:
+            language, language_other = (resolved.code, None) if listed else (OTHER, resolved.label)
+        if not listed:
+            custom.append(resolved)
+    return CustomValues(
+        styles, kept_styles, moods, kept_moods, lead, lead_other, language, language_other, custom
+    )
+
+
+async def _resolve_many(
+    session: AsyncSession,
+    member_id: UUID,
+    asked: list[tuple[str, str | None]],
+    *,
+    team: bool,
+) -> list[words.Resolved]:
+    """Each asked word looked up, in order. A rejected word is refused (422), the NEW ones count
+    against the weekly three together (429). Nothing is written here."""
+    out: list[words.Resolved] = []
+    fresh = 0
+    seen: set[tuple[str, str]] = set()
+    for field, text in asked:
+        try:
+            resolved = await words.resolve_word(session, field, text)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        words.refuse_rejected(resolved)
+        if resolved.kind == "new" and (field, resolved.key) not in seen:
+            fresh += 1
+        seen.add((field, resolved.key))
+        out.append(resolved)
+    await words.ensure_allowance(session, member_id, fresh, team=team)
+    return out
 
 
 async def _resolve_words(
@@ -654,27 +730,19 @@ async def _resolve_words(
     *,
     team: bool,
 ) -> tuple[dict[str, tuple[str, str | None]], list[words.Resolved]]:
-    """The ONE path of every written word (upload and the language PATCH): a listed or merged word
+    """The ONE path of every single written word (the language PATCH): a listed or merged word
     becomes its code, a rejected one is refused (422), a NEW one counts against the weekly three
     (429). Returns {field: (code, other)} and the words to queue. Nothing is written here."""
     values: dict[str, tuple[str, str | None]] = {}
     custom: list[words.Resolved] = []
-    fresh = 0
-    for field, text in asked:
-        try:
-            resolved = await words.resolve_word(session, field, text)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        words.refuse_rejected(resolved)
+    resolved_all = await _resolve_many(session, member_id, asked, team=team)
+    for (field, _text), resolved in zip(asked, resolved_all, strict=True):
         if resolved.kind in ("listed", "merged"):
-            values[field] = (resolved.code, None)
+            values[field] = (resolved.code or "", None)
             continue
-        if resolved.kind == "new":
-            fresh += 1
         # the word as the queue spells it ("dilruba" is stored as the first "Dilruba")
         values[field] = (OTHER, resolved.label)
         custom.append(resolved)
-    await words.ensure_allowance(session, member_id, fresh, team=team)
     return values, custom
 
 
@@ -730,9 +798,8 @@ async def create_recording(
 
     # A word written under "Add your own" (a style, a main instrument): looked up and counted
     # before the file is touched, so a refused word leaves the upload exactly as it was.
-    style, style_other, lead, lead_other, language, language_other, custom = await _custom_values(
-        session, member_id, payload, team=team
-    )
+    values = await _custom_values(session, member_id, payload, team=team)
+    custom = values.custom
 
     info = await inspect_stored_file(storage, payload.key, settings)
     existing = await exact_duplicate(session, info.sha256)
@@ -791,6 +858,7 @@ async def create_recording(
         ):
             collection.finished_at = moment
     kept = clean_info(payload.kind, payload.recording_type, payload.tempo, payload.performance)
+    style_mirror = legacy_single(values.styles, values.styles_other)
     recording = Recording(
         kind=payload.kind,
         type=validate_type(payload.kind, payload.type),
@@ -815,18 +883,22 @@ async def create_recording(
         published_at=moment,
         duplicate_of=similar[0][0].id if similar else None,
         year=payload.year,
-        language=language,  # None for a Kiirtan (the schema drops it)
-        language_other=language_other,
-        style=style if payload.kind == "kiirtan" else None,
-        style_other=style_other if payload.kind == "kiirtan" else None,
+        language=values.language,  # None for a Kiirtan (the schema drops it)
+        language_other=values.language_other,
+        styles=values.styles if keeps_style(payload.kind) else None,
+        styles_other=values.styles_other if keeps_style(payload.kind) else None,
+        style=style_mirror[0],
+        style_other=style_mirror[1],
+        moods=values.moods if keeps_style(payload.kind) else None,
+        moods_other=values.moods_other if keeps_style(payload.kind) else None,
         practice=payload.practice if payload.kind == "kiirtan" else None,
         recording_type=kept[0],
         tempo=kept[1],
         performance=kept[2],
-        lead_instrument=lead if keeps_instrument(payload.kind) else None,
-        lead_instrument_other=lead_other if keeps_instrument(payload.kind) else None,
+        lead_instrument=values.lead if keeps_instrument(payload.kind) else None,
+        lead_instrument_other=values.lead_other if keeps_instrument(payload.kind) else None,
         dance=payload.dance if payload.kind in KINDS_WITH_DANCE else None,
-        place=clean_line(payload.place, 200) if payload.kind in KINDS_WITH_DISCOURSE else None,
+        place=clean_line(payload.place, 200),
         discourse=(
             clean_line(payload.discourse, 200) if payload.kind in KINDS_WITH_DISCOURSE else None
         ),
@@ -844,6 +916,18 @@ async def create_recording(
     session.add(recording)
     try:
         await session.flush()
+        if keeps_style(payload.kind):
+            # the moods the uploader chose become suggestions the listeners can confirm
+            for mood in values.moods:
+                session.add(
+                    RecordingMood(
+                        recording_id=recording.id,
+                        mood=mood,
+                        source="uploader",
+                        suggested_by=member_id,
+                        status="suggested",
+                    )
+                )
         for resolved in custom:
             await words.register_use(
                 session, resolved, member_id=member_id, recording_id=recording.id

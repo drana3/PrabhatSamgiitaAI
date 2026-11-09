@@ -34,10 +34,26 @@ from app.services.recording_languages import (
     normalize_language,
 )
 from app.services.recording_practice import normalize_practice
-from app.services.recording_styles import clean_style_other, normalize_style
+from app.services.recording_styles import (
+    KINDS_NEEDING_STYLE,
+    clean_style_other,
+    clean_styles_other,
+    keeps_style,
+    normalize_style,
+    normalize_styles,
+)
+from app.services.recording_tags import (
+    MOOD_MESSAGE,
+    UPLOAD_MOODS,
+    check_counts,
+    clean_own_words,
+    legacy_single,
+    normalize_listed,
+)
 from app.services.value_suggestions import (
     INSTRUMENT,
     LANGUAGE,
+    MOOD,
     STYLE,
     clean_word,
     listed_code,
@@ -48,9 +64,17 @@ from app.services.value_suggestions import (
 # "prabhat_samgiita" is a performance of one Prabhat Samgiita song (`ps_song_number`),
 # "spiritual_song" is a song in the language the uploader names (required), "dance_song" is a song
 # for Tandava or Kaoshiki (`dance`, required), "baba_audio" is a spoken discourse of Baba (language
-# required, no performer). `devotional_song` is gone: it reads as "bhajan".
+# required, no performer), "other_mantra" is a mantra of Ananda Marga that is not Baba Nam Kevalam
+# (Guru Puja, Pitriyajina ...; its `type` names which). `devotional_song` is gone: it reads as
+# "bhajan".
 Kind = Literal[
-    "kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio"
+    "kiirtan",
+    "bhajan",
+    "prabhat_samgiita",
+    "spiritual_song",
+    "dance_song",
+    "baba_audio",
+    "other_mantra",
 ]
 # An ISO 639 code from app/services/recording_languages.py, or "other" (named in `language_other`).
 Language = str
@@ -121,6 +145,24 @@ class UploadTargetResponse(BaseModel):
     max_bytes: int
 
 
+def _split_own_words(
+    field: str, listed: list[str], own: list[str]
+) -> tuple[list[str], list[str]]:
+    """The own words of a list field: a word that IS a listed value moves to the ids (and is
+    never queued), the others are cleaned (2 to 40 characters) and stay words."""
+    ids = list(listed)
+    words: list[str] = []
+    for text in own:
+        word = clean_word(text, max_length(field))
+        code = listed_code(field, word)
+        if code:
+            if code not in ids:
+                ids.append(code)
+        elif word.casefold() not in {w.casefold() for w in words}:
+            words.append(word)
+    return ids, words
+
+
 def _custom_word(field: str, text: str | None, empty_message: str | None) -> tuple[str, str | None]:
     """("other", word) for a new word, or (code, None) when the word is a listed value."""
     if not (text or "").strip():
@@ -152,18 +194,28 @@ class RecordingCreate(BaseModel):
     language_other: str | None = Field(default=None, max_length=200)
     # Required for a dance music (one of DANCES), refused for every other category.
     dance: str | None = Field(default=None, max_length=16)
-    # REQUIRED for a Kiirtan: how it is sung (STYLES, or "other" + `style_other`). Dropped for the
-    # others.
+    # How it is sung or played: SEVERAL ids of STYLES (`styles`) and the person's own words
+    # (`styles_other`, 2 to 40 characters each). REQUIRED for a Kiirtan (one of either), optional
+    # for the other categories, dropped for Baba's Audio Discourses. `style` / `style_other` are
+    # the older single field: sent alone (an older phone) they read as a list of one, and after
+    # validation they mirror the first of the lists.
+    styles: list[str] | None = Field(default=None, max_length=12)
+    styles_other: list[str] | None = Field(default=None, max_length=12)
     style: str | None = Field(default=None, max_length=16)
     style_other: str | None = Field(default=None, max_length=200)
+    # How it feels: SEVERAL ids of the five moods of the form, plus own words. Optional; the listed
+    # ones become suggestions the listeners can confirm (services/recording_moods.py).
+    moods: list[str] | None = Field(default=None, max_length=12)
+    moods_other: list[str] | None = Field(default=None, max_length=12)
     # Optional, Kiirtan only: "avarta" marks an Avarta Kiirtan (the special practice, sung facing
     # six directions in turn). Dropped for the others. See services/recording_practice.py.
     practice: str | None = Field(default=None, max_length=16)
-    # How it was recorded: studio, live, home or ai (services/recording_info.py). REQUIRED for a
-    # Kiirtan, optional for dance music, a Bhajan and a spiritual song, dropped for the others.
-    # An AI recording is stored and shown as such, never hidden.
+    # How it was recorded: studio, live or ai (services/recording_info.py; the old "home" reads as
+    # studio). REQUIRED for a Kiirtan, optional for the other categories that carry it, dropped for
+    # the others. An AI recording is stored and shown as such, never hidden.
     recording_type: str | None = Field(default=None, max_length=16)
-    # Optional: slow / medium / fast (Kiirtan, dance music); solo / group (Kiirtan, Bhajan).
+    # Optional: slow / medium / fast / mix (Dance music only); solo / group (Kiirtan, Bhajan, Other
+    # mantras).
     tempo: str | None = Field(default=None, max_length=8)
     performance: str | None = Field(default=None, max_length=8)
     # The main (lead) instrument: a code of services/recording_instruments.py, or "other" with its
@@ -175,7 +227,8 @@ class RecordingCreate(BaseModel):
     credits: str | None = Field(default=None, max_length=300)
     year: int | None = Field(default=None, ge=FIRST_YEAR)
     notes: str | None = Field(default=None, max_length=500)
-    # Baba's Audio Discourses only (dropped for the other kinds): where, and which discourse.
+    # Where it was recorded or performed (every category, optional); Baba's Audio Discourses also
+    # name the discourse (dropped for the other kinds).
     place: str | None = Field(default=None, max_length=200)
     discourse: str | None = Field(default=None, max_length=200)
     # Required for a Prabhat Samgiita recording (1..5018), not allowed for the other categories.
@@ -206,6 +259,34 @@ class RecordingCreate(BaseModel):
         if value is None or isinstance(value, str):
             return normalize_style(value)
         raise ValueError("Choose a style from the list.")
+
+    @field_validator("styles", mode="before")
+    @classmethod
+    def _styles_are_known_ids(cls, value: object) -> list[str] | None:
+        return None if value is None else normalize_styles(value)
+
+    @field_validator("styles_other", mode="before")
+    @classmethod
+    def _styles_other_are_words(cls, value: object) -> list[str] | None:
+        return None if value is None else clean_styles_other(value)
+
+    @field_validator("moods", mode="before")
+    @classmethod
+    def _moods_are_known_ids(cls, value: object) -> list[str] | None:
+        if value is None:
+            return None
+        if not isinstance(value, list | tuple):
+            raise ValueError(MOOD_MESSAGE)
+        return normalize_listed(value, UPLOAD_MOODS, MOOD_MESSAGE)
+
+    @field_validator("moods_other", mode="before")
+    @classmethod
+    def _moods_other_are_words(cls, value: object) -> list[str] | None:
+        if value is None:
+            return None
+        if not isinstance(value, list | tuple):
+            raise ValueError(MOOD_MESSAGE)
+        return clean_own_words(value, MOOD_MESSAGE)
 
     @field_validator("practice", mode="before")
     @classmethod
@@ -272,16 +353,39 @@ class RecordingCreate(BaseModel):
         kind_unsaid = self.collection_id is not None and "kind" not in self.model_fields_set
         if KIND_LANGUAGE_RULE.get(self.kind) == "none" and not kind_unsaid:
             self.language = None
-        # A style belongs to a Kiirtan only; "other" needs its name.
-        if self.kind != "kiirtan" and not kind_unsaid:
-            self.style = None
-        self.style_other = clean_style_other(self.style_other) if self.style == OTHER else None
-        if self.style == OTHER and not self.style_other:
-            raise ValueError("Write the name of the style.")
-        # A Kiirtan must say how it is sung ("other" and its name count). A playlist track takes
+        # Styles and moods: every category but Baba's spoken discourses keeps them. The older single
+        # `style` (an older phone) reads as a list of one; "other" without a name is refused.
+        if not kind_unsaid and not keeps_style(self.kind):
+            self.styles = self.styles_other = None
+            self.style = self.style_other = None
+            self.moods = self.moods_other = None
+        if self.style == OTHER:
+            self.style_other = clean_style_other(self.style_other)
+            if not self.style_other and not self.styles and not self.styles_other:
+                raise ValueError("Write the name of the style.")
+        if not self.styles and not self.styles_other and self.style:
+            if self.style == OTHER:
+                self.styles_other = [self.style_other] if self.style_other else []
+            else:
+                self.styles = [self.style]
+        self.styles, self.styles_other = _split_own_words(
+            STYLE, self.styles or [], self.styles_other or []
+        )
+        check_counts(self.styles, self.styles_other, "styles")
+        self.moods, self.moods_other = _split_own_words(
+            MOOD, self.moods or [], self.moods_other or []
+        )
+        check_counts(self.moods, self.moods_other, "moods")
+        # A Kiirtan must say how it is sung (a listed style or its own word). A playlist track takes
         # the playlist's kind, so the service checks it once the kind is known.
-        if self.kind == "kiirtan" and not kind_unsaid and not self.style:
+        if (
+            self.kind in KINDS_NEEDING_STYLE
+            and not kind_unsaid
+            and not (self.styles or self.styles_other)
+        ):
             raise ValueError("Choose the style of the Kiirtan.")
+        # The old single field mirrors the first of the lists (an older phone, the search shelves).
+        self.style, self.style_other = legacy_single(self.styles, self.styles_other)
         if self.kind != "kiirtan" and not kind_unsaid:
             self.practice = None
         # How it was recorded, the tempo and solo/group: each category keeps the ones it carries.
@@ -299,8 +403,8 @@ class RecordingCreate(BaseModel):
         # "I composed it myself": not for Prabhat Samgiita (one author) or Baba's discourses.
         if not kind_unsaid:
             self.by_author = keeps_by_author(self.kind, self.by_author)
+        # The place is asked for every category; the discourse name only for Baba's talks.
         if self.kind not in KINDS_WITH_DISCOURSE and not kind_unsaid:
-            self.place = None
             self.discourse = None
         # The main instrument: a listed code, or "other" with a name of 2 to 40 characters. A name
         # that IS a listed instrument ("Piano") becomes its code; the queue never sees it.
@@ -312,8 +416,6 @@ class RecordingCreate(BaseModel):
             )
         else:
             self.lead_instrument_other = None
-        if self.style == OTHER:
-            self.style, self.style_other = _custom_word(STYLE, self.style_other, None)
         # The performer is named by every single upload except an audio discourse of Baba.
         if self.collection_id is None and self.kind != "baba_audio" and not self.author.strip():
             raise ValueError("Add who performs it.")
@@ -435,12 +537,19 @@ class RecordingOut(BaseModel):
     # Dance music: "tandava" or "kaoshiki". Language: the ISO code ("other" + `language_other`).
     dance: str | None = None
     language_other: str | None = None
-    # Kiirtan only: how it is sung (a STYLES id or "other" + `style_other`).
+    # How it is sung or played: the listed ids and the author's own words (a row from before the
+    # lists reads as a list of one), and the old single value, which mirrors the first of them.
+    styles: list[str] = Field(default_factory=list)
+    styles_other: list[str] = Field(default_factory=list)
     style: str | None = None
     style_other: str | None = None
+    # How it feels, as the uploader said it (the listener-confirmed moods are another endpoint).
+    moods: list[str] = Field(default_factory=list)
+    moods_other: list[str] = Field(default_factory=list)
     # Kiirtan only: "avarta" for an Avarta Kiirtan, else null.
     practice: str | None = None
-    # How it was recorded (studio, live, home, ai), the tempo and solo/group; null when not said.
+    # How it was recorded (studio, live, ai), the tempo (Dance music only) and solo/group; null when
+    # not said.
     recording_type: str | None = None
     tempo: str | None = None
     performance: str | None = None
