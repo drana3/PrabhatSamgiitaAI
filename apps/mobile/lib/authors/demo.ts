@@ -32,7 +32,7 @@ import { NetworkError, RemoteError } from "@/lib/kirtan/remote"
 
 /** The demo mirrors the server: route words and the protected names (the server also holds staff-sounding ones for review). */
 const RESERVED = new Set([
-  "admin", "api", "add-kirtan", "upload-set", "sign-in", "signin", "authors", "author", "about",
+  "admin", "api", "add-kirtan", "add-mantra", "upload-set", "sign-in", "signin", "authors", "author", "about",
   "sitemap", "slug-check", "me", "by-recording", "photo", "recordings", "collections", "report",
   "ananda-murti", "anandamurti", "ananda-marga", "baba", "shrii-shrii-anandamurti", "prabhat-samgiita",
 ])

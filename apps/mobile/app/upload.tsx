@@ -86,6 +86,13 @@ export default function UploadScreen() {
           />
           <Choice
             icon={<WaveGlyph color={theme.accent} />}
+            title={t("upload.mantra.title")}
+            body={t("upload.mantra.body")}
+            onPress={() => router.push(href("/add-mantra"))}
+            theme={theme}
+          />
+          <Choice
+            icon={<WaveGlyph color={theme.accent} />}
             title={t("set.entry.title")}
             body={t("set.entry.body")}
             onPress={() => router.push(href("/upload-set"))}

@@ -6,6 +6,35 @@ Fields of an uploaded recording: **type of recording**, **tempo**, **solo or gro
 `tests/test_recording_info.py` and `__tests__/recordingInfo.test.ts`. The database stores the ids as text, so a new value is one id
 on both sides plus a label in en, ru, es: no migration.
 
+## Changes of 9 Nov 2026 (these win over the older lines below)
+
+* **A Kiirtan is only Baba Nam Kevalam.** Guru Puja, Pitriyajina and every other mantra of Ananda Marga is a kind of its own,
+  `other_mantra` ("Other mantras"), with its own upload page `/add-mantra` (`apps/mobile/app/add-mantra.tsx`, the one form of
+  `app/add-kirtan.tsx` with the mantra header and the mantra type chips), its own tab on the Kiirtan page, its own radio category
+  and its own types `guru_puja`, `pitriyajina`, `other`. The kind is a text column with a check constraint; migration
+  `0064_mantras_styles_moods` widens it. Moderation, reports, removal notices and the player treat it like every other kind.
+* **Type of recording: exactly three**, `studio`, `live` (concert), `ai` (AI-generated). The removed `home` is rewritten to `studio` by
+  the migration; an old phone that still sends `home` is read as `studio`. Solo or group (`performance`) is its own required field
+  for a Kiirtan and is never part of the type.
+* **Tempo is for Dance music only** (Slow, Medium, Fast, Mix). A Kiirtan row stored with a tempo keeps it in the database; the API and
+  the phone no longer show or accept it.
+* **Style and mood are lists.** `styles` / `moods` hold ids from a short list, `styles_other` / `moods_other` the person's own words
+  (at most 5 tags in all, 2 own words per field). Styles: Indian style, Electronic, Acoustic guitar, African, Western. Moods: Joyful,
+  Meditative, Longing, Energetic, Mix. The old styles (Bengali, Hindi, Brajabuli, Dhrupad, Folk) are not offered, but a row that
+  carries one reads as before. A Kiirtan needs at least one style. Old rows with a single `style` read as a list of one; new rows
+  also mirror the first style into `style` / `style_other` for older phones. Code: `services/recording_tags.py`,
+  `services/recording_styles.py`, phone `lib/kirtan/tags.ts`, `lib/kirtan/styles.ts`, `lib/kirtan/moods.ts`.
+* **Own words are not public until the team accepts them** (same rule as `lead_instrument_other`): the writer sees their word at
+  once, a stranger sees it only after the matching suggestion (`value_suggestions`, field `style` or `mood`) is accepted. One shared
+  resolution path for every moderation route.
+* **Lead instrument**: guitar, harmonium, piano, voice only (a cappella), plus "add your own".
+* **Place** where it was recorded or performed: optional, in "More details", for every kind.
+* **Compact picker** (`components/kirtan/add/TagPicker.tsx`): Style, Mood and Main instrument show as one line of chosen chips and a
+  "+"; a tap opens a bottom sheet with a scrollable list and a search box. The search box doubles as "add your own", so no text input
+  ever sits next to chips (layout rule in `docs/layout-rules.md`).
+* "Kiirtan" with two i's: any "kirtan" typed in a title, performer, place or credits is corrected as typed and again on publish
+  (`lib/kirtan/kiirtanSpelling.ts`; the word inside "Sankirtan" is left alone).
+
 ## Where the words come from
 
 The team already sorts the library by hand on anandamarga.org/music ("Sorting the music"; the words are in the website repository,

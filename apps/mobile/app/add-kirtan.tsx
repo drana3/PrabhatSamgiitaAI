@@ -40,7 +40,7 @@ import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage, normalizeKind } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage, normalizeKind, typesOfKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { effectiveFields, effectivePractice, hasWork, practiceCounts, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
@@ -79,6 +79,15 @@ type LangTarget = "form" | "all" | (string & {})
  * (expo-document-picker, audio only, several files) on a phone.
  */
 export default function AddKirtanScreen() {
+  return <AddRecordingForm />
+}
+
+/**
+ * The form of every recording. `mantra`: the page of Other mantras (app/add-mantra.tsx): its own header and blurb, the kind is fixed
+ * to Other mantras and the person names which mantra it is (Guru Puja, Pitriyajina, other); no playlist-of-an-event entry,
+ * no kind cards. Everything below the type is the same form with the same queue.
+ */
+export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
   const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
@@ -100,6 +109,10 @@ export default function AddKirtanScreen() {
   if (!opened.current) {
     opened.current = true
     useUploadQueueStore.getState().openFresh()
+    // the two pages never share a kind: this one is Other mantras, the other one is never (a leftover draft is put right)
+    const wanted = useUploadQueueStore.getState().draft.kind
+    if (mantra && wanted !== "other_mantra") useUploadQueueStore.getState().setDraft({ kind: "other_mantra" })
+    else if (!mantra && wanted === "other_mantra") useUploadQueueStore.getState().setDraft({ kind: "kiirtan" })
     // "Add the recording" of an ended live broadcast opens this form with the broadcast named: the files become its recording
     const target = typeof params.broadcast === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(params.broadcast) ? params.broadcast : null
     useUploadQueueStore.getState().setBroadcast(target ? { id: target, title: typeof params.broadcastTitle === "string" ? params.broadcastTitle.slice(0, 300) : "" } : null)
@@ -142,7 +155,8 @@ export default function AddKirtanScreen() {
     if (prefilled.current || !signedIn) return
     prefilled.current = true
     const patch: Partial<QueueDraft> = {}
-    if (params.kind) patch.kind = normalizeKind(params.kind)
+    if (params.kind && !mantra) patch.kind = normalizeKind(params.kind)
+    if (mantra && params.kind !== undefined) patch.kind = "other_mantra"
     const song = Number(params.song)
     if (Number.isInteger(song) && song > 0) patch.psSong = { number: song, title: "" }
     const author = typeof params.author === "string" ? params.author.trim() : ""
@@ -324,6 +338,7 @@ export default function AddKirtanScreen() {
       performance: draft.performance,
       leadInstrument: draft.leadInstrument,
       leadInstrumentOther: draft.leadInstrumentOther,
+      mantraType: draft.mantraType,
       byAuthor: draft.byAuthor,
       addedBy: "You",
       termsAccepted: rulesOk || agree,
@@ -406,6 +421,7 @@ export default function AddKirtanScreen() {
                 {"\n"}
                 <Text style={{ color: theme.ink300 }}>{kindLabel(kind)}</Text>
               </Text>
+              {mantra ? <Text style={[styles.blurb, { color: theme.textBody }]}>{t("mantra.add.blurb")}</Text> : null}
             </Reveal>
 
             {forBroadcast ? (
@@ -416,7 +432,8 @@ export default function AddKirtanScreen() {
               </Reveal>
             ) : null}
 
-            {/* a whole event at once: its own screen (app/upload-set.tsx), docs/kiirtan-sets.md */}
+            {/* a whole event at once: its own screen (app/upload-set.tsx), docs/kiirtan-sets.md; not for mantras */}
+            {mantra ? null : (
             <Reveal index={1} style={styles.setStack}>
               <KPress
                 accessibilityRole="link"
@@ -437,7 +454,32 @@ export default function AddKirtanScreen() {
                 <Text style={[styles.linkText, { color: theme.accent }]}>{t("set.entry.mine")}</Text>
               </KPress>
             </Reveal>
+            )}
 
+            {mantra ? (
+              <Reveal index={2} style={styles.field}>
+                <Text style={[styles.label, { color: theme.textHeading }]}>{t("mantra.type.label")}</Text>
+                <View style={styles.chips} accessibilityRole="radiogroup">
+                  {typesOfKind("other_mantra").map((type) => {
+                    const on = (draft.mantraType ?? "other") === type.id
+                    return (
+                      <KPress
+                        key={type.id}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on, disabled: locked }}
+                        accessibilityLabel={type.label}
+                        onActivate={() => !locked && store().setDraft({ mantraType: type.id })}
+                        pressedScale={0.96}
+                        style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line, opacity: locked && !on ? 0.5 : 1 }]}
+                      >
+                        <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{type.label}</Text>
+                      </KPress>
+                    )
+                  })}
+                </View>
+                <Text style={[styles.hint, { color: theme.textBody }]}>{t("mantra.type.hint")}</Text>
+              </Reveal>
+            ) : (
             <Reveal index={2} style={styles.field}>
               <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.type.label")}</Text>
               <View style={styles.kinds} accessibilityRole="radiogroup">
@@ -469,6 +511,7 @@ export default function AddKirtanScreen() {
                 })}
               </View>
             </Reveal>
+            )}
 
             {kind === "prabhat_samgiita" ? (
               <Reveal index={2} style={styles.field}>
@@ -830,6 +873,7 @@ const styles = StyleSheet.create({
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  blurb: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21, marginTop: 12 },
   kinds: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   kindOuter: { width: "48%", flexGrow: 1 },
   kindCard: { flex: 1, minHeight: 88, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, justifyContent: "center", gap: 2 },

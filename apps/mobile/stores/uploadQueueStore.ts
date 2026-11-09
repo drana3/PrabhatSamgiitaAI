@@ -52,9 +52,11 @@ export type QueueDraft = {
   leadInstrument: string | null
   leadInstrumentOther: string
   byAuthor: boolean
+  /** Other mantras: Guru Puja, Pitriyajina or other (null until chosen; "other" is sent then); no other kind has it */
+  mantraType: string | null
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, mantraType: null }
 
 type QueueState = {
   items: QueueItem[]
@@ -149,6 +151,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       performance: draft.performance,
       leadInstrument: draft.leadInstrument,
       leadInstrumentOther: draft.leadInstrumentOther,
+      mantraType: draft.kind === "other_mantra" ? draft.mantraType : null,
       broadcastId: get().forBroadcast?.id ?? null,
     }
     if (validateSubmission(input)) return { status: "failed", failure: { code: "gone" } }

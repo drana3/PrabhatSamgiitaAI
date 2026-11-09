@@ -1,5 +1,5 @@
 import { cleanInstrument } from "@/lib/kirtan/instruments"
-import { kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
+import { isTypeOfKind, kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 import { cleanPractice } from "@/lib/kirtan/practice"
@@ -84,6 +84,8 @@ export type SubmissionInput = {
   /** the main instrument: an id or "other" with its word (lib/kirtan/instruments.ts); optional */
   leadInstrument?: string | null
   leadInstrumentOther?: string | null
+  /** Other mantras: the type (guru_puja, pitriyajina, other); any other kind is always "other" */
+  mantraType?: string | null
   /** the person is the author of the recording (the tick is not offered for Prabhat Samgiita) */
   byAuthor: boolean
   addedBy: string
@@ -181,6 +183,11 @@ function instrumentOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "
   return { leadInstrument: clean.instrument, ...(clean.instrumentOther ? { leadInstrumentOther: clean.instrumentOther } : {}) }
 }
 
+/** The type of a new submission: the one an Other mantra named (Guru Puja, Pitriyajina), else "other". */
+function typeOfInput(kind: RecordingKind, input: SubmissionInput): KirtanTypeId {
+  return kind === "other_mantra" && isTypeOfKind(kind, input.mantraType) ? input.mantraType : DEFAULT_SUBMISSION_TYPE
+}
+
 /** A new Kiirtan or Bhajan, on its way up. The id is stable per title and time. */
 export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
   const kind = normalizeKind(input.kind)
@@ -190,7 +197,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     title: fixKiirtanSpelling(tidy(input.title)),
     author: kindHasPerformer(kind) ? tidy(input.author) : BABA_AUTHOR,
     durationSec: null,
-    type: DEFAULT_SUBMISSION_TYPE,
+    type: typeOfInput(kind, input),
     byAuthor: kindHasPerformer(kind) && kindHasByAuthor(kind) && Boolean(input.byAuthor),
     ...(input.year ? { year: input.year } : {}),
     ...(input.language && kindHasLanguage(kind) ? { language: input.language } : {}),

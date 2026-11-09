@@ -100,6 +100,8 @@ export default function KiirtanTabScreen() {
 
   /** the kind filter of the first three chips; the list chips (Saved...) show both kinds */
   const kind = kindOfTabChip(chip)
+  // on the Other mantras tab the plus opens the mantra page; everywhere else the recording form
+  const addHref = kind === "other_mantra" ? "/add-mantra" : "/add-kirtan"
   const shelves = isShelfChip(chip)
   const showKiirtan = kind === "all" || kind === "kiirtan"
   const subOn = hasSubFilters(kind) && isSubFilterOn(sub)
@@ -451,7 +453,7 @@ export default function KiirtanTabScreen() {
     <KPress
       accessibilityRole="button"
       accessibilityLabel={t("kt.add.a11y")}
-      onPress={() => router.push(href("/add-kirtan"))}
+      onPress={() => router.push(href(addHref))}
       pressedScale={0.98}
       style={[styles.addCard, { borderColor: theme.accent }]}
     >
@@ -507,7 +509,7 @@ export default function KiirtanTabScreen() {
           <TodayPress accessibilityRole="search" accessibilityLabel={t("home.search")} onPress={() => router.push(href("/search-v2?focus=1&scope=kiirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
             <Search size={20} color={p.ink800} strokeWidth={1.9} />
           </TodayPress>
-          <TodayPress accessibilityRole="button" accessibilityLabel={t("kt.add.title")} onPress={() => router.push(href("/add-kirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.action, borderColor: p.action }]}>
+          <TodayPress accessibilityRole="button" accessibilityLabel={t("kt.add.title")} onPress={() => router.push(href(addHref))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.action, borderColor: p.action }]}>
             <Plus size={22} color={p.onAction} strokeWidth={2.2} />
           </TodayPress>
         </View>

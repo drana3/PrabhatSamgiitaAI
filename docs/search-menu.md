@@ -25,6 +25,14 @@ shelf with nothing in it, and never see a number the app did not count.
 | 5 | Bhajans by language | One shelf per language that has Bhajans, then a "More languages" shelf, then types (morning, evening, devotional) | `recordings.language` (ISO code), `recordings.type` |
 | 6 | Moods | The six moods (Joyful, Longing, Calm, Ecstatic, Devotion, Sad) as one row of chips, only for moods with enough confirmed recordings (section 6) | the tags do not exist yet (section 9.4) |
 
+**Update of 9 Nov 2026 (wins over the rows above).** Block 2 is Baba Nam Kevalam only. Guru Puja, Pitriyajina and the other mantras
+of Ananda Marga are their own kind, `other_mantra` ("Other mantras"): one shelf and one tab chip of their own, counted and listed like
+every other kind, never mixed into the Kiirtan shelves. The style and mood fields are lists (`recordings.styles`, `styles_other`,
+`moods`, `moods_other`; old rows read as a list of one): a style or mood shelf counts a recording once for each of its tags, and a
+person's own word appears on a shelf only after the team accepted it (`docs/kiirtan-recording-info.md`). The shelf "Indian Kiirtan by
+style" now lists the new styles (Indian style, Electronic, Acoustic guitar, African, Western); a recording that still carries an
+old id (Bengali, Hindi, ...) keeps its place under that name.
+
 ### Honest limits of the data (nothing is invented)
 
 * **"Indian Kiirtan" is now a field: the optional style.** A Kiirtan is Baba Nam Kevalam, so it has no sung language; the
