@@ -5,8 +5,9 @@ import { ugcRu } from "./ugc"
 import { duplicatesRu } from "./duplicates"
 import { recordingInfoRu } from "./recordingInfo"
 import { recordingChartsRu } from "./recordingCharts"
-import { chordInstrumentsRu } from "./chordInstruments"
 import { recordingCycleRu } from "./recordingCycle"
+import { chordCardRu } from "./chordCard"
+import { kiirtanPageRu } from "./kiirtanPage"
 import { recordingsRu } from "./recordings"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
@@ -1372,6 +1373,8 @@ export const ru: Dictionary = {
   ...recordingInfoRu,
   ...recordingChartsRu,
   ...recordingCycleRu,
+  ...chordCardRu,
+  ...kiirtanPageRu,
   ...recordingsRu,
   ...offlineRu,
   ...accountRu,
@@ -1407,5 +1410,4 @@ export const ru: Dictionary = {
   ...searchMenuRu,
   ...listeningRu,
   ...radioRu,
-  ...chordInstrumentsRu,
 }

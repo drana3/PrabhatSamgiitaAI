@@ -76,7 +76,7 @@ import { ensureKirtansRegistered, kirtanById, kiirtanSongByNumber } from "@/lib/
 import { openReportSheet } from "@/stores/safetySheetStore"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
-import { kindHasChords, kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/kind"
+import { kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/kind"
 import { isKiirtanNumber, isKiirtanSong, recordingKindOfSong } from "@/lib/kirtan/track"
 import { flattenRoutes, rubberBand, songPageInStack } from "@/lib/navV2"
 import { formatClock } from "@/lib/playerV2/transportState"
@@ -122,6 +122,7 @@ import { longOfferVisible } from "@/lib/playerV2/longResume"
 import { useLongResumeOffer } from "@/lib/playerV2/longResumeOffer"
 import { usePlaybackPrefsStore } from "@/stores/playbackPrefsStore"
 import { ContinueOffer } from "@/components/player-v2/ContinueOffer"
+import { RecordingPageChip } from "@/components/player-v2/RecordingPageChip"
 import { SleepChip } from "@/components/player-v2/SleepChip"
 import { SleepSheet } from "@/components/player-v2/SleepSheet"
 import { SpeedSheet } from "@/components/player-v2/SpeedSheet"
@@ -646,7 +647,7 @@ export default function PlayerV2Screen() {
     if (!isK) return rows
     const kept = rows.filter((r) => ["share", "save", "queue", "goQueue", "playback", "drive", "report"].includes(r.id))
     // a recording that is on the server also has chords, videos and comments (docs/recording-extras.md)
-    return extrasRecording ? withRecordingExtras(kept, kindHasChords(extrasRecording.kind)) : kept
+    return extrasRecording ? withRecordingExtras(kept) : kept
   }, [isSaved, isK, song, list, collection, source, rate, sleepValue, extrasRecording])
   const sharePayload = useMemo(
     () =>
@@ -664,6 +665,16 @@ export default function PlayerV2Screen() {
     const sample = MOCKUP_DATA ? mockupSong(song.number)?.centralIdea : null
     return aboutContent(song, sample && !/^placeholder/i.test(sample) ? sample : null)
   }, [song, isK])
+  // a Kiirtan with a page of its own (chords, video, notes, stories): a chip that opens it
+  const pageChip =
+    isK && extrasRecording && !drive ? (
+      <RecordingPageChip
+        onOpen={() => {
+          closePlayer()
+          router.push(href(recordingPageHref(apiIdOf(extrasRecording))))
+        }}
+      />
+    ) : null
   const showAbout = about != null && !isK && !drive && windowHeight >= 740
   const openSongPage = () => {
     if (!song) return
@@ -892,7 +903,12 @@ export default function PlayerV2Screen() {
               onPrevious={onPrevious}
               onNext={onNext}
               onMix={() => setSheet("mix")}
-              extra={v2.sleep.kind !== "off" ? <SleepChip text={sleepValue} onCancel={v2.cancelSleep} /> : null}
+              extra={
+                <>
+                  {pageChip}
+                  {v2.sleep.kind !== "off" ? <SleepChip text={sleepValue} onCancel={v2.cancelSleep} /> : null}
+                </>
+              }
               topGap={radioGap}
             />
           </Animated.View>
@@ -1007,6 +1023,7 @@ export default function PlayerV2Screen() {
                       }}
                     />
                   ) : null}
+                  {pageChip}
                   {v2.sleep.kind !== "off" ? <SleepChip text={sleepValue} onCancel={v2.cancelSleep} /> : null}
                 </Reveal>
                 <Reveal index={4}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { KPress } from "@/components/kirtan/KPress"
@@ -18,14 +18,16 @@ import type { MoodState } from "@/lib/recordingMoods/types"
  * proposed, or starts one that fits. Enough "fits" confirm a mood and only then does Search use it. The server decides who may
  * vote and why not; this block shows its reason in one sentence and never hides the block because of it.
  */
-export function MoodBlock({ theme, kirtan }: { theme: SongsTheme; kirtan: Kirtan }) {
+export function MoodBlock({ theme, kirtan, collapsible, leading }: { theme: SongsTheme; kirtan: Kirtan; /** a menu: one pill that opens the block, instead of the whole card always on the page (the Kiirtan page) */ collapsible?: boolean; /** what sits at the left of the pill on the same row (the Play button) */ leading?: ReactNode }) {
   const t = useT()
   const controller = useRecordingMoods(apiIdOf(kirtan))
   const { page, busy, failure } = controller
   const [picked, setPicked] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
+  const [open, setOpen] = useState(false)
   const suggestedKey = (page?.moods ?? []).filter((m) => m.source === "uploader" && m.status !== "none").map((m) => m.mood).join(",")
   useEffect(() => setPicked(suggestedKey ? suggestedKey.split(",") : []), [suggestedKey])
+  if (!page && collapsible) return leading ? <View style={s.menuRow}>{leading}</View> : null
   if (!page) return failure ? <Text style={[s.note, s.pad, { color: theme.textBody }]} accessibilityRole="alert">{t(`recMoods.failure.${failure === "too_many" ? "tooMany" : failure}` as "recMoods.failure.failed")}</Text> : null
 
   const toggle = (mood: string) => {
@@ -34,13 +36,16 @@ export function MoodBlock({ theme, kirtan }: { theme: SongsTheme; kirtan: Kirtan
   }
   const save = async (moods: string[]) => setSaved(await controller.suggest(moods))
   const proposed = proposedMoods(page)
+  const confirmed = page.moods.filter((m) => m.status === "confirmed").map((m) => moodLabel(m.mood))
   const lead = page.canSuggest ? "recMoods.lead.uploader" : page.cannotVoteBecause === "sign_in" ? "recMoods.lead.guest" : "recMoods.lead.listener"
 
-  return (
-    <View style={[s.card, { backgroundColor: theme.card, borderColor: theme.line }]} testID="mood-block">
-      <Text style={[s.title, { color: theme.textHeading }]} accessibilityRole="header">
-        {t("recMoods.title")}
-      </Text>
+  const card = (
+    <View style={[s.card, collapsible ? s.cardMenu : null, { backgroundColor: theme.card, borderColor: theme.line }]} testID="mood-block">
+      {collapsible ? null : (
+        <Text style={[s.title, { color: theme.textHeading }]} accessibilityRole="header">
+          {t("recMoods.title")}
+        </Text>
+      )}
       <Text style={[s.body, { color: theme.textBody }]}>{t(lead)}</Text>
 
       {page.canSuggest ? (
@@ -88,6 +93,40 @@ export function MoodBlock({ theme, kirtan }: { theme: SongsTheme; kirtan: Kirtan
       ) : null}
     </View>
   )
+  if (!collapsible) return card
+  // the menu: a pill on the row of `leading`, the block opens under it
+  return (
+    <View style={s.menu}>
+      <View style={s.menuRow}>
+        {leading}
+        <KPress
+          accessibilityRole="button"
+          accessibilityLabel={t("kPage.mood.toggle")}
+          accessibilityState={{ expanded: open }}
+          onPress={() => setOpen((v) => !v)}
+          pressedScale={0.97}
+          outerStyle={s.menuPill}
+          style={[s.pill, { borderColor: open ? theme.accent : theme.line, backgroundColor: open ? theme.card : "transparent" }]}
+          testID="mood-menu"
+        >
+          <View style={s.pillText}>
+            <Text style={[s.title, { color: theme.textHeading }]} numberOfLines={1}>
+              {t("recMoods.title")}
+            </Text>
+            {confirmed.length ? (
+              <Text style={[s.note, { color: theme.textMuted }]} numberOfLines={1}>
+                {confirmed.join(", ")}
+              </Text>
+            ) : null}
+          </View>
+          <Text style={[s.chevron, { color: theme.textHeading }]} accessibilityElementsHidden importantForAccessibility="no">
+            {open ? "▴" : "▾"}
+          </Text>
+        </KPress>
+      </View>
+      {open ? card : null}
+    </View>
+  )
 }
 
 function MoodRow({ theme, state, needed, canVote, busy, onVote }: { theme: SongsTheme; state: MoodState; needed: { uploader: number; listeners: number }; canVote: boolean; busy: boolean; onVote: (value: "yes" | "no" | "clear") => void }) {
@@ -132,6 +171,13 @@ function Action({ theme, label, onPress, tone = "primary", disabled, selected, a
 
 const s = StyleSheet.create({
   card: { borderRadius: 24, borderWidth: 1, padding: 16, gap: 12, marginHorizontal: 16 },
+  cardMenu: { marginHorizontal: 0 },
+  menu: { gap: 12 },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  menuPill: { flex: 1, minWidth: 0 },
+  pill: { minHeight: 48, borderRadius: 70, borderWidth: 1.5, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  pillText: { flex: 1, minWidth: 0 },
+  chevron: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20 },
   pad: { paddingHorizontal: 20 },
   title: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22 },
   body: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },

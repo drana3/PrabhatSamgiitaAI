@@ -181,8 +181,8 @@ describe("the tag row of a recording's page", () => {
 
 describe("the recording page of a Kiirtan", () => {
   const page = read("app/recording/[id].tsx")
-  it("shows the video block, the other links, the chord cycle and the comments, in that order, after the tags and Play", () => {
-    const order = ["<RecordingHero", "<RecordingTags", 'tr("recPage.play")', "<VideoBlock", "<VideosSection", "<CycleBlock", "<CommentsView"].map((needle) => page.indexOf(needle))
+  it("shows the tabs (Chords first, then Video with its links, Notes, Story) after the tags and Play", () => {
+    const order = ["<RecordingHero", "<RecordingTags", 'tr("recPage.play")', "<KiirtanTabs", "<CycleBlock", "<VideoBlock", "<VideosSection", "<PianoBlock", "<CommentsView"].map((needle) => page.indexOf(needle))
     expect(order.every((i) => i >= 0)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })

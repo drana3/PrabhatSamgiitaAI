@@ -6,6 +6,7 @@ import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
+import { chordFont, discSize, RING_TAG_ROOM, ringPoints, ringSizeFor } from "@/lib/recordingChords/ringGeometry"
 
 /**
  * One ring of a chord cycle (docs/kiirtan-cycle.md): the chords sit on a circle, clockwise from the top, the way a round
@@ -13,22 +14,12 @@ import { useT } from "@/lib/i18n"
  * round begins; the others are outlined. Small arrowheads on the track show the direction. Nothing is ever highlighted
  * as "playing now": a cycle carries no timing.
  *
- * Read-only on a recording page; in the entry screen every place can be tapped (`onPress`) and one can be `selected`.
+ * On a recording page a tap on a chord opens its chord card (docs/chord-card.md); in the entry screen every place can be tapped
+ * (`onPress`) and one can be `selected`. There is no text in the middle: the rounds ("x4") are said under the ring.
  * Only transform-free layout and an SVG track: depth comes from the outline and the fill, not from shadows.
  */
 
-/** Centres of `count` places on a circle of radius `r` around (cx, cy), the first at the top, going clockwise. */
-export function ringPoints(count: number, r: number, cx: number, cy: number): Array<{ x: number; y: number; angle: number }> {
-  return Array.from({ length: count }, (_, i) => {
-    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / count
-    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle), angle }
-  })
-}
-
-/** Disc size for a ring: smaller when there are more places, never under the 44 touch target of the entry screen. */
-export function discSize(count: number): number {
-  return count <= 5 ? 56 : count <= 6 ? 52 : 48
-}
+export { chordFont, discSize, RING_TAG_ROOM, ringPoints, ringSizeFor }
 
 export function CycleRing({
   t,
@@ -55,7 +46,7 @@ export function CycleRing({
   const tr = useT()
   const disc = discSize(chords.length)
   // the "Start" tag sits above the first disc, so keep room for it at the top
-  const pad = 20
+  const pad = RING_TAG_ROOM
   const box = size + pad
   const radius = (size - disc) / 2
   const cx = box / 2
@@ -101,7 +92,7 @@ export function CycleRing({
         const text = isStart ? t.onAction : t.ink900
         const body = (
           <View style={[styles.disc, { width: disc, height: disc, borderRadius: disc / 2, backgroundColor: fill, borderColor: stroke, borderWidth: isSelected ? 3 : 2, borderStyle: chord ? "solid" : "dashed" }]}>
-            <Text style={[styles.chord, { color: text, fontSize: chord && chord.length > 4 ? 13 : 17 }]} numberOfLines={1} adjustsFontSizeToFit>
+            <Text style={[styles.chord, { color: text, fontSize: chordFont(chord) }]} numberOfLines={1} adjustsFontSizeToFit>
               {chord ?? "+"}
             </Text>
           </View>
@@ -129,7 +120,7 @@ export function CycleRing({
 
 const styles = StyleSheet.create({
   disc: { alignItems: "center", justifyContent: "center" },
-  chord: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, textAlign: "center", maxWidth: 44 },
+  chord: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, textAlign: "center", maxWidth: 52 },
   centre: { position: "absolute", width: 96, height: 40, alignItems: "center", justifyContent: "center" },
   centreText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20, textAlign: "center" },
   tag: { position: "absolute", width: 48, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center" },

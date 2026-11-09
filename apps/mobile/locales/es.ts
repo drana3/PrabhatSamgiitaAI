@@ -5,8 +5,9 @@ import { ugcEs } from "./ugc"
 import { duplicatesEs } from "./duplicates"
 import { recordingInfoEs } from "./recordingInfo"
 import { recordingChartsEs } from "./recordingCharts"
-import { chordInstrumentsEs } from "./chordInstruments"
 import { recordingCycleEs } from "./recordingCycle"
+import { chordCardEs } from "./chordCard"
+import { kiirtanPageEs } from "./kiirtanPage"
 import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
@@ -1286,6 +1287,8 @@ export const es: Dictionary = {
   ...recordingInfoEs,
   ...recordingChartsEs,
   ...recordingCycleEs,
+  ...chordCardEs,
+  ...kiirtanPageEs,
   ...recordingsEs,
   ...offlineEs,
   ...accountEs,
@@ -1321,5 +1324,4 @@ export const es: Dictionary = {
   ...searchMenuEs,
   ...listeningEs,
   ...radioEs,
-  ...chordInstrumentsEs,
 }

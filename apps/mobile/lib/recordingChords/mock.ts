@@ -34,15 +34,15 @@ const CHART_SAMPLE: RecordingSheet["lines"] = [
   { text: "Ananda Marga Jaya", placements: [{ word: 0, chord: "G" }, { word: 2, chord: "Em" }] },
 ]
 
-/** Made-up chords for the preview of a Kiirtan: three tunes are played, the first two have chords, the third has none yet. Only an example. */
+/** Made-up chords for the preview of a Kiirtan: three tunes are played, the first two have chords (the second has eight, the most a ring takes), the third has none yet. Only an example. */
 const CYCLE_SAMPLE: NonNullable<RecordingSheet["cycle"]> = {
   tuneCount: 3,
   tunes: [
     { number: 1, name: "Slow", key: "G", chords: ["Em", "C", "G", "D"], start: 0, times: 4 },
-    { number: 2, name: "Fast", key: "C", chords: ["Am", "G", "C", "F"], start: 2, times: null },
+    { number: 2, name: "Fast", key: "C", chords: ["Am", "G", "C", "F", "Dm7", "E7", "Asus4", "Bb"], start: 2, times: null },
   ],
 }
-const CYCLE_SAMPLE_BODY = "Tune 1 (Slow): Em - C - G - D (key G, starts on Em, x4)\nTune 2 (Fast): Am - G - C - F (key C, starts on C)\nTune 3: no chords yet"
+const CYCLE_SAMPLE_BODY = "Tune 1 (Slow): Em - C - G - D (key G, starts on Em, x4)\nTune 2 (Fast): Am - G - C - F - Dm7 - E7 - Asus4 - Bb (key C, starts on C)\nTune 3: no chords yet"
 
 const SAMPLE = ["        Em           C", "Baba Nam Kevalam", "        Am           D", "Prema Mayi Dhyana", "", "   G         Em", "Ananda Marga Jaya"].join("\n")
 

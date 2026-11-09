@@ -4,8 +4,9 @@ import { ugcEn } from "./ugc"
 import { duplicatesEn } from "./duplicates"
 import { recordingInfoEn } from "./recordingInfo"
 import { recordingChartsEn } from "./recordingCharts"
-import { chordInstrumentsEn } from "./chordInstruments"
 import { recordingCycleEn } from "./recordingCycle"
+import { chordCardEn } from "./chordCard"
+import { kiirtanPageEn } from "./kiirtanPage"
 import { recordingsEn } from "./recordings"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
@@ -1292,6 +1293,8 @@ export const en = {
   ...recordingInfoEn,
   ...recordingChartsEn,
   ...recordingCycleEn,
+  ...chordCardEn,
+  ...kiirtanPageEn,
   ...recordingsEn,
   ...offlineEn,
   ...accountEn,
@@ -1327,5 +1330,4 @@ export const en = {
   ...searchMenuEn,
   ...listeningEn,
   ...radioEn,
-  ...chordInstrumentsEn,
 } as const

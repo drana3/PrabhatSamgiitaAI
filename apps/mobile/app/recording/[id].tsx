@@ -10,6 +10,7 @@ import { RecordingHero } from "@/components/kirtan/RecordingHero"
 import { RecordingTags } from "@/components/kirtan/RecordingTags"
 import { RecordingFacts } from "@/components/kirtan/RecordingFacts"
 import { FromBroadcastMark } from "@/components/broadcasts/FromBroadcastMark"
+import { ChordCardSheet } from "@/components/chords/ChordCardSheet"
 import { CommentsView } from "@/components/comments/CommentsView"
 import { useComments } from "@/components/comments/useComments"
 import { AddVideoSheet } from "@/components/recording-extras/AddVideoSheet"
@@ -17,6 +18,7 @@ import { BlockStack } from "@/components/common/Layout"
 import { ChordsBlock } from "@/components/recording-extras/ChordsBlock"
 import { CycleBlock } from "@/components/recording-extras/CycleBlock"
 import { PianoBlock } from "@/components/piano/PianoBlock"
+import { KiirtanTabs } from "@/components/recording-extras/KiirtanTabs"
 import { Viewer } from "@/components/recording-extras/RecordingChordsSheet"
 import { VideosSection } from "@/components/recording-extras/VideosSection"
 import { useRecordingSheets, type SheetsController } from "@/components/recording-extras/useRecordingSheets"
@@ -37,10 +39,12 @@ import { kindHasChords } from "@/lib/kirtan/kind"
 import type { Kirtan } from "@/lib/kirtan/types"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { SCREEN_SIDE } from "@/lib/layout"
+import { chordInstrumentOf, type ChordInstrument } from "@/lib/chordCard/instrument"
 import { isCycle, tuneLine } from "@/lib/recordingChords/cycle"
 import { kindHasCharts, kindHasCycle } from "@/lib/recordingChords/kinds"
 import { featuredVideo } from "@/lib/recordingVideos/embed"
 import { apiIdOf, cycleFormHref, sheetFormHref } from "@/lib/recordingExtras/links"
+import { openingTab, type KiirtanTab } from "@/lib/recordingExtras/kiirtanTabs"
 import { recordingCommentFailure, recordingCommentsBackend } from "@/lib/recordingComments/backend"
 import type { RecordingComment } from "@/lib/recordingComments/types"
 import { href } from "@/utils/href"
@@ -98,14 +102,19 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
   const [viewing, setViewing] = useState(false)
   const [adding, setAdding] = useState(false)
   // "somebody replied to your comment" opens this page with `?comment=`: the comments are the end of the page, so go there
-  const { comment: openedFromReply } = useLocalSearchParams<{ comment?: string | string[] }>()
+  const { comment: openedFromReply, tab: openedOnTab } = useLocalSearchParams<{ comment?: string | string[]; tab?: string | string[] }>()
   const focus = typeof openedFromReply === "string" && openedFromReply ? openedFromReply : null
+  // a Kiirtan's page has four tabs (Chords, Video, Notes, Story); it opens on Chords, or on Story for a reply to a comment
+  const [tab, setTab] = useState<KiirtanTab>(() => openingTab({ tab: openedOnTab, focus: Boolean(focus) }))
+  // the chord card: which chord is open (null = closed), the chords of its tune for the strip, and the instrument it is drawn for
+  const [card, setCard] = useState<{ chord: string; chords: string[] } | null>(null)
+  const [cardInstrument, setCardInstrument] = useState<ChordInstrument>("guitar")
   const scroller = useRef<ScrollView>(null)
   useEffect(() => {
-    if (!focus) return
+    if (!focus || tab !== "story") return
     const timers = [setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 700), setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 1800)]
     return () => timers.forEach(clearTimeout)
-  }, [focus])
+  }, [focus, tab])
 
   // coming back from the "Add chords" screen shows the new chart (the first focus is the load the hook already did)
   const first = useRef(true)
@@ -139,33 +148,32 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
           <BlockStack gap={16} side={SCREEN_SIDE} style={styles.under}>
             <RecordingTags theme={theme} kirtan={recording} />
             <RecordingFacts theme={theme} kirtan={recording} />
-            <View style={styles.row}>
-              <SpPress onPress={() => actions.open(recording, [recording], recording.title)} accessibilityLabel={tr("recPage.play")} style={[styles.play, { backgroundColor: t.action }]}>
-                <Text style={[styles.playText, { color: t.onAction }]}>{tr("recPage.play")}</Text>
-              </SpPress>
-            </View>
+            {/* Play and "How does it feel?" share one row: the mood block is a menu that opens under it, not a card that is always there */}
+            <MoodBlock
+              theme={theme}
+              kirtan={recording}
+              collapsible
+              leading={
+                <SpPress onPress={() => actions.open(recording, [recording], recording.title)} accessibilityLabel={tr("recPage.play")} style={[styles.play, { backgroundColor: t.action }]}>
+                  <Text style={[styles.playText, { color: t.onAction }]}>{tr("recPage.play")}</Text>
+                </SpPress>
+              }
+            />
           </BlockStack>
         </Reveal>
         {/* a recording made from a live broadcast says so (docs/broadcasts.md); nothing for any other */}
         <FromBroadcastMark recordingId={apiId} theme={theme} />
         <AddLanguagePrompt theme={theme} kirtan={recording} variant="card" />
         <PracticeBlock theme={theme} kirtan={recording} />
-        <Reveal index={2}>
-          <View style={styles.block}>
-            <MoodBlock theme={theme} kirtan={recording} />
-          </View>
-        </Reveal>
         {cycleKind ? (
           <>
+            {/* a Kiirtan's page has four tabs, Chords first: the chord cycle is the first thing under the title */}
             <Reveal index={2}>
-              <VideoBlock t={t} videos={videos} watch={watch} chordLine={chordLine} onAdd={() => setAdding(true)} onFlash={actions.flash} />
-            </Reveal>
-            <Reveal index={2}>
-              <View style={styles.block}>
-                <VideosSection t={t} videos={videos} watch={watch} title={tr("recVideos.more")} skipId={headline?.id ?? null} onAdd={() => setAdding(true)} onFlash={actions.flash} />
+              <View style={styles.tabs}>
+                <KiirtanTabs t={t} value={tab} onChange={setTab} />
               </View>
             </Reveal>
-            <Reveal index={3}>
+            {tab === "chords" ? (
               <CycleBlock
                 t={t}
                 title={tr("recCycle.block.title")}
@@ -175,8 +183,29 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
                 onCopy={(sheet) => goCycle({ copy: sheet.id })}
                 onFrom={(sheet, tune) => goCycle({ from: sheet.id, instrument: sheet.instrument, tune })}
                 onOpenText={() => setViewing(true)}
+                cardInstrument={cardInstrument}
+                onCardInstrument={setCardInstrument}
+                onOpenChord={(chord, chords) => setCard({ chord, chords })}
               />
-            </Reveal>
+            ) : null}
+            {tab === "video" ? (
+              <>
+                <VideoBlock t={t} videos={videos} watch={watch} chordLine={chordLine} onAdd={() => setAdding(true)} onFlash={actions.flash} />
+                <View style={styles.block}>
+                  <VideosSection t={t} videos={videos} watch={watch} title={tr("recVideos.more")} skipId={headline?.id ?? null} onAdd={() => setAdding(true)} onFlash={actions.flash} />
+                </View>
+              </>
+            ) : null}
+            {tab === "notes" ? (
+              <View style={styles.block}>
+                <PianoBlock t={t} target={{ kind: "recording", id: apiId }} title={recording.title} />
+              </View>
+            ) : null}
+            {tab === "story" ? (
+              <View style={styles.block}>
+                <CommentsView t={t} comments={comments} words="recordingComments" testID="recording-comments" focus={focus} />
+              </View>
+            ) : null}
           </>
         ) : (
           <>
@@ -195,22 +224,25 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
             </Reveal>
           </>
         )}
-        {/* piano notes: the same kinds as chords (docs/piano-notation.md) */}
-        {kindHasChords(recording.kind) ? (
+        {/* piano notes: the same kinds as chords (docs/piano-notation.md); a Kiirtan has them in its Notes tab */}
+        {kindHasChords(recording.kind) && !cycleKind ? (
           <Reveal index={2}>
             <View style={styles.block}>
               <PianoBlock t={t} target={{ kind: "recording", id: apiId }} title={recording.title} />
             </View>
           </Reveal>
         ) : null}
-        <Reveal index={3}>
-          <View style={styles.block}>
-            <CommentsView t={t} comments={comments} words="recordingComments" testID="recording-comments" focus={focus} />
-          </View>
-        </Reveal>
+        {cycleKind ? null : (
+          <Reveal index={3}>
+            <View style={styles.block}>
+              <CommentsView t={t} comments={comments} words="recordingComments" testID="recording-comments" focus={focus} />
+            </View>
+          </Reveal>
+        )}
       </ScrollView>
       {/* the sheets sit over the whole page, not inside the scrolling list */}
       <Viewer t={t} sheets={cycleKind ? textSheets : sheets} recordingId={apiId} title={recording.title} visible={viewing} onClose={() => setViewing(false)} />
+      {cycleKind ? <ChordCardSheet t={t} chord={card?.chord ?? null} chords={card?.chords} instrument={cardInstrument} onInstrument={(next) => setCardInstrument(chordInstrumentOf(next))} onChord={(chord) => setCard((c) => (c ? { ...c, chord } : c))} onClose={() => setCard(null)} /> : null}
       <AddVideoSheet t={t} visible={adding} onClose={() => setAdding(false)} videos={videos} onAdded={() => actions.flash(tr("recVideos.added"))} />
       <Toast message={actions.toast} theme={theme} />
     </View>
@@ -222,6 +254,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 8, maxWidth: 640, width: "100%", alignSelf: "center" },
   under: { paddingTop: 8 },
   block: { paddingTop: 32 },
+  tabs: { paddingTop: 24, paddingHorizontal: SCREEN_SIDE },
   h1: { fontFamily: amFonts.display, fontSize: 40, lineHeight: 42, letterSpacing: -0.8, textTransform: "uppercase" },
   row: { flexDirection: "row" },
   play: { minHeight: 48, minWidth: 48, paddingHorizontal: 24, borderRadius: 9999, alignItems: "center", justifyContent: "center" },

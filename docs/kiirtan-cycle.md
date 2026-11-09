@@ -1,6 +1,6 @@
 # Kiirtan chord cycle
 
-A Kiirtan has no lyric lines to hang chords on: a few chords go round and round. A cycle is the
+A Kiirtan has no lyric lines to hang chords on: a few chords go round in a circle. A cycle is the
 way to write that down. It is the third kind of chord sheet a recording can have (the other two are
 the plain text sheet and the word-by-word chart). It is for Kiirtan only; Bhajan and Spiritual song
 recordings keep the chart (words first, then chords above the words) and PS keeps its own sheets.
@@ -57,13 +57,15 @@ Cleaning and the text written from it live in `apps/api/app/services/kiirtan_cyc
 
 `apps/mobile/app/recording-cycle.tsx` (modal), a short wizard:
 
-1. **How many tunes are played in the recording?** (1 to 30) A stepper (− 1 +) with a typed number in the middle.
+1. **How many tunes are played in the recording?** (1 to 30) One button with the number; it opens a pop-up sheet
+   with a scrolling list 1 to 30 (it opens scrolled to the current number). Tap a number to choose it.
 2. If more than one: **do you have chords for all the tunes, or only for some?** ("All of them" or
-   "Only some"). For "Only some" there is a grid of numbers 1 to N to tick, the buttons "All" and
-   "None", a line "Chosen: 3 of 30", and, when there are more than six tunes, a field for a range
-   such as "1-5, 8" (`parseTuneRange`).
+   "Only some"). For "Only some" with six tunes or fewer, a row of numbers to tick. With more, a compact
+   line "Chosen, 5 of 12: 1–3, 7, 8" (`compactRanges`), the buttons "All" and "None", a field for a range such
+   as "1-5, 8" (`parseTuneRange`), and a button "Choose tunes" that opens a sheet with the list to tick.
 3. One step for each chosen tune: "Tune 2 of 3", the ring (4 chords by default, add or remove up to
-   8), the start chord (required), the optional "x N", the key of this tune ("Not sure" by default,
+   8), the start chord (required), the optional "x N", the key of this tune (optional, "Not sure" by default, with a plain line: "Key = the home note of the song,
+   e.g. A minor. If unsure, leave Not sure"; no capo per tune;
    a button "Same as previous tune", the line "Different tunes can be in different keys"). The
    member can skip a tune, go back, or fix an earlier one. A skipped tune stays "no chords yet".
    With more than one tune, a row of numbered chips over the ring jumps to any tune (a mark shows

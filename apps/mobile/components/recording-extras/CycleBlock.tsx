@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native"
 
+import { ChordStrip, InstrumentPicker } from "@/components/chords/ChordCard"
 import { Button } from "@/components/comments/CommentsView"
 import { BlockStack, Section } from "@/components/common/Layout"
 import { SpPress } from "@/components/song-v2/SpUi"
@@ -13,14 +14,15 @@ import { isCycle, tuneLine, tuneNumbered } from "@/lib/recordingChords/cycle"
 import type { RecordingSheet, SheetCycleTune, SheetInstrument, SheetReportReason } from "@/lib/recordingChords/types"
 import { sheetFailureText } from "@/lib/recordingChords/words"
 
-import { CycleRing } from "./CycleRing"
+import type { ChordInstrument } from "@/lib/chordCard/instrument"
+
+import { CycleRing, ringSizeFor } from "./CycleRing"
 import { DeletePanel, ReportPanel } from "./Panels"
 import { Note, R_ROUND } from "./ui"
 import type { SheetsController } from "./useRecordingSheets"
 
 const REASONS: SheetReportReason[] = ["wrong_chords", "offensive", "spam", "other"]
-const INSTRUMENTS: SheetInstrument[] = ["harmonium", "piano", "guitar"]
-const MAX_RING = 288
+const INSTRUMENTS: SheetInstrument[] = ["guitar", "harmonium"]
 /** past this many tunes the tabs show only the number */
 const MANY = 6
 
@@ -39,6 +41,9 @@ export function CycleBlock({
   onCopy,
   onFrom,
   onOpenText,
+  cardInstrument,
+  onCardInstrument,
+  onOpenChord,
 }: {
   t: SpTheme
   title: string
@@ -49,6 +54,11 @@ export function CycleBlock({
   /** start from this cycle; `tune` is the number of a tune that has no chords yet and is being added */
   onFrom: (sheet: RecordingSheet, tune?: number) => void
   onOpenText: () => void
+  /** the instrument the chord cards are drawn for (guitar, piano or harmonium) */
+  cardInstrument: ChordInstrument
+  onCardInstrument: (next: ChordInstrument) => void
+  /** a chord of the ring (or of the strip) was tapped: the page opens its card, with the chords of the tune for the strip under it */
+  onOpenChord: (chord: string, chordsOfTune: string[]) => void
 }) {
   const tr = useT()
   const { width } = useWindowDimensions()
@@ -87,7 +97,7 @@ export function CycleBlock({
     setPanel(null)
     setNote(null)
   }
-  const size = Math.min(MAX_RING, Math.min(width, 640) - 2 * SCREEN_SIDE)
+  const size = ringSizeFor(width, SCREEN_SIDE)
   const by = !sheet ? "" : sheet.mine ? tr("recChords.by.you") : sheet.author ? tr("recChords.by", { name: sheet.author.name }) : tr("recChords.by.anonymous")
   const tuneName = (n: number) => {
     const f = cycle ? tuneNumbered(cycle, n) : undefined
@@ -95,10 +105,9 @@ export function CycleBlock({
   }
 
   return (
-    <Section title={title}>
+    <Section title={title} top={16}>
       <View testID="recording-cycle">
         <BlockStack gap={12}>
-          <Note t={t} tone="body">{tr("recCycle.block.intro")}</Note>
           {state.status === "loading" && state.items.length === 0 ? (
             <View style={styles.status} accessibilityLiveRegion="polite">
               <ActivityIndicator color={t.ink500} />
@@ -176,7 +185,10 @@ export function CycleBlock({
                     chords={tune.chords}
                     start={tune.start}
                     size={size}
-                    centre={tune.times ? `×${tune.times}` : undefined}
+                    onPress={(slot) => {
+                      const chord = tune.chords[slot]
+                      if (chord) onOpenChord(chord, tune.chords)
+                    }}
                     label={tr("recCycle.ring.a11y", { n: picked, chords: tune.chords.join(", "), start: tune.chords[tune.start] ?? "" })}
                   />
                   <View style={styles.summary}>
@@ -186,6 +198,12 @@ export function CycleBlock({
                     <Text style={[styles.facts, { color: t.ink800 }]}>
                       {[tune.key ? tr("recCycle.block.key", { key: tune.key }) : "", tr("recCycle.block.starts", { chord: tune.chords[tune.start] ?? "" }), tune.times ? tr("recCycle.block.times", { count: tune.times }) : ""].filter(Boolean).join(" · ")}
                     </Text>
+                  </View>
+                  <View style={styles.cards} testID="cycle-cards">
+                    <Text style={[styles.cardsTitle, { color: t.ink900 }]} accessibilityRole="header">{tr("kPage.cards.title")}</Text>
+                    <InstrumentPicker value={cardInstrument} onChange={onCardInstrument} t={t} />
+                    <ChordStrip chords={tune.chords} instrument={cardInstrument} onOpen={(chord) => onOpenChord(chord, tune.chords)} t={t} />
+                    <Note t={t}>{tr("kPage.cards.hint")}</Note>
                   </View>
                 </>
               ) : (
@@ -292,6 +310,8 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: R_ROUND },
   badgeText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 18 },
   summary: { gap: 4, alignItems: "center" },
+  cards: { gap: 12 },
+  cardsTitle: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 24 },
   tuneName: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 24, textAlign: "center" },
   line: { fontFamily: amFonts.bold, fontSize: 20, lineHeight: 28, textAlign: "center" },
   facts: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20, textAlign: "center" },

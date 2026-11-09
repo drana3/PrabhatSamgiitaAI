@@ -3,7 +3,10 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { CycleRing } from "@/components/recording-extras/CycleRing"
+import { CycleRing, RING_TAG_ROOM } from "@/components/recording-extras/CycleRing"
+import { TuneChooseSheet, TunePickSheet } from "@/components/recording-extras/TuneSheets"
+import { SpPress } from "@/components/song-v2/SpUi"
+import { compactRanges } from "@/lib/recordingChords/tuneList"
 import { ModerationNotice } from "@/components/common/ModerationNotice"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { ChordSheet } from "@/components/song-chords/ChordSheet"
@@ -60,8 +63,7 @@ import {
 } from "@/lib/recordingChords/cycle"
 import { kindHasCycle } from "@/lib/recordingChords/kinds"
 import { SHEET_NOTE_MAX } from "@/lib/recordingChords/rules"
-import { sheetInstrumentOf } from "@/lib/recordingChords/instruments"
-import type { RecordingSheet, SheetFailure, SheetInstrument } from "@/lib/recordingChords/types"
+import type { RecordingSheet, SheetFailure } from "@/lib/recordingChords/types"
 import { sheetFailureText } from "@/lib/recordingChords/words"
 import { chordsFormHref, recordingPageHref } from "@/lib/recordingExtras/links"
 import { PREVIEW_NAME } from "@/lib/songComments/mock"
@@ -73,7 +75,7 @@ import { allKirtans } from "@/lib/kirtan/catalog"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 
-type Entry = { kind: "new"; instrument: SheetInstrument } | { kind: "edit" | "copy" | "from"; id: string; tune?: number }
+type Entry = { kind: "new"; instrument: "guitar" | "harmonium" } | { kind: "edit" | "copy" | "from"; id: string; tune?: number }
 
 /** What the screen was opened for, read from its address. An id wins over a bare instrument. `tune` is the number of a tune with no chords yet that is being added. */
 function entryOf(params: { edit?: string; copy?: string; from?: string; instrument?: string; tune?: string }): Entry {
@@ -83,7 +85,7 @@ function entryOf(params: { edit?: string; copy?: string; from?: string; instrume
     const tune = Number(params.tune)
     return { kind: "from", id: params.from, ...(Number.isInteger(tune) && tune >= 1 ? { tune } : {}) }
   }
-  return { kind: "new", instrument: sheetInstrumentOf(params.instrument) }
+  return { kind: "new", instrument: params.instrument === "harmonium" ? "harmonium" : "guitar" }
 }
 
 /** Everything the member can change, as one string: whether the work differs from where it began. */
@@ -156,7 +158,9 @@ export default function RecordingCycleScreen() {
   const [allTunes, setAllTunes] = useState(true)
   const [chosen, setChosen] = useState<number[]>([])
   const [tried, setTried] = useState(false)
-  const [countText, setCountText] = useState("1")
+  /** the pop-up sheets: the number of tunes, and which tunes have chords */
+  const [pickOpen, setPickOpen] = useState(false)
+  const [chooseOpen, setChooseOpen] = useState(false)
   const [rangeText, setRangeText] = useState("")
   const [rangeBad, setRangeBad] = useState(false)
 
@@ -200,7 +204,6 @@ export default function RecordingCycleScreen() {
   const dirty = signature(draft) !== baseline
   const used = useMemo(() => cycleUsedChords(draft), [draft])
   const total = draft.tunes.length
-  useEffect(() => setCountText(String(total)), [total])
   const tune = draft.tunes[tuneIx] ?? draft.tunes[0]!
 
   const form = useFormFocus()
@@ -326,7 +329,7 @@ export default function RecordingCycleScreen() {
     },
   ]
 
-  const ringSize = Math.min(264, Math.min(width, 560) - 48 - 32)
+  const ringSize = Math.min(290, Math.min(width, 560) - 48 - 32 - 4 - RING_TAG_ROOM)
 
   // ---- the moves between steps ----
   /** after question 1: one tune goes straight to its ring, more ask which of them have chords */
@@ -376,17 +379,10 @@ export default function RecordingCycleScreen() {
     else goTo(total > 1 ? "which" : "count")
   }
 
-  /** the stepper and the typed number of the first question: always a whole number from 1 to the limit */
+  /** the number of the first question, picked in the pop-up: always a whole number from 1 to the limit */
   const setCount = (n: number) => {
     const next = Math.min(CYCLE_MAX_TUNES, Math.max(1, Math.round(n)))
     setDraft((d) => setTuneCount(d, next))
-    setCountText(String(next))
-  }
-  const typeCount = (text: string) => {
-    const digits = text.replace(/\D+/g, "").slice(0, 2)
-    const n = Number(digits)
-    setCountText(digits && n > CYCLE_MAX_TUNES ? String(CYCLE_MAX_TUNES) : digits)
-    if (digits && n >= 1) setDraft((d) => setTuneCount(d, Math.min(CYCLE_MAX_TUNES, n)))
   }
   /** the row of numbered chips: go straight to any tune (a tune left as "no chords yet" is taken back into the walk) */
   const jumpTo = (i: number) => {
@@ -479,23 +475,21 @@ export default function RecordingCycleScreen() {
             <Text style={[s.step, { color: theme.accent }]}>{t("recCycle.step.count")}</Text>
             <Label theme={theme}>{t("recCycle.count.question")}</Label>
             <Hint theme={theme}>{t("recCycle.count.hint")}</Hint>
-            <View style={s.stepper}>
-              <Chip theme={theme} role="button" label="−" a11y={t("recCycle.count.less")} minWidth={52} onPress={() => setCount(total - 1)} />
-              <View style={[s.box, s.countBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
-                <TextInput
-                  value={countText}
-                  onChangeText={typeCount}
-                  onBlur={() => setCountText(String(total))}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  selectTextOnFocus
-                  accessibilityLabel={t("recCycle.count.field")}
-                  style={[s.input, s.countInput, { color: theme.textHeading }]}
-                  testID="cycle-count-field"
-                />
+            {/* a button with the number; it opens a sheet with a scrolling list, so the page stays short at 30 tunes */}
+            <SpPress
+              onPress={() => setPickOpen(true)}
+              accessibilityLabel={`${t("kPage.tunes.field")}: ${total}. ${t("kPage.tunes.change")}`}
+              pressedScale={0.98}
+              testID="cycle-count-button"
+              style={[s.box, s.countButton, { backgroundColor: theme.card, borderColor: theme.line }]}
+            >
+              <Text style={[s.countNumber, { color: theme.textHeading }]}>{total}</Text>
+              <View style={s.countText}>
+                <Text style={[s.countLabel, { color: theme.textHeading }]}>{t("kPage.tunes.value", { count: total })}</Text>
+                <Text style={[s.countChange, { color: theme.accent }]}>{t("kPage.tunes.change")}</Text>
               </View>
-              <Chip theme={theme} role="button" label="+" a11y={t("recCycle.count.more")} minWidth={52} onPress={() => setCount(total + 1)} />
-            </View>
+              <Text style={[s.countChevron, { color: theme.textHeading }]} accessibilityElementsHidden importantForAccessibility="no">▾</Text>
+            </SpPress>
             <Hint theme={theme}>{t("recCycle.count.limit", { max: CYCLE_MAX_TUNES })}</Hint>
             {total > 1 && baseline !== signature(draft) ? <Hint theme={theme}>{t("recCycle.count.change")}</Hint> : null}
           </Reveal>
@@ -531,21 +525,31 @@ export default function RecordingCycleScreen() {
                 <Chip theme={theme} role="button" label={t("recCycle.which.allBtn")} minWidth={72} onPress={() => setChosen(Array.from({ length: total }, (_, i) => i))} />
                 <Chip theme={theme} role="button" label={t("recCycle.which.noneBtn")} minWidth={72} onPress={() => setChosen([])} />
               </View>
-              <View style={s.chips}>
-                {draft.tunes.map((_, i) => (
-                  <Chip
-                    key={i}
-                    theme={theme}
-                    role="checkbox"
-                    label={total > FEW ? String(i + 1) : t("recCycle.which.tune", { n: i + 1 })}
-                    a11y={t("recCycle.which.tune", { n: i + 1 })}
-                    on={chosen.includes(i)}
-                    minWidth={total > FEW ? 52 : 96}
-                    onPress={() => setChosen((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))}
-                  />
-                ))}
-              </View>
-              <Text style={[s.size, s.sizeLeft, { color: theme.textHeading }]} accessibilityLiveRegion="polite">{t("recCycle.which.count", { count: chosen.length, total })}</Text>
+              {total > FEW ? (
+                // many tunes: the numbers are chosen in a pop-up sheet with a scrolling list; the page shows only what is chosen, on one line
+                <View style={s.field}>
+                  <Text style={[s.chosenLine, { color: theme.textHeading }]} accessibilityLiveRegion="polite" testID="cycle-chosen-line">
+                    {chosen.length ? t("kPage.which.list", { count: chosen.length, total, list: compactRanges(chosen.map((i) => i + 1)) }) : t("kPage.which.empty")}
+                  </Text>
+                  <ActionButton theme={theme} tone="quiet" label={t("kPage.which.open")} onPress={() => setChooseOpen(true)} />
+                </View>
+              ) : (
+                <View style={s.chips}>
+                  {draft.tunes.map((_, i) => (
+                    <Chip
+                      key={i}
+                      theme={theme}
+                      role="checkbox"
+                      label={total > FEW ? String(i + 1) : t("recCycle.which.tune", { n: i + 1 })}
+                      a11y={t("recCycle.which.tune", { n: i + 1 })}
+                      on={chosen.includes(i)}
+                      minWidth={total > FEW ? 52 : 96}
+                      onPress={() => setChosen((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))}
+                    />
+                  ))}
+                </View>
+              )}
+              {total > FEW ? null : <Text style={[s.size, s.sizeLeft, { color: theme.textHeading }]} accessibilityLiveRegion="polite">{t("recCycle.which.count", { count: chosen.length, total })}</Text>}
               {total > FEW ? (
                 <>
                   <Label theme={theme}>{t("recCycle.which.range.label")}</Label>
@@ -668,6 +672,7 @@ export default function RecordingCycleScreen() {
           {/* the key of THIS tune */}
           <View style={s.field}>
             <Label theme={theme}>{t("recCycle.key.label")}</Label>
+            <Hint theme={theme}>{t("kPage.key.plain")}</Hint>
             <Hint theme={theme}>{t("recCycle.key.hint")}</Hint>
             <View style={s.chips} accessibilityRole="radiogroup">
               <Chip theme={theme} label={t("recCycle.key.none")} on={tune.key === ""} minWidth={52} onPress={() => setDraft((d) => setTuneKey(d, tuneIx, ""))} />
@@ -839,6 +844,21 @@ export default function RecordingCycleScreen() {
         place={{ over: t("recCycle.slot.over", { tune: tuneIx + 1 }), title: t("recCycle.slot.title", { n: shown + 1, total: tune.slots.length }) }}
       />
 
+      <TunePickSheet t={spTheme} visible={pickOpen} value={total} max={CYCLE_MAX_TUNES} onPick={(n) => (setCount(n), setPickOpen(false))} onClose={() => setPickOpen(false)} />
+      <TuneChooseSheet
+        t={spTheme}
+        visible={chooseOpen}
+        total={total}
+        chosen={chosen}
+        onToggle={(i) => setChosen((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))}
+        onAll={() => setChosen(Array.from({ length: total }, (_, i) => i))}
+        onNone={() => setChosen([])}
+        onClose={() => setChooseOpen(false)}
+        allLabel={t("recCycle.which.allBtn")}
+        noneLabel={t("recCycle.which.noneBtn")}
+        tuneLabel={(n) => t("recCycle.which.tune", { n })}
+      />
+
       <ConfirmDialog theme={theme} open={leaving} title={t("recCycle.leave.title")} body={t("recCycle.leave.body")} actions={leaveActions} onDismiss={() => setLeaving(false)} />
     </KeyboardAvoidingView>
   )
@@ -861,9 +881,14 @@ const s = StyleSheet.create({
   size: { minWidth: 150, textAlign: "center", fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   box: { minHeight: 56, borderRadius: CORNER, borderWidth: 1.5, paddingHorizontal: 16, justifyContent: "center" },
   times: { alignSelf: "flex-start", minWidth: 96 },
-  countBox: { minWidth: 96, alignItems: "center" },
-  countInput: { textAlign: "center", fontFamily: amFonts.display, fontSize: 28, lineHeight: 32, minWidth: 64 },
+  countButton: { flexDirection: "row", alignItems: "center", gap: 16, minHeight: 72 },
+  countNumber: { fontFamily: amFonts.display, fontSize: 40, lineHeight: 44, minWidth: 56, textAlign: "center" },
+  countText: { flex: 1, gap: 2 },
+  countLabel: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
+  countChange: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
+  countChevron: { fontFamily: amFonts.bold, fontSize: 18, lineHeight: 22 },
   sizeLeft: { textAlign: "left", minWidth: 0 },
+  chosenLine: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
   jump: { gap: 8 },
   jumpRow: { flexDirection: "row", gap: 8, paddingRight: 24 },
   rowCard: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1.5, borderRadius: CORNER, paddingVertical: 12, paddingLeft: 16, paddingRight: 12 },
