@@ -528,6 +528,57 @@ async def test_the_team_lists_and_decides(world: World, admin: httpx.AsyncClient
     assert missing.status_code == 404
 
 
+async def test_unconfirming_gives_the_confirmed_plays_back_and_keeps_the_trail(
+    world: World, admin: httpx.AsyncClient
+) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await history(world, rid)
+    await add_plays(world, rid, day_ago(0), 500)
+    await evaluate(world, rid, day_ago(0))
+    day = day_ago(0).isoformat()
+    base = 10 * pf.BASELINE_DAYS
+
+    nothing = await admin.post(f"/api/v1/admin/play-flags/{rid}/{day}/unconfirm")
+    assert nothing.status_code == 409  # nothing was confirmed yet
+
+    await admin.post(f"/api/v1/admin/play-flags/{rid}/{day}/confirm")
+    assert (await mine(world))["total_plays"] < base + 500
+
+    back = await admin.post(f"/api/v1/admin/play-flags/{rid}/{day}/unconfirm")
+    assert back.status_code == 200
+    body = back.json()
+    assert body["status"] == "cleared" and body["confirmed_held"] == 0
+    assert body["last_decision"] == "unconfirmed" and body["reviewed_by"] and body["reviewed_at"]
+    assert (await mine(world))["total_plays"] == base + 500
+
+    again = await admin.post(f"/api/v1/admin/play-flags/{rid}/{day}/unconfirm")
+    assert again.status_code == 409  # taking it back twice changes nothing
+    missing = await admin.post(f"/api/v1/admin/play-flags/{rid}/{day_ago(3).isoformat()}/unconfirm")
+    assert missing.status_code == 404
+
+
+async def test_unconfirming_a_reopened_day_keeps_its_new_suspected_part(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await history(world, rid)
+    await add_plays(world, rid, day_ago(0), 500)
+    first = await evaluate(world, rid, day_ago(0))
+    assert first is not None
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="confirmed", by="first")
+    await add_plays(world, rid, day_ago(0), 500)
+    again = await evaluate(world, rid, day_ago(0))
+    assert again is not None and again.status == "open" and again.held > 0
+    suspected = again.held
+
+    async with world.sessions() as session:
+        done = await pf.unconfirm(session, rid, day_ago(0), by="second")
+    assert done is not None and done.status == "open" and done.confirmed_held == 0
+    assert done.held == suspected and done.last_decision == "unconfirmed"
+    assert (await mine(world))["total_plays"] == 10 * pf.BASELINE_DAYS + 1000 - suspected
+
+
 async def test_the_flags_are_for_the_team_only(world: World, admin: httpx.AsyncClient) -> None:
     admin.state["admin"] = False  # type: ignore[attr-defined]
     assert (await admin.get("/api/v1/admin/play-flags")).status_code == 401

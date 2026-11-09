@@ -113,8 +113,11 @@ A virus scan is worth adding **before real traffic from unknown members**. The p
    because that is the case the scan exists for.
 4. Tests use a fake `clamd` that answers with the EICAR test string.
 
-This needs a container, about 1 GB of memory for the signatures, and a decision on cost. It is an
-owner's decision, not a code one.
+This needs a container, about 1 GB of memory for the signatures, and a decision on cost.
+
+**Decided (9 November 2026): not now.** Build it before uploads open to members the team does not know, before a
+button hands the uploaded file itself to other people, or before any file type other than audio and images is
+accepted. Reasons: `docs/decisions-security.md`, part 5.
 
 ## Changing a limit
 

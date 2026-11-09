@@ -100,3 +100,23 @@ async def confirm_flag(
 ) -> PlayFlagOut:
     """The plays were inflated: they stay held back for good."""
     return await _decide(session, recording_id, day, "confirmed", admin)
+
+
+@router.post("/{recording_id}/{day}/unconfirm", response_model=PlayFlagOut)
+async def unconfirm_flag(
+    recording_id: UUID, day: date, session: DatabaseSession, admin: AdminIdentity
+) -> PlayFlagOut:
+    """Take back a "confirmed" decision made by mistake: the confirmed plays count again.
+
+    409 when nothing was confirmed on that day. Who did it and when stays on the flag.
+    """
+    try:
+        flag = await play_fraud.unconfirm(session, recording_id, day, by=admin)
+    except play_fraud.NothingConfirmedError:
+        raise HTTPException(
+            status_code=409, detail="Nothing was confirmed as inflated that day"
+        ) from None
+    if flag is None:
+        raise HTTPException(status_code=404, detail="No flag for that recording and day")
+    title = await session.scalar(select(Recording.title).where(Recording.id == recording_id))
+    return _out(flag, title)

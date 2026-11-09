@@ -121,6 +121,8 @@ The app is **not for children**. Make that explicit so nobody has to guess:
 * Apple: do not put the app in the Kids category. Age rating will come out as at least 13+ or 16+ because of user content.
 * Google: in the Target audience section choose adults and teenagers, **not** "children under 13", and answer
   the families questions "no". Choosing a child audience would impose the Families policy and ad and SDK limits.
+* **Decided (9 November 2026): the minimum age is 16** (one rule that fits every EU country; Google target audience
+  16-17 and 18+). See `docs/decisions-security.md`, part 6. The Terms page and the sign-up line are not built yet.
 * The sign-up has no age gate today. The simplest honest step: add a line in the Terms ("you must be at least
   16 / 13 years old", pick the age that fits your country's rule; in the EU it is 13 to 16 depending on the
   country) and a checkbox at sign-up. Not added here, because it touches the auth layer.

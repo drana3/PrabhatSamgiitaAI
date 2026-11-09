@@ -58,13 +58,18 @@ Admin key, `GET /api/v1/admin/play-flags` (default: open flags), then one of:
 - `POST /api/v1/admin/play-flags/{recording_id}/{day}/confirm`: the suspected plays were inflated.
   They move into the confirmed part, which is permanent.
 
+- `POST /api/v1/admin/play-flags/{recording_id}/{day}/unconfirm`: a "confirm" was a mistake. The confirmed
+  plays count again; a `confirmed` flag becomes `cleared`, an `open` one stays open with its own suspected
+  part. `last_decision` becomes `unconfirmed`, with who and when. 409 when nothing was confirmed that day.
+  See `docs/decisions-security.md`, part 3.
+
 ### Three parts, kept apart
 
 A flag stores three separate things, so no later step can mix them up:
 
 - `confirmed_held`: plays a person confirmed as inflated. Always left out of every number. It is
   never lowered, whatever happens to the flag afterwards (cleared later, reopened, judged again).
-  There is no call that releases it; if one was confirmed by mistake, fix the row by hand.
+  The only call that releases it is `unconfirm` (below), a deliberate act that records who and when.
 - `held`: plays the rules suspect and nobody decided yet. Left out only while the flag is `open`.
   Clearing gives them back; confirming moves them into `confirmed_held`.
 - `reviewed_plays`: how many plays the day had at the last decision. A decision covers those plays

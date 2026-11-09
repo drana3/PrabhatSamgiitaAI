@@ -180,7 +180,12 @@ Each ends with "With respect, Prabhat Samgiita AI team", the address `info@anand
   ("Or write to ..."), in both letter templates and in the setting `COPYRIGHT_CONTACT_EMAIL`. The
   general contact on the privacy and account-deletion pages (privacy questions, account help) is a
   different thing and is a team page that was not changed.
-- Who runs the queue. Today it is the admin key only.
+- Who runs the queue. Decided (9 November 2026): the owner or an administrator he names, through the API only,
+  at least twice a week; there is no screen and no alert for a new request yet. Details and the limits:
+  `docs/decisions-security.md`, part 2.
+- How long the sender's contact data is kept. Decided: three years after the last decision, then e-mail, phone,
+  address and signature are erased and the name, reference and outcome stay (a manual SQL for now, part 4 of
+  `docs/decisions-security.md`). A lawyer should confirm the period.
 - Whether a DMCA "designated agent" must be registered. In the United States this is a
   registration with the Copyright Office that gives the service legal protection for user
   uploads. That is a legal decision and is not done by this code.

@@ -313,3 +313,33 @@ async def review(
     flag.reviewed_plays = plays
     await session.commit()
     return flag
+
+
+class NothingConfirmedError(Exception):
+    """`unconfirm` on a flag that has no confirmed part."""
+
+
+async def unconfirm(
+    session: AsyncSession, recording_id: UUID, day: date, *, by: str
+) -> PlayFlag | None:
+    """A person takes back a "confirmed as inflated" decision made by mistake.
+
+    The confirmed part goes back into the numbers (`confirmed_held` becomes 0). A `confirmed` flag
+    becomes `cleared`; an `open` one (a later surge on the same day) stays open and keeps judging
+    only its suspected part. This is the only call that lowers `confirmed_held`; it records who and
+    when in `last_decision = "unconfirmed"`, `reviewed_by` and `reviewed_at`
+    (docs/decisions-security.md).
+    """
+    flag = await session.get(PlayFlag, (recording_id, day))
+    if flag is None:
+        return None
+    if flag.confirmed_held <= 0:
+        raise NothingConfirmedError
+    flag.confirmed_held = 0
+    if flag.status == "confirmed":
+        flag.status = "cleared"
+    flag.last_decision = "unconfirmed"
+    flag.reviewed_by = by[:120]
+    flag.reviewed_at = datetime.now(UTC)
+    await session.commit()
+    return flag
