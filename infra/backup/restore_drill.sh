@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Restore drill: prove that a backup can really be restored, and measure how long it takes.
-# Restores into a THROW-AWAY local Postgres (Docker), never into a real database.
+# Restores into a THROW-AWAY database, never into a real one. Two ways to get that database:
+#   - Docker (default): a temporary postgres container, removed afterwards.
+#   - DRILL_ADMIN_URL: a scratch Postgres server you already have (no Docker). The drill creates a
+#     database called drill_<number>, restores into it, and drops it. The URL must point at a server
+#     that holds nothing precious: it needs the right to CREATE DATABASE.
 #
 #   ./restore_drill.sh --file prabhat-20261108T020000Z.dump.age --identity ~/keys/backup.agekey
 #   ./restore_drill.sh --file some.dump                 (an unencrypted dump, e.g. a local test)
@@ -9,8 +13,10 @@
 #
 #   BACKUP_REMOTE   needed for --latest (same value as pg_backup.sh)
 #   DRILL_PG_IMAGE  default postgres:16
+#   DRILL_ADMIN_URL optional, e.g. postgresql://postgres@localhost:5432/postgres (see above)
 #
-# Needs: docker (pg_restore and psql run inside the container), age for .age files.
+# Needs: docker (pg_restore and psql run inside the container) OR pg_restore+psql with DRILL_ADMIN_URL;
+# age for .age files.
 # The private key is read from the file you give; it is never copied or printed.
 # Exit code 0 only if the restore ran AND the row counts match the receipt (when there is one).
 set -euo pipefail
@@ -29,30 +35,39 @@ while [ $# -gt 0 ]; do
   esac
 done
 IMAGE="${DRILL_PG_IMAGE:-postgres:16}"
+ADMIN="${DRILL_ADMIN_URL:-}"
 
 if [ "$DRY" = 1 ]; then
-  log "DRY RUN. Would: start a temporary $IMAGE container,"
+  if [ -n "$ADMIN" ]; then
+    log "DRY RUN. Would: create a temporary database on $(printf '%s' "$ADMIN" | redact),"
+  else
+    log "DRY RUN. Would: start a temporary $IMAGE container,"
+  fi
   log "  decrypt ${FILE:-the latest dump from BACKUP_REMOTE} (key file: ${IDENTITY:-not needed for a plain dump}),"
   log "  pg_restore into it, compare row counts with the .json receipt, print the elapsed time,"
-  log "  and remove the container and every temporary file."
+  log "  and remove the temporary database and every temporary file."
   exit 0
 fi
 
-need docker
+if [ -n "$ADMIN" ]; then need pg_restore; need psql; else need docker; fi
 START=$(date +%s)
 WORK="$(mktemp -d)"
 [ -d "$WORK" ] || die "no temporary folder"
 CONTAINER="restore-drill-$$"
-cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; rm -rf "${WORK:?}"; }
+DRILL_DB="drill_$$"
+cleanup() {
+  if [ -n "$ADMIN" ]; then psql "$ADMIN" -qAt -c "drop database if exists $DRILL_DB" >/dev/null 2>&1 || true; fi
+  if [ -z "$ADMIN" ]; then docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; fi; rm -rf "${WORK:?}"
+}
 trap cleanup EXIT
 
 if [ "$LATEST" = 1 ]; then
-  require_env BACKUP_REMOTE; need rclone
-  NEWEST=$(rclone lsf "$BACKUP_REMOTE" -R --include "*.dump.age" | sort | tail -n 1)
-  [ -n "$NEWEST" ] || die "no dump found in the backup remote"
+  require_env BACKUP_REMOTE
+  NEWEST=$(dest_list "$BACKUP_REMOTE" | tail -n 1)
+  [ -n "$NEWEST" ] || die "no dump found in the backup place"
   log "downloading $NEWEST"
-  rclone copyto "${BACKUP_REMOTE%/}/$NEWEST" "$WORK/$(basename "$NEWEST")"
-  rclone copyto "${BACKUP_REMOTE%/}/${NEWEST%.dump.age}.json" "$WORK/receipt.json" 2>/dev/null || true
+  dest_get "${BACKUP_REMOTE%/}/$NEWEST" "$WORK/$(basename "$NEWEST")"
+  dest_get "${BACKUP_REMOTE%/}/${NEWEST%.dump*}.json" "$WORK/receipt.json" 2>/dev/null || true
   FILE="$WORK/$(basename "$NEWEST")"
 fi
 [ -f "$FILE" ] || die "backup file not found: $FILE"
@@ -71,25 +86,37 @@ case "$FILE" in
     age -d -i "$IDENTITY" -o "$DUMP" "$FILE"
     ;;
 esac
-[ "$(dirname "$DUMP")" = "$WORK" ] || cp "$DUMP" "$WORK/restore.dump"
+if [ "$(dirname "$DUMP")" != "$WORK" ]; then cp "$DUMP" "$WORK/restore.dump"; DUMP="$WORK/restore.dump"; fi
 BASE="$(basename "$DUMP")"
-[ "$(dirname "$DUMP")" = "$WORK" ] || BASE="restore.dump"
 
-log "starting a temporary database"
-docker run -d --name "$CONTAINER" -e POSTGRES_PASSWORD=drill -e POSTGRES_DB=drill \
-  -v "$WORK:/work:ro" "$IMAGE" >/dev/null
-for _ in $(seq 1 60); do
-  docker exec "$CONTAINER" pg_isready -U postgres -d drill >/dev/null 2>&1 && break
-  sleep 1
-done
-docker exec "$CONTAINER" pg_isready -U postgres -d drill >/dev/null || die "temporary database did not start"
-
-log "restoring"
-docker exec "$CONTAINER" pg_restore -U postgres -d drill --no-owner --no-privileges \
-  --exit-on-error "/work/$BASE"
+if [ -n "$ADMIN" ]; then
+  log "creating temporary database $DRILL_DB"
+  psql "$ADMIN" -qAt -c "create database $DRILL_DB" >/dev/null
+  # Same server, other database: swap the database name in the URL, keep user/host/options.
+  DRILL_URL=$(python3 -c '
+import sys
+from urllib.parse import urlsplit, urlunsplit
+u = urlsplit(sys.argv[1])
+print(urlunsplit((u.scheme, u.netloc, "/" + sys.argv[2], u.query, "")))' "$ADMIN" "$DRILL_DB")
+  log "restoring"
+  pg_restore --dbname="$DRILL_URL" --no-owner --no-privileges --exit-on-error "$DUMP"
+  q() { psql "$DRILL_URL" -At -c "$1"; }
+else
+  log "starting a temporary database"
+  docker run -d --name "$CONTAINER" -e POSTGRES_PASSWORD=drill -e POSTGRES_DB=drill \
+    -v "$WORK:/work:ro" "$IMAGE" >/dev/null
+  for _ in $(seq 1 60); do
+    docker exec "$CONTAINER" pg_isready -U postgres -d drill >/dev/null 2>&1 && break
+    sleep 1
+  done
+  docker exec "$CONTAINER" pg_isready -U postgres -d drill >/dev/null || die "temporary database did not start"
+  log "restoring"
+  docker exec "$CONTAINER" pg_restore -U postgres -d drill --no-owner --no-privileges \
+    --exit-on-error "/work/$BASE"
+  q() { docker exec "$CONTAINER" psql -U postgres -d drill -At -c "$1"; }
+fi
 
 log "checking"
-q() { docker exec "$CONTAINER" psql -U postgres -d drill -At -c "$1"; }
 FAILED=0
 for table in songs recordings user_accounts; do
   have=$(q "select count(*) from $table" 2>/dev/null || echo "missing")

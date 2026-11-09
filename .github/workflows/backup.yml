@@ -34,6 +34,7 @@ jobs:
       BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
       BACKUP_REMOTE: ${{ secrets.BACKUP_REMOTE }}
       BACKUP_RETENTION_DAYS: ${{ vars.BACKUP_RETENTION_DAYS || '35' }}
+      BACKUP_KEEP_COPIES: ${{ vars.BACKUP_KEEP_COPIES }}
       FILES_SOURCE: ${{ secrets.FILES_SOURCE }}
       FILES_BACKUP: ${{ secrets.FILES_BACKUP }}
       # rclone remotes are described by environment variables, so no config file holds a key:

@@ -1,8 +1,9 @@
 # Backups: what is kept, for how long, and how to prove it works
 
-Plain words first. Scripts are in `infra/backup/`. **Nothing was run against production** while writing this:
-the tools (`pg_dump`, `age`, `rclone`, Docker) are not installed on the machine it was written on, so the scripts
-were checked for syntax and dry runs only. The first real run is part of the checklist at the end.
+Plain words first. Scripts are in `infra/backup/`. **Nothing was run against production** while writing this.
+The database part was rehearsed for real on a throw-away PostgreSQL 16 on a laptop (see "What was rehearsed
+and what was not" below). `age` and `rclone` and Docker are not installed on that laptop, so those three
+parts were only checked with stand-ins and dry runs. The first real run is part of the checklist at the end.
 
 ## Two things need a backup
 
@@ -53,13 +54,22 @@ bucket ("bucket lock"); worth switching on for the backup bucket if your plan of
 
 ## The scripts
 
-* `pg_backup.sh`: dumps (`pg_dump` custom format), writes a small receipt `.json` (size, SHA-256, row counts of
-  `songs`, `recordings`, `user_accounts`), encrypts, uploads, deletes dumps older than the retention.
+* `pg_backup.sh`: dumps (`pg_dump` custom format, compressed), writes a small receipt `.json` (size, SHA-256,
+  schema version, row counts of `songs`, `recordings`, `user_accounts`), encrypts, uploads, then tidies old
+  dumps. Tidying is either "keep the newest N" (`BACKUP_KEEP_COPIES=14`) or, when that is not set, "delete
+  older than `BACKUP_RETENTION_DAYS`" (default 35). It only deletes after the new dump is stored.
   Use the **direct** Neon connection address, not the pooled one, and a read-only database user.
+  The destination `BACKUP_REMOTE` is either an rclone path (`backup:prabhat-backups/db`: R2, S3, B2) or a
+  plain folder (`/Volumes/USB/backups`). The cloud route is the real one; the folder route exists for
+  rehearsals and for a copy on a USB disk.
 * `files_backup.sh`: copies the recordings bucket to the backup bucket, add-only.
-* `restore_drill.sh`: starts a temporary Postgres in Docker, decrypts and restores the newest dump, compares row
-  counts with the receipt, prints the seconds it took. Exit code is non-zero if anything differs, so a monthly
-  reminder can trust it.
+* `restore.sh`: the real restore. `restore.sh --latest --identity KEY --target-url URL` (or `--file`). It
+  stops if the target database already has tables, unless you add `--replace`. It never prints the password.
+* `restore_drill.sh`: restores the newest dump into a temporary database, compares row counts with the
+  receipt, prints the seconds it took, removes the temporary database. By default the temporary database is a
+  Docker container. If Docker is not installed set `DRILL_ADMIN_URL` to a scratch Postgres server (the drill
+  creates and drops a database called `drill_<number>` on it). Exit code is non-zero if anything differs, so a
+  monthly reminder can trust it.
 * `.github/workflows/backup.yml`: a **manual** button (Actions, Backup, Run workflow), dry run ticked by default.
   The daily `schedule` lines are commented out on purpose. Remove the comment marks only after one real run
   worked.
@@ -92,11 +102,32 @@ All settings are environment variables (the top of each script lists them); no k
 ## Restoring for real (short form)
 
 1. Create a new empty Neon database (or branch). Do not overwrite the old one until you know the new one is good.
-2. Download the newest `.dump.age` and decrypt with the private key.
-3. `pg_restore --no-owner --no-privileges --dbname=<new database URL> restore.dump`
-4. Check row counts and the `alembic_version` against the receipt.
-5. Change the server's `DATABASE_URL` to the new database and restart.
-6. Files: copy back from the backup bucket with `rclone copy backup:prabhat-backups/files r2:prabhat-recordings`.
+2. `BACKUP_REMOTE=backup:prabhat-backups/db infra/backup/restore.sh --latest --identity ~/keys/backup.agekey
+   --target-url <direct address of the new database>`. It downloads, decrypts and restores in one go.
+3. Check the row counts and `alembic_version` against the `.json` receipt that sits next to the dump. Then run
+   `alembic upgrade head` once (it does nothing when the dump is already current).
+4. Change the server's `DATABASE_URL` to the new database and restart.
+5. Files: copy back from the backup bucket with `rclone copy backup:prabhat-backups/files r2:prabhat-recordings`.
+
+## What was rehearsed and what was not
+
+Rehearsed on a throw-away PostgreSQL 16.2 (the `pgserver` Python package, no system changes), with a database
+built by `alembic upgrade head` (99 tables, schema version `0068_video_thumbnail`) and a little data
+(3 songs, 25 recordings, 1 account, 2 scan channels):
+
+* `pg_backup.sh` three times in a row with `BACKUP_KEEP_COPIES=2`: the third run removed the oldest dump and
+  its receipt, two stayed. The receipt listed `songs 3, recordings 25, user_accounts 1`.
+* `restore_drill.sh --latest`: restored in under one second, counts matched the receipt, the temporary
+  database was dropped afterwards.
+* `restore.sh --latest` into a new empty database: 99 tables, and the row count of **every** table was identical
+  to the source (5 tables had data, the other 94 were empty in both). A second run without `--replace` was
+  refused ("already has 99 tables"); with `--replace` it worked.
+* Moving the database down and up again over the last migrations is described in `docs/launch-readiness.md`.
+
+Not rehearsed (needs tools or accounts this laptop does not have): real `age` encryption (the flow was checked
+with a stand-in that only prefixes the file, the tests are in `apps/api/tests/test_backup_scripts.py`), real
+`rclone` upload to a bucket, Neon itself (its direct address, its Postgres version; `pg_dump` must be the same
+major version or newer), and the time a real-size database takes (the drill prints it).
 
 ## Open points
 
