@@ -3,7 +3,7 @@ import { artistForAuthor, type Artist } from "@/lib/kirtan/artists"
 import { BHAJAN_TYPES, DANCE_KINDS, DISCOURSE_KINDS, KIND_LANGUAGE_RULE, KIRTAN_TYPES, MANTRA_TYPES, LANGUAGE_KINDS, LEGACY_KINDS, RECORDING_KINDS, type KindFilter, type Kirtan, type KirtanTypeId, type LanguageRule, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
- * The seven kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio Discourses, Other mantras) and every visible word that
+ * The seven kinds of one recording (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio Discourses, Others) and every visible word that
  * depends on the kind. One recordings system: the kind is a field, not a second system. Pure, no React, no stores.
  * Code identifiers and routes keep the `kirtan` spelling; only the strings below are shown to people.
  * Every word of a kind lives under keys named by the kind id (`kind.<id>`, `kt.head.<id>`, ...), so a new kind needs
@@ -83,7 +83,7 @@ export function filterByKind<T extends { kind?: RecordingKind | null }>(list: re
   return kind === "all" ? [...list] : list.filter((k) => kindOf(k) === kind)
 }
 
-/** Kiirtans, Bhajans and Other mantras have sub-types (Lila, Morning, Guru Puja...). The other kinds are always type "other". */
+/** Kiirtans, Bhajans and Others have sub-types (Lila, Morning, Guru Puja...). The other kinds are always type "other". */
 export function kindHasTypes(kind: RecordingKind): boolean {
   return kind === "kiirtan" || kind === "bhajan" || kind === "other_mantra"
 }

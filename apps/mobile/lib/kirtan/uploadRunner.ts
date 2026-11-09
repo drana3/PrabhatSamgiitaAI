@@ -81,6 +81,7 @@ export async function runUpload(
       leadInstrument: item.leadInstrument ?? null,
       leadInstrumentOther: item.leadInstrumentOther ?? null,
       type: item.type,
+      typeOther: item.typeOther ?? null,
       termsVersion: useContentRulesStore.getState().version ?? undefined,
       confirmDifferent: options.confirmDifferent,
       key: options.key,

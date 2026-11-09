@@ -10,21 +10,20 @@ import { buildSubmission, type SubmissionInput } from "@/lib/kirtan/submissions"
 import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import type { QueueDraft } from "@/stores/uploadQueueStore"
 
-/** Dada, 9 Nov 2026: Other mantras (Guru Puja, Pitriyajina, ...) have their own upload page and their own type. */
+/** Dada, 9 Nov 2026: Others (it was "Other mantras") have their own upload page and a REQUIRED choice of what they are. */
 
 const read = (path: string) => readFileSync(join(__dirname, "..", path), "utf8")
 const base: SubmissionInput = { kind: "other_mantra", fileName: "a.mp3", fileUri: "file:///a.mp3", fileSize: 1000, fileType: "audio/mpeg", title: "Guru Puja", author: "Priya", addedBy: "You", byAuthor: false, termsAccepted: true }
-const EMPTY = { kind: "other_mantra", mantraType: null } as unknown as QueueDraft
+const EMPTY = { kind: "other_mantra", mantraType: null, mantraOther: "" } as unknown as QueueDraft
 
-describe("the type of an Other mantra", () => {
-  it("offers Guru Puja, Pitriyajina and Other mantra", () => {
-    expect(typesOfKind("other_mantra").map((t) => t.id)).toEqual(["guru_puja", "pitriyajina", "other"])
+describe("the type of a recording of Others", () => {
+  it("offers the six names and Something else, in this order", () => {
+    expect(typesOfKind("other_mantra").map((t) => t.id)).toEqual(["guru_puja", "pitriyajina", "samgacchadhvam", "nityam_shuddham", "ananda_sutram", "shlokas", "other"])
   })
 
-  it("is the one the person chose, and 'other' when none is named or the word is not a mantra type", () => {
+  it("is the one the person chose; a word that is not a mantra type is not taken", () => {
     expect(buildSubmission({ ...base, mantraType: "pitriyajina" }, 1).type).toBe("pitriyajina")
-    expect(buildSubmission({ ...base, mantraType: "guru_puja" }, 1).type).toBe("guru_puja")
-    expect(buildSubmission(base, 1).type).toBe("other")
+    expect(buildSubmission({ ...base, mantraType: "shlokas" }, 1).type).toBe("shlokas")
     expect(buildSubmission({ ...base, mantraType: "bnk" }, 1).type).toBe("other")
   })
 
@@ -32,21 +31,24 @@ describe("the type of an Other mantra", () => {
     expect(buildSubmission({ ...base, kind: "kiirtan", mantraType: "guru_puja" }, 1).type).toBe("other")
   })
 
-  it("goes when the kind is no longer Other mantras", () => {
+  it("goes when the kind is no longer Others, and the name goes when the choice is not Something else", () => {
     const chosen = draftWithPatch({ ...EMPTY, mantraType: "guru_puja" }, {})
     expect(chosen.mantraType).toBe("guru_puja")
     expect(draftWithPatch(chosen, { kind: "bhajan" }).mantraType).toBeNull()
+    const named = draftWithPatch(EMPTY, { mantraType: "other", mantraOther: "Ishvara Pranidhana" })
+    expect(named.mantraOther).toBe("Ishvara Pranidhana")
+    expect(draftWithPatch(named, { mantraType: "guru_puja" }).mantraOther).toBe("")
   })
 })
 
-describe("the page of Other mantras", () => {
-  it("is one upload form with the mantra header and type chips, not a second copy", () => {
+describe("the page of Others", () => {
+  it("is one upload form with the Others header and the required choice, not a second copy", () => {
     const page = read("app/add-mantra.tsx")
     expect(page).toMatch(/<AddRecordingForm mantra \/>/)
     expect(page).toMatch(/presentation:\s*"modal"/)
     const form = read("app/add-kirtan.tsx")
     expect(form).toMatch(/export function AddRecordingForm\(\{ mantra = false \}/)
-    expect(form).toMatch(/mantra\.type\.label/)
+    expect(form).toMatch(/<MantraField /)
     // no kind card of the main form is a mantra, and a mantra page has no playlist entry
     expect(form).toMatch(/RECORDING_KINDS\.filter\(\(k\) => k !== "other_mantra"\)/)
     expect(form).toMatch(/\{mantra \? null : \(\s*<Reveal index=\{1\} style=\{styles\.setStack\}>/)

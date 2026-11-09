@@ -65,8 +65,10 @@ export type UploadSource = {
   /** the main instrument: an id or "other" with its word (lib/kirtan/instruments.ts) */
   leadInstrument?: string | null
   leadInstrumentOther?: string | null
-  /** the type of the recording (an Other mantra: guru_puja, pitriyajina, other); "other" when not given */
+  /** the type of the recording (Others: guru_puja, pitriyajina, samgacchadhvam, nityam_shuddham, ananda_sutram, shlokas, other); "other" when not given */
   type?: string | null
+  /** Others with type "other" (Something else): the name the person wrote */
+  typeOther?: string | null
   /** the version of the content rules the person accepted */
   termsVersion?: string
   /** the author saw the "sounds like a recording already in the library" question and said theirs is different */
@@ -148,6 +150,7 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       performance: source.performance,
       leadInstrument: source.leadInstrument,
       leadInstrumentOther: source.leadInstrumentOther,
+      typeOther: source.typeOther,
       confirmDifferent: Boolean(source.confirmDifferent),
     })
     return { status: "published", recording }

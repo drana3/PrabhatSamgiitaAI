@@ -4,7 +4,7 @@
  */
 
 /** The blocks of the menu, in the order the rules emit them (a layout may regroup them). */
-export type MenuBlock = "pulse" | "baba" | "ps" | "kiirtan" | "authors" | "spiritual" | "bhajans" | "dance" | "more" | "themes"
+export type MenuBlock = "pulse" | "baba" | "ps" | "kiirtan" | "authors" | "spiritual" | "bhajans" | "others" | "dance" | "more" | "themes"
 
 /** Why a shelf is on the menu. `kept` = below its "on" threshold but inside the anti-flicker hold. */
 export type ShelfReason = "default" | "threshold" | "popular" | "personal" | "catalogue" | "pinned" | "kept"
@@ -16,6 +16,7 @@ export type ShelfLabel =
   | { type: "kiirtanType"; id: string }
   | { type: "kiirtanStyle"; id: string }
   | { type: "bhajanType"; id: string }
+  | { type: "mantraType"; id: string }
   | { type: "language"; id: string }
   | { type: "author"; id: string; name: string }
   | { type: "theme"; id: string }
@@ -81,6 +82,8 @@ export type MenuStats = {
   bhajanLanguages: Record<string, number>
   /** Bhajans per type id (morning, evening, devotional, other) */
   bhajanTypes: Record<string, number>
+  /** recordings of Others per what-it-is id (guru_puja, pitriyajina, samgacchadhvam, nityam_shuddham, ananda_sutram, shlokas, other); absent = none */
+  mantraTypes?: Record<string, number>
   spiritualSongs: number
   authors: AuthorStat[]
   /** recordings created in the last 30 days (by created_at) */

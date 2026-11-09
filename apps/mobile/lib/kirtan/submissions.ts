@@ -1,4 +1,5 @@
 import { cleanInstrument } from "@/lib/kirtan/instruments"
+import { cleanMantra } from "@/lib/kirtan/mantra"
 import { isTypeOfKind, kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
@@ -84,8 +85,10 @@ export type SubmissionInput = {
   /** the main instrument: an id or "other" with its word (lib/kirtan/instruments.ts); optional */
   leadInstrument?: string | null
   leadInstrumentOther?: string | null
-  /** Other mantras: the type (guru_puja, pitriyajina, other); any other kind is always "other" */
+  /** Others: which one it is (guru_puja, pitriyajina, samgacchadhvam, nityam_shuddham, ananda_sutram, shlokas, other); REQUIRED, no default. Any other kind is always "other" */
   mantraType?: string | null
+  /** Others, "Something else": its name (2 to 40 characters) */
+  mantraOther?: string | null
   /** the person is the author of the recording (the tick is not offered for Prabhat Samgiita) */
   byAuthor: boolean
   addedBy: string
@@ -93,7 +96,7 @@ export type SubmissionInput = {
   termsAccepted?: boolean
 }
 
-export type SubmissionError = "file" | FileProblem | "title" | "titleEnglish" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "recordingType" | "performance" | "instrument" | "year" | "terms"
+export type SubmissionError = "file" | FileProblem | "title" | "titleEnglish" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "recordingType" | "performance" | "instrument" | "mantra" | "mantraName" | "year" | "terms"
 
 /** Is this a song number of the Prabhat Samgiita catalogue (a whole number from 1 to 5018)? */
 export function isPsSongNumber(value: unknown): value is number {
@@ -126,6 +129,10 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   if (input.recordingType === AI_TYPE && kindHasRecordingType(input.kind) && !kindAllowsAi(input.kind)) return "recordingType"
   // solo or group is required for a Kiirtan
   if (performanceMissing(input.kind, input.performance)) return "performance"
+  // Others: which one it is must be chosen (no default), and "Something else" needs its name
+  const mantra = cleanMantra(normalizeKind(input.kind), input.mantraType, input.mantraOther)
+  if (mantra.missing) return "mantra"
+  if (mantra.tooShort) return "mantraName"
   // "Add your own" instrument needs a word of at least two letters
   if (cleanInstrument(input.kind, input.leadInstrument, input.leadInstrumentOther).tooShort) return "instrument"
   if (input.year != null && !isRecordableYear(input.year)) return "year"
@@ -183,9 +190,23 @@ function instrumentOfInput(kind: string, input: SubmissionInput): Pick<Kirtan, "
   return { leadInstrument: clean.instrument, ...(clean.instrumentOther ? { leadInstrumentOther: clean.instrumentOther } : {}) }
 }
 
-/** The type of a new submission: the one an Other mantra named (Guru Puja, Pitriyajina), else "other". */
+/** The type of a new submission: the one Others named (a name that IS a listed one becomes it), else "other". */
 function typeOfInput(kind: RecordingKind, input: SubmissionInput): KirtanTypeId {
-  return kind === "other_mantra" && isTypeOfKind(kind, input.mantraType) ? input.mantraType : DEFAULT_SUBMISSION_TYPE
+  const mantra = cleanMantra(kind, input.mantraType, input.mantraOther)
+  return kind === "other_mantra" && mantra.type && isTypeOfKind(kind, mantra.type) ? mantra.type : DEFAULT_SUBMISSION_TYPE
+}
+
+/** "Something else" of Others: the name the person wrote, kept next to the type. */
+function typeOtherOfInput(kind: RecordingKind, input: SubmissionInput): Pick<Kirtan, "typeOther"> {
+  const word = cleanMantra(kind, input.mantraType, input.mantraOther).typeOther
+  return word ? { typeOther: word } : {}
+}
+
+/** The name under "Something else" of a server row (its author, or everybody once the team accepted it). */
+function typeOtherOfRemote(remote: RemoteRecording, kind: string, base?: Kirtan): Pick<Kirtan, "typeOther" | "typeOtherChecked"> {
+  if (kind !== "other_mantra" || remote.type !== "other") return {}
+  const word = (remote.type_other ?? base?.typeOther ?? "").trim()
+  return { ...(word ? { typeOther: word } : {}), ...(remote.type_other_checked ? { typeOtherChecked: true } : {}) }
 }
 
 /** A new Kiirtan or Bhajan, on its way up. The id is stable per title and time. */
@@ -215,6 +236,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(cleanPractice(kind, input.practice) ? { practice: cleanPractice(kind, input.practice) as string } : {}),
     ...infoOfInput(kind, input),
     ...instrumentOfInput(kind, input),
+    ...typeOtherOfInput(kind, input),
     audioUrl: input.fileUri,
     thumbnailUrl: null,
     addedBy: input.addedBy.trim() || "You",
@@ -405,6 +427,7 @@ export function fromRemote(remote: RemoteRecording, base?: Kirtan): Kirtan {
     ...practiceOf(remote, kind, base),
     ...infoOfRemote(remote, kind, base),
     ...instrumentOfRemote(remote, kind, base),
+    ...typeOtherOfRemote(remote, kind, base),
     ...(isDance(remote.dance) ? { dance: remote.dance } : base?.dance ? { dance: base.dance } : {}),
     ...(remote.collection_id ? { collectionId: remote.collection_id } : base?.collectionId ? { collectionId: base.collectionId } : {}),
     ...(remote.position ? { position: remote.position } : base?.position ? { position: base.position } : {}),

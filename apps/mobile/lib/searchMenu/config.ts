@@ -26,6 +26,8 @@ export const MENU_RULES = {
   spiritual: { on: 3, off: 2 },
   bhajanLanguage: { on: 3, off: 2, max: 5 },
   bhajanType: { on: 3, off: 2 },
+  /** Others (Guru Puja, Shlokas ...): a small library, so a shelf is there from the first recording */
+  mantraType: { on: 1, off: 1 },
   /** Moods are discovered from the tags on recordings: a mood is a shelf at 3 recordings that carry it, gone under 2 */
   theme: { on: 3, off: 2, max: 8 },
   /** Any other facet the library carries (dance, tempo, solo or group, occasion, event name ...): per value, at most `max` values per facet. Override one facet in `facetOverrides`. */

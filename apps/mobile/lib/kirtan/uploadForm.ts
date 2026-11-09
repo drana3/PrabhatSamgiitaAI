@@ -44,8 +44,9 @@ type TypeFields = {
   leadInstrumentOther?: string
   /** the tick "I am the author of the recording" (not offered for Prabhat Samgiita or Baba's Audio Discourses) */
   byAuthor?: boolean
-  /** Other mantras only: Guru Puja, Pitriyajina or other (lib/kirtan/types.ts MANTRA_TYPES); forms without it leave it out */
+  /** Others only: which one it is (lib/kirtan/types.ts MANTRA_TYPES; null until chosen) and, for "other" (Something else), its name; forms without it leave it out */
   mantraType?: string | null
+  mantraOther?: string
 }
 
 /** The draft after `patch`: the type's own rules applied, whatever the patch said. */
@@ -96,6 +97,7 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
   }
   // the mantra type belongs to Other mantras only
   if ("mantraType" in next && next.kind !== "other_mantra") (next as TypeFields).mantraType = null
+  if ("mantraOther" in next && (next.kind !== "other_mantra" || (next as TypeFields).mantraType !== "other")) (next as TypeFields).mantraOther = ""
   // the author tick is not offered for Prabhat Samgiita or Baba's Audio Discourses
   if ("byAuthor" in next && !kindHasByAuthor(next.kind)) (next as TypeFields).byAuthor = false
   return next

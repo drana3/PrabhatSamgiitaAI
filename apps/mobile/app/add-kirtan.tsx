@@ -10,6 +10,7 @@ import { AVARTA } from "@/lib/kirtan/practice"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
+import { MantraField } from "@/components/kirtan/add/MantraField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
 import { RecordingTypeField } from "@/components/kirtan/add/RecordingTypeField"
@@ -83,8 +84,8 @@ export default function AddKirtanScreen() {
 }
 
 /**
- * The form of every recording. `mantra`: the page of Other mantras (app/add-mantra.tsx): its own header and blurb, the kind is fixed
- * to Other mantras and the person names which mantra it is (Guru Puja, Pitriyajina, other); no playlist-of-an-event entry,
+ * The form of every recording. `mantra`: the page of Others (app/add-mantra.tsx): its own header and blurb, the kind is fixed
+ * to Others and the person must choose what it is (Guru Puja, Pitr Yajina ... Something else; no default); no playlist-of-an-event entry,
  * no kind cards. Everything below the type is the same form with the same queue.
  */
 export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
@@ -127,6 +128,8 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
   const form = useFormFocus()
   // the words the team accepted under "Add your own" (main instrument): offered after the fixed list
   const instrumentWords = useValueOptions("instrument", draft.kind !== "baba_audio")
+  // the names the team accepted under "Something else" of Others
+  const mantraWords = useValueOptions("mantra", draft.kind === "other_mantra")
 
   const [agree, setAgree] = useState(false)
   // an optional video link of a Kiirtan (docs/kiirtan-video.md): sent once the recording is up
@@ -295,7 +298,7 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
   /** Shows the problem and jumps to the field it is about: scrolls there, puts the cursor in it, says which one. */
   const fail = (code: SubmissionError, row?: string) => {
     setProblem({ form: code, row })
-    const key = row ? `row-${row}` : code === "author" ? "performer" : code === "titleEnglish" ? "title" : code === "languageName" ? "language" : code === "format" || code === "size" ? "file" : code
+    const key = row ? `row-${row}` : code === "author" ? "performer" : code === "titleEnglish" ? "title" : code === "languageName" ? "language" : code === "mantraName" ? "mantra" : code === "format" || code === "size" ? "file" : code
     const message = messageFor(code)
     const go = () =>
       void form.focusFirst([key], { [key]: message }).then((went) => {
@@ -339,6 +342,7 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
       leadInstrument: draft.leadInstrument,
       leadInstrumentOther: draft.leadInstrumentOther,
       mantraType: draft.mantraType,
+      mantraOther: draft.mantraOther,
       byAuthor: draft.byAuthor,
       addedBy: "You",
       termsAccepted: rulesOk || agree,
@@ -458,26 +462,9 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
 
             {mantra ? (
               <Reveal index={2} style={styles.field}>
-                <Text style={[styles.label, { color: theme.textHeading }]}>{t("mantra.type.label")}</Text>
-                <View style={styles.chips} accessibilityRole="radiogroup">
-                  {typesOfKind("other_mantra").map((type) => {
-                    const on = (draft.mantraType ?? "other") === type.id
-                    return (
-                      <KPress
-                        key={type.id}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: on, disabled: locked }}
-                        accessibilityLabel={type.label}
-                        onActivate={() => !locked && store().setDraft({ mantraType: type.id })}
-                        pressedScale={0.96}
-                        style={[styles.chip, { backgroundColor: on ? theme.ink900 : theme.card, borderColor: on ? theme.ink900 : theme.line, opacity: locked && !on ? 0.5 : 1 }]}
-                      >
-                        <Text style={[styles.chipText, { color: on ? theme.onInk : theme.textHeading }]}>{type.label}</Text>
-                      </KPress>
-                    )
-                  })}
+                <View {...form.field("mantra")} style={styles.field}>
+                  <MantraField theme={theme} value={{ type: draft.mantraType, typeOther: draft.mantraOther }} onChange={(next) => { form.clear(); store().setDraft({ mantraType: next.type, mantraOther: next.typeOther }) }} accepted={mantraWords.accepted} newWordsPerWeek={mantraWords.newWordsPerWeek} invalid={formError === "mantra" || formError === "mantraName" || !!form.error("mantra")} errorText={form.error("mantra")} disabled={locked} />
                 </View>
-                <Text style={[styles.hint, { color: theme.textBody }]}>{t("mantra.type.hint")}</Text>
               </Reveal>
             ) : (
             <Reveal index={2} style={styles.field}>

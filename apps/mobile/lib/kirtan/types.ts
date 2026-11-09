@@ -68,10 +68,18 @@ export const KIRTAN_TYPES = [
   { id: "other", get label() { return t("kt.type.other") } },
 ] as const
 
-/** Types of an Other mantra (Dada, 9 Nov 2026): Guru Puja, Pitriyajina, or any other mantra of Ananda Marga. Same ids as the API's MANTRA_TYPES. */
+/**
+ * What a recording of "Others" is (Dada, 9 Nov 2026; the category was "Other mantras"): a REQUIRED single choice. Same ids as the API's
+ * MANTRA_TYPES; `pitriyajina` keeps its old id. "other" is "Something else" (then the recording's `typeOther` is the name the person wrote).
+ * The spelling of every name and its source: docs/others-category.md.
+ */
 export const MANTRA_TYPES = [
   { id: "guru_puja", get label() { return t("kt.mtype.guru_puja") } },
   { id: "pitriyajina", get label() { return t("kt.mtype.pitriyajina") } },
+  { id: "samgacchadhvam", get label() { return t("kt.mtype.samgacchadhvam") } },
+  { id: "nityam_shuddham", get label() { return t("kt.mtype.nityam_shuddham") } },
+  { id: "ananda_sutram", get label() { return t("kt.mtype.ananda_sutram") } },
+  { id: "shlokas", get label() { return t("kt.mtype.shlokas") } },
   { id: "other", get label() { return t("kt.mtype.other") } },
 ] as const
 
@@ -198,6 +206,9 @@ export type Kirtan = {
   /** the author's own word for the instrument; everyone else sees it once the team accepted it (`leadInstrumentChecked`) */
   leadInstrumentOther?: string
   leadInstrumentChecked?: boolean
+  /** Others with type "other" ("Something else"): the name the author wrote; everyone else sees it once the team accepted it (`typeOtherChecked`) */
+  typeOther?: string
+  typeOtherChecked?: boolean
   /** Dance music: which dance (a DANCES id) */
   dance?: DanceId
   /** Where it was recorded or performed (every kind, optional; for Baba's Audio Discourses: where it was given) */

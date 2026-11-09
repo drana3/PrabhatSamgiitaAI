@@ -7,13 +7,13 @@ import { LANGUAGE_KINDS, RECORDING_KINDS } from "@/lib/kirtan/types"
 import { draftWithPatch, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import type { QueueDraft } from "@/stores/uploadQueueStore"
 
-const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, mantraType: null }
+const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, mantraType: null, mantraOther: "" }
 const FULL: QueueDraft = { ...EMPTY_DRAFT, kind: "bhajan", language: "bn", credits: "Words and music by A. Sen", year: "1998", notes: "n" }
 
 describe("the types of the add form", () => {
-  it("are Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio and Other mantras: Devotional song is gone", () => {
+  it("are Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio and Others: Devotional song is gone", () => {
     expect(RECORDING_KINDS).toEqual(["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio", "other_mantra"])
-    expect(RECORDING_KINDS.map((k) => kindLabel(k))).toEqual(["Kiirtan", "Bhajan", "Prabhat Samgiita", "Spiritual song", "Dance music", "Baba's Audio Discourses", "Other mantras"])
+    expect(RECORDING_KINDS.map((k) => kindLabel(k))).toEqual(["Kiirtan", "Bhajan", "Prabhat Samgiita", "Spiritual song", "Dance music", "Baba's Audio Discourses", "Others"])
     expect(isRecordingKind("devotional_song")).toBe(false)
     expect(KIRTAN_TAB_CHIPS.some((c) => c.id === ("devotional_song" as string))).toBe(false)
   })

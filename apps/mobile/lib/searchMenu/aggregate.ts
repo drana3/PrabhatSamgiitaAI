@@ -34,6 +34,7 @@ export function aggregateRecordings(
   let babaAudio = 0
   let kiirtanPiano = 0
   const bhajanTypes: Record<string, number> = {}
+  const mantraTypes: Record<string, number> = {}
   const bhajanLanguages: Record<string, number> = {}
   const sets = new Map<string, number>()
   const authors = new Map<string, AuthorStat>()
@@ -68,7 +69,8 @@ export function aggregateRecordings(
     } else if (kind === "bhajan") {
       bump(bhajanTypes, r.type || "other")
       if (r.language) bump(bhajanLanguages, r.language)
-    } else if (kind === "spiritual_song") spiritualSongs++
+    } else if (kind === "other_mantra") bump(mantraTypes, r.type || "other")
+    else if (kind === "spiritual_song") spiritualSongs++
     else if (kind === "prabhat_samgiita") psRecordings++
   }
 
@@ -84,6 +86,7 @@ export function aggregateRecordings(
     kiirtanSets: [...sets.values()].filter((n) => n >= 2).length,
     bhajanLanguages,
     bhajanTypes,
+    ...(Object.keys(mantraTypes).length ? { mantraTypes } : {}),
     spiritualSongs,
     authors: [...authors.values()],
     newInWindow,

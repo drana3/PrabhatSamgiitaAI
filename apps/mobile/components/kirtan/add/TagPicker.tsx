@@ -68,7 +68,7 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
   const [query, setQuery] = useState("")
   const [problem, setProblem] = useState<TagProblem>(null)
   const keyboard = useKeyboardHeight(open)
-  const searchRef = useRef<TextInput>(null)
+  const searchRef = useRef<InstanceType<typeof TextInput> | null>(null)
 
   const chips = chipsOf(value, labelOf)
   const { shown, more } = fitRailChips(chips)

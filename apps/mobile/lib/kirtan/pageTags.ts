@@ -5,18 +5,24 @@ import { isAvarta } from "./practice"
 import { kindHasInstrument } from "./instruments"
 import { moodLabel } from "./moods"
 import { kindHasStyle, styleLabel, stylesOfRecord } from "./styles"
-import type { Kirtan } from "./types"
+import { isMantraType, OTHER_MANTRA } from "./mantra"
+import { kirtanTypeLabel, type Kirtan } from "./types"
 
 /**
  * The tag row under the title of a recording's page (docs/kiirtan-cycle.md "The page"): style, how it was recorded, the tempo,
  * solo or group, the lead instrument and the Avarta mark, in that order. Only what the recording states: nothing is guessed,
  * and a recording that says none of it has no row. `ai` marks the AI-made recording, which also gets its plain sentence.
- * The style is a Kiirtan's only. `infoTags` (lib/kirtan/recordingInfo.ts) already carries type, tempo, solo/group and instrument.
+ * For Others the first tag is what it is (docs/others-category.md). The style is a Kiirtan's only. `infoTags` (lib/kirtan/recordingInfo.ts) already carries type, tempo, solo/group and instrument.
  */
 export type PageTag = { id: string; label: string; tone: "plain" | "ai" | "practice" }
 
-export function pageTags(k: Pick<Kirtan, "kind" | "style" | "styleOther" | "styles" | "stylesOther" | "moods" | "moodsOther" | "practice" | "recordingType" | "tempo" | "performance" | "leadInstrument" | "leadInstrumentOther">): PageTag[] {
+export function pageTags(k: Pick<Kirtan, "kind" | "type" | "typeOther" | "style" | "styleOther" | "styles" | "stylesOther" | "moods" | "moodsOther" | "practice" | "recordingType" | "tempo" | "performance" | "leadInstrument" | "leadInstrumentOther">): PageTag[] {
   const out: PageTag[] = []
+  // Others: what it is comes first (Guru Puja, Shlokas ...); under "Something else" the name the author wrote, which strangers get once the team accepted it
+  if (k.kind === "other_mantra" && isMantraType(k.type)) {
+    if (k.type !== OTHER_MANTRA) out.push({ id: `mantra-${k.type}`, label: kirtanTypeLabel(k.type, "other_mantra"), tone: "plain" })
+    else if (k.typeOther?.trim()) out.push({ id: "mantra-other", label: k.typeOther.trim(), tone: "plain" })
+  }
   // every style it carries, then every mood: the lists, or the one old `style` as a list of one
   if (kindHasStyle(k.kind)) {
     const carried = stylesOfRecord(k)

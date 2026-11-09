@@ -33,7 +33,7 @@ export type SearchByRow = {
   empty?: string
 }
 
-export type SearchBySection = { id: "kiirtan" | "bhajan" | "ps" | "more"; title: string; rows: SearchByRow[] }
+export type SearchBySection = { id: "kiirtan" | "bhajan" | "others" | "ps" | "more"; title: string; rows: SearchByRow[] }
 
 export type SearchByInput = {
   stats: MenuStats
@@ -164,6 +164,13 @@ export function buildSearchBy(input: SearchByInput): SearchBySection[] {
     { id: "ps", title: t("searchMenu.block.ps"), rows: psRows },
     { id: "bhajan", title: t("searchMenu.block.bhajans"), rows: bhajanRows },
   ]
+  if (Object.keys(stats.mantraTypes ?? {}).length) {
+    sections.push({
+      id: "others",
+      title: t("searchMenu.block.others"),
+      rows: [{ id: "mantra-type", title: t("searchBy.row.mantraType"), values: fromCounts(stats.mantraTypes ?? {}, (v) => `mantra:type:${v}`, (v) => titleOfId(`mantra:type:${v}`)), empty: t("searchBy.empty.type") }],
+    })
+  }
   if (moreRows.length) sections.push({ id: "more", title: t("searchMenu.block.more"), rows: moreRows })
   return sections
 }

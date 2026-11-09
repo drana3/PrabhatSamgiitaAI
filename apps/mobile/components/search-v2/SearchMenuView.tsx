@@ -25,10 +25,11 @@ import type { RecentPlay } from "@/stores/preferencesStore"
 
 type P = { p: AmProto }
 
-const BLOCK_TITLE: Partial<Record<MenuBlock, "searchMenu.block.ps" | "searchMenu.block.kiirtan" | "searchMenu.block.bhajans">> = {
+const BLOCK_TITLE: Partial<Record<MenuBlock, "searchMenu.block.ps" | "searchMenu.block.kiirtan" | "searchMenu.block.bhajans" | "searchMenu.block.others">> = {
   ps: "searchMenu.block.ps",
   kiirtan: "searchMenu.block.kiirtan",
   bhajans: "searchMenu.block.bhajans",
+  others: "searchMenu.block.others",
 }
 
 /** How many cards a shelf shows before "See all". */

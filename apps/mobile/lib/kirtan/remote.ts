@@ -3,6 +3,7 @@ import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/ki
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import { cleanPractice } from "@/lib/kirtan/practice"
 import { cleanInstrument } from "@/lib/kirtan/instruments"
+import { cleanMantra } from "@/lib/kirtan/mantra"
 import { cleanRecordingInfo, kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
 import { cleanMoods } from "@/lib/kirtan/moods"
 import { cleanStyles } from "@/lib/kirtan/styles"
@@ -64,6 +65,9 @@ export type RemoteRecording = {
   recording_type?: string | null
   tempo?: string | null
   performance?: string | null
+  /** Others with type `other`: the name the author wrote (for its author, or everybody once the team accepted it: `type_other_checked`) */
+  type_other?: string | null
+  type_other_checked?: boolean
   /** the main instrument id or `other` (then `lead_instrument_other` is the word, for its author or once the team accepted it) */
   lead_instrument?: string | null
   lead_instrument_other?: string | null
@@ -259,6 +263,8 @@ export type PublishPayload = {
   /** the main instrument: an id or `other` (then `leadInstrumentOther` is the word, 2 to 40 characters); optional */
   leadInstrument?: string | null
   leadInstrumentOther?: string | null
+  /** Others with type `other` (Something else): the name, 2 to 40 characters; the team checks it before strangers see it */
+  typeOther?: string | null
   /** required for the Dance music kind, refused for the others */
   dance?: string | null
   /** a track of a playlist from an event, and its place there; kind, language and dance left out come from the playlist */
@@ -316,6 +322,10 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
       const instrument = cleanInstrument(payload.kind, payload.leadInstrument, payload.leadInstrumentOther)
       return instrument.instrument && !instrument.tooShort ? { lead_instrument: instrument.instrument, ...(instrument.instrumentOther ? { lead_instrument_other: instrument.instrumentOther } : {}) } : {}
     })(),
+    ...(() => {
+      const mantra = cleanMantra(payload.kind, payload.type, payload.typeOther)
+      return mantra.typeOther ? { type: mantra.type ?? payload.type, type_other: mantra.typeOther } : {}
+    })(),
     ...(payload.dance && kindHasDance(payload.kind) ? { dance: payload.dance } : {}),
     ...(payload.collectionId ? { collection_id: payload.collectionId, ...(payload.position ? { position: payload.position } : {}) } : {}),
     ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),
@@ -362,7 +372,7 @@ export async function fetchPublished(cfg: RemoteConfig, query: { kind?: Recordin
 
 /** The words the team accepted under "Add your own" (a main instrument, a style or a mood), for the form to offer next to the fixed list. */
 export type ValueOptions = { accepted: { key: string; label: string }[]; newWordsPerWeek: number }
-export async function fetchValueOptions(cfg: RemoteConfig, field: "instrument" | "style" | "mood"): Promise<ValueOptions> {
+export async function fetchValueOptions(cfg: RemoteConfig, field: "instrument" | "style" | "mood" | "mantra"): Promise<ValueOptions> {
   const out = await call<{ accepted: { key: string; label: string }[]; new_words_per_week: number }>(cfg, "GET", `/value-options?field=${field}`)
   return { accepted: out.accepted ?? [], newWordsPerWeek: out.new_words_per_week }
 }

@@ -4039,7 +4039,17 @@
     "keyPicker.explain.reader": false,
     "keyPicker.usual": false,
     "chordOffer.preview.button": false,
-    "chordOffer.preview.button.a11y": false
+    "chordOffer.preview.button.a11y": false,
+    "kt.mtype.samgacchadhvam": false,
+    "kt.mtype.nityam_shuddham": false,
+    "kt.mtype.ananda_sutram": false,
+    "kt.mtype.shlokas": false,
+    "mantra.type.search": false,
+    "mantra.type.newNote": false,
+    "ugc.form.error.mantra": false,
+    "ugc.form.error.mantraName": false,
+    "searchMenu.block.others": false,
+    "searchBy.row.mantraType": false
   },
   "es": {
     "chordOffer.instrument.piano": false,
@@ -7895,7 +7905,17 @@
     "keyPicker.explain.reader": false,
     "keyPicker.usual": false,
     "chordOffer.preview.button": false,
-    "chordOffer.preview.button.a11y": false
+    "chordOffer.preview.button.a11y": false,
+    "kt.mtype.samgacchadhvam": false,
+    "kt.mtype.nityam_shuddham": false,
+    "kt.mtype.ananda_sutram": false,
+    "kt.mtype.shlokas": false,
+    "mantra.type.search": false,
+    "mantra.type.newNote": false,
+    "ugc.form.error.mantra": false,
+    "ugc.form.error.mantraName": false,
+    "searchMenu.block.others": false,
+    "searchBy.row.mantraType": false
   },
   "_languages": {
     "hi": "не переведено",

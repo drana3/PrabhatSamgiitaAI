@@ -175,6 +175,7 @@ export function shelfItems(shelfId: string, kirtans: readonly MenuKirtan[], stat
   if (head === "kiirtan" && mid === "style") return newest(kiirtans().filter((k) => styleKeys(k).includes(shelfId.slice("kiirtan:style:".length)) || (tail === "other" && shelfId === "kiirtan:style:other" && isRestStyle(k, stats, now))))
   if (head === "author") return newest(kirtans.filter((k) => kind(k) === "kiirtan" && byAuthorKey(k, shelfId.slice("author:".length))))
   if (head === "bhajan" && mid === "type") return newest(kirtans.filter((k) => kind(k) === "bhajan" && (k.type || "other") === tail))
+  if (head === "mantra" && mid === "type") return newest(kirtans.filter((k) => kind(k) === "other_mantra" && (k.type || "other") === tail))
   if (head === "bhajan" && mid === "lang") {
     const bhajans = kirtans.filter((k) => kind(k) === "bhajan")
     if (tail !== "more") return newest(bhajans.filter((k) => k.language === tail))
@@ -218,6 +219,8 @@ export function shelfTitle(shelf: Pick<MenuShelf, "label"> & { id?: string }): s
       return l.id === "other" ? t("searchMenu.kiirtan.styleOther") : styleLabel(l.id)
     case "bhajanType":
       return kirtanTypeLabel(l.id as "morning", "bhajan")
+    case "mantraType":
+      return kirtanTypeLabel(l.id as "guru_puja", "other_mantra")
     case "language":
       return languageLabel(l.id)
     case "author":
@@ -268,6 +271,7 @@ export function labelFromId(id: string, authors: readonly { key: string; name: s
   if (head === "dance" && mid) return { type: "dance", id: mid }
   if (head === "facet" && mid && tail) return { type: "named", name: titleCase(tail) }
   if (head === "bhajan" && mid === "type" && tail) return { type: "bhajanType", id: tail }
+  if (head === "mantra" && mid === "type" && tail) return { type: "mantraType", id: tail }
   if (head === "bhajan" && mid === "lang" && tail) return { type: "language", id: tail }
   if (head === "theme" && mid) return { type: "theme", id: mid }
   if (head === "author" && mid) {

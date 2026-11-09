@@ -44,7 +44,7 @@ type Candidate = {
   alwaysIfAny?: boolean
 }
 
-const BLOCK_ORDER: readonly MenuBlock[] = ["pulse", "baba", "ps", "kiirtan", "authors", "spiritual", "bhajans", "dance", "more", "themes"]
+const BLOCK_ORDER: readonly MenuBlock[] = ["pulse", "baba", "ps", "kiirtan", "authors", "spiritual", "bhajans", "others", "dance", "more", "themes"]
 
 /** The named Bhajan languages in the order the menu ranks them (your own listening first, then by count, then by code). The first `bhajanLanguage.max` get shelves; the rest go into "More languages". */
 export function rankBhajanLanguages(stats: Pick<MenuStats, "bhajanLanguages" | "listener">): [string, number][] {
@@ -210,6 +210,14 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
     all.push({
       id: `bhajan:type:${id}`, block: "bhajans", label: { type: "bhajanType", id },
       count, threshold: R.bhajanType, reason: "threshold", score: -10 + count / 1_000_000 - (id === "other" ? 1 : 0),
+    })
+  }
+
+  // ---- Others: one shelf per what-it-is (Guru Puja, Shlokas ...), from the first recording
+  for (const [id, count] of Object.entries(stats.mantraTypes ?? {})) {
+    all.push({
+      id: `mantra:type:${id}`, block: "others", label: { type: "mantraType", id },
+      count, threshold: R.mantraType, reason: "threshold", score: id === "other" ? -1 : count,
     })
   }
 
