@@ -23,14 +23,15 @@ Style and Mood (`components/kirtan/add/MantraField.tsx`, built on `TagPicker` in
 | id (API and phone) | Visible name (en) | ru | es |
 |---|---|---|---|
 | `guru_puja` | Guru Puja | Гуру Пуджа | Guru Puja |
-| `pitriyajina` | Pitr Yajina | Питри Яджна | Pitr Yajina |
+| `pitriyajina` | Pitr Yajina | Питри Джагья | Pitr Yajina |
 | `samgacchadhvam` | Samgacchadhvam | Самгаччхадхвам | Samgacchadhvam |
 | `nityam_shuddham` | Nityam Shuddham | Нитьям шуддхам | Nityam Shuddham |
 | `ananda_sutram` | Ananda Sutram | Ананда Сутрам | Ananda Sutram |
 | `shlokas` | Shlokas | Шлоки | Shlokas |
 | `other` | Something else | Другое | Otra cosa |
 
-The Russian and Spanish words are marked "not yet read by a native speaker" in `locales/review.json`.
+The Russian and Spanish words are marked "not yet read by a native speaker" in `locales/review.json`. Shlokas means (and the hint of the
+sheet says) other Sanskrit verses recited or sung, for example those Baba quoted in his discourses; see "Check of 10 Nov 2026" below.
 
 ### "Something else" and the team's review
 
@@ -68,19 +69,46 @@ dropped (a-acute becomes a, s-acute stays sh), m-dot becomes m, n-tilde (the sou
 | **Ananda Sutram** | "Ánanda Sútram" (EE9), "Ananda Sutra", "Ānanda Sūtram" (Word-Index) | Ánanda Sútram, Publisher’s Note (EE9): "Ánanda Sútram means, in part, “aphorisms leading to ánanda, divine bliss”." Word-Index of the Ánanda Sútram: "The substance of philosophy of Ananda Marga ... is contained in his work Ananda Sutram." |
 | **Shlokas** | "Slokas" (Vidyasagar syllabus "Subha's'ita Sam'graha Slokas", AM Practices and Philosophy), "Shlokas" (library shelf "Shlokas Quoted by Bábá") | Library book "Shlokas Quoted by Bábá": "Shlokas, sútras and verses quoted by Bábá in his discourses, from the Ananda Marga digital library (shelf “shloki”)." EE9 uses "shloka" in the same sense ("another common Vaedika shloka"). |
 
+### Check of 10 Nov 2026 against the library (EE9 and Ananda Marga books)
+
+Dada's decisions: the label is written **Pitr Yajina** (his word); for the others "look in the library". Read: EE9 (`EE9/текущая`, 2000
+entries) and the library search (jnanamandira). EE9 itself names its files without diacritics (`GuruPuja_en`, `Samgacchadhvam_en`,
+`NityamShuddham_en`, `BathingProcedureAndPitrYajina_en`), which is the plain form the app uses. Counts are spellings found in the EE9 texts.
+
+| Visible name | Diacritic form in EE9 (count) | Evidence (verbatim) | Result |
+|---|---|---|---|
+| **Guru Puja** | "Guru Pújá" (8), "gurupúja" (30), "gurupújá" (5) | EE9 discourse "Guru Pújá", 4 October 1978, Patna (Ánanda Vacanámrtam Part 3; Who Is the Real Guru?); Practices: "Guru Pújá is performed just after the Nityam Shuddham shlokas that follow collective meditation." | kept |
+| **Pitr Yajina** | "Pitr Yajiṋa" (13), "pitr yajiṋa" (8) | EE9 Caryácarya Part 3, "Bathing Procedure and Pitr Yajiṋa", 1956, Jamalpur: "Remembering the rśis and ancestors in this way is known as Pitr Yajiṋa." | kept (Dada's word); the ṋ (the ny sound) is written n |
+| **Samgacchadhvam** | "Saḿgacchadhvaḿ" (20) | EE9 Ánanda Vacanámrtam Part 3, "Saḿgacchadhvaḿ", 12 October 1978, Patna: "Now there will be an interpretation of another common Vaedika shloka. It is, Saḿgacchadhvaḿ saḿvadadhvaḿ ..." | kept |
+| **Nityam Shuddham** | "Nityaḿ shuddhaḿ" (5), "Nityaḿ Shuddhaḿ" (1) | EE9 Ánanda Vacanámrtam Part 3, "Nityaḿ Shuddhaḿ", 15 October 1978, Patna: "There is a shloka of Tantra, Nityaḿ shuddhaḿ nirábhásaḿ nirákáraḿ niraiṋjanam;" | kept (the practice books also write "Shudham"; recognised as typed) |
+| **Ananda Sutram** | "Ánanda Sútram" (149) | EE9 book Ánanda Sútram, Publisher's Note: "Ánanda Sútram means, in part, “aphorisms leading to ánanda, divine bliss”." | kept |
+| **Shlokas** | "shloka" (257, EE9 uses sh), "sloka" (18) | EE9: "another common Vaedika shloka"; library shelf "Shlokas Quoted by Bábá": "Shlokas, sútras and verses quoted by Bábá in his discourses"; Practices: "three shlokas known as Guru Vandaná" | kept; the hint now says what it covers |
+| **Baba Nam Kevalam** | "Bábá Nam Kevalam" (6), "Bábá náma kevalam" (18), "Bábá nám kevalam" (9) | EE9 Ideology, Goal and Devotion: "When living beings will sing Bábá Nam Kevalam then the Lord will also sing, Bábá Nam Kevalam in His mind." | kept (fixed) |
+
+**What Shlokas covers in Ananda Marga practice.** A shloka is a Sanskrit verse. In practice the word is used for the verses sung or
+recited around meditation (the Nityam Shuddham shlokas, the three shlokas of Guru Vandaná, Samgacchadhvam, which the Path of Bliss calls
+"This shloka (verse)"), and in Baba's discourses for the verses he quoted from the Gita, the Tantras and other works. Because Guru Puja,
+Nityam Shuddham and Samgacchadhvam are shlokas too but have their own choice, **Shlokas** in the list means the **other** Sanskrit verses.
+The hint of the sheet (`mantra.type.hint`) says: "Shlokas are other Sanskrit verses, recited or sung, for example those Baba quoted in his
+discourses."
+
+**Russian** (checked in the Russian books of the library, not by a native reader, so still unreviewed): the pocket handbook of
+Ananda Marga (Карманный справочник АМ) writes «Гуру пуджа», «Нитьям́ шуддхам́», «Сам́гаччхадхвам́» and «питри джагья (служение предкам)»;
+the Russian commentary writes «Ананда Сутрам» and the library shelf «Шлоки, которые цитировал Баба». So only one label changed:
+**Питри Яджна became Питри Джагья**. The others stay as they were.
+
 ### Doubts for Dada
 
-1. **Pitr Yajina or Pitri Yajna.** Dada wrote "Pitri Yajna". The Ananda Marga texts read (Practices, Dictionary, 16 Points, Caryacarya)
-   spell it "Pitr yajiṋa" / "Pitr Yajina". The app's convention (n-tilde becomes n, so "Yajina", as in "Pitriyajina" before) gives
-   **Pitr Yajina**, which is the default. "Pitri Yajna" is a valid typed word: it is recognised and becomes the same choice.
-2. **Samgacchadhvam.** Two forms occur: "Samgacchadhvam" (EE9, Baba's own discourse, and the Dictionary) and "Samgacchadvam" (a heading of
-   one practice book). The first is the default.
-3. **Nityam Shuddham.** "Shuddham" (EE9) against "Shudham" (some practice books). "Shuddham" is the default and the sh-dd form is the
-   correct Sanskrit; "Shudham" is recognised as the same choice.
-4. **Shlokas** is the choice name for verses in general. If Dada means "Subhásita Samgraha" slokas only, the name should say so.
-5. **Russian**: no source gave a Russian form of Pitr Yajna; "Питри Яджна" is a transliteration made for the app and **unverified**.
-   "Нитьям шуддхам", "Сам́гаччхадхвам́" and "Ананда Сутрам" follow the Russian pocket handbook and the Russian commentary.
-6. **Spanish** keeps the Latin names; "Otra cosa" is unverified.
+1. **Pitr Yajina.** Decided by Dada on 10 Nov 2026. "Pitri Yajna" and "Pitr Yajna" typed by a person are still recognised as the same choice.
+2. **Samgacchadhvam.** Two forms occur: "Samgacchadhvam" (EE9, the Dictionary) and "Samgacchadvam" (a heading of one practice book). The
+   first is the default; the second is recognised when typed.
+3. **Nityam Shuddham.** "Shuddham" (EE9) against "Shudham" / "Shudam" (some practice books). "Shuddham" is the default; the other two are
+   recognised when typed.
+4. **Shlokas** is a general name. If Dada wants only the verses of Subhásita Samgraha, the name must say so; the hint now says "other Sanskrit
+   verses, for example those Baba quoted".
+5. **Russian**: "Питри Джагья" follows one Russian Ananda Marga handbook only; the other forms follow the handbook and the Russian commentary.
+   All Russian words are unreviewed.
+6. **Spanish** keeps the Latin names; "Otra cosa" and the new hint are unverified.
 
 ## Limits
 

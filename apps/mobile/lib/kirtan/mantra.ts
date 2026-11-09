@@ -18,7 +18,7 @@ const NAMES: Record<ListedMantraId, readonly string[]> = {
   guru_puja: ["guru puja", "gurupuja", "guru pooja", "guru pujan"],
   pitriyajina: ["pitr yajina", "pitri yajna", "pitri yajina", "pitr yajna", "pitriyajina"],
   samgacchadhvam: ["samgacchadhvam", "sangacchadhvam", "sam gaccha dhvam", "samgacchadvam"],
-  nityam_shuddham: ["nityam shuddham", "nityam shudham", "nityam suddham"],
+  nityam_shuddham: ["nityam shuddham", "nityam shudham", "nityam shudam", "nityam suddham"],
   ananda_sutram: ["ananda sutram", "ananda sutra", "anandasutram"],
   shlokas: ["shlokas", "shloka", "slokas", "sloka"],
 }

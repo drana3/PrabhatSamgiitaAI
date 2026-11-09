@@ -4,6 +4,7 @@ import { cleanMantra, listedMantraFor, MANTRA_IDS } from "@/lib/kirtan/mantra"
 import { fromRemote, buildSubmission, validateSubmission, type SubmissionInput } from "@/lib/kirtan/submissions"
 import { kirtanTypeLabel, MANTRA_TYPES } from "@/lib/kirtan/types"
 import { publishRecording } from "@/lib/kirtan/remote"
+import { recordingsRu } from "@/locales/recordings"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
 
 /** Dada, 9 Nov 2026: inside Others (was "Other mantras") the person MUST choose what it is; no default; "Something else" asks for a name. */
@@ -14,6 +15,21 @@ describe("the visible names of Others", () => {
   it("are the six names in the app's Kiirtan / Samgiita romanisation, then Something else", () => {
     expect(MANTRA_TYPES.map((m) => m.label)).toEqual(["Guru Puja", "Pitr Yajina", "Samgacchadhvam", "Nityam Shuddham", "Ananda Sutram", "Shlokas", "Something else"])
     expect(kirtanTypeLabel("shlokas", "other_mantra")).toBe("Shlokas")
+  })
+
+  it("the library's own spellings (EE9, 10 Nov 2026) are recognised as the same choice", () => {
+    expect(listedMantraFor("Guru Pújá")).toBe("guru_puja")
+    expect(listedMantraFor("Pitr Yajiṋa")).toBe("pitriyajina")
+    expect(listedMantraFor("Saḿgacchadhvaḿ")).toBe("samgacchadhvam")
+    expect(listedMantraFor("Nityaḿ Shuddhaḿ")).toBe("nityam_shuddham")
+    expect(listedMantraFor("Nityam Shudam")).toBe("nityam_shuddham")
+    expect(listedMantraFor("Ánanda Sútram")).toBe("ananda_sutram")
+  })
+
+  it("Russian follows the Russian Ananda Marga texts (Pitri Jagiya, not Yajna); marked unreviewed in review.json", () => {
+    expect(recordingsRu["kt.mtype.pitriyajina"]).toBe("Питри Джагья")
+    expect(recordingsRu["kt.mtype.guru_puja"]).toBe("Гуру Пуджа")
+    expect(JSON.stringify(recordingsRu)).not.toContain("Яджна")
   })
 
   it("keep the old ids (pitriyajina) so older rows still read", () => {

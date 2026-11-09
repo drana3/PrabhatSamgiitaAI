@@ -44,6 +44,10 @@ def test_a_typed_name_that_is_a_listed_one_is_that_choice() -> None:
     assert listed_code(MANTRA, "Nityam Shudham") == "nityam_shuddham"
     assert listed_code(MANTRA, "Ánanda Sútram") == "ananda_sutram"
     assert listed_code(MANTRA, "Slokas") == "shlokas"
+    # the spellings of the library (EE9), checked 10 Nov 2026
+    assert listed_code(MANTRA, "Pitr Yajiṋa") == "pitriyajina"
+    assert listed_code(MANTRA, "Nityaḿ Shuddhaḿ") == "nityam_shuddham"
+    assert listed_code(MANTRA, "Nityam Shudam") == "nityam_shuddham"
     assert listed_code(MANTRA, "Hanuman Chalisa") is None
 
 
