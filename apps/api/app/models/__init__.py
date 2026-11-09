@@ -5,6 +5,7 @@ from app.models.admin_workflow import (
 )
 from app.models.ai_usage import AiDailyUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
+from app.models.app_telemetry import AppEvent, FeatureFlag
 from app.models.app_version import AppVersionPolicy
 from app.models.author_profiles import (
     AuthorAlias,
@@ -20,7 +21,6 @@ from app.models.author_profiles import (
     PlayDaily,
     PlayEvent,
 )
-from app.models.app_telemetry import AppEvent, FeatureFlag
 from app.models.base import Base
 from app.models.chunk import SongChunk
 from app.models.domain import (
