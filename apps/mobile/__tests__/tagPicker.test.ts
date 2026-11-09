@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { addOwnTag, canAddOwn, chipsOf, filterOptions, NO_TAGS, OWN_TAGS_MAX, removeOwnTag, tagCount, TAGS_MAX, toggleTag, type TagValue } from "@/lib/kirtan/tags"
+import { addOwnTag, canAddOwn, chipsOf, filterOptions, fitRailChips, NO_TAGS, OWN_TAGS_MAX, removeOwnTag, tagCount, TAGS_MAX, toggleTag, type TagValue } from "@/lib/kirtan/tags"
 import { FORM_INSTRUMENT_IDS, formInstrumentChoices, INSTRUMENT_IDS } from "@/lib/kirtan/instruments"
 import { STYLES } from "@/lib/kirtan/styles"
 
@@ -88,5 +88,21 @@ describe("the main instrument's list on the form", () => {
 
   it("the styles on the form are Dada's five", () => {
     expect([...STYLES]).toHaveLength(5)
+  })
+})
+
+describe("the one line of chips on the rail", () => {
+  const chip = (label: string) => ({ label })
+
+  it("shows what fits whole and counts the rest, so no word is cut", () => {
+    expect(fitRailChips([chip("Joyful"), chip("Mix")])).toEqual({ shown: [chip("Joyful"), chip("Mix")], more: 0 })
+    const two = fitRailChips([chip("Indian style"), chip("Acoustic guitar"), chip("Manipuri")])
+    expect(two.shown.map((c) => c.label)).toEqual(["Indian style"])
+    expect(two.more).toBe(2)
+  })
+
+  it("always shows the first chip, however long, and nothing for an empty field", () => {
+    expect(fitRailChips([chip("A very long word of the person's own")]).shown).toHaveLength(1)
+    expect(fitRailChips([])).toEqual({ shown: [], more: 0 })
   })
 })

@@ -64,3 +64,26 @@ export function canAddOwn(query: string, options: readonly { id: string; label: 
   const q = normalizedWord(query)
   return q.length > 0 && !options.some((o) => normalizedWord(o.label) === q)
 }
+
+/**
+ * How many chips fit on the one line of the rail, by the length of their words: the chips that fit are shown whole and the rest
+ * become one "+N" chip, so no word is cut ("Indian st..."). At least one chip is always shown (a very long one may still be clipped).
+ * Widths are an estimate of the 14 px semibold chip on a 390 pt phone: 7.6 per letter, 24 of padding, 8 between chips.
+ */
+export const RAIL_WIDTH = 214
+const RAIL_PLUS = 44
+export function fitRailChips<T extends { label: string }>(chips: readonly T[], width: number = RAIL_WIDTH): { shown: T[]; more: number } {
+  const wide = (chip: T) => chip.label.length * 7.6 + 24
+  const shown: T[] = []
+  let used = 0
+  for (let index = 0; index < chips.length; index += 1) {
+    const chip = chips[index] as T
+    const last = index === chips.length - 1
+    const next = used + (shown.length ? 8 : 0) + wide(chip)
+    // a chip that is not the last one must leave room for the "+N" chip behind it
+    if (shown.length && next + (last ? 0 : 8 + RAIL_PLUS) > width) break
+    shown.push(chip)
+    used = next
+  }
+  return { shown, more: chips.length - shown.length }
+}

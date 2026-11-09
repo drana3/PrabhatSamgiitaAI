@@ -11,12 +11,11 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useT } from "@/lib/i18n"
 import { WORD_MAX } from "@/lib/kirtan/instruments"
-import { addOwnTag, canAddOwn, chipsOf, filterOptions, removeOwnTag, tagCount, TAGS_MAX, toggleTag, type TagProblem, type TagValue } from "@/lib/kirtan/tags"
+import { addOwnTag, canAddOwn, chipsOf, filterOptions, fitRailChips, removeOwnTag, tagCount, TAGS_MAX, toggleTag, type TagProblem, type TagValue } from "@/lib/kirtan/tags"
 
 export type TagOption = { id: string; label: string }
 
 /** How many chips the one-line field shows before the rest become "+N". The rail is one line on a 360 pt phone. */
-const RAIL_CHIPS = 2
 
 type Props = {
   theme: SongsTheme
@@ -65,8 +64,7 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
   const keyboard = useKeyboardHeight(open)
 
   const chips = chipsOf(value, labelOf)
-  const shown = chips.slice(0, RAIL_CHIPS)
-  const more = chips.length - shown.length
+  const { shown, more } = fitRailChips(chips)
   const summary = chips.length ? chips.map((c) => c.label).join(", ") : t("picker.none")
 
   const close = () => {
