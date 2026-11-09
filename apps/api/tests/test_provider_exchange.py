@@ -1,4 +1,4 @@
-"""Exchanging a Google/Apple/Microsoft/Facebook sign-in proof for our own session tokens.
+"""Exchanging a Google/Apple/Microsoft sign-in proof for our own session tokens.
 
 The provider keys are generated here and served through the fetch hook: no network.
 """
@@ -47,7 +47,6 @@ def fake_providers() -> Any:
     provider_tokens.jwks_cache.set_fetcher(fetch)
     yield
     provider_tokens.jwks_cache.set_fetcher(None)
-    provider_tokens.set_json_fetcher(None)
 
 
 def google_token(
@@ -282,34 +281,64 @@ async def test_microsoft_proof_checks_the_tenant_in_the_issuer(
     assert bad.status_code == 401
 
 
-async def test_facebook_token_must_belong_to_our_app(
-    world: World, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    use_settings(monkeypatch, make_settings(FACEBOOK_APP_ID="fb-app", FACEBOOK_APP_SECRET="s3cr3t"))
-
-    async def fake(url: str, params: dict[str, str]) -> dict[str, Any]:
-        if url.endswith("debug_token"):
-            return {"data": {"is_valid": True, "app_id": "another-app", "user_id": "42"}}
-        return {"id": "42", "name": "Fb Person"}
-
-    provider_tokens.set_json_fetcher(fake)
+async def test_facebook_sign_in_is_gone(world: World) -> None:
+    """Facebook login was removed (docs/sign-in-setup.md): the server says "unknown provider"."""
     refused = await world.client.post(
-        EXCHANGE, json={"provider": "facebook", "access_token": "tok"}
+        EXCHANGE, json={"provider": "facebook", "access_token": "tok", "id_token": "x" * 40}
     )
 
-    async def good(url: str, params: dict[str, str]) -> dict[str, Any]:
-        if url.endswith("debug_token"):
-            return {"data": {"is_valid": True, "app_id": "fb-app", "user_id": "42"}}
-        return {"id": "42", "name": "Fb Person"}
+    assert refused.status_code == 422
+    assert "facebook:42" not in {row.external_subject for row in await world.all_accounts()}
+    assert "facebook" not in provider_tokens.SUPPORTED
 
-    provider_tokens.set_json_fetcher(good)
-    accepted = await world.client.post(
-        EXCHANGE, json={"provider": "facebook", "access_token": "tok"}
+
+async def test_missing_google_ids_fail_clearly_and_name_the_setting(
+    world: World, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    use_settings(monkeypatch, make_settings(GOOGLE_OAUTH_CLIENT_IDS=""))
+
+    with caplog.at_level("ERROR"):
+        response = await exchange(world, google_token())
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Google sign-in is not set up on this server yet"
+    # the log (for the person running the server) names the exact setting; the phone does not
+    assert "GOOGLE_OAUTH_CLIENT_IDS" in caplog.text
+    assert "GOOGLE_OAUTH_CLIENT_IDS" not in response.text
+    assert "g-sub-1" not in {row.external_subject for row in await world.all_accounts()}
+
+
+async def test_missing_apple_ids_fail_clearly(
+    world: World, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    use_settings(monkeypatch, make_settings(APPLE_BUNDLE_IDS=""))
+
+    with caplog.at_level("ERROR"):
+        response = await exchange(world, google_token(), provider="apple")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Apple sign-in is not set up on this server yet"
+    assert "APPLE_BUNDLE_IDS" in caplog.text
+
+
+async def test_setup_report_lists_each_provider_without_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = make_settings(
+        GOOGLE_OAUTH_CLIENT_IDS="a.apps.googleusercontent.com, b.apps.googleusercontent.com",
+        AZURE_CLIENT_IDS="",
     )
 
-    assert refused.status_code == 401
-    assert accepted.status_code == 200
-    assert "facebook:42" in {row.external_subject for row in await world.all_accounts()}
+    report = provider_tokens.sign_in_setup_report(settings)
+
+    assert report["google"] == {
+        "configured": True,
+        "setting": "GOOGLE_OAUTH_CLIENT_IDS",
+        "count": 2,
+    }
+    assert report["apple"]["configured"] is True  # the app's own bundle id is the default
+    assert report["aad"] == {"configured": False, "setting": "AZURE_CLIENT_IDS", "count": 0}
+    assert "googleusercontent" not in json.dumps(report)
 
 
 async def test_a_local_account_with_someones_address_is_not_taken_over_by_that_person(

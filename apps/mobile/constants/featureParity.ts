@@ -33,7 +33,7 @@ export const featureParity = [
   { web: "Feedback widget", mobile: "/feedback live submit", status: "ui", api: "POST /feedback" },
   { web: "Quiz + certificates", mobile: "/quiz live start/submit", status: "ui", api: "/members/quiz/*" },
   { web: "Account profile", mobile: "Profile + session hydrate + delete", status: "ui", api: "GET/DELETE /members/session|/me" },
-  { web: "Sign in (AAD Easy Auth)", mobile: "Microsoft / Google / Facebook / email — no preview member", status: "ui" },
+  { web: "Sign in (AAD Easy Auth)", mobile: "Apple / Google / email (Microsoft only when set up) — no preview member", status: "ui" },
   { web: "Admin feedback + reply", mobile: "/admin feedback + reply", status: "ui", api: "/members/admin/feedback" },
   { web: "Admin Devanagari review", mobile: "/admin (Devanagari tab)", status: "ui", api: "/members/admin/songs/{n}/devanagari" },
   { web: "Admin members", mobile: "/admin · Members live", status: "ui", api: "/members/admin/users" },

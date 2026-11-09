@@ -193,9 +193,8 @@ async function postJson(baseUrl: string, path: string, body: unknown, headers: R
 }
 
 export type ProviderProof = {
-  provider: "google" | "apple" | "aad" | "facebook"
+  provider: "google" | "apple" | "aad"
   idToken?: string | null
-  accessToken?: string | null
   deviceLabel?: string
 }
 
@@ -209,12 +208,11 @@ export async function exchangeProviderProof(
 ): Promise<MemberTokens | null> {
   // A new sign-in must never keep the previous person's tokens, whatever happens next.
   await clearMemberTokens()
-  if (!proof.idToken && !proof.accessToken) return null
+  if (!proof.idToken) return null
   try {
     const response = await postJson(baseUrl, "exchange", {
       provider: proof.provider,
       id_token: proof.idToken ?? undefined,
-      access_token: proof.accessToken ?? undefined,
       device_label: proof.deviceLabel,
     })
     if (!response.ok) return null

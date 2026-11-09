@@ -9,11 +9,11 @@ import {
   type EmailForm,
 } from "@/lib/auth/signInFlow"
 
-const real = { apple: false, google: false, microsoft: false, facebook: false }
+const real = { apple: false, google: false, microsoft: false }
 
 describe("visibleProviders", () => {
-  it("shows Apple and Google in the preview only as mocks, never Facebook or Microsoft", () => {
-    expect(visibleProviders(real, true)).toEqual({ apple: true, google: true, microsoft: false, facebook: false })
+  it("shows Apple and Google in the preview only as mocks, never Microsoft", () => {
+    expect(visibleProviders(real, true)).toEqual({ apple: true, google: true, microsoft: false })
   })
   it("hides Microsoft in the preview even when it is configured", () => {
     expect(visibleProviders({ ...real, microsoft: true }, true).microsoft).toBe(false)
@@ -21,7 +21,7 @@ describe("visibleProviders", () => {
   })
   it("follows the real config outside the preview", () => {
     expect(visibleProviders(real, false)).toEqual(real)
-    expect(visibleProviders({ ...real, apple: true, facebook: true }, false)).toEqual({ apple: true, google: false, microsoft: false, facebook: true })
+    expect(visibleProviders({ ...real, apple: true }, false)).toEqual({ apple: true, google: false, microsoft: false })
   })
 })
 

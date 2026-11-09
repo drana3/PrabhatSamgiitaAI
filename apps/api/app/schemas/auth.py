@@ -31,11 +31,10 @@ class AuthSessionResponse(BaseModel):
 
 
 class ProviderExchangeWrite(BaseModel):
-    """A provider sign-in proof: id_token (Google, Apple, Microsoft) or access_token (Facebook)."""
+    """A provider sign-in proof: the signed id_token from Google, Apple or Microsoft."""
 
     provider: str = Field(min_length=2, max_length=16)
     id_token: str | None = Field(default=None, max_length=8192)
-    access_token: str | None = Field(default=None, max_length=4096)
     nonce: str | None = Field(default=None, max_length=256)
     device_label: str | None = Field(default=None, max_length=120)
 

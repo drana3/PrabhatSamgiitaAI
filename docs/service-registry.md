@@ -49,7 +49,7 @@ Who else has access to each account is **to confirm with owner**.
 | 16 | Google Cloud OAuth (Google sign-in) | "Continue with Google" on web, Android and iOS (Google Cloud project number `495992354696`) | confirmed in repo |
 | 17 | Microsoft Entra ID, app `prabhatai-members` | "Continue with Microsoft" on web and in the app | confirmed in repo |
 | 18 | Sign in with Apple | "Sign in with Apple" on iPhone (required by Apple when other sign-ins exist) | confirmed in repo (enabled on the App ID: to confirm with owner) |
-| 19 | Facebook Login | "Continue with Facebook"; switched off until phase 2 | confirmed in repo (flag `NEXT_PUBLIC_FACEBOOK_AUTH_ENABLED`); app status to confirm with owner |
+| 19 | Facebook Login | **Removed from the app and the server on 2026-11-09** (owner decision). The website still has a Facebook button behind `NEXT_PUBLIC_FACEBOOK_AUTH_ENABLED`, off by default; nobody has to do anything for it | confirmed in repo |
 | 20 | Azure Communication Services (e-mail) | Sends e-mail from the API (announcements, notices) | confirmed in repo |
 | 21 | Expo Push service, Apple APNs, Google FCM | Push notifications for comment replies. New, off unless `PUSH_ENABLED` is true | confirmed in repo (new code, not yet deployed: to confirm) |
 | 22 | Expo / EAS | Builds the Android and iOS apps in the cloud, stores signing keys, holds EAS env vars | confirmed in repo |
@@ -86,7 +86,6 @@ downloads**. Treat it as published. That is fine for identifiers, never fine for
 | `EXPO_PUBLIC_WEB_BASE_URL` | Address of the website (share links) | Public address | confirmed in repo |
 | `EXPO_PUBLIC_AZURE_CLIENT_ID`, `EXPO_PUBLIC_AZURE_TENANT_ID` | Identify our Microsoft app registration | Identifiers, no password | confirmed in repo |
 | `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (web), `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | Identify our Google sign-in clients | Google designs these to be public | confirmed in repo |
-| `EXPO_PUBLIC_FACEBOOK_APP_ID`, `EXPO_PUBLIC_FACEBOOK_AUTH_ENABLED` | Facebook app id and an on/off switch | The app id is public; the Facebook **app secret** must never be placed in the app | confirmed in repo |
 | `EXPO_PUBLIC_MOCKUP_DATA` | Developer switch for fake data | Not sensitive | confirmed in repo |
 | `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_AUTH_ENABLED`, `NEXT_PUBLIC_LOCAL_AUTH_ENABLED`, `NEXT_PUBLIC_WEB_MICROSOFT_SIGNIN_ENABLED` | Website addresses and switches | Visible in the page source anyway | confirmed in repo |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_FACEBOOK_APP_ID`, `NEXT_PUBLIC_FACEBOOK_AUTH_ENABLED` | Website sign-in identifiers | Same as the app ones | confirmed in repo |
@@ -333,9 +332,10 @@ General rule for every rotation:
 
 ### 4.12 Facebook Login (service 19)
 
-- Owner: Dada (owner). Facebook developer account and app: to confirm with owner. Status: planned (phase 2), off by default.
-- Secrets: none in the repo today. If it is turned on, the Facebook **app secret** must be kept on the server only, never in the app.
-- Rotate: developers.facebook.com, the app, Settings, Basic, Reset app secret. What breaks: Facebook sign-in on the site.
+- Owner: Dada (owner). Status: removed from the app and the API on 2026-11-09. Nothing in the repo uses a Facebook secret any more.
+- If a Facebook developer app was ever created for this, it can be deleted at developers.facebook.com (the app, Settings, Advanced, Delete app). Nothing breaks: the app and the server no longer call it.
+- The website still contains a Facebook button, switched off by `NEXT_PUBLIC_FACEBOOK_AUTH_ENABLED=false`. Leave it off. Removing the website code is the web team's file set and was not touched.
+- Sharing a song to Facebook (the share sheet) is not a sign-in and stays.
 
 ### 4.13 Azure Communication Services e-mail (service 20)
 
@@ -474,7 +474,7 @@ What I could not check: git history. A secret deleted from a file can still sit 
 6. Is the Docker Hub image repository private?
 7. Who else has access to: GitHub, Azure, Neon, Expo, Apple, Google Play, Cloudflare, the domain registrar, the support mailbox?
 8. Which account holds the domain `prabhatasamgiita.org`, and where does DNS live?
-9. Are Sentry, Expo push (APNs, FCM) and Facebook Login really planned, and by when?
+9. Are Sentry and Expo push (APNs, FCM) really planned, and by when? (Facebook Login was dropped on 2026-11-09.)
 10. Is the production `MEMBER_PROXY_KEY` random, or the value derived from the database address (section 7)?
 11. Do any secrets live only in the GitHub `production` environment instead of the repository level?
 

@@ -23,7 +23,6 @@ const {
   signOutWithMicrosoft,
   signInWithGoogle,
   signOutWithGoogle,
-  signInWithFacebook,
   signInWithApple,
   loginWithEmail,
   registerWithEmail,
@@ -35,7 +34,6 @@ const {
   signOutWithMicrosoft: vi.fn(async () => undefined),
   signInWithGoogle: vi.fn(),
   signOutWithGoogle: vi.fn(async () => undefined),
-  signInWithFacebook: vi.fn(),
   signInWithApple: vi.fn(),
   loginWithEmail: vi.fn(),
   registerWithEmail: vi.fn(),
@@ -55,11 +53,6 @@ vi.mock("@/lib/googleAuth", () => ({
   googleAuthConfigured: () => true,
   signInWithGoogle,
   signOutWithGoogle,
-}))
-
-vi.mock("@/lib/facebookAuth", () => ({
-  facebookAuthConfigured: () => true,
-  signInWithFacebook,
 }))
 
 vi.mock("@/lib/appleAuth", () => ({
@@ -90,7 +83,6 @@ import {
   completeMemberSignOut,
   signInMember,
   signInWithEmailPassword,
-  signInWithFacebookAccount,
   signInWithAppleAccount,
   signInWithGoogleAccount,
   signOutMember,
@@ -207,28 +199,10 @@ describe("mobile auth lifecycle (all providers)", () => {
       })
     })
 
-    it("signs in with Facebook", async () => {
-      signInWithFacebook.mockResolvedValue({
-        id: "fb-1",
-        email: "fb@example.com",
-        displayName: "FB Member",
-        provider: "facebook",
-      })
-      fetchMemberSession.mockResolvedValue(
-        syncedMemberSession({
-          email: "fb@example.com",
-          identity_provider: "facebook",
-        }),
-      )
-
-      await signInWithFacebookAccount()
-
-      expect(useAuthStore.getState()).toMatchObject({
-        mode: "signed_in",
-        email: "fb@example.com",
-        memberId: "fb-1",
-        identityProvider: "facebook",
-      })
+    it("has no Facebook sign-in any more", async () => {
+      const session = await import("@/lib/session")
+      expect("signInWithFacebookAccount" in session).toBe(false)
+      expect("facebookAuthConfigured" in session).toBe(false)
     })
 
     it("signs in with Apple", async () => {
@@ -341,6 +315,7 @@ describe("mobile auth lifecycle (all providers)", () => {
     it.each([
       { provider: "aad", email: "ms@example.com", memberId: "oid-ms" },
       { provider: "google", email: "google@example.com", memberId: "gid-1" },
+      // an account made through Facebook before it was removed still signs out cleanly
       { provider: "facebook", email: "fb@example.com", memberId: "fb-1" },
       { provider: "apple", email: "member@privaterelay.appleid.com", memberId: "apple-1" },
       { provider: "local", email: "email@example.com", memberId: "local-oid" },

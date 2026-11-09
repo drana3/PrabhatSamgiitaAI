@@ -15,21 +15,18 @@ export type ProviderFlags = {
   apple: boolean
   google: boolean
   microsoft: boolean
-  facebook: boolean
 }
 
 /**
  * Providers shown on the page. Apple and Google follow the app's own config (`appleSignInOffered`,
  * `googleAuthConfigured`); the web preview shows them too, but only as a mock that never calls the
- * real sign-in. Microsoft shows only when configured (not in the preview); Facebook only when configured
- * and switched on by its env flag.
+ * real sign-in. Microsoft shows only when configured (not in the preview). There is no Facebook sign-in (removed 2026-11-09).
  */
 export function visibleProviders(real: ProviderFlags, preview: boolean): ProviderFlags {
   return {
     apple: real.apple || preview,
     google: real.google || preview,
     microsoft: real.microsoft && !preview,
-    facebook: real.facebook,
   }
 }
 

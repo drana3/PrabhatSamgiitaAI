@@ -3,7 +3,6 @@ import * as AppleAuthentication from "expo-apple-authentication"
 import { Platform } from "react-native"
 
 import { isApplePrivateRelayEmail, isGenericMemberLabel } from "@/lib/displayName"
-import { facebookAuthConfigured } from "@/lib/facebookAuth"
 import { googleAuthConfigured } from "@/lib/googleOAuthConfig"
 import { microsoftAuthConfigured } from "@/lib/msal"
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
@@ -46,9 +45,7 @@ export function appleAuthConfigured() {
 /** App Store 4.8: offer Sign in with Apple when other third-party login is shown on iOS. */
 export function appleSignInOffered() {
   if (!appleAuthConfigured()) return false
-  return (
-    microsoftAuthConfigured() || googleAuthConfigured() || facebookAuthConfigured()
-  )
+  return microsoftAuthConfigured() || googleAuthConfigured()
 }
 
 function displayNameFromApple(

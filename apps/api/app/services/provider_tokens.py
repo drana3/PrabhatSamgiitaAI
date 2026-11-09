@@ -1,12 +1,15 @@
-"""Check a sign-in proof from Google, Apple, Microsoft or Facebook on the server.
+"""Check a sign-in proof from Google, Apple or Microsoft on the server.
 
-The phone signs in with the provider and gets a signed ID token (Facebook: an access token). It
+The phone signs in with the provider and gets a signed ID token. It
 sends the token here once; the server checks the signature against the provider's public keys, the
 issuer, the audience (our own client ids), the expiry, and only then says "this really is that
 person". Nothing the phone writes by itself is believed (docs/security-member-auth.md).
 
-The network is reached through two small hooks (`JwksFetcher`, `JsonFetcher`) so the tests can run
-offline with keys they generate.
+The network is reached through a small hook (`JwksFetcher`) so the tests can run offline with keys
+they generate.
+
+Facebook sign-in was removed on 9 November 2026 (docs/sign-in-setup.md). A request that still says
+"facebook" gets "unknown provider". Accounts made through Facebook earlier stay in the database.
 """
 
 from __future__ import annotations
@@ -30,10 +33,9 @@ GOOGLE_JWKS = "https://www.googleapis.com/oauth2/v3/certs"
 APPLE_JWKS = "https://appleid.apple.com/auth/keys"
 MICROSOFT_JWKS = "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 JWKS_TTL_SECONDS = 3600
-SUPPORTED = ("google", "apple", "aad", "facebook")
+SUPPORTED = ("google", "apple", "aad")
 
 JwksFetcher = Callable[[str], Awaitable[dict[str, Any]]]
-JsonFetcher = Callable[[str, dict[str, str]], Awaitable[dict[str, Any]]]
 
 
 class ProviderTokenError(Exception):
@@ -65,10 +67,6 @@ async def _http_json(url: str, params: dict[str, str] | None = None) -> dict[str
 
 async def _default_jwks(url: str) -> dict[str, Any]:
     return await _http_json(url)
-
-
-async def _default_json(url: str, params: dict[str, str]) -> dict[str, Any]:
-    return await _http_json(url, params)
 
 
 class JwksCache:
@@ -111,12 +109,6 @@ class JwksCache:
 
 
 jwks_cache = JwksCache()
-json_fetcher: JsonFetcher = _default_json
-
-
-def set_json_fetcher(fetcher: JsonFetcher | None) -> None:
-    global json_fetcher
-    json_fetcher = fetcher or _default_json
 
 
 def _csv(value: str) -> list[str]:
@@ -127,11 +119,47 @@ def _truthy(value: Any) -> bool:
     return value is True or str(value).casefold() == "true"
 
 
+# Which setting each provider needs on the server. The ids are public values (not secrets).
+REQUIRED_SETTING = {
+    "google": "GOOGLE_OAUTH_CLIENT_IDS",
+    "apple": "APPLE_BUNDLE_IDS",
+    "aad": "AZURE_CLIENT_IDS",
+}
+
+
+def sign_in_setup_report(settings: Settings | None = None) -> dict[str, dict[str, Any]]:
+    """For each provider: is it set up on this server, and which setting is missing. No values."""
+    settings = settings or get_settings()
+    ids = {
+        "google": _csv(settings.google_oauth_client_ids),
+        "apple": _csv(settings.apple_bundle_ids),
+        "aad": _csv(settings.azure_client_ids),
+    }
+    return {
+        provider: {
+            "configured": bool(values),
+            "setting": REQUIRED_SETTING[provider],
+            "count": len(values),
+        }
+        for provider, values in ids.items()
+    }
+
+
 async def _decode(
-    token: str, *, jwks_url: str, audiences: list[str], issuers: list[str] | None
+    token: str,
+    *,
+    provider: str,
+    jwks_url: str,
+    audiences: list[str],
+    issuers: list[str] | None,
 ) -> dict[str, Any]:
     if not audiences:
-        raise ProviderTokenError("this sign-in is not configured on the server", status=503)
+        # Say exactly what is missing (in the log and in the answer); never a vague failure.
+        setting = REQUIRED_SETTING[provider]
+        logger.error("%s sign-in is not set up: the server setting %s is empty", provider, setting)
+        raise ProviderTokenError(
+            f"{provider} sign-in is not configured on the server: set {setting}", status=503
+        )
     try:
         header = jwt.get_unverified_header(token)
     except jwt.PyJWTError as exc:
@@ -171,6 +199,7 @@ def _check_nonce(payload: dict[str, Any], nonce: str | None) -> None:
 async def _google(token: str, nonce: str | None, settings: Settings) -> VerifiedProviderIdentity:
     payload = await _decode(
         token,
+        provider="google",
         jwks_url=GOOGLE_JWKS,
         audiences=_csv(settings.google_oauth_client_ids),
         issuers=["https://accounts.google.com", "accounts.google.com"],
@@ -191,6 +220,7 @@ async def _google(token: str, nonce: str | None, settings: Settings) -> Verified
 async def _apple(token: str, nonce: str | None, settings: Settings) -> VerifiedProviderIdentity:
     payload = await _decode(
         token,
+        provider="apple",
         jwks_url=APPLE_JWKS,
         audiences=_csv(settings.apple_bundle_ids),
         issuers=["https://appleid.apple.com"],
@@ -210,7 +240,11 @@ async def _microsoft(token: str, nonce: str | None, settings: Settings) -> Verif
     # The issuer carries the tenant id, so it is compared after the signature check, against
     # the tid claim.
     payload = await _decode(
-        token, jwks_url=MICROSOFT_JWKS, audiences=_csv(settings.azure_client_ids), issuers=None
+        token,
+        provider="aad",
+        jwks_url=MICROSOFT_JWKS,
+        audiences=_csv(settings.azure_client_ids),
+        issuers=None,
     )
     tenant = str(payload.get("tid") or "")
     if not tenant or payload.get("iss") != f"https://login.microsoftonline.com/{tenant}/v2.0":
@@ -239,54 +273,16 @@ async def _microsoft(token: str, nonce: str | None, settings: Settings) -> Verif
     )
 
 
-async def _facebook(access_token: str, settings: Settings) -> VerifiedProviderIdentity:
-    app_id, app_secret = settings.facebook_app_id, settings.facebook_app_secret
-    if not app_id or not app_secret:
-        raise ProviderTokenError("this sign-in is not configured on the server", status=503)
-    try:
-        debug = await json_fetcher(
-            "https://graph.facebook.com/debug_token",
-            {"input_token": access_token, "access_token": f"{app_id}|{app_secret}"},
-        )
-        data = debug.get("data") or {}
-        if not data.get("is_valid") or str(data.get("app_id")) != str(app_id):
-            raise ProviderTokenError("facebook token is not valid for this app")
-        profile = await json_fetcher(
-            "https://graph.facebook.com/me",
-            {"fields": "id,name,email", "access_token": access_token},
-        )
-    except ProviderTokenError:
-        raise
-    except Exception as exc:
-        logger.warning("facebook check failed: %s", type(exc).__name__)
-        raise ProviderTokenError("sign-in provider is unreachable", status=503) from exc
-    if str(profile.get("id")) != str(data.get("user_id")) or not profile.get("id"):
-        raise ProviderTokenError("facebook token belongs to another person")
-    email = str(profile.get("email") or "").strip() or None
-    return VerifiedProviderIdentity(
-        provider="facebook",
-        subject=str(profile["id"]),
-        email=email,
-        email_verified=False,  # Facebook e-mails are not promised verified
-        display_name=str(profile.get("name") or email or "Facebook member")[:255],
-    )
-
-
 async def verify_provider_token(
     provider: str,
     *,
     id_token: str | None,
-    access_token: str | None,
     nonce: str | None,
     settings: Settings | None = None,
 ) -> VerifiedProviderIdentity:
     settings = settings or get_settings()
     if provider not in SUPPORTED:
         raise ProviderTokenError("unknown provider", status=422)
-    if provider == "facebook":
-        if not access_token:
-            raise ProviderTokenError("an access token is required", status=422)
-        return await _facebook(access_token, settings)
     if not id_token or len(id_token) > 8192:
         raise ProviderTokenError("an id token is required", status=422)
     if provider == "google":

@@ -66,16 +66,18 @@ async def exchange(
         proof = await verify_provider_token(
             payload.provider.casefold(),
             id_token=payload.id_token,
-            access_token=payload.access_token,
             nonce=payload.nonce,
         )
     except ProviderTokenError as exc:
         logger.info("provider sign-in refused (%s): %s", payload.provider, exc.reason)
-        detail = (
-            "Sign-in could not be checked right now"
-            if exc.status >= 500
-            else "Sign-in proof was not accepted"
-        )
+        if "is not configured on the server" in exc.reason:
+            # The server owner has not filled in the ids yet (docs/sign-in-setup.md). The log names
+            # the setting; the phone only learns that this provider is not ready.
+            detail = f"{payload.provider.capitalize()} sign-in is not set up on this server yet"
+        elif exc.status >= 500:
+            detail = "Sign-in could not be checked right now"
+        else:
+            detail = "Sign-in proof was not accepted"
         raise HTTPException(status_code=exc.status, detail=detail) from exc
     identity = MemberIdentity(
         subject=f"{proof.provider}:{proof.subject}",

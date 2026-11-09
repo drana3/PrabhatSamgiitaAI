@@ -2,7 +2,7 @@ export type OAuthIdentity = {
   id: string
   email: string | null
   displayName: string
-  provider: "google" | "facebook" | "aad" | "apple" | "local"
+  provider: "google" | "aad" | "apple" | "local"
   /** Profile picture the provider gave (https URL), when it gave one. */
   photoUrl?: string | null
   /**
@@ -10,8 +10,6 @@ export type OAuthIdentity = {
    * and hands back our session tokens (lib/memberSession.ts). Never stored, never logged.
    */
   idToken?: string | null
-  /** Facebook has no ID token: its access token is the proof. */
-  accessToken?: string | null
 }
 
 export type AuthSessionPayload = {

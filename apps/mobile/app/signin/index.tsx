@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { openExternal } from "@/lib/openLink"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
-import { AppleMark, FacebookMark, GoogleMark, MicrosoftMark } from "@/components/account/BrandMarks"
+import { AppleMark, GoogleMark, MicrosoftMark } from "@/components/account/BrandMarks"
 import { PhoneField } from "@/components/account/PhoneField"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
@@ -25,7 +25,6 @@ import {
   type EmailMode,
   type EmailStep,
 } from "@/lib/auth/signInFlow"
-import { facebookAuthConfigured } from "@/lib/facebookAuth"
 import { googleAuthConfigured } from "@/lib/googleAuth"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import {
@@ -33,7 +32,6 @@ import {
   signInMember,
   signInWithAppleAccount,
   signInWithEmailPassword,
-  signInWithFacebookAccount,
   signInWithGoogleAccount,
   signUpWithEmailPassword,
 } from "@/lib/session"
@@ -42,7 +40,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
-type Busy = "apple" | "google" | "microsoft" | "facebook" | "email" | null
+type Busy = "apple" | "google" | "microsoft" | "email" | null
 type FieldKey = "email" | "password" | "name" | "phone"
 type SignInResult = { needsName?: boolean; needsPhone?: boolean }
 
@@ -52,7 +50,7 @@ const PREVIEW_EMAIL = "dada@example.com"
  * Sign in. Apple (black) and Google (white) first, then one email field. "Continue with email" goes to
  * the password step, which can switch to Create account (name, mobile number). The name and the Google
  * picture come from the provider (lib/session.ts finishSignIn); if no name arrives, complete-profile
- * asks once. "Not now" continues as a guest. Facebook stays in code and shows only when it is enabled.
+ * asks once. "Not now" continues as a guest. There is no Facebook sign-in.
  *
  * Preview only (EXPO_PUBLIC_MOCKUP_DATA=1): Apple and Google show as buttons but never call the real
  * sign-in, they end in a quiet error. `?state=` is `typed`, `password`, `signup`, `error` or `loading`.
@@ -78,7 +76,6 @@ export default function SignInScreen() {
           apple: appleSignInOffered(),
           google: googleAuthConfigured(),
           microsoft: microsoftAuthConfigured(),
-          facebook: facebookAuthConfigured(),
         },
         MOCKUP_DATA,
       ),
@@ -242,17 +239,6 @@ export default function SignInScreen() {
                   loading={busy === "microsoft"}
                   disabled={inactive && busy !== "microsoft"}
                   onPress={() => void run("microsoft", () => signInMember())}
-                />
-              ) : null}
-              {providers.facebook ? (
-                <AccountButton
-                  theme={theme}
-                  tone="white"
-                  label={t("account.continueWith", { provider: "Facebook" })}
-                  icon={<FacebookMark size={20} />}
-                  loading={busy === "facebook"}
-                  disabled={inactive && busy !== "facebook"}
-                  onPress={() => void run("facebook", () => signInWithFacebookAccount())}
                 />
               ) : null}
               {error?.where === "provider" ? (

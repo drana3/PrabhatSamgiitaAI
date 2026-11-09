@@ -2,7 +2,6 @@ import type { MemberProfile } from "@prabhat/core"
 import { Platform } from "react-native"
 
 import { api } from "@/lib/client"
-import { signInWithFacebook } from "@/lib/facebookAuth"
 import { googleAuthConfigured, signInWithGoogle, signOutWithGoogle } from "@/lib/googleAuth"
 import { loginWithEmail, registerWithEmail } from "@/lib/localAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
@@ -33,7 +32,6 @@ import { useProfileStore } from "@/stores/profileStore"
 
 export { microsoftAuthConfigured, getMicrosoftRedirectUri }
 export { googleAuthConfigured } from "@/lib/googleAuth"
-export { facebookAuthConfigured } from "@/lib/facebookAuth"
 
 async function hydrateFromSession() {
   const epoch = useAuthStore.getState().sessionEpoch
@@ -109,8 +107,7 @@ async function syncMemberData() {
 function exchangeProvider(identityProvider: string): ProviderProof["provider"] | null {
   return identityProvider === "google" ||
     identityProvider === "apple" ||
-    identityProvider === "aad" ||
-    identityProvider === "facebook"
+    identityProvider === "aad"
     ? identityProvider
     : null
 }
@@ -200,7 +197,7 @@ export async function signOutMember() {
   const before = useAuthStore.getState()
   const provider = before.identityProvider
   const accountId = useChatStore.getState().getAccountId(before.mode, before.email, before.memberId)
-  // Always clear local session first (email/password, Google, Microsoft, Facebook).
+  // Always clear local session first (email/password, Apple, Google, Microsoft).
   // In-flight Profile/AppState member sync must not revive the session after the alert.
   useAuthStore.getState().signOut()
   usePreferencesStore.getState().resetAfterSignOut()
@@ -252,17 +249,6 @@ export async function signInWithGoogleAccount() {
     identityProvider: identity.provider,
     photoUrl: identity.photoUrl,
     proof: { idToken: identity.idToken },
-  })
-}
-
-export async function signInWithFacebookAccount() {
-  const identity = await signInWithFacebook()
-  return finishSignIn({
-    displayName: identity.displayName,
-    email: identity.email,
-    memberId: identity.id,
-    identityProvider: identity.provider,
-    proof: { accessToken: identity.accessToken },
   })
 }
 

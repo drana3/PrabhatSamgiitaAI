@@ -279,7 +279,7 @@ def _identity_from_proxy_headers(request: Request) -> MemberIdentity:
     if web_key and provided_web and hmac.compare_digest(web_key, provided_web):
         trust = TRUST_WEB
     elif shared_key and provided_key and hmac.compare_digest(shared_key, provided_key):
-        if not settings.allow_legacy_member_principal:
+        if not settings.legacy_principal_allowed():
             raise HTTPException(
                 status_code=401, detail="This app version can no longer sign in. Please update."
             )

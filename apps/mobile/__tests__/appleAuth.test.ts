@@ -32,10 +32,6 @@ vi.mock("@/lib/googleOAuthConfig", () => ({
   googleAuthConfigured: () => false,
 }))
 
-vi.mock("@/lib/facebookAuth", () => ({
-  facebookAuthConfigured: () => false,
-}))
-
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
     getItem: vi.fn(async () => null),

@@ -48,11 +48,6 @@ vi.mock("@/lib/googleAuth", () => ({
   signOutWithGoogle: vi.fn(async () => undefined),
 }))
 
-vi.mock("@/lib/facebookAuth", () => ({
-  facebookAuthConfigured: () => false,
-  signInWithFacebook: vi.fn(),
-}))
-
 vi.mock("@/lib/localAuth", () => ({
   loginWithEmail: vi.fn(),
   registerWithEmail: vi.fn(),

@@ -317,7 +317,7 @@ Short form (forced sign-out only):
 
 > **Subject:** You have been signed out of [APP NAME]
 >
-> For your safety we signed everyone out of [APP NAME] on [DATE]. Please sign in again with [GOOGLE / APPLE / MICROSOFT / FACEBOOK / E-MAIL]. Your songs, favourites and progress are safe. We will never ask you for your password by e-mail.
+> For your safety we signed everyone out of [APP NAME] on [DATE]. Please sign in again with [GOOGLE / APPLE / E-MAIL]. Your songs, favourites and progress are safe. We will never ask you for your password by e-mail.
 > Questions: [SUPPORT E-MAIL].
 
 Full form (a data breach):

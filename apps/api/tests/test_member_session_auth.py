@@ -131,6 +131,40 @@ async def test_legacy_sign_in_can_be_switched_off(
     assert "update" in response.json()["detail"].lower()
 
 
+async def test_legacy_sign_in_stops_after_the_end_date(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """LEGACY_PRINCIPAL_UNTIL: the old shared key works up to and including that day (UTC)."""
+    use_settings(monkeypatch, make_settings(LEGACY_PRINCIPAL_UNTIL="2000-01-01"))
+    refused = await get(world, "/t/me", legacy_headers("plain-sub"))
+
+    use_settings(monkeypatch, make_settings(LEGACY_PRINCIPAL_UNTIL="2999-12-31"))
+    still_fine = await get(world, "/t/me", legacy_headers("plain-sub"))
+
+    assert refused.status_code == 401
+    assert "update" in refused.json()["detail"].lower()
+    assert still_fine.status_code == 200
+    # the website key and signed tokens do not depend on the date
+    use_settings(monkeypatch, make_settings(LEGACY_PRINCIPAL_UNTIL="2000-01-01"))
+    assert (await get(world, "/t/admin", web_headers("admin-sub"))).status_code == 200
+
+
+def test_legacy_end_date_is_inclusive() -> None:
+    from datetime import date
+
+    settings = make_settings(LEGACY_PRINCIPAL_UNTIL="2027-01-31")
+
+    assert settings.legacy_principal_allowed(date(2027, 1, 31)) is True
+    assert settings.legacy_principal_allowed(date(2027, 2, 1)) is False
+    assert make_settings().legacy_principal_allowed(date(2099, 1, 1)) is True
+    assert (
+        make_settings(ALLOW_LEGACY_MEMBER_PRINCIPAL="false").legacy_principal_allowed(
+            date(2020, 1, 1)
+        )
+        is False
+    )
+
+
 async def test_website_key_keeps_admin(world: World) -> None:
     assert (await get(world, "/t/admin", web_headers("admin-sub"))).status_code == 200
     assert (await get(world, "/t/admin", web_headers("plain-sub"))).status_code == 403

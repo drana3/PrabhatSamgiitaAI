@@ -1,3 +1,4 @@
+from datetime import UTC, date, datetime
 from functools import lru_cache
 
 from pydantic import Field
@@ -161,6 +162,9 @@ class Settings(BaseSettings):
     web_proxy_key: str | None = Field(default=None, alias="WEB_PROXY_KEY")
     # Old apps: shared key + self-made principal. true = still accepted as a plain member.
     allow_legacy_member_principal: bool = Field(default=True, alias="ALLOW_LEGACY_MEMBER_PRINCIPAL")
+    # Last day (UTC, YYYY-MM-DD) the old shared key still works for members. The day after, old app
+    # versions are refused with "please update". Empty = no end date (docs/decisions-security.md).
+    legacy_principal_until: date | None = Field(default=None, alias="LEGACY_PRINCIPAL_UNTIL")
     # Emergency switch: true = the shared key may again act as admin/team. Keep false.
     legacy_principal_admin: bool = Field(default=False, alias="LEGACY_PRINCIPAL_ADMIN")
     # Who may sign a token the server accepts (comma lists; the ids are public, not secrets).
@@ -169,8 +173,6 @@ class Settings(BaseSettings):
     azure_client_ids: str = Field(default="", alias="AZURE_CLIENT_IDS")
     # Microsoft tenants whose e-mail addresses we trust as verified (comma list of tenant ids).
     member_trusted_ms_tenants: str = Field(default="", alias="MEMBER_TRUSTED_MS_TENANTS")
-    facebook_app_id: str | None = Field(default=None, alias="FACEBOOK_APP_ID")
-    facebook_app_secret: str | None = Field(default=None, alias="FACEBOOK_APP_SECRET")
     # Recording links are signed with RECORDING_SIGNING_SECRET, or with the member secret. The old
     # fallback to the shared app key is off in production unless this is true.
     recording_signing_allow_proxy_key: bool = Field(
@@ -201,6 +203,14 @@ class Settings(BaseSettings):
     rate_limit_trusted_proxy_hops: int = Field(
         default=1, alias="RATE_LIMIT_TRUSTED_PROXY_HOPS", ge=0, le=5
     )
+
+    def legacy_principal_allowed(self, today: date | None = None) -> bool:
+        """May the old shared app key still act as a plain member right now?"""
+        if not self.allow_legacy_member_principal:
+            return False
+        if self.legacy_principal_until is None:
+            return True
+        return (today or datetime.now(UTC).date()) <= self.legacy_principal_until
 
 
 @lru_cache(maxsize=1)
