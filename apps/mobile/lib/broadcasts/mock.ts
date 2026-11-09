@@ -59,7 +59,7 @@ export function createBroadcastsMock(options: { now?: () => number } = {}): Broa
   }
   const items: Broadcast[] = [
     make(
-      { provider: "youtube", url: "https://www.youtube.com/watch?v=SampleId001", host: "youtube.com", title: "Evening Kiirtan, live from the sample ashram", organizer: "Sample Ashram", linkStatus: "ok", description: "Made-up sample data for the preview." },
+      { provider: "youtube", url: "https://www.youtube.com/watch?v=SampleId001", host: "youtube.com", title: "Evening Kiirtan, live from the sample ashram", organizer: "Sample Ashram", linkStatus: "ok", thumbnailUrl: "https://i.ytimg.com/vi/SampleId001/mqdefault.jpg", description: "Made-up sample data for the preview." },
       clock() - HOUR,
     ),
     make(
