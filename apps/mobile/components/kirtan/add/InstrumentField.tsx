@@ -10,8 +10,8 @@ export type InstrumentValue = { instrument: string | null; instrumentOther: stri
 const WORD = "word:"
 
 /**
- * "Main instrument": an optional field of every kind of music, as the compact picker with ONE choice: guitar, harmonium, piano, voice
- * only (a cappella), the words the team accepted from other people, and "add your own". A word that IS a listed instrument becomes it
+ * "Main instrument": an optional field of every kind of music, as ONE row (the value and a Choose / Change button, no chips) that opens
+ * the sheet with all sixteen instruments, the words the team accepted from other people, and "add your own". A word that IS a listed instrument becomes it
  * and one almost like it is offered as "Did you mean" (lib/kirtan/tags.ts and instruments.ts). Holds no state: the caller passes the
  * value and takes the change. Rules and the list: lib/kirtan/instruments.ts, docs/kiirtan-recording-info.md ("Add your own").
  */

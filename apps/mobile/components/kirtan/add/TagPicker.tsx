@@ -32,7 +32,7 @@ type Props = {
   labelOf: (id: string) => string
   value: TagValue
   onChange: (next: TagValue) => void
-  /** one choice only (the main instrument): a tap picks it and closes the sheet */
+  /** one choice only (the main instrument, which mantra): ONE row with the chosen value and a Choose / Change button, no chips; a tap in the sheet picks it and closes it */
   single?: boolean
   max?: number
   /** the listed id a typed word IS, so "electronic " becomes Electronic */
@@ -46,8 +46,8 @@ type Props = {
 
 /**
  * The compact tag field (Dada, 9 Nov 2026): ONE line on the form, however many values are chosen. Tap it and a bottom sheet opens with a
- * search box and a scrollable list; chosen values are one line of chips plus a "+". Used for Style, Mood and the main instrument, which
- * used to be three walls of wrapped chips.
+ * search box and a scrollable list; chosen values are one line of chips plus a "+". Style and Mood use it; the single choices (the main
+ * instrument, which mantra) show one row with the value and a Choose / Change button instead of chips (Dada, 9 Nov 2026).
  *
  * Inside the sheet one box does two jobs: it filters the list, and when what was typed is not on the list a row "Add “word”" turns it into
  * the person's own word. So there is no second input next to a group of chips (docs/layout-rules.md, "An input beside a group of tags").
@@ -121,29 +121,42 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
         pressedScale={0.98}
         style={[s.rail, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : theme.line }]}
       >
-        <View style={s.railChips}>
-          {shown.length ? (
-            shown.map((c) => (
-              <View key={c.key} style={[s.chip, s.chipOn, { backgroundColor: theme.brand, borderColor: theme.brand }]}>
-                <Text numberOfLines={1} style={[s.chipText, { color: theme.onBrand }]}>
-                  {c.label}
-                </Text>
-              </View>
-            ))
-          ) : (
-            <Text numberOfLines={1} style={[s.placeholder, { color: theme.textMuted }]}>
-              {t("picker.none")}
+        {single ? (
+          <>
+            <Text numberOfLines={1} style={[chips.length ? s.value : s.placeholder, { color: chips.length ? theme.textHeading : theme.textMuted, flex: 1 }]}>
+              {summary}
             </Text>
-          )}
-          {more > 0 ? (
-            <View style={[s.chip, { backgroundColor: theme.card, borderColor: theme.line }]}>
-              <Text style={[s.chipText, { color: theme.textHeading }]}>{`+${more}`}</Text>
+            <View style={[s.choose, { backgroundColor: theme.brand }]}>
+              <Text style={[s.chooseText, { color: theme.onBrand }]}>{chips.length ? t("picker.change") : t("picker.choose")}</Text>
             </View>
-          ) : null}
-        </View>
-        <View style={[s.plus, { backgroundColor: theme.brand }]}>
-          <Plus size={18} color={theme.onBrand} />
-        </View>
+          </>
+        ) : (
+          <>
+            <View style={s.railChips}>
+              {shown.length ? (
+                shown.map((c) => (
+                  <View key={c.key} style={[s.chip, s.chipOn, { backgroundColor: theme.brand, borderColor: theme.brand }]}>
+                    <Text numberOfLines={1} style={[s.chipText, { color: theme.onBrand }]}>
+                      {c.label}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text numberOfLines={1} style={[s.placeholder, { color: theme.textMuted }]}>
+                  {t("picker.none")}
+                </Text>
+              )}
+              {more > 0 ? (
+                <View style={[s.chip, { backgroundColor: theme.card, borderColor: theme.line }]}>
+                  <Text style={[s.chipText, { color: theme.textHeading }]}>{`+${more}`}</Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={[s.plus, { backgroundColor: theme.brand }]}>
+              <Plus size={18} color={theme.onBrand} />
+            </View>
+          </>
+        )}
       </Press>
       {errorText ? <FieldError theme={theme} text={errorText} /> : null}
 
@@ -255,6 +268,9 @@ const s = StyleSheet.create({
   chip: { minHeight: 32, paddingHorizontal: 12, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center", flexShrink: 1 },
   chipOn: {},
   chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
+  value: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 22 },
+  choose: { minHeight: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },
+  chooseText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   plus: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   sheetBody: { gap: 12, paddingHorizontal: 10 },
   search: { minHeight: 48, borderRadius: 16, borderWidth: 1, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },

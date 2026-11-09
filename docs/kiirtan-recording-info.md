@@ -27,7 +27,7 @@ on both sides plus a label in en, ru, es: no migration.
 * **Own words are not public until the team accepts them** (same rule as `lead_instrument_other`): the writer sees their word at
   once, a stranger sees it only after the matching suggestion (`value_suggestions`, field `style` or `mood`) is accepted. One shared
   resolution path for every moderation route.
-* **Lead instrument**: guitar, harmonium, piano, voice only (a cappella), plus "add your own".
+* **Lead instrument**: ONE choice, shown as one row (the chosen value and a Choose / Change button, no chips). The button opens the white sheet with a search box and a scrollable list of all sixteen instruments (guitar, harmonium, piano, synthesizer and keyboard marked electronic, tabla, dholak, khol, kartal, flute, violin, sitar, esraj, bass guitar, ukulele, voice only), and "Add your own" inside the sheet (own words wait for the team, as before).
 * **Place** where it was recorded or performed: optional, in "More details", for every kind.
 * **Compact picker** (`components/kirtan/add/TagPicker.tsx`): Style, Mood and Main instrument show as one line of chosen chips and a
   "+"; a tap opens a bottom sheet with a scrollable list and a search box. The search box doubles as "add your own", so no text input

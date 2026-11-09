@@ -4028,7 +4028,9 @@
     "style.african": false,
     "style.electronic": false,
     "style.indian": false,
-    "style.western": false
+    "style.western": false,
+    "picker.choose": false,
+    "picker.change": false
   },
   "es": {
     "chordOffer.instrument.piano": false,
@@ -7873,7 +7875,9 @@
     "style.african": false,
     "style.electronic": false,
     "style.indian": false,
-    "style.western": false
+    "style.western": false,
+    "picker.choose": false,
+    "picker.change": false
   },
   "_languages": {
     "hi": "не переведено",

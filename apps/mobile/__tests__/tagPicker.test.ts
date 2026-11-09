@@ -78,12 +78,13 @@ describe("tags", () => {
 })
 
 describe("the main instrument's list on the form", () => {
-  it("offers guitar, harmonium, piano and voice only (a cappella); the others stay valid", () => {
-    expect([...FORM_INSTRUMENT_IDS]).toEqual(["guitar", "harmonium", "piano", "voice_only"])
-    expect(formInstrumentChoices().map((c) => c.id)).toEqual(["guitar", "harmonium", "piano", "voice_only"])
+  it("offers all sixteen instruments in the sheet, in the API's order; own words are added inside the sheet", () => {
+    expect([...FORM_INSTRUMENT_IDS]).toEqual([...INSTRUMENT_IDS])
+    expect(formInstrumentChoices()).toHaveLength(16)
+    expect(formInstrumentChoices().map((c) => c.id)).toEqual([...INSTRUMENT_IDS])
     expect(formInstrumentChoices().find((c) => c.id === "voice_only")!.label).toBe("Voice only (a cappella)")
-    for (const id of FORM_INSTRUMENT_IDS) expect(INSTRUMENT_IDS).toContain(id)
-    expect(INSTRUMENT_IDS).toContain("tabla") // an old recording or a typed "tabla" still works
+    expect(formInstrumentChoices().find((c) => c.id === "synthesizer")!.label).toContain("electronic")
+    expect(formInstrumentChoices().find((c) => c.id === "tabla")).toBeTruthy()
   })
 
   it("the styles on the form are Dada's five", () => {
