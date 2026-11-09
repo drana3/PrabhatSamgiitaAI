@@ -76,7 +76,7 @@ class AdminRecordingCommentOut(BaseModel):
     is_anonymous: bool
     status: Literal["published", "removed"]
     reports_count: int
-    author_id: UUID
+    author_id: UUID | None = None  # null once the author deleted the account
     author_name: str
     removed_reason: str | None = None
     # set for a reply: the top-level comment it hangs under

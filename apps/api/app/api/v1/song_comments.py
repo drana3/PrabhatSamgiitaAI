@@ -31,6 +31,7 @@ from app.schemas.song_comments import (
     SongCommentOut,
 )
 from app.services import song_comments as service
+from app.services import comment_threads as threads
 from app.services.comment_threads import page_for_new
 from app.services.members import require_member_identity, sync_member, try_member_identity
 from app.services.recordings import is_team_member
@@ -181,7 +182,7 @@ async def keep_comment(
         raise HTTPException(status_code=403, detail="Only the team can do this.")
     comment = await get_comment(session, comment_id)
     await service.keep(session, comment)
-    return service.admin_out(comment, await session.get(UserAccount, comment.member_id))
+    return service.admin_out(comment, await threads.author_of(session, comment))
 
 
 @router.post("/{comment_id}/restore", response_model=AdminSongCommentOut)
@@ -193,7 +194,7 @@ async def restore_comment(
         raise HTTPException(status_code=403, detail="Only the team can do this.")
     comment = await get_comment(session, comment_id)
     await service.restore(session, comment)
-    return service.admin_out(comment, await session.get(UserAccount, comment.member_id))
+    return service.admin_out(comment, await threads.author_of(session, comment))
 
 
 @router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)

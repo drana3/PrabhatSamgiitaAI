@@ -31,6 +31,7 @@ from app.schemas.member import (
     QuizSubmitWrite,
 )
 from app.services.author_profiles import erase_member as erase_author_data
+from app.services.comment_authors import keep_comments_under_name
 from app.services.member_phone import set_member_phone
 from app.services.members import (
     clear_member_chat_memory,
@@ -287,6 +288,8 @@ async def delete_member_data(request: Request, session: DatabaseSession) -> Resp
     # the author page (its address is held back for a while) and the member's raw listening
     # rows go first
     await erase_author_data(session, member, get_settings())
+    # the member's comments stay, under the name they had (docs/account-deletion.md)
+    await keep_comments_under_name(session, member)
     # every signed-in device goes with the account (the database cascade would do it too; this
     # does not depend on it, and a deleted session row also makes the access token worthless)
     await session.execute(delete(MemberSession).where(MemberSession.user_id == member.id))

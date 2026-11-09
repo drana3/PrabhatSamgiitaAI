@@ -127,7 +127,7 @@ export const es: Dictionary = {
   "profile.clearChat.partialTitle": "No se borró en línea",
   "profile.clearChat.partialBody": "Se borró en este dispositivo. Inténtalo más tarde para borrarla también en tu cuenta.",
   "profile.delete.title": "¿Eliminar los datos de la cuenta?",
-  "profile.delete.body": "Se eliminarán de forma permanente tu perfil de miembro, tus canciones guardadas, tu progreso en los cuestionarios y tu historial de chat. No se puede deshacer.",
+  "profile.delete.body": "Se eliminarán de forma permanente tu perfil de miembro, tus canciones guardadas, tu progreso en los cuestionarios y tu historial de chat. Tus comentarios se quedan, con tu nombre, igual que las grabaciones que subiste. No se puede deshacer.",
   "profile.delete.confirm": "Eliminar mis datos",
   "profile.delete.failTitle": "No se pudo eliminar en línea",
   "profile.delete.failBody": "Tus datos siguen en el servidor. Inténtalo de nuevo.",

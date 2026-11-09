@@ -191,6 +191,26 @@ async def page_for_new(session: AsyncSession, model: Any, comment: Any) -> Threa
     return page
 
 
+def shown_author(comment: Any, author: UserAccount | None) -> CommentAuthor | None:
+    """Who is named beside a comment. Nobody for an anonymous comment. While the account exists:
+    its name and picture. After the author deleted the account: the name the comment kept
+    (`author_name`), without a picture, so the comment stays under that name like a recording."""
+    if comment.is_anonymous:
+        return None
+    if author is not None:
+        return CommentAuthor(name=display_name(author), avatar_url=author.avatar_url)
+    if comment.author_name:
+        return CommentAuthor(name=comment.author_name)
+    return None
+
+
+async def author_of(session: AsyncSession, comment: Any) -> UserAccount | None:
+    """The account behind a comment, or None when its author deleted the account."""
+    if comment.member_id is None:
+        return None
+    return await session.get(UserAccount, comment.member_id)
+
+
 def reply_to_of(comment: Any, answered: dict[UUID, Row]) -> ReplyTo | None:
     """ "to Name" for a reply that answers another reply. An anonymous reply is never named."""
     if comment.reply_to_id is None:
@@ -199,9 +219,8 @@ def reply_to_of(comment: Any, answered: dict[UUID, Row]) -> ReplyTo | None:
     if row is None or row[0].status != "published":
         return ReplyTo(deleted=True)
     target, author = row
-    if target.is_anonymous or author is None:
-        return ReplyTo()
-    return ReplyTo(name=display_name(author))
+    named = shown_author(target, author)
+    return ReplyTo(name=named.name) if named else ReplyTo()
 
 
 async def add_reply_notice(
@@ -226,6 +245,7 @@ async def add_reply_notice(
     if (
         addressed is None
         or addressed.status != "published"
+        or addressed.member_id is None  # its author deleted the account: nobody to tell
         or addressed.member_id == comment.member_id
     ):
         return None
@@ -269,9 +289,7 @@ def render(
     if is_tombstone(comment):
         shown, body, anonymous, mine, can_remove, deleted = None, "", True, False, False, True
     else:
-        shown = None
-        if not comment.is_anonymous and author is not None:
-            shown = CommentAuthor(name=display_name(author), avatar_url=author.avatar_url)
+        shown = shown_author(comment, author)
         body, anonymous, deleted = comment.body, comment.is_anonymous, False
         mine = viewer_id is not None and comment.member_id == viewer_id
         can_remove = team

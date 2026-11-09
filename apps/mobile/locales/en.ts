@@ -133,7 +133,7 @@ export const en = {
   "profile.clearChat.partialTitle": "Not cleared online",
   "profile.clearChat.partialBody": "It was cleared on this device. Try again later to clear it on your account.",
   "profile.delete.title": "Delete account data?",
-  "profile.delete.body": "This permanently removes your member profile, saved songs, quiz progress and chat history. This cannot be undone.",
+  "profile.delete.body": "This permanently removes your member profile, saved songs, quiz progress and chat history. Comments you wrote stay, under your name, and so do recordings you uploaded. This cannot be undone.",
   "profile.delete.confirm": "Delete my data",
   "profile.delete.failTitle": "Could not delete online",
   "profile.delete.failBody": "Your data is still on the server. Please try again.",

@@ -29,16 +29,40 @@ Recordings stay in the library with the author name. Personal data is deleted.
 | Play counters and daily totals | not personal data, no account link |
 | Takedown notices and counter-notices | a legal record: `takedown_requests.sender_member_id` is set to null, but the sender's name and contact details written in the notice stay with the case (see `docs/takedown-process.md`). Open question for the owner and a lawyer: how long to keep them. |
 
-## Comments (current rule, not a decision)
+## Comments (decision of Dada, 9 November 2026: they stay)
 
-Comments are deleted together with the account: `song_comments.member_id` and
-`recording_comments.member_id` are `ON DELETE CASCADE`, and replies hang under their parent with
-cascade too. So deleting an account also deletes the replies it wrote under other people's
-comments, and nobody else's comment is touched.
+A comment stays when its author deletes the account, under the name the person had, the same way
+a recording stays under its author's name.
 
-Open question for the owner: should comments instead stay under the name, like recordings do?
-That would need the foreign keys changed to `SET NULL` and a stored name on the comment. It is a
-product and privacy choice, so nothing was changed.
+How it works:
+
+- `song_comments.member_id` and `recording_comments.member_id` are nullable and `ON DELETE SET NULL`
+  (migration `0065_comments_survive_account_deletion`). Both tables also have `author_name`
+  (up to 80 characters).
+- `DELETE /v1/members/me` (`delete_member_data`) calls `keep_comments_under_name` (`app/services/comment_authors.py`)
+  before the account row goes. It copies the display name into `author_name` for every NAMED
+  comment, top-level and replies. After that the database sets `member_id` to null.
+- An anonymous comment stays anonymous: it gets no name and is shown as before.
+- Replies hang under their parent as before (`parent_id` is still `ON DELETE CASCADE`): deleting
+  a person does not delete the thread under their comment. Deleting the parent comment itself
+  (a moderator action, not an account deletion) still deletes the replies.
+- The person is no longer linked: the app shows the name as plain text, no profile link, and the
+  author cannot be notified about replies (the reply notice is skipped when the addressed comment
+  has no account).
+- Admin lists show `author_id: null` and the stored name.
+
+What the person is told: the confirm dialog (`profile.delete.body`, en/ru/es; ru/es unreviewed in
+`locales/review.json`) and the privacy page say that comments stay under the name.
+
+Limits, said plainly:
+
+- Existing rows are not touched by the migration. Comments written before the deletion keep
+  their normal link until the account goes.
+- A person who wants one comment gone must delete it before deleting the account (comment menu),
+  or write to the team. There is no "delete my comments too" switch yet.
+- Migration tests run on SQLite. PostgreSQL was NOT checked: run `alembic upgrade head` on a
+  copy of the production database before the deploy. Downgrade deletes the comments that lost
+  their account, because the old schema cannot hold them.
 
 ## After deletion
 

@@ -646,6 +646,13 @@ def test_the_migration_builds_the_tables_runs_twice_and_matches_the_model() -> N
     later = importlib.util.module_from_spec(replies)
     replies.loader.exec_module(later)
     run(engine, later.upgrade)  # the reply columns come with 0037
+    kept = importlib.util.spec_from_file_location(
+        "m0065", VERSIONS / "0065_comments_survive_account_deletion.py"
+    )
+    assert kept and kept.loader
+    kept_module = importlib.util.module_from_spec(kept)
+    kept.loader.exec_module(kept_module)
+    run(engine, kept_module.upgrade)  # the author name column comes with 0065
     inspector = sa.inspect(engine)
     for model in (SongComment, SongCommentReport):
         table = cast(Table, model.__table__)

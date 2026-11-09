@@ -29,6 +29,7 @@ from app.services.recordings import now_utc
 from app.services.song_comments import (
     AUTHOR_DELETED_BODY,
     AUTHOR_DELETED_BY,
+    FALLBACK_NAME,
     POSTS_PER_MINUTE,
     POSTS_PER_MINUTE_TEAM,
     check_flood,
@@ -85,7 +86,9 @@ def admin_out(comment: RecordingComment, author: UserAccount | None) -> AdminRec
         status=comment.status,  # type: ignore[arg-type]
         reports_count=comment.reports_count,
         author_id=comment.member_id,
-        author_name=display_name(author),
+        author_name=(
+            display_name(author) if author is not None else comment.author_name or FALLBACK_NAME
+        ),
         removed_reason=comment.removed_reason,
         parent_id=str(comment.parent_id) if comment.parent_id else None,
     )

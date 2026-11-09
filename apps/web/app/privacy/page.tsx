@@ -82,7 +82,8 @@ export default function PrivacyPage() {
               Your sign-in details, e-mail address, profile, saved songs, notification tokens and the sign-in on every
               device are deleted, and your listening records tied to you are erased. Recordings you uploaded stay in
               the library under the name they were uploaded with; they are no longer linked to an account. Comments you
-              wrote are deleted together with the account.
+              wrote stay too, under the name you had; they are no longer linked to an account. Anonymous comments stay
+              anonymous.
             </p>
             <p className="mt-4">
               If you are a rights holder and want a recording removed, use the{" "}

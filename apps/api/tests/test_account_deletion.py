@@ -8,10 +8,9 @@ Dada's decision, pinned here so nobody changes it by accident:
 * Everything personal goes: the account row (e-mail, name, phone, avatar), the password hash,
   every signed-in device (session and refresh tokens), push tokens, favourites, the author page
   and the raw listening rows.
-* Comments are different from recordings: the current rule is that they go with the account
-  (`song_comments.member_id` and `recording_comments.member_id` are ON DELETE CASCADE, and a
-  reply hangs under its parent with CASCADE as well). This test describes that rule as it is.
-  Whether comments should stay under a name is a product question, see docs/account-deletion.md.
+* Comments STAY too, under the name the person had, like recordings (Dada, 9 November 2026).
+  `member_id` becomes null (ON DELETE SET NULL) and a named comment keeps `author_name`; an
+  anonymous comment stays anonymous. Replies keep their place under their parent.
 
 SQLite does not enforce foreign keys unless asked, so the engine here turns them on; without
 that the cascade (which the production Postgres does) would not be exercised.
@@ -64,7 +63,7 @@ from app.models.push import PushDevice
 from app.models.recording_collections import RecordingCollection
 from app.models.recordings import AuthorBlock, MemberNotice, Recording
 from app.models.song_plays import SongPlayDaily, SongPlayEvent
-from app.services import author_stats, member_tokens
+from app.services import author_stats, comment_threads, member_tokens, song_comments
 from app.services.author_profiles import pepper
 from tests.member_session_support import build_app, make_settings, use_settings
 
@@ -270,36 +269,135 @@ async def test_the_token_of_a_deleted_account_stops_working_and_cannot_be_refres
     assert refreshed.status_code == 401
 
 
-async def test_comments_go_with_the_account_today(world: World) -> None:
-    """The current rule, written down: comments are deleted with the account (they are not kept
-    under a name the way recordings are). A reply to someone else's comment goes too."""
+async def _comments_of_the_leaver(world: World) -> tuple[UUID, UUID, UUID]:
+    """Their named comment, their anonymous comment and a reply to a stranger. Returns the ids."""
     rid = await fill_account(world, LEAVING)
     async with world.sessions() as session:
         theirs = SongComment(song_id=9, member_id=STAYING, body="Their top-level comment")
         session.add(theirs)
         await session.flush()
+        reply = SongComment(
+            song_id=9,
+            member_id=LEAVING,
+            body="My reply",
+            parent_id=theirs.id,
+            reply_to_id=theirs.id,
+        )
+        hidden = SongComment(song_id=9, member_id=LEAVING, body="Said quietly", is_anonymous=True)
+        session.add_all([reply, hidden])
+        session.add(RecordingComment(recording_id=rid, member_id=STAYING, body="Stays"))
         session.add(
-            SongComment(
-                song_id=9,
-                member_id=LEAVING,
-                body="My reply",
-                parent_id=theirs.id,
-                reply_to_id=theirs.id,
+            RecordingComment(
+                recording_id=rid, member_id=LEAVING, body="Anonymous here", is_anonymous=True
             )
         )
-        session.add(RecordingComment(recording_id=rid, member_id=STAYING, body="Stays"))
         await session.commit()
+        return theirs.id, reply.id, hidden.id
+
+
+async def test_comments_stay_under_the_name_after_the_account_is_deleted(world: World) -> None:
+    theirs, reply, hidden = await _comments_of_the_leaver(world)
     pair = await world.sign_in(LEAVING)
 
     assert (
         await world.client.delete("/api/v1/members/me", headers=world.bearer(pair))
     ).status_code == 204
 
+    # the account is gone, every comment is still there, none points at an account any more
+    assert await world.count(UserAccount, UserAccount.id == LEAVING) == 0
+    assert await world.count(SongComment) == 4  # lovely song, theirs, my reply, said quietly
+    assert await world.count(RecordingComment) == 3
     assert await world.count(SongComment, SongComment.member_id == LEAVING) == 0
     assert await world.count(RecordingComment, RecordingComment.member_id == LEAVING) == 0
+    async with world.sessions() as session:
+        named = (
+            await session.scalars(select(SongComment).where(SongComment.author_name == "Leaving"))
+        ).all()
+        assert {c.body for c in named} == {"Lovely song", "My reply"}  # named ones keep the name
+        assert all(c.member_id is None for c in named)
+        quiet = await session.get(SongComment, hidden)
+        assert quiet is not None and quiet.is_anonymous and quiet.author_name is None
+        assert quiet.member_id is None and quiet.body == "Said quietly"
+        reply_row = await session.get(SongComment, reply)
+        assert reply_row is not None and reply_row.parent_id == theirs  # still in its thread
+        recording_named = (
+            await session.scalars(
+                select(RecordingComment).where(RecordingComment.author_name == "Leaving")
+            )
+        ).all()
+        assert [c.body for c in recording_named] == ["Lovely recording"]
+        anonymous_here = (
+            await session.scalars(
+                select(RecordingComment).where(RecordingComment.body == "Anonymous here")
+            )
+        ).one()
+        assert anonymous_here.author_name is None and anonymous_here.member_id is None
     # other people's comments are not touched
     assert await world.count(SongComment, SongComment.member_id == STAYING) == 1
     assert await world.count(RecordingComment, RecordingComment.member_id == STAYING) == 1
+
+
+async def test_readers_see_the_old_name_without_a_picture_and_nothing_of_anonymous_ones(
+    world: World,
+) -> None:
+    theirs, _reply, hidden = await _comments_of_the_leaver(world)
+    pair = await world.sign_in(LEAVING)
+    await world.client.delete("/api/v1/members/me", headers=world.bearer(pair))
+
+    async with world.sessions() as session:
+        page = await song_comments.list_threads(session, 9, limit=20, offset=0)
+        shown = {
+            row.id: row
+            for row in (
+                song_comments.public_out(c, a, viewer_id=STAYING, team=False, page=page)
+                for c, a in page.tops
+            )
+        }
+        replies = shown[str(theirs)].replies
+        assert [r.body for r in replies] == ["My reply"]
+        assert replies[0].author is not None
+        assert replies[0].author.name == "Leaving" and replies[0].author.avatar_url is None
+        assert replies[0].mine is False  # nobody can act as the author any more
+        quiet = shown[str(hidden)]
+        assert quiet.is_anonymous and quiet.author is None
+        # the team sees that the account is gone, and the old name of a named comment
+        row = (
+            await session.scalars(select(SongComment).where(SongComment.body == "My reply"))
+        ).one()
+        out = song_comments.admin_out(row, None)
+        assert out.author_id is None and out.author_name == "Leaving"
+        quiet_row = await session.get(SongComment, hidden)
+        assert quiet_row is not None
+        assert song_comments.admin_out(quiet_row, None).author_name == "Member"
+
+
+async def test_a_reply_to_a_comment_of_a_deleted_account_tells_nobody(world: World) -> None:
+    """The author of the answered comment is gone: no notice row is made for a missing person."""
+    _theirs, _reply, hidden = await _comments_of_the_leaver(world)
+    pair = await world.sign_in(LEAVING)
+    await world.client.delete("/api/v1/members/me", headers=world.bearer(pair))
+
+    async with world.sessions() as session:
+        gone = (
+            await session.scalars(select(SongComment).where(SongComment.body == "Lovely song"))
+        ).one()
+        staying = await session.get(UserAccount, STAYING)
+        assert staying is not None
+        answer = SongComment(
+            song_id=7,
+            member_id=STAYING,
+            body="Thank you for this",
+            parent_id=gone.id,
+            reply_to_id=gone.id,
+        )
+        session.add(answer)
+        await session.flush()
+        notice = await comment_threads.add_reply_notice(
+            session, SongComment, answer, staying, target={"song_id": 7}
+        )
+        assert notice is None
+        await session.commit()
+    assert await world.count(MemberNotice) == 0
 
 
 async def test_signing_in_again_after_deletion_makes_a_new_empty_account(world: World) -> None:

@@ -3,9 +3,13 @@
 A comment is `published` the moment it is posted (publish first, review after, like recordings).
 The team marks it `removed` with a reason; the author may delete their own comment for good.
 
-Anonymity: `is_anonymous` is only a display choice for OTHER members. The account is always kept
-in `member_id` (the team needs it to deal with abuse and the author needs it to delete their own
+Anonymity: `is_anonymous` is only a display choice for OTHER members. The account is kept in
+`member_id` (the team needs it to deal with abuse and the author needs it to delete their own
 comment). The public API never sends `member_id`, a name or an avatar for an anonymous comment.
+
+Deleting an account does NOT delete its comments (Dada, 9 November 2026): `member_id` becomes null
+and a NAMED comment keeps showing the name it had, stored in `author_name` at that moment, the way
+a recording stays under its author's name. An anonymous comment stays anonymous (no name is stored).
 """
 
 from __future__ import annotations
@@ -51,12 +55,14 @@ class SongComment(Base, TimestampMixin):
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     song_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    member_id: Mapped[UUID] = mapped_column(
+    member_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
         index=True,
-        nullable=False,
+        nullable=True,
     )
+    # The name shown after the author deleted the account (null while the account exists).
+    author_name: Mapped[str | None] = mapped_column(String(80))
     body: Mapped[str] = mapped_column(Text, nullable=False)
     is_anonymous: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False

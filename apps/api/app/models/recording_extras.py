@@ -90,12 +90,15 @@ class RecordingComment(Base, TimestampMixin):
         ForeignKey("recordings.id", ondelete="CASCADE"),
         nullable=False,
     )
-    member_id: Mapped[UUID] = mapped_column(
+    # null after the author deleted the account: the comment stays under `author_name`
+    # (docs/account-deletion.md)
+    member_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("user_accounts.id", ondelete="CASCADE"),
+        ForeignKey("user_accounts.id", ondelete="SET NULL"),
         index=True,
-        nullable=False,
+        nullable=True,
     )
+    author_name: Mapped[str | None] = mapped_column(String(80))
     body: Mapped[str] = mapped_column(Text, nullable=False)
     is_anonymous: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
