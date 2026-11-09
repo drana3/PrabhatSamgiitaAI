@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.admin import router as admin_router
 from app.api.v1.ai import router as ai_router
+from app.api.v1.app_versions import router as app_versions_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.author_claims import admin_router as author_claims_admin_router
 from app.api.v1.author_claims import router as author_claims_router
@@ -52,6 +53,7 @@ router.include_router(recommendations_router)
 router.include_router(inventory_router)
 router.include_router(members_router)
 router.include_router(member_sessions_router)
+router.include_router(app_versions_router)
 router.include_router(learn_sync_router)
 router.include_router(auth_router)
 router.include_router(member_admin_router)

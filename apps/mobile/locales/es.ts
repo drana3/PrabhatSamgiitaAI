@@ -9,6 +9,7 @@ import { recordingCycleEs } from "./recordingCycle"
 import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
 import { accountEs } from "./account"
+import { appUpdateEs } from "./appUpdate"
 import { playerErrorsEs } from "./playerErrors"
 import { shareSheetEs } from "./shareSheet"
 import { scriptSheetEs } from "./scriptSheet"
@@ -22,9 +23,9 @@ import { homeFestivalsEs } from "./homeFestivals"
 import { festivalSongsEs } from "./festivalSongs"
 import { profileRowsEs } from "./profileRows"
 import { volumeEs } from "./volume"
+import { playbackControlsEs } from "./playbackControls"
 import { opsEs } from "./ops"
 import { languagesEs } from "./languages"
-import { playbackControlsEs } from "./playbackControls"
 import { assistantErrorsEs } from "./assistantErrors"
 import { recordingExtrasEs } from "./recordingExtras"
 import { pushEs } from "./push"
@@ -1285,6 +1286,7 @@ export const es: Dictionary = {
   ...recordingsEs,
   ...offlineEs,
   ...accountEs,
+  ...appUpdateEs,
   ...playerErrorsEs,
   ...shareSheetEs,
   ...scriptSheetEs,
@@ -1298,13 +1300,13 @@ export const es: Dictionary = {
   ...festivalSongsEs,
   ...profileRowsEs,
   ...volumeEs,
+  ...playbackControlsEs,
   ...opsEs,
   ...languagesEs,
   ...assistantErrorsEs,
   ...songCommentsEs,
   ...pushEs,
   ...pianoEs,
-  ...playbackControlsEs,
   ...recordingExtrasEs,
   ...chordProposalsEs,
   ...pronunciationEs,

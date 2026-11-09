@@ -34,6 +34,7 @@ import { hydrateOfflineAudio } from "@/lib/offlineAudio"
 import { warmCategorySongsCache } from "@/lib/categorySongs"
 import { AppStatusBar, FrameSafeArea } from "@/components/common/EdgeToEdge"
 import { MemberSessionSync } from "@/components/member/MemberSessionSync"
+import { UpdateGate } from "@/components/update/UpdateGate"
 import { ChordNoticeSync } from "@/components/song-chords/ChordNoticeSync"
 import { LegacyRedirectHost } from "@/components/nav-v2/LegacyRedirectHost"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
@@ -270,6 +271,8 @@ export default function RootLayout() {
             {/* The full player: opened from the mini-player pill or a Play action, closed by dragging down. */}
             <Stack.Screen name="player-v2" options={{ presentation: "transparentModal", animation: "slide_from_bottom", contentStyle: { backgroundColor: "transparent" } }} />
           </Stack>
+          {/* Over everything: "please update" when this version is below the minimum (docs/forced-update.md) */}
+          <UpdateGate />
           {/* The one mini-player, above every screen (tabs and pushed). */}
           <MiniPlayerHost />
           {/* The one "Save to" sheet (circle-plus buttons everywhere open it). */}

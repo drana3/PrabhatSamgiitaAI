@@ -9,6 +9,7 @@ import { recordingCycleRu } from "./recordingCycle"
 import { recordingsRu } from "./recordings"
 import { offlineRu } from "./offline"
 import { accountRu } from "./account"
+import { appUpdateRu } from "./appUpdate"
 import { playerErrorsRu } from "./playerErrors"
 import { shareSheetRu } from "./shareSheet"
 import { scriptSheetRu } from "./scriptSheet"
@@ -22,9 +23,9 @@ import { homeFestivalsRu } from "./homeFestivals"
 import { festivalSongsRu } from "./festivalSongs"
 import { profileRowsRu } from "./profileRows"
 import { volumeRu } from "./volume"
+import { playbackControlsRu } from "./playbackControls"
 import { opsRu } from "./ops"
 import { languagesRu } from "./languages"
-import { playbackControlsRu } from "./playbackControls"
 import { assistantErrorsRu } from "./assistantErrors"
 import { recordingExtrasRu } from "./recordingExtras"
 import { pushRu } from "./push"
@@ -1371,6 +1372,7 @@ export const ru: Dictionary = {
   ...recordingsRu,
   ...offlineRu,
   ...accountRu,
+  ...appUpdateRu,
   ...playerErrorsRu,
   ...shareSheetRu,
   ...scriptSheetRu,
@@ -1384,13 +1386,13 @@ export const ru: Dictionary = {
   ...festivalSongsRu,
   ...profileRowsRu,
   ...volumeRu,
+  ...playbackControlsRu,
   ...opsRu,
   ...languagesRu,
   ...assistantErrorsRu,
   ...songCommentsRu,
   ...pushRu,
   ...pianoRu,
-  ...playbackControlsRu,
   ...recordingExtrasRu,
   ...chordProposalsRu,
   ...pronunciationRu,

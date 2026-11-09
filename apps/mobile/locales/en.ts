@@ -8,6 +8,7 @@ import { recordingCycleEn } from "./recordingCycle"
 import { recordingsEn } from "./recordings"
 import { offlineEn } from "./offline"
 import { accountEn } from "./account"
+import { appUpdateEn } from "./appUpdate"
 import { playerErrorsEn } from "./playerErrors"
 import { shareSheetEn } from "./shareSheet"
 import { scriptSheetEn } from "./scriptSheet"
@@ -21,9 +22,9 @@ import { homeFestivalsEn } from "./homeFestivals"
 import { festivalSongsEn } from "./festivalSongs"
 import { profileRowsEn } from "./profileRows"
 import { volumeEn } from "./volume"
+import { playbackControlsEn } from "./playbackControls"
 import { opsEn } from "./ops"
 import { languagesEn } from "./languages"
-import { playbackControlsEn } from "./playbackControls"
 import { assistantErrorsEn } from "./assistantErrors"
 import { recordingExtrasEn } from "./recordingExtras"
 import { pushEn } from "./push"
@@ -1291,6 +1292,7 @@ export const en = {
   ...recordingsEn,
   ...offlineEn,
   ...accountEn,
+  ...appUpdateEn,
   ...playerErrorsEn,
   ...shareSheetEn,
   ...scriptSheetEn,
@@ -1304,13 +1306,13 @@ export const en = {
   ...festivalSongsEn,
   ...profileRowsEn,
   ...volumeEn,
+  ...playbackControlsEn,
   ...opsEn,
   ...languagesEn,
   ...assistantErrorsEn,
   ...songCommentsEn,
   ...pushEn,
   ...pianoEn,
-  ...playbackControlsEn,
   ...recordingExtrasEn,
   ...chordProposalsEn,
   ...pronunciationEn,

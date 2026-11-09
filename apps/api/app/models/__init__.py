@@ -5,6 +5,7 @@ from app.models.admin_workflow import (
 )
 from app.models.ai_usage import AiDailyUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
+from app.models.app_version import AppVersionPolicy
 from app.models.author_profiles import (
     AuthorAlias,
     AuthorClaim,
@@ -89,6 +90,7 @@ from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.models.song_translations import SongTranslation
 
 __all__ = [
+    "AppVersionPolicy",
     "MemberSession",
     "RateLimitCounter",
     "AppEvent",
