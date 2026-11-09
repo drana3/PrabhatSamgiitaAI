@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native"
 import { HOME_INSET } from "@/components/home/HomeBlocks"
 import { DiscoverShelf, RecentPlaysShelf, RecentRow, TileGrid } from "@/components/search-v2/BrowseBlocks"
 import { AgainStrip, BlockTitle, ItemShelf, MoodChips, SubTitle } from "@/components/search-v2/MenuShelves"
+import { SearchByBlock } from "@/components/search-v2/SearchByBlock"
 import { overStyle } from "@/components/today/TodayBlocks"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import type { AmProto } from "@/constants/tokens/amToday"
@@ -12,10 +13,12 @@ import type { BrowseTile, DiscoverTag } from "@/lib/fixtures/home"
 import { useT, t as translate } from "@/lib/i18n"
 import type { HistoryEntry } from "@/lib/listening/history"
 import { kindLabelPlural } from "@/lib/kirtan/kind"
-import type { KindTile } from "@/lib/searchBrowse"
+import { realCollectionEntries, type KindTile } from "@/lib/searchBrowse"
+import { collectionHref } from "@/lib/songsV2/collectionsIndex"
 import { MENU_RULES } from "@/lib/searchMenu/config"
 import { titleCase } from "@/lib/searchMenu/facets"
 import { shelfHref, shelfItems, shelfTitle, type MenuKirtan } from "@/lib/searchMenu/live"
+import { buildSearchBy } from "@/lib/searchMenu/searchBy"
 import type { MenuBlock, MenuShelf } from "@/lib/searchMenu/types"
 import type { SearchMenu } from "@/hooks/useSearchMenu"
 import type { RecentPlay } from "@/stores/preferencesStore"
@@ -181,6 +184,20 @@ export function SearchMenuView({
   }
 
   const again = history.slice(0, 8)
+  // "Search by": the ways to look, with real counts (the same stats as the shelves, whatever their thresholds)
+  const searchBy = useMemo(
+    () =>
+      buildSearchBy({
+        stats,
+        psKinds: kindTiles.map((tile) => ({ kind: tile.kind, label: tile.label, count: tile.count })),
+        psMoods: realCollectionEntries()
+          .filter((entry) => entry.kind === "mood")
+          .map((entry) => ({ id: entry.id, label: entry.label, count: entry.count, href: collectionHref(entry) })),
+      }),
+    // the words follow the language
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stats, kindTiles, t],
+  )
 
   return (
     <View style={s.root}>
@@ -188,6 +205,7 @@ export function SearchMenuView({
       <RecentRow p={p} items={recents} onPick={onRecent} onClear={onClearRecents} />
       <TileGrid p={p} tiles={top} big onPick={onTile} />
       {again.length ? <AgainStrip p={p} theme={theme} entries={again} onPlay={onPlayEntry} onAll={onHistory} /> : <RecentPlaysShelf p={p} items={played} onPick={onPlayed} />}
+      <SearchByBlock p={p} sections={searchBy} onOpen={onSeeAll} onType={onRecent} />
       {blocks.map(({ block, shelves }) => renderBlock(block, shelves))}
       {discover.length ? <DiscoverShelf p={p} tags={discover} onPick={onTag} /> : null}
     </View>

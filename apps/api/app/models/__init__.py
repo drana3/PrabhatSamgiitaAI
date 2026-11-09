@@ -75,6 +75,7 @@ from app.models.recording_extras import (
     VideoLink,
     VideoLinkReport,
 )
+from app.models.recording_moods import RecordingMood, RecordingMoodVote
 from app.models.recordings import (
     AuthorBlock,
     MemberNotice,
@@ -97,6 +98,8 @@ __all__ = [
     "RateLimitCounter",
     "TakedownRequest",
     "PlayFlag",
+    "RecordingMood",
+    "RecordingMoodVote",
     "BlockedAudioHash",
     "AppEvent",
     "FeatureFlag",

@@ -4,6 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { AddLanguagePrompt } from "@/components/kirtan/AddLanguagePrompt"
+import { MoodBlock } from "@/components/kirtan/MoodBlock"
 import { PracticeBlock } from "@/components/kirtan/PracticeBlock"
 import { RecordingHero } from "@/components/kirtan/RecordingHero"
 import { RecordingTags } from "@/components/kirtan/RecordingTags"
@@ -146,6 +147,11 @@ function Ready({ recording, onClose }: { recording: Kirtan; onClose: () => void 
         </Reveal>
         <AddLanguagePrompt theme={theme} kirtan={recording} variant="card" />
         <PracticeBlock theme={theme} kirtan={recording} />
+        <Reveal index={2}>
+          <View style={styles.block}>
+            <MoodBlock theme={theme} kirtan={recording} />
+          </View>
+        </Reveal>
         {cycleKind ? (
           <>
             <Reveal index={2}>

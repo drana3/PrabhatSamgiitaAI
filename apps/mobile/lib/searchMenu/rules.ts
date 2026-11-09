@@ -220,6 +220,8 @@ function candidatesOf(stats: MenuStats): { all: Candidate[]; hidden: HiddenShelf
     Object.entries(values)
       .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
       .forEach(([value, count], i) => {
+        // the piano already has its own shelf ("Kiirtans for piano": notes or a piano lead): no second shelf for the same recordings
+        if (facet === "instrument" && value === "piano") return
         all.push({
           id: `${facet === "dance" ? "dance" : `facet:${facet}`}:${value}`, block, facet,
           label: facet === "dance" ? { type: "dance", id: value } : { type: "named", name: titleCase(value) },
@@ -308,16 +310,22 @@ export function buildMenu(stats: MenuStats): MenuResult {
     ordered = ordered.concat(items)
   }
 
-  // global cap: drop from the end, never a pinned shelf, Baba's voice or a compact group. Prabhat Samgiita collections (one
+  // global cap: when there are more than `maxShelves`, the shelf with the FEWEST recordings goes first (between two equal counts,
+  // the one lower down the menu). Never a pinned shelf, Baba's voice (it stays even with one recording), the two shelves of the
+  // pulse (New this month, Most played: their counts mean something else) or a compact group. Prabhat Samgiita collections (one
   // tile grid) and moods (one row of chips) are compact: they do not use up the 14 and are not dropped by the cap.
   const compact = (s: MenuShelf) => s.id.startsWith("ps:kind:") || s.block === "themes"
+  const protectedShelf = (s: MenuShelf) => s.reason === "pinned" || s.id === "baba" || s.block === "pulse" || compact(s)
   const counted = () => ordered.filter((s) => !compact(s)).length
   while (counted() > R.maxShelves) {
-    let i = ordered.length - 1
-    while (i >= 0 && (ordered[i].reason === "pinned" || ordered[i].id === "baba" || compact(ordered[i]))) i--
-    if (i < 0) break
-    hidden.push({ id: ordered[i].id, why: "over-limit" })
-    ordered.splice(i, 1)
+    let victim = -1
+    ordered.forEach((s, i) => {
+      if (protectedShelf(s)) return
+      if (victim < 0 || s.count <= ordered[victim].count) victim = i
+    })
+    if (victim < 0) break
+    hidden.push({ id: ordered[victim].id, why: "over-limit" })
+    ordered.splice(victim, 1)
   }
 
   const shown: Record<string, number> = {}

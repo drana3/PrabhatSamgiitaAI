@@ -36,6 +36,7 @@ import { chordProposalsEs } from "./chordProposals"
 import { pronunciationEs } from "./pronunciation"
 import { authorsEs } from "./authors"
 import { claimsDeskEs } from "./claimsDesk"
+import { moodSearchEs } from "./moodSearch"
 import { notificationCentreEs } from "./notificationCentre"
 import { listeningEs } from "./listening"
 import { radioEs } from "./radio"
@@ -1314,6 +1315,7 @@ export const es: Dictionary = {
   ...pronunciationEs,
   ...authorsEs,
   ...claimsDeskEs,
+  ...moodSearchEs,
   ...notificationCentreEs,
   ...searchMenuEs,
   ...listeningEs,

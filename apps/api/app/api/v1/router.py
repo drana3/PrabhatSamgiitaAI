@@ -26,6 +26,8 @@ from app.api.v1.quiz_events import router as quiz_events_router
 from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.recording_chords import router as recording_chords_router
 from app.api.v1.recording_comments import router as recording_comments_router
+from app.api.v1.recording_moods import admin_router as recording_moods_admin_router
+from app.api.v1.recording_moods import router as recording_moods_router
 from app.api.v1.recording_sets import admin_router as recording_sets_admin_router
 from app.api.v1.recording_sets import router as recording_sets_router
 from app.api.v1.recordings import admin_router as recordings_admin_router
@@ -85,6 +87,8 @@ router.include_router(author_profiles_router)
 router.include_router(author_plays_router)
 router.include_router(author_profiles_admin_router)
 router.include_router(recording_comments_router)
+router.include_router(recording_moods_router)
+router.include_router(recording_moods_admin_router)
 router.include_router(recording_chords_router)
 router.include_router(video_links_router)
 router.include_router(piano_sheets_router)

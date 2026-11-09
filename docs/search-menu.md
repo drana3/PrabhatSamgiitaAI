@@ -80,8 +80,9 @@ All numbers live in `lib/searchMenu/config.ts` (`MENU_RULES`). **Thresholds belo
 
 ### 2.3 Maximums and order
 
-* At most **14 shelves** in all. Over the cap, the lowest-priority shelves go first. Pinned shelves, Baba's voice, the Prabhat
-  Samgiita collections (one tile grid) and the mood chips (one row) are never dropped, and the last two do not use up the 14.
+* At most **14 shelves** in all. Over the cap, **the shelf with the fewest recordings goes first** (a tie: the one lower in
+  the block order). Pinned shelves, Baba's voice (it stays even at one recording), the Prabhat Samgiita collections (one tile
+  grid) and the mood chips (one row) are never dropped, and the last two do not use up the 14.
 * Authors: at most **4** shelves, at most **2** of them personal, at most **3** in cold start. Languages: top **5** plus "More languages". Moods: **8**. Any other facet: **6** values each.
 * Blocks come in a fixed order (pulse, Baba, Prabhat Samgiita, Kiirtan, authors, spiritual, Bhajans, Dance music, More ways to listen, moods). Inside a block: pinned first, then "you listen" shelves, then shelves that were already
   visible (in their old order), then newcomers by score. Scores: authors by distinct listeners (then recording count), languages
@@ -214,6 +215,35 @@ double votes). A deleted account's votes are deleted with it (GDPR), and the tag
 
 If audio analysis is ever tried, it should only **order** the voting queue (show likely candidates first) and never write a tag.
 
+### Built (round 5)
+
+The hybrid (f) is built: API in `apps/api/app/api/v1/recording_moods.py`, rules in `apps/api/app/services/recording_moods.py`,
+tables `recording_moods` and `recording_mood_votes` (migration `0059_recording_moods`), phone block `components/kirtan/MoodBlock.tsx`
+on the recording page. The six words are Joyful, Longing, Calm, Ecstatic, Devotion, Sad (the "surrender" of the first proposal is
+not among them). Numbers as built, all constants at the top of the service:
+
+* **Uploader** suggests one or two moods (`PUT /recording-moods/recordings/{id}/suggest`), or says "I am not sure" (an empty list,
+  no tag). Only the member who added the recording can do it.
+* **Confirmed** when the uploader suggested the mood and **3** members said yes with at least **70 percent** yes; when nobody
+  suggested it, **5** members with 70 percent. In both cases at least one of the yes votes must come from a **veteran**
+  account (older than 30 days). **Rejected** under 30 percent yes after 5 votes. A mood leaves "confirmed" again if later votes
+  push it under the line.
+* **Who can vote** (`PUT /recording-moods/recordings/{id}/votes/{mood}`): a signed-in member with an account older than **7 days**,
+  after a **counted play** of that recording (a row in the play log under the member's own listener key), at most **30 votes per day**,
+  not the uploader on their own recording (they suggest instead), and at most 20 requests a minute. A vote can be changed or taken back.
+  A listener can also start a mood nobody has suggested yet; it then waits for 5 yes votes.
+* **Burst rule, simplified:** instead of detecting and holding bursts, an account must be 7 days old to vote and one yes
+  of every confirmation must come from a veteran (30 days). A burst of new accounts therefore cannot confirm anything.
+  Detecting and flagging bursts for the team is not built.
+* **Team** can confirm, reject or clear a mood and lock it (`PUT /admin/recording-moods/recordings/{id}/{mood}`); a locked mood
+  ignores votes. There is no team screen for it yet (admin API only). `POST /admin/recording-moods/recompute` rebuilds all
+  statuses. It is not yet called by the account deletion (docs/account-deletion.md): votes of a deleted account must be removed
+  and this endpoint run afterwards; wiring that is open.
+* **Feed to the menu:** `GET /recording-moods/confirmed` (public, cached 5 minutes) returns the confirmed moods per recording.
+  The phone merges them into each recording's `moods` (`lib/recordingMoods/confirmed.ts`, `hooks/useConfirmedMoods.ts`), so the
+  mood chips, the `theme:<id>` shelves and the "Mood" row of "Search by" count confirmed moods and nothing else.
+  Suggestions never reach the menu.
+
 ## 7. Module reference
 
 * `lib/searchMenu/types.ts`: `MenuStats`, `MenuShelf`, `MenuResult`, `MenuMemory`.
@@ -233,7 +263,7 @@ Answered in round 3 (see section 9): 1 style field (yes, optional, built on the 
 6 a local history screen (the log feeds "you listen" on the phone only). Still open:
 
 1. The thresholds below are Dada's to keep or change; each is one number in `lib/searchMenu/config.ts`.
-2. The upload forms do not offer the style field yet (section 9.2), and nobody can tag a mood yet (section 9.4).
+2. The upload forms do not offer the style field yet (section 9.2). Moods can be tagged (section 6, "Built"); the team has no screen to override one yet.
 3. A screen for the team to edit the pins (section 9.5).
 
 ## 9. Round 3 decisions
@@ -273,8 +303,8 @@ same recordings as a row with "See all". Design of the notes: docs/piano-notatio
 Six have words: Joyful, Longing, Calm, Ecstatic, Devotion, Sad (ru: Радостное, Тоска, Спокойное, Экстатическое, Преданность, Грустное;
 es likewise). Since round 4 the six are not a gate: the menu finds the moods the recordings carry (section 10). A mood chip appears
 at 3 recordings that carry it and leaves under 2 (after the hold). The words live in `lib/kirtan/moods.ts` and
-`locales/searchMenu.ts` (`mood.*`). **The tagging itself (uploader suggests, listeners confirm, section 6) is not built**: the menu
-reads `themes` from the recordings' `moods` when they exist and shows no chips until then. In the preview, five moods are sample data.
+`locales/searchMenu.ts` (`mood.*`). **The tagging is built (section 6, "Built")**: the menu reads `themes` from the recordings' confirmed
+`moods`, so a chip shows only after listeners confirmed a mood. In the preview, the moods are sample data (a mock of the API in `lib/recordingMoods/mock.ts`).
 
 ### 9.5 Team pins
 
@@ -294,7 +324,8 @@ rules locally (`lib/listening/stats.ts`). Reachable from Today ("Listening histo
 
 Appear at 3, leave under 2, plus a 7-day hold so a shelf does not blink. A popular author needs 3+ recordings and 5+ distinct
 listeners in 30 days. At most 14 shelves (compact groups excepted, section 2.3). Baba's voice: 1 / 1 (one knob, `MENU_RULES.baba`). Kiirtan for piano: 1 / 1 (`MENU_RULES.kiirtanPiano`). Style: 3 / 2.
-Mood: 3 / 2 (round 4, was 5 / 3). Every discovered facet value: 3 / 2.
+Mood: 3 / 2 (round 4, was 5 / 3). Every discovered facet value: 3 / 2. When the 14 are exceeded, the shelf with the fewest
+recordings is dropped; Baba's voice, pinned shelves and the compact groups are never dropped (Baba stays at 1 recording).
 
 ## 10. Categories appear on their own (round 4)
 
@@ -330,8 +361,10 @@ titles: a translated word when the app has one, otherwise the value's own words,
   library (stages below) and all say "Demo".
 * **Renaming.** The team can give any shelf another title in `MENU_LABEL_OVERRIDES` (`lib/searchMenu/config.ts`, shelf id to
   title). A server-side rename (a team screen) is not built. Numbers per facet live in `FACET_OVERRIDES` (same file).
-* **Caps.** 14 shelves in all; the Prabhat Samgiita tiles and the mood chips are outside it; the cap drops from the end of the
-  block order, so discovered shelves ("Dance music", "More ways to listen") go before the older blocks.
+* **Caps.** 14 shelves in all; the Prabhat Samgiita tiles and the mood chips are outside it. Since round 5 the cap drops **the
+  shelf with the fewest recordings** (a tie: the lower one in the block order) instead of the last block, so a shelf with two
+  recordings goes before a shelf with fifty wherever it stands. Never dropped: pinned shelves, `baba` (even at one recording),
+  the pulse block, the compact groups. `__tests__/searchBy.test.ts` pins these cases.
 * **Server.** No separate endpoint: the phone counts the library it already loads. If the library grows past what the phone
   loads, the same `discoverFacets` result can move to `GET /search-menu/facets` without changing the rules (open question).
 * **Not available yet in the data:** tempo, solo/group and occasion do not exist as recording fields today. The module is ready
@@ -366,3 +399,27 @@ through `tags` (section 10.1) without a change to the rules.
 
 `tempo`, `performance`, `recording_type` and `lead_instrument` were added with `docs/kiirtan-recording-info.md`; `moods` and `occasion`
 or `event` stay unbuilt until Dada decides the upload steps (board `Для-Дады/мастер-загрузки-киртана`).
+
+## 12. "Search by": what can be searched, written out (round 5)
+
+Dada's rule: a person must **see** what they can search by, including for Prabhat Samgiita, and see how many recordings stand
+behind each choice. The block "Search by" sits at the top of the Search screen, above the shelves (`components/search-v2/SearchByBlock.tsx`,
+rows built by the pure `lib/searchMenu/searchBy.ts`, tests in `__tests__/searchBy.test.ts`).
+
+* **Three tabs:** Kiirtan, Prabhat Samgiita, Bhajans by language. Dance music, spiritual songs and any other discovered facet go
+  into the Kiirtan tab as further rows (the facets of "More ways to listen").
+* **Kiirtan tab rows:** Style, Mood (confirmed only), Main instrument, How it was recorded, Solo or group, Tempo, Type, Events and
+  sets, Performer. Each value is a chip with its count; a tap opens the same list as the shelf (`/browse-shelf?id=...`).
+  Values come from the facets the library carries (`discoverFacets`), up to 10 per row, most recordings first.
+* **A row with nothing yet is still shown**, with one sentence saying when it will fill ("Appears when a recording says how it was
+  recorded"). This is the single exception to "empty means absent" (section 10): the rows are the answer to "what can I search by?",
+  the shelves stay absent.
+* **Prabhat Samgiita tab:** Collections (Moods, Festivals, Themes, Occasions, Seasons, Languages, each with how many collections
+  it holds), Mood (the six lists of the Songs shelf with their song counts), Song number (an example, typed into the search field),
+  First line (an example), How you feel (an example). Examples are typed into the field, which already finds a song by number, by first
+  line in any spelling, and by a feeling word.
+* **Bhajans tab:** Language and Type, with counts.
+* **Alignment with the main instrument.** The instrument row shows the same "Kiirtans for piano" shelf (`kiirtan:piano`, section 9.3b);
+  the facet `instrument = piano` is skipped in the generic shelves, so no second piano shelf appears. Other instruments
+  appear as shelves of their own when 3+ recordings share one.
+* **Preview:** at `/search-v2` with the sample stage `grown`; other stages (`?menu=new|early`) show rows with their "appears when" sentences.

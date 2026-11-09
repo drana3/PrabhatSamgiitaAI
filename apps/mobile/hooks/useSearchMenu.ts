@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 
+import { useConfirmedMoods } from "@/hooks/useConfirmedMoods"
 import { useKirtans } from "@/hooks/useKirtans"
 import { usePianoRecordingIds } from "@/hooks/usePianoRecordingIds"
 import { demoCatalog, demoHistory, parseStage, stageHasBaba, type MenuStage } from "@/lib/fixtures/searchMenuDemo"
@@ -8,6 +9,7 @@ import { authorsApi } from "@/lib/authors/api"
 import type { HistoryEntry } from "@/lib/listening/history"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { withPianoFlag } from "@/lib/pianoNotes/flag"
+import { withConfirmedMoods } from "@/lib/recordingMoods/flag"
 import { realCollectionEntries } from "@/lib/searchBrowse"
 import { buildLiveMenu, type DirectoryAuthor, type MenuKirtan } from "@/lib/searchMenu/live"
 import { fetchMenuPins } from "@/lib/searchMenu/remote"
@@ -39,7 +41,9 @@ export type SearchMenu = {
 export function useSearchMenu(stageParam?: string): SearchMenu {
   const { playable: heard } = useKirtans()
   const pianoIds = usePianoRecordingIds()
-  const playable = useMemo(() => withPianoFlag(heard, pianoIds), [heard, pianoIds])
+  const confirmedMoods = useConfirmedMoods()
+  // piano notes and the moods listeners confirmed (docs/search-menu.md section 6) join the recordings before anything is counted
+  const playable = useMemo(() => withConfirmedMoods(withPianoFlag(heard, pianoIds), confirmedMoods), [heard, pianoIds, confirmedMoods])
   const history = useListeningHistoryStore((s) => s.entries)
   const storedPins = useSearchMenuStore((s) => s.pins)
   const [directory, setDirectory] = useState<readonly DirectoryAuthor[]>([])
