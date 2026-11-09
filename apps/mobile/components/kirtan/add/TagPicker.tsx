@@ -206,9 +206,10 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
               <Row theme={theme} label={t("picker.didYouMean", { word: nearOption.label })} on={false} onPress={() => pick(nearOption.id)} />
             ) : null}
             {addable ? <Row theme={theme} label={`${otherLabel ?? t("picker.addOwn")}: ${typed}`} on={false} plus note={ownNote ?? t("picker.team")} onPress={() => addOwn(typed)} /> : null}
-            {otherLabel && !addable && !value.own.length ? <Row theme={theme} label={otherLabel} on={false} plus note={ownNote ?? t("picker.team")} onPress={() => searchRef.current?.focus()} /> : null}
             {!visible.length && !addable && !otherLabel ? <Text style={[s.empty, { color: theme.textMuted }]}>{t("picker.empty")}</Text> : null}
           </ScrollView>
+          {/* "Something else" stays in view below the list, so nobody has to scroll to learn it exists */}
+          {otherLabel && !addable && !value.own.length ? <Row theme={theme} label={otherLabel} on={false} plus note={ownNote ?? t("picker.team")} onPress={() => searchRef.current?.focus()} /> : null}
           {problem ? (
             <Text accessibilityLiveRegion="polite" style={[s.problem, { color: amColors.danger }]}>
               {problem === "full" ? t("picker.full", { max: limit }) : problem === "ownFull" ? t("picker.ownFull") : t("picker.short")}
