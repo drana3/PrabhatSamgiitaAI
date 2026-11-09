@@ -164,7 +164,7 @@ async def test_the_played_it_box_and_the_key_are_checked(world: World) -> None:
     ok = await offer(world, "a", chart_key="F#m")
     assert ok.status_code == 201 and ok.json()["chart_key"] == "F#m"
     bad_instrument = await world.call(
-        "POST", f"{URL}/recordings/{REC}", "a", json={**payload(), "instrument": "piano"}
+        "POST", f"{URL}/recordings/{REC}", "a", json={**payload(), "instrument": "sitar"}
     )
     assert bad_instrument.status_code == 422
 

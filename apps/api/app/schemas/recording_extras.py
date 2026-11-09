@@ -90,7 +90,7 @@ class AdminRecordingCommentList(BaseModel):
 
 # --------------------------------------------------------------------------- chord sheets
 
-SheetInstrument = Literal["guitar", "harmonium"]
+SheetInstrument = Literal["guitar", "harmonium", "piano"]
 SheetStatus = Literal["pending", "published", "rejected"]
 SheetReportReason = Literal["wrong_chords", "offensive", "spam", "other"]
 SheetFilter = Literal["pending", "reported", "published", "rejected", "all"]
@@ -258,12 +258,12 @@ class SheetCreate(BaseModel):
         if len(given) != 1:
             raise ValueError("Send either the chart text, the chart lines or the chord cycle")
         if self.cycle is not None:
-            # a cycle is for the guitar or the harmonium like a sheet; a guitar may name its capo, a
-            # strum pattern belongs to a chart over words
+            # a cycle is for the guitar, harmonium or piano like a sheet; only a guitar names a
+            # capo, a strum pattern belongs to a chart over words
             if self.strum:
                 raise ValueError("A chord cycle has no strum pattern")
-            if self.instrument == "harmonium" and self.capo:
-                raise ValueError("A harmonium cycle has no capo")
+            if self.instrument != "guitar" and self.capo:
+                raise ValueError("Only a guitar cycle has a capo")
             return self
         if self.lines is None:
             if self.capo or self.strum or self.replaces_id or self.based_on_id:
@@ -271,8 +271,8 @@ class SheetCreate(BaseModel):
             return self
         if self.chart_key is None or not KEY_PATTERN.fullmatch(self.chart_key):
             raise ValueError("A chart needs its key as a note name such as C, F# or Bb")
-        if self.instrument == "harmonium" and (self.capo or self.strum):
-            raise ValueError("A harmonium chart has no capo and no strum pattern")
+        if self.instrument != "guitar" and (self.capo or self.strum):
+            raise ValueError("Only a guitar chart has a capo and a strum pattern")
         return self
 
 

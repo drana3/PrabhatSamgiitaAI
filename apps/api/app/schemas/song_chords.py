@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.recordings import PS_SONG_COUNT
 
-Instrument = Literal["guitar", "harmonium"]
+Instrument = Literal["guitar", "harmonium", "piano"]
 ChordStatus = Literal["pending", "published", "rejected"]
 ChordReportReason = Literal["wrong_chords", "offensive", "spam", "other"]
 AdminFilter = Literal["pending", "reported", "published", "rejected", "all"]
@@ -96,10 +96,10 @@ class ChordProposalCreate(BaseModel):
 
     @model_validator(mode="after")
     def _whole(self) -> ChordProposalCreate:
-        if self.instrument == "harmonium" and self.capo != 0:
-            raise ValueError("A harmonium chart has no capo")
-        if self.instrument == "harmonium" and self.strum:
-            raise ValueError("A harmonium chart has no strum pattern")
+        if self.instrument != "guitar" and self.capo != 0:
+            raise ValueError("Only a guitar chart has a capo")
+        if self.instrument != "guitar" and self.strum:
+            raise ValueError("Only a guitar chart has a strum pattern")
         if not self.played_it:
             raise ValueError("Please confirm that you played or checked these chords")
         total = sum(len(line.placements) for line in self.lines)

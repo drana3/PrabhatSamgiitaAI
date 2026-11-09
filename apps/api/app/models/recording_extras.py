@@ -49,7 +49,7 @@ RECORDING_COMMENT_MAX_LENGTH = 2000
 
 # ---------------------------------------------------------------------------------- chords
 
-SHEET_INSTRUMENTS = ("guitar", "harmonium")
+SHEET_INSTRUMENTS = ("guitar", "harmonium", "piano")
 SHEET_STATUSES = ("pending", "published", "rejected")
 SHEET_REPORT_REASONS = ("wrong_chords", "offensive", "spam", "other")
 SHEET_TEXT_MAX_LENGTH = 8000
@@ -156,7 +156,8 @@ class RecordingChordSheet(Base, TimestampMixin):
     __tablename__ = "recording_chord_sheets"
     __table_args__ = (
         CheckConstraint(
-            "instrument IN ('guitar', 'harmonium')", name="ck_recording_chord_sheets_instrument"
+            "instrument IN ('guitar', 'harmonium', 'piano')",
+            name="ck_recording_chord_sheets_instrument",
         ),
         CheckConstraint(
             "status IN ('pending', 'published', 'rejected')",

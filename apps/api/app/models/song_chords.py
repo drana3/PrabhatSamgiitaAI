@@ -40,7 +40,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, TimestampMixin
 from app.models.recordings import PS_SONG_COUNT, PortableJSON
 
-CHORD_INSTRUMENTS = ("guitar", "harmonium")
+CHORD_INSTRUMENTS = ("guitar", "harmonium", "piano")
 CHORD_STATUSES = ("pending", "published", "rejected")
 CHORD_REPORT_REASONS = ("wrong_chords", "offensive", "spam", "other")
 MAX_CAPO = 7
@@ -53,7 +53,8 @@ class SongChordProposal(Base, TimestampMixin):
             f"song_id >= 1 AND song_id <= {PS_SONG_COUNT}", name="ck_song_chord_proposals_song"
         ),
         CheckConstraint(
-            "instrument IN ('guitar', 'harmonium')", name="ck_song_chord_proposals_instrument"
+            "instrument IN ('guitar', 'harmonium', 'piano')",
+            name="ck_song_chord_proposals_instrument",
         ),
         CheckConstraint(
             "status IN ('pending', 'published', 'rejected')", name="ck_song_chord_proposals_status"

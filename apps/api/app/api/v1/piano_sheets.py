@@ -43,6 +43,7 @@ from app.schemas.piano_sheets import (
 )
 from app.services import piano_sheets as service
 from app.services.extras_common import display_name, visible_recording
+from app.services.recording_chords import NO_CHORD_KINDS
 from app.services.recordings import is_team_member
 
 logger = logging.getLogger(__name__)
@@ -181,7 +182,12 @@ async def offer_for_recording(
 ) -> PianoSheetOut:
     """Offer notes. A team member's and the recording author's are live at once (`status:
     published`); anyone else's are `pending` until the team looks at them."""
-    await visible_recording(session, recording_id)
+    recording = await visible_recording(session, recording_id)
+    if recording.kind in NO_CHORD_KINDS:
+        # a Dance music and a Baba's Audio Discourse take neither chords nor notes
+        raise HTTPException(
+            status_code=422, detail="Dance music and Baba's Audio Discourses take no notes."
+        )
     return await _offer(
         session, member, settings, payload, recording_id=recording_id, song_number=None
     )

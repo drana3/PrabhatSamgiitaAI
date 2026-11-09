@@ -72,6 +72,10 @@ MAX_CHORDS = 2000
 # The kinds that take a chart over pasted text. A Kiirtan has its own plain-text sheets only; a
 # Prabhat Samgiita recording has the song page's charts (the legacy "devotional_song" is a Bhajan).
 CHART_KINDS = ("bhajan", "devotional_song", "spiritual_song")
+# The kinds that take no chords at all (9 Nov 2026): a Dance music is played, not sung to chords,
+# and a Baba's Audio Discourse is a talk. The app does not offer chords there; the server refuses.
+NO_CHORD_KINDS = ("dance_song", "baba_audio")
+NO_CHORDS_DETAIL = "Dance music and Baba's Audio Discourses take no chords."
 DAILY_LIMIT_CODE = shared.DAILY_LIMIT_CODE
 DUPLICATE_CODE = shared.DUPLICATE_CODE
 OPEN_LIMIT_CODE = shared.OPEN_LIMIT_CODE
@@ -321,16 +325,17 @@ def fingerprint(chart: dict[str, Any]) -> str:
 
 
 async def check_kind(session: AsyncSession, recording_id: UUID, payload: SheetCreate) -> None:
-    """A chart over pasted text is for a Bhajan or a Spiritual song only; a chord cycle for a
-    Kiirtan only."""
+    """No chords at all for a Dance music or a Baba's Audio Discourse; a chart over pasted text is
+    for a Bhajan or a Spiritual song only; a chord cycle for a Kiirtan only."""
+    recording = await session.get(Recording, recording_id)
+    if recording is not None and recording.kind in NO_CHORD_KINDS:
+        raise HTTPException(status_code=422, detail=NO_CHORDS_DETAIL)
     if payload.cycle is not None:
-        recording = await session.get(Recording, recording_id)
         if recording is None or recording.kind not in kiirtan_cycles.CYCLE_KINDS:
             raise HTTPException(status_code=422, detail="A chord cycle is for Kiirtans only.")
         return
     if payload.lines is None:
         return
-    recording = await session.get(Recording, recording_id)
     if recording is None or recording.kind not in CHART_KINDS:
         raise HTTPException(
             status_code=422,

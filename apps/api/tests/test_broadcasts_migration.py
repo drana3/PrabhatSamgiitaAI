@@ -111,11 +111,12 @@ def m62() -> ModuleType:
     return load(NEW)
 
 
-def test_0062_follows_0061_and_is_the_only_head() -> None:
+def test_0062_follows_0061_and_the_chain_has_one_head() -> None:
     script = ScriptDirectory.from_config(Config(str(VERSIONS.parents[1] / "alembic.ini")))
     revision = script.get_revision(NEW)
     assert revision is not None and revision.down_revision == "0061_broadcasts"
-    assert script.get_heads() == [NEW]
+    # later migrations follow it: the chain must still be a single line
+    assert len(script.get_heads()) == 1
 
 
 def test_0062_adds_what_the_models_describe_to_a_0061_database(

@@ -269,7 +269,7 @@ Build **A** in steps and keep **C** as a small side door; **B** and **D** stay p
 * **Migration (one, new, not touching existing rows):** a table `piano_sheets` for either a recording or a PS song (exactly one of the
   two filled), with: key, level flags, melody and chords as JSON, cycle parts, optional attachment link, status, reviewer, versions
   (`replaces_id`), `based_on_id`, credit, anonymous flag, rights confirmation. Written the way 0047 was: safe to run twice, works on
-  PostgreSQL and SQLite. Chord sheets are **not** changed (their database CHECK allows only guitar and harmonium).
+  PostgreSQL and SQLite. Chord sheets were not changed at first (their database CHECK allowed only guitar and harmonium); migration 0063 later added `piano` as a third chord instrument (docs/chord-instruments.md).
 * **API (shape):** list sheets of a recording or song; create; new version of my own; delete my own; team: list waiting, accept,
   reject with a reason; the recordings list says whether a recording has a published sheet (feeds the tag). Same limits and
   notifications as chords.
