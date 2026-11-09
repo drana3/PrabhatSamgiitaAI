@@ -35,8 +35,13 @@ describe("the redesign is the only app", () => {
   })
 
   it("the start, welcome, sign-in, sign-out and not-found screens all land on the v2 home route", () => {
-    for (const file of ["app/index.tsx", "app/welcome.tsx", "app/auth.tsx", "app/auth/google.tsx", "app/complete-profile.tsx", "app/signin/index.tsx", "app/+not-found.tsx"]) {
+    for (const file of ["app/index.tsx", "app/auth.tsx", "app/auth/google.tsx", "app/complete-profile.tsx", "app/signin/index.tsx", "app/+not-found.tsx"]) {
       expect(readFileSync(path.join(root, file), "utf8"), file).toContain("NAV_V2_HOME_ROUTE")
     }
+  })
+
+  it("the welcome screen hands over to the onboarding, which ends on a v2 tab (the Kiirtan tab)", () => {
+    expect(readFileSync(path.join(root, "components/onboarding/useFinishOnboarding.ts"), "utf8")).toContain("landingRoute()")
+    expect(readFileSync(path.join(root, "lib/onboarding/flow.ts"), "utf8")).toContain("NAV_V2_TABS")
   })
 })

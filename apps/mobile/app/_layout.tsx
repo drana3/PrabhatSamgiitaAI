@@ -39,6 +39,7 @@ import { ChordNoticeSync } from "@/components/song-chords/ChordNoticeSync"
 import { LegacyRedirectHost } from "@/components/nav-v2/LegacyRedirectHost"
 import { MiniPlayerHost } from "@/components/nav-v2/MiniPlayerHost"
 import { NotificationsHost } from "@/components/notifications/NotificationsHost"
+import { KiirtanHintHost } from "@/components/onboarding/KiirtanHintHost"
 import { PlayReporterHost } from "@/components/authors/PlayReporterHost"
 import { ListeningHistoryHost } from "@/components/listening/ListeningHistoryHost"
 import { SaveHost } from "@/components/save/SaveHost"
@@ -192,6 +193,16 @@ export default function RootLayout() {
           >
             <Stack.Screen name="index" />
             <Stack.Screen name="welcome" />
+            {/* The first-run onboarding (docs/onboarding.md): language, sign in, what is inside, and the returning path. */}
+            <Stack.Screen name="onboarding/language" />
+            <Stack.Screen name="onboarding/signin" />
+            <Stack.Screen name="onboarding/email" />
+            <Stack.Screen name="onboarding/inside" />
+            <Stack.Screen name="onboarding/back" options={{ animation: "none" }} />
+            <Stack.Screen
+              name="onboarding/what"
+              options={{ presentation: "transparentModal", animation: "none", contentStyle: { backgroundColor: "transparent" } }}
+            />
             <Stack.Screen name="auth" options={{ animation: "none" }} />
             <Stack.Screen name="auth/google" options={{ animation: "none" }} />
             <Stack.Screen name="complete-profile" />
@@ -303,6 +314,8 @@ export default function RootLayout() {
           <ListeningHistoryHost />
           {/* Reminders and the inbox: schedules local notifications, fills the bell. Draws nothing. */}
           <NotificationsHost />
+          {/* The one-time hint on the Kiirtan tab right after the onboarding (docs/onboarding.md). */}
+          <KiirtanHintHost />
         </FrameSafeArea>
       </SafeAreaProvider>
     </GestureHandlerRootView>
