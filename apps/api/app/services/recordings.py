@@ -123,8 +123,12 @@ def is_team_member(member: UserAccount, settings: Settings) -> bool:
     """Admins (the team) are not limited to N uploads a day. There is no separate "team" role:
     `is_admin` / `is_super_admin` of the account, or an email in the owner lists, is the team.
     """
+    if getattr(member, "plain_member_only", False):
+        return False  # the old shared key never gives team rights (docs/security-member-auth.md)
     if member.is_admin or member.is_super_admin:
         return True
+    if getattr(member, "database_roles_only", False):
+        return False  # a signed session: the database flags are the only source of team rights
     email = normalize_member_email(member.email)
     return bool(email) and email in owner_admin_emails(settings)
 

@@ -5,7 +5,7 @@ import { LOCAL_AUTH_COOKIE } from "@/lib/auth-providers"
 import { memberPrincipalFor } from "@/lib/member-request"
 import { memberAuthCookieOptions } from "@/lib/oauth-return-cookie"
 import { requestIsSecure } from "@/lib/site-origin"
-import { runtimeEnv } from "@/lib/runtime-env"
+import { runtimeEnv, proxyKeyHeaders } from "@/lib/runtime-env"
 
 const allowedPaths = new Set([
   "session",
@@ -100,7 +100,7 @@ async function forward(request: NextRequest, segments: string[]) {
       headers: {
         "Content-Type": request.headers.get("content-type") ?? "application/json",
         "X-MS-CLIENT-PRINCIPAL": principal,
-        "X-Member-Proxy-Key": proxyKey,
+        ...proxyKeyHeaders(proxyKey),
       },
       body,
       cache: "no-store",

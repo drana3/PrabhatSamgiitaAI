@@ -410,7 +410,18 @@ def get_recording_storage(settings: Settings | None = None) -> RecordingStorage:
     settings = settings or get_settings()
     backend = settings.recording_storage_backend.lower()
     if backend == "local":
-        secret = settings.recording_signing_secret or settings.member_proxy_key
+        # The shared app key (MEMBER_PROXY_KEY) ships inside every app, so it must not sign links
+        # in production. Order: own secret, then the server-only session secret, then (dev, or an
+        # explicit RECORDING_SIGNING_ALLOW_PROXY_KEY) the shared key.
+        secret = (
+            settings.recording_signing_secret
+            or settings.member_session_secret
+            or (
+                settings.member_proxy_key
+                if settings.app_env != "production" or settings.recording_signing_allow_proxy_key
+                else None
+            )
+        )
         if not secret:
             if settings.app_env == "production":
                 raise StorageError("RECORDING_SIGNING_SECRET is required for local storage")

@@ -7,6 +7,7 @@ import {
   resolveMemberAuthIdentity,
   type MemberAuthSnapshot,
 } from "@/lib/memberAuthIdentity"
+import { bearerHeaders, hasMemberTokens } from "@/lib/memberSession"
 import { buildMemberAuthHeaders as buildHeaders } from "@/lib/principal"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -27,18 +28,27 @@ export function memberProxyKey(): string | undefined {
   return extraValue("memberProxyKey") ?? extraValue("EXPO_PUBLIC_MEMBER_PROXY_KEY")
 }
 
+/**
+ * True when this phone can prove who the member is: it holds signed session tokens, or (older path, until the
+ * key is switched off on the server) the shared key is built in.
+ */
 export function memberAuthAvailable() {
-  return Boolean(memberProxyKey())
+  return hasMemberTokens() || Boolean(memberProxyKey())
 }
 
-/** Headers for /members/* and /ai/explain — empty when guest or member sync is unavailable. */
+/**
+ * Headers for /members/* and /ai/explain — empty when guest or member sync is unavailable.
+ * The signed token wins; the shared key is only the fallback for a phone that has not exchanged yet.
+ */
 export function authHeadersFromStore(state?: MemberAuthSnapshot): Record<string, string> {
   const snapshot = state ?? useAuthStore.getState()
+  if (snapshot.mode === "signed_in" && hasMemberTokens()) return bearerHeaders()
   return authHeadersForIdentity(snapshot, memberProxyKey())
 }
 
 export function memberQuotaApplies(state?: MemberAuthSnapshot) {
   const snapshot = state ?? useAuthStore.getState()
+  if (snapshot.mode === "signed_in" && hasMemberTokens()) return true
   return memberQuotaAppliesFor(snapshot, memberProxyKey())
 }
 

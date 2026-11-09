@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { backendBaseUrl } from "@/lib/member-admin-proxy"
 import { memberPrincipalFor } from "@/lib/member-request"
-import { runtimeEnv } from "@/lib/runtime-env"
+import { runtimeEnv, proxyKeyHeaders } from "@/lib/runtime-env"
 
 export const dynamic = "force-dynamic"
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     headers: {
       "Content-Type": "application/json",
       "X-MS-CLIENT-PRINCIPAL": principal,
-      "X-Member-Proxy-Key": proxyKey,
+      ...proxyKeyHeaders(proxyKey),
     },
     body: JSON.stringify({ ...payload, mode: "semantic" }),
     cache: "no-store",

@@ -1,10 +1,18 @@
 import type { MemberProfile } from "@prabhat/core"
+import { Platform } from "react-native"
 
 import { api } from "@/lib/client"
 import { signInWithFacebook } from "@/lib/facebookAuth"
 import { googleAuthConfigured, signInWithGoogle, signOutWithGoogle } from "@/lib/googleAuth"
 import { loginWithEmail, registerWithEmail } from "@/lib/localAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
+import {
+  clearMemberTokens,
+  exchangeProviderProof,
+  memberSessionBaseUrl,
+  revokeMemberSession,
+  type ProviderProof,
+} from "@/lib/memberSession"
 import {
   microsoftAuthConfigured,
   signInWithMicrosoft,
@@ -98,6 +106,19 @@ async function syncMemberData() {
   return hydrated
 }
 
+function exchangeProvider(identityProvider: string): ProviderProof["provider"] | null {
+  return identityProvider === "google" ||
+    identityProvider === "apple" ||
+    identityProvider === "aad" ||
+    identityProvider === "facebook"
+    ? identityProvider
+    : null
+}
+
+function deviceLabel() {
+  return `${Platform.OS} app`
+}
+
 async function finishSignIn(input: {
   displayName: string
   email: string | null
@@ -105,7 +126,19 @@ async function finishSignIn(input: {
   identityProvider: string
   /** the provider's picture (Google), kept unless the person chose their own */
   photoUrl?: string | null
+  /** the provider's signed proof; the server trades it for our session tokens before any member request */
+  proof?: Omit<ProviderProof, "provider" | "deviceLabel">
 }) {
+  // First thing: trade the provider's proof for session tokens, so every request after this is signed.
+  // When the server cannot do it (offline, not set up yet) the older path below still works.
+  if (input.proof) {
+    const provider = exchangeProvider(input.identityProvider)
+    if (provider) {
+      await exchangeProviderProof(memberSessionBaseUrl(), { ...input.proof, provider, deviceLabel: deviceLabel() })
+    } else {
+      await clearMemberTokens()
+    }
+  }
   useAuthStore.getState().applyMemberSession({
     displayName: input.displayName,
     email: input.email,
@@ -171,6 +204,8 @@ export async function signOutMember() {
   // In-flight Profile/AppState member sync must not revive the session after the alert.
   useAuthStore.getState().signOut()
   usePreferencesStore.getState().resetAfterSignOut()
+  // Tokens leave this phone at once; the server is told in the background (best effort).
+  void revokeMemberSession(memberSessionBaseUrl())
   // The account's data leaves the phone (see lib/account/wipeLocalUserData.ts); the sign-out itself never waits on it.
   void wipeLocalUserData(accountId)
 
@@ -204,6 +239,7 @@ export async function signInMember() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: "aad",
+    proof: { idToken: identity.idToken },
   })
 }
 
@@ -215,6 +251,7 @@ export async function signInWithGoogleAccount() {
     memberId: identity.id,
     identityProvider: identity.provider,
     photoUrl: identity.photoUrl,
+    proof: { idToken: identity.idToken },
   })
 }
 
@@ -225,6 +262,7 @@ export async function signInWithFacebookAccount() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: identity.provider,
+    proof: { accessToken: identity.accessToken },
   })
 }
 
@@ -236,6 +274,7 @@ export async function signInWithAppleAccount() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: identity.provider,
+    proof: { idToken: identity.idToken },
   })
 }
 

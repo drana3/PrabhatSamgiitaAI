@@ -78,6 +78,7 @@ export async function signInWithGoogle(): Promise<OAuthIdentity> {
       email: profile.email ?? null,
       displayName: profile.name || profile.email || "Google member",
       provider: "google",
+      ...(response.data.idToken ? { idToken: response.data.idToken } : {}),
       ...(profile.photo ? { photoUrl: profile.photo } : {}),
     }
   } catch (error) {

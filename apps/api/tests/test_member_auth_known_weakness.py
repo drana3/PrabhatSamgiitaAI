@@ -1,11 +1,15 @@
-"""Pins today's member-auth behaviour so the weakness is visible and cannot change silently.
+"""The shared-key weakness (QA-001) and what is left of it. See docs/security-member-auth.md.
 
-The mobile app ships the shared MEMBER_PROXY_KEY inside its bundle, and the API trusts the identity
-(X-MS-CLIENT-PRINCIPAL) that arrives with that key. Anyone who extracts the key can claim any member.
-See docs/security-member-auth.md for the attack, the proposed fix and what needs the owner's decision.
+The mobile app used to ship MEMBER_PROXY_KEY in its bundle and the API trusted the identity
+that came with it. These tests pinned that behaviour. The fix (signed per-member tokens, the
+old key reduced to "plain member", the website on its own key) has landed, so they were
+rewritten on purpose:
 
-These tests describe the CURRENT behaviour. When the fix lands (server-issued signed session tokens),
-they must be rewritten on purpose, not deleted by accident.
+* the shared key still lets a request name a member (migration for old app versions), but the
+  request is marked as trust "legacy" and can never be admin or team
+  (see tests/test_member_session_auth.py);
+* the helpers that promote by owner e-mail or by probe name are unchanged, because they are
+  still used for the website and for verified sign-ins; what changed is who can reach them.
 """
 
 import base64
@@ -14,11 +18,14 @@ import os
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import pytest
+
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
 os.environ.setdefault("MEMBER_PROXY_KEY", "test-proxy-key")
 
 from app.config import Settings
 from app.models import UserAccount
+from app.services import members
 from app.services.admin_members import apply_default_admin, ensure_ephemeral_smoke_admin
 from app.services.members import require_member_identity
 
@@ -56,22 +63,31 @@ def account(*, subject: str, email: str | None, name: str) -> UserAccount:
     )
 
 
-def test_key_plus_self_made_principal_is_accepted_as_any_member() -> None:
+def test_key_plus_self_made_principal_is_accepted_only_as_a_legacy_member(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings(MEMBER_PROXY_KEY="test-proxy-key", WEB_PROXY_KEY="")
+    monkeypatch.setattr(members, "get_settings", lambda: settings)
     request = FakeRequest(
         {
             "x-member-proxy-key": "test-proxy-key",
-            "x-ms-client-principal": forged_principal(subject="victim-123", email="victim@example.com"),
+            "x-ms-client-principal": forged_principal(
+                subject="victim-123", email="victim@example.com"
+            ),
         }
     )
 
     identity = require_member_identity(request)  # type: ignore[arg-type]
 
-    # Nothing proves the caller owns this account: only the shared key was checked.
+    # Still accepted so old app versions keep working, but with the lowest trust level.
     assert identity.subject == "google:victim-123"
     assert identity.email == "victim@example.com"
+    assert identity.trust == "legacy"
 
 
-def test_forged_owner_email_is_promoted_to_admin() -> None:
+def test_owner_email_helper_still_promotes_for_trusted_callers() -> None:
+    # Reached only by the website key and by a sign-in the provider verified, never by the
+    # shared key.
     settings = Settings(DEFAULT_ADMIN_EMAILS="owner@example.com", PROTECTED_ADMIN_EMAILS="")
     member = account(subject="google:forged", email="owner@example.com", name="Forged")
 
@@ -79,9 +95,11 @@ def test_forged_owner_email_is_promoted_to_admin() -> None:
     assert member.is_admin is True
 
 
-def test_probe_name_in_a_self_made_principal_makes_an_admin() -> None:
-    # Used by infra/azure/deploy-app.sh. It is also a way in for anyone holding the key.
-    member = account(subject="aad:deploy-smoke", email="deploy-smoke@prabhat.local", name="deploy-smoke")
+def test_probe_name_helper_is_unchanged_but_only_the_website_key_reaches_it() -> None:
+    # Used by infra/azure/deploy-app.sh through the website key (WEB_PROXY_KEY).
+    member = account(
+        subject="aad:deploy-smoke", email="deploy-smoke@prabhat.local", name="deploy-smoke"
+    )
 
     ensure_ephemeral_smoke_admin(member)
 

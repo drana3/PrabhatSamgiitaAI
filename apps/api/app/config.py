@@ -140,6 +140,47 @@ class Settings(BaseSettings):
         default=0.0, alias="SENTRY_TRACES_SAMPLE_RATE", ge=0.0, le=1.0
     )
 
+    # --- Member sign-in tokens (docs/security-member-auth.md). Values: environment. ---
+    # Signs the short-lived access tokens. At least 32 random characters; empty = new sign-in off.
+    member_session_secret: str | None = Field(default=None, alias="MEMBER_SESSION_SECRET")
+    # The previous secret, accepted for checking only while rotating (access tokens live one hour).
+    member_session_secret_previous: str | None = Field(
+        default=None, alias="MEMBER_SESSION_SECRET_PREVIOUS"
+    )
+    member_access_ttl_seconds: int = Field(
+        default=3600, alias="MEMBER_ACCESS_TTL_SECONDS", ge=60, le=86_400
+    )
+    member_refresh_ttl_days: int = Field(default=30, alias="MEMBER_REFRESH_TTL_DAYS", ge=1, le=365)
+    # A key only the website server holds (never inside an app). With it set, the website is trusted
+    # for admin; the old shared key (MEMBER_PROXY_KEY, public inside every app) is not.
+    web_proxy_key: str | None = Field(default=None, alias="WEB_PROXY_KEY")
+    # Old apps: shared key + self-made principal. true = still accepted as a plain member.
+    allow_legacy_member_principal: bool = Field(default=True, alias="ALLOW_LEGACY_MEMBER_PRINCIPAL")
+    # Emergency switch: true = the shared key may again act as admin/team. Keep false.
+    legacy_principal_admin: bool = Field(default=False, alias="LEGACY_PRINCIPAL_ADMIN")
+    # Who may sign a token the server accepts (comma lists; the ids are public, not secrets).
+    google_oauth_client_ids: str = Field(default="", alias="GOOGLE_OAUTH_CLIENT_IDS")
+    apple_bundle_ids: str = Field(default="net.prabhatasamgiita.ai", alias="APPLE_BUNDLE_IDS")
+    azure_client_ids: str = Field(default="", alias="AZURE_CLIENT_IDS")
+    # Microsoft tenants whose e-mail addresses we trust as verified (comma list of tenant ids).
+    member_trusted_ms_tenants: str = Field(default="", alias="MEMBER_TRUSTED_MS_TENANTS")
+    facebook_app_id: str | None = Field(default=None, alias="FACEBOOK_APP_ID")
+    facebook_app_secret: str | None = Field(default=None, alias="FACEBOOK_APP_SECRET")
+    # Recording links are signed with RECORDING_SIGNING_SECRET, or with the member secret. The old
+    # fallback to the shared app key is off in production unless this is true.
+    recording_signing_allow_proxy_key: bool = Field(
+        default=False, alias="RECORDING_SIGNING_ALLOW_PROXY_KEY"
+    )
+
+    # --- Request limiter (docs/rate-limits.md) ---
+    rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    # "database" (default, shared by all instances, survives restarts) or "memory" (one process)
+    rate_limit_backend: str = Field(default="database", alias="RATE_LIMIT_BACKEND")
+    rate_limit_pepper: str | None = Field(default=None, alias="RATE_LIMIT_PEPPER")
+    # How many reverse proxies sit in front of the API (Azure Container Apps ingress = 1).
+    rate_limit_trusted_proxy_hops: int = Field(
+        default=1, alias="RATE_LIMIT_TRUSTED_PROXY_HOPS", ge=0, le=5
+    )
 
 
 @lru_cache(maxsize=1)

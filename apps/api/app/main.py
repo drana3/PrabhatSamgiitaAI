@@ -23,6 +23,8 @@ from app.observability import harden_logging, init_sentry
 from app.services.ai_quota_report import EXPOSED_HEADERS
 from app.services.bootstrap import BootstrapService
 from app.services.embedding_index import build_embedding_indexes, load_faiss_snapshot
+from app.services.rate_limit import RateLimitMiddleware, default_store
+from app.services.rate_limit import limiter as rate_limiter
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -198,5 +200,8 @@ app.add_middleware(
     allowed_hosts=[host.strip() for host in settings.trusted_hosts.split(",") if host.strip()],
 )
 app.add_middleware(RequestContextMiddleware, max_request_bytes=settings.max_request_bytes)
+if settings.app_env != "test":
+    rate_limiter.configure(default_store())
+app.add_middleware(RateLimitMiddleware)
 
 app.include_router(v1_router)

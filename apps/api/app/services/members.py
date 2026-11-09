@@ -3,14 +3,17 @@ from __future__ import annotations
 import base64
 import hmac
 import json
+import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import UUID
 
 from fastapi import HTTPException, Request
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.config import get_settings
 from app.models import (
@@ -22,6 +25,7 @@ from app.models import (
     UserFavorite,
     UserInterestProfile,
 )
+from app.models.member_session import MemberSession
 from app.schemas.member import ChatHistoryDay, ChatMemoryTurn, ChatMemoryWrite, MemberProfile
 from app.services.admin_members import (
     apply_default_admin,
@@ -152,6 +156,22 @@ TOPIC_TERMS = {
 }
 
 
+logger = logging.getLogger(__name__)
+
+# How far a request's identity is trusted (docs/security-member-auth.md):
+#   "provider" the sign-in provider's own signed proof, checked on the server (exchange only)
+#   "session" a signed token the server issued after checking the sign-in with the provider
+#   "web"     the website server (its own key), or the shared key while LEGACY_PRINCIPAL_ADMIN
+#   "legacy"  the old shared key that ships inside every app: plain member at most, never admin
+TRUST_SESSION = "session"
+TRUST_WEB = "web"
+TRUST_LEGACY = "legacy"
+TRUST_PROVIDER = "provider"  # just proven with the sign-in provider (token exchange)
+LEGACY_LOG_EVERY = 500
+legacy_hits = 0
+SESSION_TOUCH_SECONDS = 300
+
+
 @dataclass(frozen=True, slots=True)
 class MemberIdentity:
     subject: str
@@ -159,6 +179,13 @@ class MemberIdentity:
     display_name: str
     email: str | None
     avatar_url: str | None = None
+    trust: str = TRUST_WEB
+    # False: the provider did not vouch for the address. It is then never used to find, merge or
+    # promote an account.
+    email_verified: bool = True
+    # Only for "session": the account and session named in the signed token.
+    account_id: UUID | None = None
+    session_id: UUID | None = None
 
 
 def _claim_value(claims: list[dict[str, Any]], accepted: set[str]) -> str | None:
@@ -209,29 +236,82 @@ def decode_client_principal(encoded: str) -> MemberIdentity:
     )
 
 
-def require_member_identity(request: Request) -> MemberIdentity:
-    configured_key = get_settings().member_proxy_key
+def _bearer_token(request: Request) -> str | None:
+    value = request.headers.get("authorization") or ""
+    scheme, _, token = value.partition(" ")
+    if scheme.casefold() == "bearer" and token.strip():
+        return token.strip()
+    return None
+
+
+def _identity_from_access_token(token: str) -> MemberIdentity:
+    from app.services.member_tokens import TokenError, verify_access_token
+
+    try:
+        claims = verify_access_token(token)
+    except TokenError as exc:
+        logger.info("member access token refused: %s", exc.reason)
+        raise HTTPException(status_code=401, detail="Sign in again") from exc
+    return MemberIdentity(
+        subject=claims.subject,
+        provider=claims.provider,
+        display_name="",
+        email=None,
+        trust=TRUST_SESSION,
+        account_id=claims.account_id,
+        session_id=claims.session_id,
+    )
+
+
+def _note_legacy_use() -> None:
+    global legacy_hits
+    legacy_hits += 1
+    if legacy_hits == 1 or legacy_hits % LEGACY_LOG_EVERY == 0:
+        logger.warning("legacy member principal accepted %d time(s) since start", legacy_hits)
+
+
+def _identity_from_proxy_headers(request: Request) -> MemberIdentity:
+    settings = get_settings()
+    web_key = settings.web_proxy_key
+    provided_web = request.headers.get("x-web-proxy-key")
+    shared_key = settings.member_proxy_key
     provided_key = request.headers.get("x-member-proxy-key")
-    if not configured_key or not provided_key or not hmac.compare_digest(
-        configured_key, provided_key
-    ):
+    if web_key and provided_web and hmac.compare_digest(web_key, provided_web):
+        trust = TRUST_WEB
+    elif shared_key and provided_key and hmac.compare_digest(shared_key, provided_key):
+        if not settings.allow_legacy_member_principal:
+            raise HTTPException(
+                status_code=401, detail="This app version can no longer sign in. Please update."
+            )
+        trust = TRUST_WEB if settings.legacy_principal_admin else TRUST_LEGACY
+        if trust == TRUST_LEGACY:
+            _note_legacy_use()
+    else:
         raise HTTPException(status_code=401, detail="Member proxy authentication failed")
     principal = request.headers.get("x-ms-client-principal")
     if not principal:
         raise HTTPException(status_code=401, detail="Sign in is required")
-    return decode_client_principal(principal)
+    return replace(decode_client_principal(principal), trust=trust)
+
+
+def require_member_identity(request: Request) -> MemberIdentity:
+    """Who is calling. A signed token wins; the old shared key only gives a plain member."""
+    token = _bearer_token(request)
+    if token is not None:
+        return _identity_from_access_token(token)
+    return _identity_from_proxy_headers(request)
 
 
 def try_member_identity(request: Request) -> MemberIdentity | None:
-    configured_key = get_settings().member_proxy_key
-    provided_key = request.headers.get("x-member-proxy-key")
-    principal = request.headers.get("x-ms-client-principal")
-    if not configured_key or not provided_key or not principal:
-        return None
-    if not hmac.compare_digest(configured_key, provided_key):
-        return None
     try:
-        return decode_client_principal(principal)
+        token = _bearer_token(request)
+        if token is not None:
+            return _identity_from_access_token(token)
+        if not (
+            request.headers.get("x-member-proxy-key") or request.headers.get("x-web-proxy-key")
+        ) or not request.headers.get("x-ms-client-principal"):
+            return None
+        return _identity_from_proxy_headers(request)
     except HTTPException:
         return None
 
@@ -419,16 +499,58 @@ async def _merge_fork_into_canonical(
     fork.deleted_at = datetime.now(UTC)
 
 
-async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAccount:
+def _cap_to_plain_member(member: UserAccount) -> UserAccount:
+    """A request that came through the old shared key never acts as admin or team.
+
+    The row in the database is not touched: only this request's copy of the account says "not admin"
+    (`set_committed_value` marks nothing as changed), and `is_team_member` / `require_admin_member`
+    look at `plain_member_only`.
+    """
+    set_committed_value(member, "is_admin", False)
+    set_committed_value(member, "is_super_admin", False)
+    member.plain_member_only = True  # type: ignore[attr-defined]
+    return member
+
+
+async def _member_from_session(session: AsyncSession, identity: MemberIdentity) -> UserAccount:
+    """The account named in a signed token. Roles stay as the database has them right now."""
+    if identity.account_id is None or identity.session_id is None:
+        raise HTTPException(status_code=401, detail="Sign in again")
+    member = await session.get(UserAccount, identity.account_id)
+    row = await session.get(MemberSession, identity.session_id)
+    if (
+        member is None
+        or member.deleted_at is not None
+        or row is None
+        or row.revoked_at is not None
+        or row.user_id != member.id
+    ):
+        raise HTTPException(status_code=401, detail="Sign in again")
     now = datetime.now(UTC)
+    seen = member.last_seen_at
+    if seen is None or (now - (seen if seen.tzinfo else seen.replace(tzinfo=UTC))) > timedelta(
+        seconds=SESSION_TOUCH_SECONDS
+    ):
+        member.last_seen_at = now
+        await session.commit()
+    member.database_roles_only = True  # type: ignore[attr-defined]
+    return member
+
+
+async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAccount:
+    if identity.trust == TRUST_SESSION:
+        return await _member_from_session(session, identity)
+    now = datetime.now(UTC)
+    # An address the provider did not vouch for may not find, merge or promote an account.
+    trusted_email = identity.email if identity.email_verified else None
     member = await session.scalar(
         select(UserAccount).where(
             UserAccount.external_subject == identity.subject,
             UserAccount.deleted_at.is_(None),
         )
     )
-    if member is None and identity.email:
-        canonical = await _find_canonical_by_email(session, identity.email)
+    if member is None and trusted_email:
+        canonical = await _find_canonical_by_email(session, trusted_email)
         if canonical is not None and not is_ephemeral_member(canonical):
             # Reuse the website Easy Auth account instead of forking by mobile UUID/email.
             member = canonical
@@ -446,19 +568,29 @@ async def sync_member(session: AsyncSession, identity: MemberIdentity) -> UserAc
         await session.flush()
     else:
         member.deleted_at = None
-    if identity.email:
-        member = await _absorb_mailbox_twins(session, member, identity.email)
+    if trusted_email:
+        member = await _absorb_mailbox_twins(session, member, trusted_email)
     member.identity_provider = identity.provider
-    member.email = normalize_member_email(identity.email) or member.email
+    if identity.email_verified:
+        member.email = normalize_member_email(identity.email) or member.email
+    elif not member.email and identity.email:
+        member.email = normalize_member_email(identity.email)
     # Keep a member-edited display name; only fill from OAuth when blank.
     if not (member.display_name or "").strip():
         member.display_name = identity.display_name
     member.avatar_url = identity.avatar_url or member.avatar_url
     member.last_seen_at = now
-    ensure_ephemeral_smoke_admin(member)
-    apply_default_admin(member)
+    # Promotion by owner e-mail: only for the website, or a provider that vouched for the address.
+    # Never for the shared key. The probe names (deploy smoke test) work only via the website key.
+    if identity.trust == TRUST_WEB:
+        ensure_ephemeral_smoke_admin(member)
+        apply_default_admin(member)
+    elif identity.trust == TRUST_PROVIDER and identity.email_verified:
+        apply_default_admin(member)
     await session.commit()
     await session.refresh(member)
+    if identity.trust == TRUST_LEGACY:
+        return _cap_to_plain_member(member)
     return member
 
 

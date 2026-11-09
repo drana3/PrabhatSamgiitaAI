@@ -15,11 +15,12 @@ from app.api.v1.inventory import router as inventory_router
 from app.api.v1.learn_sync import router as learn_sync_router
 from app.api.v1.media import router as media_router
 from app.api.v1.member_admin import router as member_admin_router
+from app.api.v1.member_sessions import router as member_sessions_router
 from app.api.v1.members import router as members_router
 from app.api.v1.notation import router as notation_router
+from app.api.v1.piano_sheets import router as piano_sheets_router
 from app.api.v1.push import router as push_router
 from app.api.v1.quiz_events import router as quiz_events_router
-from app.api.v1.piano_sheets import router as piano_sheets_router
 from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.recording_chords import router as recording_chords_router
 from app.api.v1.recording_comments import router as recording_comments_router
@@ -33,13 +34,13 @@ from app.api.v1.search_menu import router as search_menu_router
 from app.api.v1.song_chords import admin_router as song_chords_admin_router
 from app.api.v1.song_chords import router as song_chords_router
 from app.api.v1.song_comments import router as song_comments_router
+from app.api.v1.song_translations import admin_router as song_translations_admin_router
+from app.api.v1.song_translations import router as song_translations_router
 from app.api.v1.songs import router as songs_router
 from app.api.v1.telemetry import admin_router as telemetry_admin_router
 from app.api.v1.telemetry import router as telemetry_router
 from app.api.v1.top_played import router as top_played_router
 from app.api.v1.transliteration import router as transliteration_router
-from app.api.v1.song_translations import admin_router as song_translations_admin_router
-from app.api.v1.song_translations import router as song_translations_router
 from app.api.v1.video_links import router as video_links_router
 
 router = APIRouter(prefix="/api/v1")
@@ -50,6 +51,7 @@ router.include_router(search_router)
 router.include_router(recommendations_router)
 router.include_router(inventory_router)
 router.include_router(members_router)
+router.include_router(member_sessions_router)
 router.include_router(learn_sync_router)
 router.include_router(auth_router)
 router.include_router(member_admin_router)
@@ -66,6 +68,8 @@ router.include_router(recording_sets_admin_router)
 router.include_router(song_comments_router)
 router.include_router(song_chords_router)
 router.include_router(song_chords_admin_router)
+router.include_router(song_translations_router)
+router.include_router(song_translations_admin_router)
 router.include_router(author_claims_router)
 router.include_router(author_claims_admin_router)
 router.include_router(author_claims_uploads_router)
@@ -75,12 +79,10 @@ router.include_router(author_profiles_admin_router)
 router.include_router(recording_comments_router)
 router.include_router(recording_chords_router)
 router.include_router(video_links_router)
+router.include_router(piano_sheets_router)
 router.include_router(search_menu_router)
-router.include_router(song_translations_router)
-router.include_router(song_translations_admin_router)
 router.include_router(search_menu_admin_router)
 router.include_router(top_played_router)
 router.include_router(telemetry_router)
 router.include_router(telemetry_admin_router)
 router.include_router(push_router)
-router.include_router(piano_sheets_router)

@@ -12,6 +12,8 @@ const path = require("path")
 const { withAppDelegate, withAndroidManifest, withDangerousMod } = require("@expo/config-plugins")
 
 const FOLDER = "offline-audio"
+// expo-secure-store keeps the member session tokens here on Android: never in a backup (docs/security-member-auth.md)
+const SECURE_STORE_PREFS = "SecureStore.xml"
 const IOS_MARKER = "// offline-audio backup exclusion"
 const SUPER_CALL = "return super.application(application, didFinishLaunchingWithOptions: launchOptions)"
 
@@ -37,6 +39,7 @@ function injectIosBackupExclusion(contents) {
 const FULL_BACKUP_XML = `<?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
   <exclude domain="file" path="${FOLDER}" />
+  <exclude domain="sharedpref" path="${SECURE_STORE_PREFS}" />
 </full-backup-content>
 `
 
@@ -44,9 +47,11 @@ const DATA_EXTRACTION_XML = `<?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
   <cloud-backup>
     <exclude domain="file" path="${FOLDER}" />
+    <exclude domain="sharedpref" path="${SECURE_STORE_PREFS}" />
   </cloud-backup>
   <device-transfer>
     <exclude domain="file" path="${FOLDER}" />
+    <exclude domain="sharedpref" path="${SECURE_STORE_PREFS}" />
   </device-transfer>
 </data-extraction-rules>
 `

@@ -349,6 +349,8 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
+          WEB_PROXY_KEY: ${{ secrets.WEB_PROXY_KEY }}
+          MEMBER_SESSION_SECRET: ${{ secrets.MEMBER_SESSION_SECRET }}
           FAISS_INDEX_URL: ${{ secrets.FAISS_INDEX_URL }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
@@ -398,6 +400,7 @@ jobs:
         env:
           PUBLIC_SITE_URL: https://www.prabhatasamgiita.org
           MEMBER_PROXY_KEY: ${{ secrets.MEMBER_PROXY_KEY || secrets.MOBILE_MEMBER_PROXY_KEY }}
+          WEB_PROXY_KEY: ${{ secrets.WEB_PROXY_KEY }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: bash ./infra/azure/sync-swa-app-settings.sh

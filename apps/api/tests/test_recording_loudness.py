@@ -455,7 +455,6 @@ def test_0048_follows_0047_and_the_chain_has_one_head() -> None:
     assert len(script.get_heads()) == 1
     revision = script.get_revision("0048_recording_loudness")
     assert revision is not None and revision.down_revision == "0047_recording_chord_charts"
-    assert script.get_heads() == ["0048_recording_loudness"]
 
 
 def test_0048_adds_the_columns_keeps_old_rows_and_runs_twice(

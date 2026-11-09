@@ -74,5 +74,6 @@ export async function signInWithFacebook(): Promise<OAuthIdentity> {
     email: profile.email ?? null,
     displayName: profile.name || profile.email || "Facebook member",
     provider: "facebook",
+    accessToken,
   }
 }

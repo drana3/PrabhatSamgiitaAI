@@ -137,6 +137,7 @@ export async function signInWithApple(): Promise<OAuthIdentity> {
         credential.email ?? (await readStoredAppleEmail(credential.user)),
       ),
       provider: "apple",
+      ...(credential.identityToken ? { idToken: credential.identityToken } : {}),
     }
   } catch (error) {
     const code = (error as { code?: string })?.code

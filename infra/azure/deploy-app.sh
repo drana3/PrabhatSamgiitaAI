@@ -19,6 +19,9 @@ AZURE_OPENAI_CHAT_DEPLOYMENT="${AZURE_OPENAI_CHAT_DEPLOYMENT:-${AZURE_OPENAI_DEP
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT="${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-${AZURE_OPENAI_CHAT_DEPLOYMENT:-}}"
 AZURE_OPENAI_API_VERSION="${AZURE_OPENAI_API_VERSION:-2024-10-21}"
 MEMBER_PROXY_KEY="${MEMBER_PROXY_KEY:-}"
+# Signed member sign-in (docs/security-member-auth.md). Both optional until the owner sets them.
+WEB_PROXY_KEY="${WEB_PROXY_KEY:-}"
+MEMBER_SESSION_SECRET="${MEMBER_SESSION_SECRET:-}"
 DEFAULT_ADMIN_EMAILS="${DEFAULT_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
 PROTECTED_ADMIN_EMAILS="${PROTECTED_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
 ACS_EMAIL_ENABLED="${ACS_EMAIL_ENABLED:-true}"
@@ -214,6 +217,19 @@ if [[ "$DEPLOY_API" == "1" ]]; then
       --secrets acs-email-connection-string="$ACS_EMAIL_CONNECTION_STRING" >/dev/null
   fi
 
+  if [[ -n "${WEB_PROXY_KEY}" ]]; then
+    az containerapp secret set \
+      --name "$API_APP" \
+      --resource-group "$RG" \
+      --secrets web-proxy-key="$WEB_PROXY_KEY" >/dev/null
+  fi
+  if [[ -n "${MEMBER_SESSION_SECRET}" ]]; then
+    az containerapp secret set \
+      --name "$API_APP" \
+      --resource-group "$RG" \
+      --secrets member-session-secret="$MEMBER_SESSION_SECRET" >/dev/null
+  fi
+
   ensure_dockerhub_registry "$API_APP"
 
   echo "Building API image (prabhat-samgiita-api:${TAG})..."
@@ -268,6 +284,12 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   )
   if [[ -n "${FAISS_INDEX_URL}" ]]; then
     API_ENV_VARS+=(FAISS_INDEX_URL=secretref:faiss-index-url)
+  fi
+  if [[ -n "${WEB_PROXY_KEY}" ]]; then
+    API_ENV_VARS+=(WEB_PROXY_KEY=secretref:web-proxy-key)
+  fi
+  if [[ -n "${MEMBER_SESSION_SECRET}" ]]; then
+    API_ENV_VARS+=(MEMBER_SESSION_SECRET=secretref:member-session-secret)
   fi
   if [[ -n "${GOOGLE_TRANSLATE_API_KEY}" ]]; then
     API_ENV_VARS+=(GOOGLE_TRANSLATE_API_KEY="$GOOGLE_TRANSLATE_API_KEY")
@@ -484,7 +506,12 @@ fi
 
 python3 "${ROOT_DIR}/scripts/validate_live_backend.py" "https://${API_FQDN}"
 
-# Authenticated member/admin smoke (never prints the proxy key).
+# Authenticated member/admin smoke (never prints the proxy key). The smoke identity needs the admin
+# routes, so it uses the website key when there is one; the shared app key no longer gives admin.
+SMOKE_KEY_HEADER="X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}"
+if [[ -n "${WEB_PROXY_KEY}" ]]; then
+  SMOKE_KEY_HEADER="X-Web-Proxy-Key: ${WEB_PROXY_KEY}"
+fi
 MEMBER_SMOKE_PRINCIPAL="$(python3 - <<'PY'
 import base64, json
 payload = {
@@ -502,7 +529,7 @@ PY
 )"
 MEMBER_SESSION_SMOKE="$(curl_retry "member-session" \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
-  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  --header "$SMOKE_KEY_HEADER" \
   "https://${API_FQDN}/api/v1/members/session")" || {
   echo "Member session smoke failed after API warm-up." >&2
   exit 1
@@ -510,7 +537,7 @@ MEMBER_SESSION_SMOKE="$(curl_retry "member-session" \
 printf '%s' "$MEMBER_SESSION_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if data.get("authenticated") is True else 1)'
 MEMBER_FEEDBACK_SMOKE="$(curl_retry "member-admin-feedback" \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
-  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  --header "$SMOKE_KEY_HEADER" \
   "https://${API_FQDN}/api/v1/members/admin/feedback?status=new")" || {
   echo "Member admin feedback smoke failed after API warm-up." >&2
   exit 1
@@ -518,7 +545,7 @@ MEMBER_FEEDBACK_SMOKE="$(curl_retry "member-admin-feedback" \
 printf '%s' "$MEMBER_FEEDBACK_SMOKE" | python3 -c 'import json,sys; data=json.load(sys.stdin); raise SystemExit(0 if isinstance(data.get("items"), list) and "total" in data else 1)'
 YOUTUBE_CHANNELS_STATUS="$(curl --silent --show-error --write-out '%{http_code}' --output /dev/null \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
-  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  --header "$SMOKE_KEY_HEADER" \
   "https://${API_FQDN}/api/v1/members/admin/youtube-channels")" || YOUTUBE_CHANNELS_STATUS="000"
 if [[ "$YOUTUBE_CHANNELS_STATUS" != "200" && "$YOUTUBE_CHANNELS_STATUS" != "401" && "$YOUTUBE_CHANNELS_STATUS" != "403" ]]; then
   echo "YouTube channel admin route smoke failed: expected 200/401/403, got ${YOUTUBE_CHANNELS_STATUS}." >&2
@@ -529,7 +556,7 @@ MEMBER_QUIZ_SMOKE="$(curl_retry "member-quiz-start" \
   --request POST \
   --header "Content-Type: application/json" \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
-  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  --header "$SMOKE_KEY_HEADER" \
   --data '{"level":"starter"}' \
   "https://${API_FQDN}/api/v1/members/quiz/start")" || {
   echo "Member quiz start smoke failed after API warm-up." >&2
@@ -541,7 +568,7 @@ printf '%s' "$MEMBER_QUIZ_SMOKE" | python3 -c 'import json,sys; data=json.load(s
 curl_retry "member-smoke-cleanup" \
   --request DELETE \
   --header "X-MS-CLIENT-PRINCIPAL: ${MEMBER_SMOKE_PRINCIPAL}" \
-  --header "X-Member-Proxy-Key: ${MEMBER_PROXY_KEY}" \
+  --header "$SMOKE_KEY_HEADER" \
   "https://${API_FQDN}/api/v1/members/me" >/dev/null || {
   echo "Member smoke cleanup failed after API warm-up." >&2
   exit 1

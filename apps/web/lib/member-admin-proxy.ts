@@ -10,7 +10,7 @@ import {
   memberPrincipalFor,
   memberPrincipalFromHeaders,
 } from "@/lib/member-request"
-import { runtimeEnv } from "@/lib/runtime-env"
+import { runtimeEnv, proxyKeyHeaders } from "@/lib/runtime-env"
 
 export function memberForwardHeaders(request: NextRequest) {
   return azureAuthForwardHeaders(request.headers)
@@ -98,7 +98,7 @@ export async function fetchAdminFeedback(
     const response = await fetch(target, {
       headers: {
         "X-MS-CLIENT-PRINCIPAL": principal!,
-        "X-Member-Proxy-Key": proxyKey!,
+        ...proxyKeyHeaders(proxyKey!),
       },
       cache: "no-store",
     })
@@ -151,7 +151,7 @@ export async function forwardMemberAdmin(
       headers: {
         "Content-Type": request.headers.get("content-type") ?? "application/json",
         "X-MS-CLIENT-PRINCIPAL": principal,
-        "X-Member-Proxy-Key": proxyKey,
+        ...proxyKeyHeaders(proxyKey),
         ...(requestInit.headers ?? {}),
       },
       body:

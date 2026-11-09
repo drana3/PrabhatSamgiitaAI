@@ -110,7 +110,8 @@ def pepper(settings: Settings) -> str:
     return (
         os.environ.get("AUTHOR_STATS_PEPPER")
         or settings.recording_signing_secret
-        or settings.member_proxy_key
+        or settings.member_session_secret
+        or (settings.member_proxy_key if settings.app_env != "production" else None)
         or DEV_PEPPER
     )
 

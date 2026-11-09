@@ -4,6 +4,7 @@ import { createApiClient } from "@prabhat/core"
 
 import { requireAiConsent } from "@/lib/aiConsent"
 import { authHeadersFromStore } from "@/lib/memberAuth"
+import { configureMemberSession, ensureFreshAccessToken, ensureMemberSessionHydrated } from "@/lib/memberSession"
 
 const productionApi =
   "https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io"
@@ -23,9 +24,16 @@ export const apiBaseUrl =
     ? productionApi
     : configured
 
+configureMemberSession(apiBaseUrl)
+
 const rawApi = createApiClient({
   baseUrl: apiBaseUrl,
-  getAuthHeaders: (): Record<string, string> => authHeadersFromStore(),
+  // Refresh the access token first when it is about to expire, so a request never goes out with a dead one.
+  getAuthHeaders: async (): Promise<Record<string, string>> => {
+    await ensureMemberSessionHydrated()
+    await ensureFreshAccessToken(apiBaseUrl)
+    return authHeadersFromStore()
+  },
 })
 
 /**

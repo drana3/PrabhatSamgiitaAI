@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserAccount, UserCredential
 from app.schemas.auth import AuthSessionResponse, LocalLoginWrite, LocalRegisterWrite
+from app.services.admin_members import owner_admin_emails
+from app.services.member_tokens import session_tokens_enabled, start_session
 from app.services.members import _find_canonical_by_email
 from app.services.phone_numbers import normalize_phone
 from app.services.principals import principal_for_member
@@ -33,8 +35,19 @@ def _verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+async def _with_tokens(
+    session: AsyncSession, member: UserAccount, response: AuthSessionResponse, device: str | None
+) -> AuthSessionResponse:
+    if session_tokens_enabled():
+        pair = await start_session(session, member, device_label=device, provider="local")
+        response.access_token = pair.access_token
+        response.refresh_token = pair.refresh_token
+        response.expires_in = pair.expires_in
+    return response
+
+
 async def register_local_user(
-    session: AsyncSession, payload: LocalRegisterWrite
+    session: AsyncSession, payload: LocalRegisterWrite, device: str | None = None
 ) -> AuthSessionResponse:
     email = _normalize_email(str(payload.email))
     if not EMAIL_PATTERN.match(email):
@@ -50,7 +63,8 @@ async def register_local_user(
         )
 
     existing_member = await _find_canonical_by_email(session, email)
-    if existing_member is not None:
+    # An owner address cannot be taken by typing it in: nothing here proves the e-mail is yours.
+    if existing_member is not None or email in owner_admin_emails():
         raise HTTPException(
             status_code=409,
             detail="An account with this email already exists. Sign in instead.",
@@ -95,15 +109,22 @@ async def register_local_user(
     member.deleted_at = None
     await session.commit()
     await session.refresh(member)
-    return AuthSessionResponse(
-        client_principal=principal_for_member(member),
-        display_name=member.display_name,
-        email=email,
-        identity_provider=member.identity_provider,
+    return await _with_tokens(
+        session,
+        member,
+        AuthSessionResponse(
+            client_principal=principal_for_member(member),
+            display_name=member.display_name,
+            email=email,
+            identity_provider=member.identity_provider,
+        ),
+        device,
     )
 
 
-async def login_local_user(session: AsyncSession, payload: LocalLoginWrite) -> AuthSessionResponse:
+async def login_local_user(
+    session: AsyncSession, payload: LocalLoginWrite, device: str | None = None
+) -> AuthSessionResponse:
     email = _normalize_email(str(payload.email))
     credential = await session.scalar(
         select(UserCredential).where(func.lower(UserCredential.email) == email)
@@ -118,9 +139,14 @@ async def login_local_user(session: AsyncSession, payload: LocalLoginWrite) -> A
     member.last_seen_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(member)
-    return AuthSessionResponse(
-        client_principal=principal_for_member(member),
-        display_name=member.display_name,
-        email=email,
-        identity_provider=member.identity_provider,
+    return await _with_tokens(
+        session,
+        member,
+        AuthSessionResponse(
+            client_principal=principal_for_member(member),
+            display_name=member.display_name,
+            email=email,
+            identity_provider=member.identity_provider,
+        ),
+        device,
     )

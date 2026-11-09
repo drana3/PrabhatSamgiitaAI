@@ -1,136 +1,139 @@
-# Member authentication: the shared key in the app bundle
+# Member authentication: signed per-user session tokens
 
-Status: **open security issue, not fixed in code on purpose.** Changing it changes the auth protocol between the
-app, the website and the API, and it has to be deployed in a set order. The decisions that belong to the owner
-are marked **DECISION**.
+Status: **fixed in code (QA-001), waiting for deploy and for one app release.** The shared key that used to sit
+in every installed app can no longer make anyone an administrator or a team member, and it can no longer be
+used to pretend to be a specific owner. The old key keeps working for ordinary member features until it is
+switched off, so old app versions do not break on the day of the deploy.
 
-## 1. How it works today
+Decisions that belong to the owner are marked **DECISION**.
 
-1. The member signs in on the phone with Google, Apple, Microsoft, Facebook or email. The native SDK returns a
-   profile (id, email, name). The app keeps only that profile (`stores/authStore.ts`); the provider's ID token
-   is thrown away.
-2. For every member call the app builds its own header (`apps/mobile/lib/principal.ts`):
-   `X-MS-CLIENT-PRINCIPAL` is base64 JSON in the Azure Easy Auth shape (`auth_typ`, claims `oid`, `email`,
-   `name`), plus `X-Member-Proxy-Key: <MEMBER_PROXY_KEY>`.
-3. The API (`apps/api/app/services/members.py`, `require_member_identity` and `try_member_identity`) compares
-   the key in constant time and then **trusts the principal as given**: subject `provider:oid`, email, name.
-   `sync_member` finds or creates the account for that subject.
-4. The key reaches the phone as `EXPO_PUBLIC_MEMBER_PROXY_KEY` (CI secret `MOBILE_MEMBER_PROXY_KEY`), so it is
-   inside the JavaScript bundle of every installed app. The website uses the same variable name server side
-   (`MEMBER_PROXY_KEY`, with `MOBILE_MEMBER_PROXY_KEY` as the deploy fallback) and forwards a principal that
-   Azure Easy Auth really verified. That web path is sound; the mobile path is the problem.
+## 1. What was wrong
 
-## 2. The attack
+The phone proved who the member was with a header it built itself (`X-MS-CLIENT-PRINCIPAL`) plus one shared key
+(`MEMBER_PROXY_KEY`) that lived inside the app bundle. Anyone could unzip the app, read the key and, with `curl`,
+claim any identity: read another member's data, delete an account, or send an owner's e-mail and become admin.
+Two more things used the same key: the deploy-smoke name trick (any name containing `deploy-smoke` became admin)
+and the signing of recording links.
 
-Anyone can read the key from the installed app (unzip the APK/IPA, search the bundle for the string; it takes
-minutes and no root). Then, with `curl`:
+## 2. What it is now, in plain words
 
-- **Impersonate any member.** Send the key and a principal with the victim's `oid`/email. The API treats the
-  caller as the victim: read their saved songs, chat memory and quiz data, change their profile and phone,
-  **delete their account** (`DELETE /api/v1/members/me`).
-- **Become admin.** `apply_default_admin` grants admin to any account whose email is in `DEFAULT_ADMIN_EMAILS`
-  or `PROTECTED_ADMIN_EMAILS`. A principal that claims an owner email becomes admin: member list, e-mail
-  announcements, feedback, content admin routes.
-- **Become admin without knowing any email.** `ensure_ephemeral_smoke_admin` makes admin any identity whose
-  subject or name contains `deploy-smoke`, `admin-diag`, `feedback-diag`, `quiz-diag` or `member-diag`. The
-  deploy script (`infra/azure/deploy-app.sh`) uses this on purpose; it is equally open to anyone with the key.
-- **Forge signed media links.** `RecordingStorage` falls back to `MEMBER_PROXY_KEY` as its signing secret when
-  `RECORDING_SIGNING_SECRET` is not set (`services/recording_storage.py`). If production relies on that
-  fallback, the key also signs recording URLs.
-- Rotating the key does not help by itself: the new app build contains the new key again.
+1. The member signs in with Google, Apple, Microsoft, Facebook or e-mail and password, as before.
+2. For Google, Apple, Microsoft and Facebook the phone sends the provider's own signed proof to
+   `POST /api/v1/members/session/exchange`. The **server checks that proof with the provider** (signature,
+   issuer, audience = our app ids, expiry). A made-up profile fails here.
+   E-mail sign-in is checked by the password on the server and returns the tokens directly.
+3. The server answers with two tokens:
+   - an **access token**, valid one hour, bound to the member's account id and to one device session. It carries
+     **no role**, so there is no admin flag to forge;
+   - a **refresh token**, valid 30 days (renewed on use), stored on the server only as a hash. Each refresh gives
+     a new pair. If an already used refresh token turns up again (a copy), the whole session is ended.
+4. The phone keeps both in the system's secure storage (Keychain on iOS, Keystore on Android through
+   `expo-secure-store`), never in AsyncStorage, and the Android backup rules exclude that file. It sends
+   `Authorization: Bearer <access token>` and refreshes quietly before it expires.
+5. **Admin and team rights are read from the database on every request.** Remove someone's admin flag and the
+   very next request they make is a plain member request, even with a valid token.
 
-`apps/api/tests/test_member_auth_known_weakness.py` pins the first three behaviours so they cannot change
-silently. When the fix lands those tests must be rewritten deliberately.
+### The old shared key
 
-## 3. What was done now (no protocol change)
+Requests that still arrive with `X-Member-Proxy-Key` and a self-made principal are called **legacy**:
 
-- The weakness is pinned by tests (above) and described here.
-- The mobile client no longer persists or keeps a stale admin flag (`isAdmin` is not written to storage and is
-  dropped when the server does not confirm the member). That removes a local tampering path but **does not
-  close the server hole**: the server still decides admin from the forged principal.
-- Nothing else is changed, because every server-side restriction that would help (reject smoke names,
-  stop email based admin, drop the signing fallback) either breaks the deploy smoke test, the mobile admin
-  panel or recordings in production until the new flow exists.
+- they work as an **ordinary member only**. Admin, super admin and team rights are forced off for that request
+  and nothing is saved, whatever e-mail or name the principal claims;
+- they are counted (`legacy_hits`, and a log line) so we can see when old apps have faded out;
+- they can be switched off completely with `ALLOW_LEGACY_MEMBER_PRINCIPAL=false`.
 
-## 4. Proposed fix
+The website is a separate case. The website's server forwards an identity that Azure checked, and it now sends
+its **own** key (`WEB_PROXY_KEY`, never shipped to a phone). That key keeps the website's full behaviour
+(including admin from the owner list). An old API ignores the new header, so the order of deploy below is safe.
 
-Replace "trust a self-made principal" with a **server-issued, signed, short-lived session token**. The shared
-key leaves the bundle.
+## 3. Other holes closed on the way
 
-1. **Prove identity once.** After sign-in the app sends the provider's ID token (Google, Apple, Microsoft,
-   Facebook access token) to a new endpoint `POST /api/v1/members/session`, over HTTPS.
-2. **Verify on the server.** The API checks the token's signature against the provider's public keys (JWKS),
-   `iss`, `aud` (the app's client ids: Google web/iOS/Android, Apple bundle id, Azure client id), `exp`, and for
-   Apple the nonce. Email accounts keep using the existing `local` login (password check already server side).
-3. **Issue a token.** The API returns a signed token (JWT HS256 or EdDSA with a server-only secret
-   `MEMBER_SESSION_SECRET`): `sub = provider:subject`, `exp` about 1 hour, plus a longer refresh token
-   (30 days, rotated, stored hashed, revocable per device). The token contains no admin flag.
-4. **Use it.** The app sends `Authorization: Bearer <session token>` instead of the principal and key.
-   `require_member_identity` verifies the signature and expiry and builds `MemberIdentity` from the token.
-5. **Admin from the database only.** `is_admin` is read from the account row. Email-based auto promotion
-   stays, but only for identities whose email the provider verified (`email_verified` in the ID token).
-6. **Web stays as is.** The website keeps key + Easy Auth principal, but with its **own** key
-   (`WEB_PROXY_KEY`) that never ships to a phone. The old `MEMBER_PROXY_KEY` becomes the web-only key.
-7. **Smoke test.** Replace the `deploy-smoke` name trick with a separate `SMOKE_ADMIN_TOKEN` secret checked in
-   the deploy script path only (or a signed token with a `smoke` scope), then delete
-   `ensure_ephemeral_smoke_admin`.
-8. **Recordings.** Require `RECORDING_SIGNING_SECRET` in production and remove the fallback to the proxy key.
+- An **unverified e-mail** never finds, merges or promotes an account. Google and Apple say whether the e-mail is
+  verified, Microsoft only for known tenants or when it says so, Facebook never.
+- **Owner e-mails cannot be registered** as a local (password) account: 409.
+- The **deploy-smoke name trick** works only for the website key, not for tokens or the legacy key.
+- Recording links and the author-statistics pepper no longer fall back to the shared key in production;
+  they need `RECORDING_SIGNING_SECRET` (or `MEMBER_SESSION_SECRET`).
+- A **password reset** ends every session of that account.
+- Sign-out ends the session on the server (best effort) and removes the tokens from the phone at once.
 
-## 5. Migration (no big bang)
+## 4. Files
 
-1. **API, additive.** Ship the new endpoint and Bearer support next to the old header path. Add the
-   settings `MEMBER_SESSION_SECRET`, `WEB_PROXY_KEY`, and a switch `ALLOW_LEGACY_MEMBER_PRINCIPAL` (default
-   `true`). Nothing changes for existing apps.
-2. **Web.** Move the website to `WEB_PROXY_KEY`. Deploy and check sign-in and admin on the site.
-3. **App release.** Ship an app version that signs in through the new endpoint and sends Bearer tokens, with
-   the old path as fallback only when the endpoint is unreachable. Remove `EXPO_PUBLIC_MEMBER_PROXY_KEY` from
-   the build in this release.
-4. **Wait for adoption.** Check API logs for the share of requests that still use the legacy path
-   (add a counter in step 1). Force the update for old versions with the existing minimum-version mechanism if
-   there is one, or a notice in the app.
-5. **Close.** Set `ALLOW_LEGACY_MEMBER_PRINCIPAL=false` for the mobile key (the old key stops working for
-   members), rotate `MEMBER_PROXY_KEY`, remove the smoke trick and the signing fallback.
+API: `app/services/member_tokens.py` (issue, verify, refresh, revoke), `app/services/provider_tokens.py`
+(Google, Apple, Microsoft, Facebook proofs), `app/api/v1/member_sessions.py` (exchange, refresh, revoke),
+`app/models/member_session.py`, migration `0055_member_sessions_rate_limits`, and edits in
+`app/services/members.py`, `admin_members.py`, `recordings.py` (`is_team_member`), `local_auth.py`,
+`password_reset.py`, `recording_storage.py`, `author_profiles.py`, `app/config.py`.
+Mobile: `lib/memberSession.ts`, `lib/memberAuth.ts`, `lib/client.ts`, `lib/session.ts`, `lib/localAuth.ts`,
+provider sign-in files, `components/member/MemberSessionSync.tsx`, `plugins/withOfflineBackupExclusion.js`.
+Web and deploy: `apps/web/lib/runtime-env.ts` and the routes that forward to the API,
+`infra/azure/deploy-app.sh`, `infra/azure/sync-swa-app-settings.sh`, `.github/workflows/deploy.yml`.
 
-Rollback at every step: the legacy switch stays available until step 5.
+## 5. Settings (names only, values go in the secret stores)
 
-## 6. API changes
+| Name | Where | What |
+|---|---|---|
+| `MEMBER_SESSION_SECRET` | API | Signs access tokens. At least 32 random characters. Not set means tokens are off. |
+| `MEMBER_SESSION_SECRET_PREVIOUS` | API | Old secret during a rotation, so live tokens keep working for up to an hour. |
+| `WEB_PROXY_KEY` | API and website | The website's own key. Never in a mobile build. |
+| `ALLOW_LEGACY_MEMBER_PRINCIPAL` | API | Default `true`. `false` ends the old shared key for members. |
+| `LEGACY_PRINCIPAL_ADMIN` | API | Emergency switch, default `false`. `true` gives the shared key its old powers back. |
+| `GOOGLE_OAUTH_CLIENT_IDS` | API | Comma list of the Google client ids our apps use (web, iOS, Android). |
+| `APPLE_BUNDLE_IDS` | API | Default `net.prabhatasamgiita.ai`. |
+| `AZURE_CLIENT_IDS` | API | Microsoft app (client) ids. |
+| `MEMBER_TRUSTED_MS_TENANTS` | API | Optional: Microsoft tenants whose e-mail counts as verified. |
+| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | API | Needed only if Facebook sign-in stays. |
+| `MEMBER_ACCESS_TTL_SECONDS`, `MEMBER_REFRESH_TTL_DAYS` | API | Optional, defaults 3600 and 30. |
 
-- New: `POST /api/v1/members/session` (body: provider, id token, nonce; returns token, refresh token,
-  expiry), `POST /api/v1/members/session/refresh`, `POST /api/v1/members/session/revoke`.
-- Changed: `require_member_identity` and `try_member_identity` accept `Authorization: Bearer`.
-- New settings: `MEMBER_SESSION_SECRET`, `WEB_PROXY_KEY`, `ALLOW_LEGACY_MEMBER_PRINCIPAL`,
-  `SMOKE_ADMIN_TOKEN`; `RECORDING_SIGNING_SECRET` becomes mandatory in production.
-- New table for refresh tokens (hashed, device label, last used, revoked at).
-- Mobile: keep the provider ID token at sign-in, new `lib/memberSession.ts` (store tokens in
-  `expo-secure-store`, refresh before expiry), replace `buildMemberAuthHeaders`. The `/ai/explain` call uses the
-  same header.
+`.env.example` lists the names without values. `EXPO_PUBLIC_MEMBER_PROXY_KEY` in the mobile build is now
+optional: leave it empty in the release that ships the tokens.
 
-## 7. Effort
+## 6. Rollout order (do not skip)
 
-- API: 3 to 4 days (JWKS verification for four providers with tests, token issue/refresh/revoke, table,
-  config, legacy switch, counters).
-- Mobile: 2 days plus a store release cycle (sign-in flows return tokens, secure storage, refresh, tests).
-- Web and deploy scripts: 1 day (own proxy key, smoke token).
-- Rollout and watching adoption: calendar time, 2 to 4 weeks for old app versions to fade out.
+1. Create `MEMBER_SESSION_SECRET` and `WEB_PROXY_KEY` as secrets and fill the client id settings.
+2. **Deploy the website first.** It sends both headers; the old API ignores the new one.
+3. **Deploy the API** (migration 0055 runs). Check the website sign-in and the admin pages.
+4. **Release the app.** New builds sign in through the exchange. Old builds keep working as ordinary members.
+5. **Team members sign out and in once** after the app update. Until they do, their phones act as ordinary
+   members. The website needs nothing.
+6. Watch `legacy_hits` in the logs. When old versions have faded out (or the forced update from
+   `docs/forced-update.md` has pushed them), set `ALLOW_LEGACY_MEMBER_PRINCIPAL=false` and **rotate**
+   `MEMBER_PROXY_KEY` and `MOBILE_MEMBER_PROXY_KEY`.
 
-## 8. Decisions for the owner
+Rollback: unset `MEMBER_SESSION_SECRET` (tokens off), or set `LEGACY_PRINCIPAL_ADMIN=true` for the old behaviour
+of the shared key. Both are settings, not code.
 
-- **DECISION 1: go or no go.** Until it ships, assume a motivated person can read every member's data and
-  administer the site. This is the most serious open item.
-- **DECISION 2: stop-gap now?** Cheapest partial measures, each with a cost: (a) remove the smoke-name
-  admin path (breaks the deploy smoke test until `SMOKE_ADMIN_TOKEN` exists); (b) turn off email based
-  auto-admin for requests that come with the mobile key (breaks the mobile admin panel); (c) require
-  `RECORDING_SIGNING_SECRET` (check production sets it first). Say which, if any.
-- **DECISION 3: Facebook.** Facebook gives an access token, not a signed ID token; verifying it needs a call
-  to Facebook's debug endpoint. Keep Facebook sign-in or drop it?
-- **DECISION 4: forced update.** How strict to be with old app versions after the cut-over.
-- **Secrets rotation** (console work, owner only): new `MEMBER_PROXY_KEY` and `MOBILE_MEMBER_PROXY_KEY` in the
-  GitHub secrets and the Azure container app after step 5.
+## 7. Revoking access
 
-## 9. Related notes
+- One device: `POST /api/v1/members/session/revoke`. All devices: the same with `all_devices: true`.
+- An admin removing a member or a flag takes effect on the next request (roles come from the database).
+- A leaked signing secret: set a new `MEMBER_SESSION_SECRET` (move the old one to `..._PREVIOUS` for a soft
+  switch, or drop it for a hard one: everyone refreshes or signs in again).
+- A stolen phone: the person signs in elsewhere and revokes all devices; or an admin deletes the sessions rows.
 
-- No tokens or passwords are stored on the phone, so `expo-secure-store` is not needed today. It becomes
-  needed in step 3 for session tokens.
-- Android `allowBackup` stays on (Learn progress and favorites are local-only and worth restoring). When
-  session tokens exist, exclude their storage from backup (same mechanism as the offline audio exclusion in
-  `plugins/withOfflineBackupExclusion.js`).
+## 8. Tests
+
+`tests/test_member_session_auth.py` covers a forged signature, `alg: none`, a token for a foreign user id, an
+expired token, a role taken away between requests, the legacy key refused as admin and as team, refresh
+rotation, a copied refresh token ending the session, revoke and a password reset. `tests/test_provider_exchange.py`
+covers each provider's proof (wrong audience, wrong issuer, expired, wrong key, algorithm confusion, unverified
+e-mail). `tests/test_member_auth_known_weakness.py` was rewritten on purpose and now asserts that the shared
+key stays a plain member. Mobile: `__tests__/memberSession.test.ts`. Web: `tests/proxy-key-headers.test.ts`.
+
+## 9. What is still open
+
+- **E-mail and password accounts are not e-mail verified.** They can use the app, but they never get
+  promotion by e-mail. Verifying the address by a link is a separate piece of work.
+- **Microsoft e-mail** is treated as unverified unless the tenant is listed or the token says so.
+- **The deploy-smoke name trick still exists** for the website key (the deploy script uses it). A dedicated
+  smoke token would remove it; not done here.
+- **Team members must sign in again once** after the release.
+- **Not checked without production:** the real Google, Apple, Microsoft and Facebook verification (tests use
+  generated keys), the number of proxy hops for the client IP in Azure ingress (`RATE_LIMIT_TRUSTED_PROXY_HOPS`),
+  secure storage on devices, and the whole flow on a store build.
+
+## 10. DECISIONS for the owner
+
+- **Facebook:** keep or drop. It works through Facebook's token check and needs the app secret on the server.
+- **Client ids and tenants:** which Google, Azure and Apple ids go into the server settings.
+- **Cut-off date** for the legacy key, and whether to push the forced update first.
