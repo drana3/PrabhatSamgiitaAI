@@ -373,9 +373,12 @@ async def ingest_plays(
                 counted=not over_cap,
             )
             .on_conflict_do_nothing(index_elements=["recording_id", "listener_key", "day"])
+            .returning(PlayEvent.id)
         )
         outcome = await session.execute(stmt)
-        if (outcome.rowcount or 0) == 0:  # type: ignore[attr-defined]
+        # Not `outcome.rowcount`: for an ORM insert psycopg reports -1 whether the row went in or
+        # hit the unique key, so every repeat would be counted (found in the PostgreSQL rehearsal).
+        if outcome.first() is None:
             result.duplicates += 1
             continue
         per_day[day] += 1
