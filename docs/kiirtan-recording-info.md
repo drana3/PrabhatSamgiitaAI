@@ -8,11 +8,12 @@ on both sides plus a label in en, ru, es: no migration.
 
 ## Changes of 9 Nov 2026 (these win over the older lines below)
 
-* **A Kiirtan is only Baba Nam Kevalam.** Guru Puja, Pitriyajina and every other mantra of Ananda Marga is a kind of its own,
-  `other_mantra` ("Other mantras"), with its own upload page `/add-mantra` (`apps/mobile/app/add-mantra.tsx`, the one form of
-  `app/add-kirtan.tsx` with the mantra header and the mantra type chips), its own tab on the Kiirtan page, its own radio category
-  and its own types `guru_puja`, `pitriyajina`, `other`. The kind is a text column with a check constraint; migration
-  `0064_mantras_styles_moods` widens it. Moderation, reports, removal notices and the player treat it like every other kind.
+* **A Kiirtan is only Baba Nam Kevalam.** Guru Puja, Pitr Yajina and every other mantra of Ananda Marga is a kind of its own,
+  `other_mantra`, **shown as "Others"** (it was "Other mantras"; see `docs/others-category.md`), with its own upload page `/add-mantra`
+  (`apps/mobile/app/add-mantra.tsx`, the one form of `app/add-kirtan.tsx` with the Others header and a REQUIRED choice of what it is,
+  no default), its own tab on the Kiirtan page, its own radio category and its own types `guru_puja`, `pitriyajina`, `samgacchadhvam`,
+  `nityam_shuddham`, `ananda_sutram`, `shlokas`, `other` ("Something else", with a name the team checks). The kind is a text column
+  with a check constraint; migrations `0064_mantras_styles_moods` and `0067_others_choice` widen it. Moderation, reports, removal notices and the player treat it like every other kind.
 * **Type of recording: exactly three**, `studio`, `live` (concert), `ai` (AI-generated). The removed `home` is rewritten to `studio` by
   the migration; an old phone that still sends `home` is read as `studio`. Solo or group (`performance`) is its own required field
   for a Kiirtan and is never part of the type.
