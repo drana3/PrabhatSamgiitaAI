@@ -115,7 +115,9 @@ function ReviewCard({ item, filter, onDone }: { item: ReviewItem; filter: Review
       ? item.capo > 0
         ? t("chordOffer.meta.guitar", { capo: item.capo, key: keyLabel(item.baseKey) })
         : t("chordOffer.meta.guitarNoCapo", { key: keyLabel(item.baseKey) })
-      : t("chordOffer.meta.harmonium", { key: keyLabel(item.baseKey) })
+      : item.instrument === "piano"
+        ? t("chordOffer.meta.piano", { key: keyLabel(item.baseKey) })
+        : t("chordOffer.meta.harmonium", { key: keyLabel(item.baseKey) })
   const live = item.status === "published"
   const rejectedNow = item.status === "rejected"
   const tooShort = reason.trim().length < 3

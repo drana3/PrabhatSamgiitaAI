@@ -18,7 +18,7 @@ export function ChordsBlock({ t, sheets, onOpen, onAdd }: { t: SpTheme; sheets: 
   const { state } = sheets
   const live = state.items.filter((s) => s.status === "published")
   const waiting = state.items.filter((s) => s.mine && s.status !== "published")
-  const instruments = (["guitar", "harmonium"] as const).filter((i) => state.items.some((s) => s.instrument === i))
+  const instruments = (["harmonium", "piano", "guitar"] as const).filter((i) => state.items.some((s) => s.instrument === i))
   return (
     <View testID="recording-chords">
       <SectionTitle t={t}>{tr("recChords.title")}</SectionTitle>

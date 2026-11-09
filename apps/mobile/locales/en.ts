@@ -4,6 +4,7 @@ import { ugcEn } from "./ugc"
 import { duplicatesEn } from "./duplicates"
 import { recordingInfoEn } from "./recordingInfo"
 import { recordingChartsEn } from "./recordingCharts"
+import { chordInstrumentsEn } from "./chordInstruments"
 import { recordingCycleEn } from "./recordingCycle"
 import { recordingsEn } from "./recordings"
 import { offlineEn } from "./offline"
@@ -1326,4 +1327,5 @@ export const en = {
   ...searchMenuEn,
   ...listeningEn,
   ...radioEn,
+  ...chordInstrumentsEn,
 } as const

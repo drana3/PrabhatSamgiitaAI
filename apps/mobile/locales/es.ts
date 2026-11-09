@@ -5,6 +5,7 @@ import { ugcEs } from "./ugc"
 import { duplicatesEs } from "./duplicates"
 import { recordingInfoEs } from "./recordingInfo"
 import { recordingChartsEs } from "./recordingCharts"
+import { chordInstrumentsEs } from "./chordInstruments"
 import { recordingCycleEs } from "./recordingCycle"
 import { recordingsEs } from "./recordings"
 import { offlineEs } from "./offline"
@@ -1320,4 +1321,5 @@ export const es: Dictionary = {
   ...searchMenuEs,
   ...listeningEs,
   ...radioEs,
+  ...chordInstrumentsEs,
 }

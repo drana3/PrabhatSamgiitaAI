@@ -122,7 +122,7 @@ Member links are **link-out only**. An embed would run a stranger's page inside 
 
 ## Chords: how it works
 
-**At upload.** The prompt is a collapsed row on the add-Kiirtan form, on each queue row and on each set track: instrument (guitar or harmonium), an optional key, a monospace box for the chart, an optional note, "I played or checked these chords" and "Share without my name". It is optional and the upload never waits for it.
+**At upload.** The prompt is a collapsed row on the add-Kiirtan form, on each queue row and on each set track: instrument (harmonium, piano or guitar; see docs/chord-instruments.md), an optional key, a monospace box for the chart, an optional note, "I played or checked these chords" and "Share without my name". It is optional and the upload never waits for it.
 
 Because a recording only gets its server id **after** it is published, the chart is kept in `stores/recordingChordsPendingStore.ts`, keyed by queue row or set track, and sent once the upload outcome says "published". If the send fails, the upload is **not** failed: the draft stays, the row says the chords were not sent, and "Try again" sends it. A recording that is held for review is sent when it is published.
 
@@ -161,3 +161,5 @@ Not checked:
 ## Tests
 
 API: `pytest tests/test_recording_comments.py tests/test_recording_chords.py tests/test_video_links.py`. App: `npx vitest run` (`recordingComments`, `recordingChords`, `recordingChordsPending`, `recordingVideos`, `recordingExtrasLinks`), plus `i18nParity` for the three languages.
+
+**Update (chord instruments).** A Bhajan or a Spiritual song at upload no longer gets the plain box: its prompt opens the "Words and chords" screen (`/recording-chart?row=...`), the same editor as on a published recording, and keeps the chart in `recordingChordsPendingStore.chartDrafts` until the row is published. See docs/chord-instruments.md.

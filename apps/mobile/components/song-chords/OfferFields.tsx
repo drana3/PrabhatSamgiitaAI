@@ -15,6 +15,7 @@ import { ROOTS, suggestedChords } from "@/lib/songChords/chordName"
 import type { ParseMeta } from "@/lib/songChords/chordPro"
 import { NOTE_MAX, STRUM_MAX, countChords, linesWithChords, setCapo, setInstrument, soundingKey, toPayload, type Draft, type Placement } from "@/lib/songChords/draft"
 import type { FormField } from "@/lib/songChords/fields"
+import { CHORD_INSTRUMENT_CHOICES } from "@/lib/recordingChords/instruments"
 import { MAX_CAPO } from "@/lib/songPage/chords"
 
 /**
@@ -29,18 +30,18 @@ export type Patch = (change: Partial<Draft>) => void
 /** The instrument chips. `locked` shows only the chosen one (a chart being fixed keeps its instrument). */
 export function InstrumentField({ theme, draft, locked, patch }: { theme: SongsTheme; draft: Draft; locked: boolean; patch: (next: Draft) => void }) {
   const t = useT()
-  const guitar = draft.instrument === "guitar"
   return (
     <>
       <Label theme={theme}>{t("chordOffer.instrument.label")}</Label>
+      <Hint theme={theme}>{t("chordOffer.instrument.hint")}</Hint>
       <View style={s.chips} accessibilityRole="radiogroup">
         {locked ? (
-          <Chip theme={theme} label={t(`chordOffer.instrument.${draft.instrument}` as "chordOffer.instrument.guitar")} on minWidth={120} onPress={() => {}} />
+          <Chip theme={theme} label={t(`chordOffer.instrument.${draft.instrument}` as "chordOffer.instrument.guitar")} on minWidth={104} onPress={() => {}} />
         ) : (
-          <>
-            <Chip theme={theme} label={t("chordOffer.instrument.guitar")} on={guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "guitar"))} />
-            <Chip theme={theme} label={t("chordOffer.instrument.harmonium")} on={!guitar} minWidth={120} onPress={() => patch(setInstrument(draft, "harmonium"))} />
-          </>
+          // Harmonium, Piano, Guitar: the same three for every kind that takes chords
+          CHORD_INSTRUMENT_CHOICES.map((id) => (
+            <Chip key={id} theme={theme} label={t(`chordOffer.instrument.${id}` as "chordOffer.instrument.guitar")} on={draft.instrument === id} minWidth={104} onPress={() => patch(setInstrument(draft, id))} />
+          ))
         )}
       </View>
     </>
@@ -53,8 +54,8 @@ export function KeyCapoField({ theme, draft, patch }: { theme: SongsTheme; draft
   const guitar = draft.instrument === "guitar"
   return (
     <>
-      <Label theme={theme}>{guitar ? t("chordOffer.key.guitar.label") : t("chordOffer.key.harmonium.label")}</Label>
-      <Hint theme={theme}>{guitar ? t("chordOffer.key.guitar.hint") : t("chordOffer.key.harmonium.hint")}</Hint>
+      <Label theme={theme}>{draft.instrument === "harmonium" ? t("chordOffer.key.harmonium.label") : t("chordOffer.key.guitar.label")}</Label>
+      <Hint theme={theme}>{draft.instrument === "harmonium" ? t("chordOffer.key.harmonium.hint") : draft.instrument === "piano" ? t("chordOffer.key.piano.hint") : t("chordOffer.key.guitar.hint")}</Hint>
       <View style={s.chips} accessibilityRole="radiogroup">
         {ROOTS.map((root) => (
           <Chip key={root} theme={theme} label={root} on={draft.key === root} a11y={t("chordOffer.key.a11y", { key: root })} minWidth={52} onPress={() => patch({ key: root })} />
@@ -172,7 +173,15 @@ export function PreviewField({ theme, spTheme, draft, lines, counts }: { theme: 
             proposal={proposal}
             capo={guitar ? draft.capo : 0}
             harmoniumKey={draft.key}
-            caption={guitar ? (draft.capo > 0 ? t("chordOffer.preview.summary.guitar", { capo: draft.capo }) : t("chordOffer.preview.summary.guitarNoCapo")) : t("chordOffer.preview.summary.harmonium", { key: draft.key })}
+            caption={
+              guitar
+                ? draft.capo > 0
+                  ? t("chordOffer.preview.summary.guitar", { capo: draft.capo })
+                  : t("chordOffer.preview.summary.guitarNoCapo")
+                : draft.instrument === "piano"
+                  ? t("chordOffer.preview.summary.piano", { key: draft.key })
+                  : t("chordOffer.preview.summary.harmonium", { key: draft.key })
+            }
           />
         </>
       ) : (

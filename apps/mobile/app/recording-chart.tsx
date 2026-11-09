@@ -38,7 +38,8 @@ import {
   type PasteProblem,
 } from "@/lib/recordingChords/chart"
 import { kindHasCharts } from "@/lib/recordingChords/kinds"
-import type { RecordingSheet, SheetFailure } from "@/lib/recordingChords/types"
+import { sheetInstrumentOf } from "@/lib/recordingChords/instruments"
+import type { RecordingSheet, SheetFailure, SheetInstrument } from "@/lib/recordingChords/types"
 import { sheetFailureText } from "@/lib/recordingChords/words"
 import { recordingPageHref } from "@/lib/recordingExtras/links"
 import { PREVIEW_NAME } from "@/lib/songComments/mock"
@@ -48,16 +49,17 @@ import type { ParseMeta } from "@/lib/songChords/chordPro"
 import { STRUM_MAX, countChords, nextSlot, previousSlot, replaceLines, setCapo, setInstrument, type Draft, type Placement } from "@/lib/songChords/draft"
 import { allKirtans } from "@/lib/kirtan/catalog"
 import { useAuthStore } from "@/stores/authStore"
+import { useRecordingChordsPendingStore } from "@/stores/recordingChordsPendingStore"
 import { href } from "@/utils/href"
 
-type Entry = { kind: "new"; instrument: "guitar" | "harmonium" } | { kind: "edit" | "copy" | "from"; id: string }
+type Entry = { kind: "new"; instrument: SheetInstrument } | { kind: "edit" | "copy" | "from"; id: string }
 
 /** What the screen was opened for, read from its address. An id wins over a bare instrument. */
 function entryOf(params: { edit?: string; copy?: string; from?: string; instrument?: string }): Entry {
   if (typeof params.edit === "string" && params.edit) return { kind: "edit", id: params.edit }
   if (typeof params.copy === "string" && params.copy) return { kind: "copy", id: params.copy }
   if (typeof params.from === "string" && params.from) return { kind: "from", id: params.from }
-  return { kind: "new", instrument: params.instrument === "harmonium" ? "harmonium" : "guitar" }
+  return { kind: "new", instrument: sheetInstrumentOf(params.instrument) }
 }
 
 /** Everything the member can change, as one string: whether the work differs from where it began. */
@@ -78,9 +80,13 @@ export default function RecordingChartScreen() {
   const theme = useSongsTheme()
   const spTheme = useSpTheme()
   const insets = useSafeAreaInsets()
-  const params = useLocalSearchParams<{ recording?: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string }>()
+  const params = useLocalSearchParams<{ recording?: string; row?: string; kind?: string; title?: string; edit?: string; copy?: string; from?: string; instrument?: string }>()
   const recordingId = typeof params.recording === "string" ? params.recording : ""
   const title = typeof params.title === "string" ? params.title : ""
+  // opened from an upload row: the recording does not exist yet, so the chart is kept in the upload queue and sent with it
+  const rowKey = typeof params.row === "string" ? params.row : ""
+  const draftMode = !recordingId && Boolean(rowKey)
+  const setChartDraft = useRecordingChordsPendingStore((st) => st.setChartDraft)
   const [entry] = useState<Entry>(() => entryOf(params))
 
   const mode = useAuthStore((s) => s.mode)
@@ -91,17 +97,20 @@ export default function RecordingChartScreen() {
 
   // a Kiirtan (or any other kind) has no chart: this screen is for a Bhajan and a Spiritual song only
   const kindOk = useMemo(() => {
+    if (draftMode) return kindHasCharts(params.kind)
     if (!recordingId) return false
     const found = allKirtans().find((k) => k.serverId === recordingId || k.id === recordingId)
     // when the app does not know the recording (opened from a link), the server has the last word
     return found ? kindHasCharts(found.kind) : true
-  }, [recordingId])
+  }, [recordingId, draftMode, params.kind])
 
   const [draft, setDraft] = useState<ChartDraft>(() => {
+    const kept = draftMode ? useRecordingChordsPendingStore.getState().chartDrafts[rowKey] : undefined
+    if (kept) return kept
     const d = newChartDraft()
     return entry.kind === "new" ? { ...d, ...setInstrument(d, entry.instrument) } : d
   })
-  const [baseline, setBaseline] = useState(() => signature(newChartDraft()))
+  const [baseline, setBaseline] = useState(() => signature(draftMode ? (useRecordingChordsPendingStore.getState().chartDrafts[rowKey] ?? newChartDraft()) : newChartDraft()))
   const [phase, setPhase] = useState<"loading" | "edit" | "gone">(entry.kind === "new" ? "edit" : "loading")
   const [linked, setLinked] = useState<RecordingSheet | null>(null)
   const [loadFailure, setLoadFailure] = useState<SheetFailure | null>(null)
@@ -179,6 +188,7 @@ export default function RecordingChartScreen() {
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<SheetFailure | null>(null)
   const [sent, setSent] = useState<RecordingSheet | null>(null)
+  const [kept, setKept] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const alive = useRef(true)
   useEffect(
@@ -189,7 +199,7 @@ export default function RecordingChartScreen() {
   )
   // ---- the chord editor ----
   const form = useFormFocus()
-  const picked = useChordSelection({ lines, setDraft, currentDraft: draft, enabled: phase === "edit" && !sent, scrollRef: form.scrollRef })
+  const picked = useChordSelection({ lines, setDraft, currentDraft: draft, enabled: phase === "edit" && !sent && !kept, scrollRef: form.scrollRef })
   const { entryMode, setEntryMode, selected, setSelected, selectedWord, lastWord, currentChord, sheetOpen, pick, closeSheet, covered, setCovered, areaRef, offsetRef, nodes } = picked
 
   const patch = useCallback((change: Partial<Draft>) => setDraft((d) => ({ ...d, ...change })), [])
@@ -217,7 +227,7 @@ export default function RecordingChartScreen() {
 
   const back = () => (router.canGoBack() ? router.back() : router.replace(href(recordingId ? recordingPageHref(recordingId) : "/kiirtan")))
   const requestClose = () => {
-    if (phase === "edit" && !sent && dirty && (total > 0 || hasText)) setLeaving(true)
+    if (phase === "edit" && !sent && !kept && dirty && (total > 0 || hasText)) setLeaving(true)
     else back()
   }
 
@@ -231,6 +241,12 @@ export default function RecordingChartScreen() {
       const messages: Record<string, string> = {}
       for (const f of keys) messages[f] = messageFor(f) ?? ""
       void form.focusFirst(keys, messages)
+      return
+    }
+    if (draftMode) {
+      setSelected(null)
+      setChartDraft(rowKey, draft)
+      setKept(true)
       return
     }
     setBusy(true)
@@ -248,8 +264,8 @@ export default function RecordingChartScreen() {
   }
 
   const kind: "edit" | "copy" | null = draft.editId ? "edit" : draft.basedOn ? "copy" : null
-  const heading = kind === "edit" ? t("recChart.title.fix") : kind === "copy" ? t("recChart.title.copy") : t("recChart.title")
-  const sendLabel = busy ? t("recChordsForm.sending") : kind === "copy" ? t("recChart.send.copy") : kind === "edit" ? t("recChart.send.again") : t("recChart.send")
+  const heading = draftMode ? t("recChart.draft.title") : kind === "edit" ? t("recChart.title.fix") : kind === "copy" ? t("recChart.title.copy") : t("recChart.title")
+  const sendLabel = draftMode ? t("recChart.draft.save") : busy ? t("recChordsForm.sending") : kind === "copy" ? t("recChart.send.copy") : kind === "edit" ? t("recChart.send.again") : t("recChart.send")
 
   const leaveActions: DialogAction[] = [
     { label: t("recChart.leave.stay"), tone: "quiet", onPress: () => setLeaving(false) },
@@ -268,9 +284,17 @@ export default function RecordingChartScreen() {
   ]
 
   const body = () => {
-    if (!recordingId) return <Hint theme={theme} tone="danger">{t("recPage.missing")}</Hint>
+    if (!recordingId && !draftMode) return <Hint theme={theme} tone="danger">{t("recPage.missing")}</Hint>
     if (!kindOk) return <Hint theme={theme} tone="danger">{t("recChart.wrongKind")}</Hint>
-    if (access !== "ok") {
+    if (kept) {
+      return (
+        <View style={s.field} accessibilityLiveRegion="polite">
+          <Text style={[s.sent, { color: theme.textHeading }]}>{t("recChart.draft.saved")}</Text>
+          <ActionButton theme={theme} label={t("recChart.draft.back")} onPress={back} />
+        </View>
+      )
+    }
+    if (access !== "ok" && !draftMode) {
       return (
         <View style={s.field}>
           <Hint theme={theme}>{t("recChordsForm.signin.text")}</Hint>
@@ -311,7 +335,7 @@ export default function RecordingChartScreen() {
           ) : draft.startedFrom ? (
             <Hint theme={theme}>{t("recChart.edit.from")}</Hint>
           ) : (
-            <Hint theme={theme}>{t("recChart.intro")}</Hint>
+            <Hint theme={theme}>{t(draftMode ? "recChart.draft.intro" : "recChart.intro")}</Hint>
           )}
           {team && !kind ? <Hint theme={theme}>{t("chordOffer.intro.team")}</Hint> : null}
         </Reveal>
@@ -435,7 +459,7 @@ export default function RecordingChartScreen() {
           <Reveal index={0}>
             {title ? <Text style={[s.over, { color: theme.accent }]}>{`${t("recChordsForm.over")} ${title}`}</Text> : null}
             <Text style={[s.h1, { color: theme.textHeading }]} accessibilityRole="header">
-              {sent ? t("recChart.title") : heading}
+              {sent ? t("recChart.title") : kept ? t("recChart.draft.title") : heading}
             </Text>
           </Reveal>
           {body()}

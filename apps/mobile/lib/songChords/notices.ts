@@ -26,7 +26,7 @@ export type ChordNoticeKey =
   | "notif.chords.replaced.title"
   | "notif.chords.replaced.text"
 
-export type Instruments = Record<ChordInstrument, string>
+export type Instruments = Record<"guitar" | "harmonium", string> & Partial<Record<ChordInstrument, string>>
 
 /**
  * Compare the member's charts with what was seen. Returns the new notices and the new `seen`.
@@ -51,7 +51,7 @@ export function chordNotices(
       after[p.id] = { status: p.status, n: 0, ...(p.archived ? { archived: true } : {}) }
       continue
     }
-    const params = { number: p.songId, instrument: instruments[p.instrument] }
+    const params = { number: p.songId, instrument: instruments[p.instrument] ?? instruments.harmonium }
     if (p.archived && !was.archived) {
       notices.push({
         id: `chords:${p.id}:replaced`,

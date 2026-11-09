@@ -47,7 +47,11 @@ export function CommunityChords({
     setMessage(null)
   }, [current?.id])
 
-  const instrumentWord = { guitar: tr("chordOffer.instrument.guitar"), harmonium: tr("chordOffer.instrument.harmonium") }
+  const instrumentWord = {
+    guitar: tr("chordOffer.instrument.guitar"),
+    harmonium: tr("chordOffer.instrument.harmonium"),
+    piano: tr("chordOffer.instrument.piano"),
+  }
   const failureText = (f: ChordFailure) => tr(`chordOffer.failure.${f}` as "chordOffer.failure.server")
   const offerHref = href(`/upload-chords?song=${songNumber}`)
 

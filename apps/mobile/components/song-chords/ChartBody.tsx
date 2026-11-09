@@ -46,7 +46,9 @@ export function ChartMeta({ t, chart }: { t: SpTheme; chart: Pick<ChartLike, "in
         ? chart.capo > 0
           ? tr("chordOffer.meta.guitar", { capo: chart.capo, key: keyLabel(chart.baseKey) })
           : tr("chordOffer.meta.guitarNoCapo", { key: keyLabel(chart.baseKey) })
-        : tr("chordOffer.meta.harmonium", { key: keyLabel(chart.baseKey) })}
+        : chart.instrument === "piano"
+          ? tr("chordOffer.meta.piano", { key: keyLabel(chart.baseKey) })
+          : tr("chordOffer.meta.harmonium", { key: keyLabel(chart.baseKey) })}
     </Text>
   )
 }
@@ -89,8 +91,8 @@ export function ChartBody({ t, chart, romanLines, wordFont }: { t: SpTheme; char
         ) : (
           <SpKeyRow
             t={t}
-            label={tr("chordOffer.key.harmonium.label")}
-            noteText={harmoniumKeyNote(sa)}
+            label={chart.instrument === "piano" ? tr("chordSong.key.label") : tr("chordOffer.key.harmonium.label")}
+            noteText={chart.instrument === "piano" ? tr("chordSong.key.note", { key: keyLabel(sa) }) : harmoniumKeyNote(sa)}
             value={keyLabel(sa)}
             onDown={() => setSa((k) => nextNote(k, -1))}
             onUp={() => setSa((k) => nextNote(k, 1))}
@@ -98,7 +100,7 @@ export function ChartBody({ t, chart, romanLines, wordFont }: { t: SpTheme; char
             upLabel={tr("chordOffer.capo.raise")}
           />
         )}
-        <Text style={[s.note, { color: t.ink500 }]}>{guitar ? tr("chordSong.capoShown", { capo: chart.capo }) : tr("chordSong.keyShown", { key: keyLabel(chart.baseKey) })}</Text>
+        <Text style={[s.note, { color: t.ink500 }]}>{guitar ? tr("chordSong.capoShown", { capo: chart.capo }) : tr(chart.instrument === "piano" ? "chordSong.keyShown.piano" : "chordSong.keyShown", { key: keyLabel(chart.baseKey) })}</Text>
       </View>
       {tokens.length ? (
         <View style={s.pad}>

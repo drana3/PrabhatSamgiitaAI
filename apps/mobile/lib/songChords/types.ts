@@ -7,7 +7,7 @@ import type { ChordChart } from "@/lib/songPage/chordChart"
  * chords that change on a word, written as SOUNDING chords in `baseKey`. A guitar player's capo travels with it as
  * a hint (the shapes they played), it is not folded into the chords.
  */
-export type ChordInstrument = "guitar" | "harmonium"
+export type ChordInstrument = "guitar" | "harmonium" | "piano"
 
 export type ProposalStatus = "pending" | "published" | "rejected"
 

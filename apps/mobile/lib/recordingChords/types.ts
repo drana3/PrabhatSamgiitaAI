@@ -7,7 +7,7 @@ import type { CyclePayload } from "./cycle"
  * words. It carries no timing and no word alignment. `author` is null for an anonymous sheet: the server never sends a
  * name for it, and this app never invents one.
  */
-export type SheetInstrument = "guitar" | "harmonium"
+export type SheetInstrument = "guitar" | "harmonium" | "piano"
 
 export type SheetStatus = "pending" | "published" | "rejected"
 

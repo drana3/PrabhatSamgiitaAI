@@ -5,11 +5,10 @@ import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
 import { SHEET_MAX_LENGTH, SHEET_NOTE_MAX } from "@/lib/recordingChords/rules"
-import type { SheetDraft, SheetInstrument } from "@/lib/recordingChords/types"
+import { CHORD_INSTRUMENT_CHOICES } from "@/lib/recordingChords/instruments"
+import type { SheetDraft } from "@/lib/recordingChords/types"
 
 import { MONO } from "./ui"
-
-const INSTRUMENTS: SheetInstrument[] = ["guitar", "harmonium"]
 
 /**
  * The fields of a chord chart, shared by the upload prompt and the "Add chords" screen: instrument, key (optional),
@@ -46,7 +45,7 @@ export function ChordFields({
       <View style={s.group}>
         <Label theme={theme}>{t("recChordsForm.instrument")}</Label>
         <View style={s.row} accessibilityRole="radiogroup">
-          {INSTRUMENTS.map((i) => (
+          {CHORD_INSTRUMENT_CHOICES.map((i) => (
             <Chip key={i} theme={theme} label={t(`recChords.instrument.${i}`)} on={draft.instrument === i} onPress={() => !disabled && set({ instrument: i })} />
           ))}
         </View>

@@ -5,6 +5,7 @@ import { ugcRu } from "./ugc"
 import { duplicatesRu } from "./duplicates"
 import { recordingInfoRu } from "./recordingInfo"
 import { recordingChartsRu } from "./recordingCharts"
+import { chordInstrumentsRu } from "./chordInstruments"
 import { recordingCycleRu } from "./recordingCycle"
 import { recordingsRu } from "./recordings"
 import { offlineRu } from "./offline"
@@ -1406,4 +1407,5 @@ export const ru: Dictionary = {
   ...searchMenuRu,
   ...listeningRu,
   ...radioRu,
+  ...chordInstrumentsRu,
 }

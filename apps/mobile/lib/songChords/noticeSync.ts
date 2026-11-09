@@ -21,7 +21,11 @@ export function ingestMine(mine: readonly ChordProposal[]): number {
       mine,
       nowMs(),
       (key, params) => (t as unknown as (k: string, p?: Record<string, string | number>) => string)(key, params),
-      { guitar: t("chordOffer.instrument.guitar"), harmonium: t("chordOffer.instrument.harmonium") },
+      {
+        guitar: t("chordOffer.instrument.guitar"),
+        harmonium: t("chordOffer.instrument.harmonium"),
+        piano: t("chordOffer.instrument.piano"),
+      },
     )
     useChordNoticeStore.getState().setSeen(result.seen)
     if (result.notices.length) useNotificationsStore.getState().receive(result.notices, nowMs())

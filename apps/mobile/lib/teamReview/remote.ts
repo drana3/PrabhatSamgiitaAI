@@ -14,7 +14,7 @@ type Paged<W> = { items: W[]; total: number }
 export type WireSheetAdmin = {
   id: string
   recording_id: string
-  instrument: "guitar" | "harmonium"
+  instrument: "guitar" | "harmonium" | "piano"
   body: string
   note?: string | null
   created_at: string

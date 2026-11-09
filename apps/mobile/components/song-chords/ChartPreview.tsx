@@ -11,11 +11,11 @@ import { harmoniumChord, spShape } from "@/lib/songPage/spChords"
 /**
  * A chart as letters over the lyrics, drawn by the song page's own pieces (`layoutChart` and `SpChordTokens`), so what
  * a member previews is what the song page will show. `shapesCapo` turns the sounding chords of a guitar chart back
- * into the shapes (the capo the author played with); a harmonium chart is shown in its own Sa.
+ * into the shapes (the capo the author played with); a harmonium or piano chart is shown in its own key (Sa).
  */
 export function chartTokens(input: { romanLines: readonly string[]; chart: ChordChart; instrument: ChordInstrument; capo: number; harmoniumKey?: string }): SpChordToken[] {
   const { romanLines, chart, instrument, capo } = input
-  const show = (chord: string) => (instrument === "harmonium" ? harmoniumChord(chord, chart.baseKey, input.harmoniumKey ?? chart.baseKey ?? "C") : spShape(chord, capo))
+  const show = (chord: string) => (instrument !== "guitar" ? harmoniumChord(chord, chart.baseKey, input.harmoniumKey ?? chart.baseKey ?? "C") : spShape(chord, capo))
   const laid = layoutChart([...romanLines], chart, show, true)
   const out: SpChordToken[] = []
   laid.forEach((columns, li) => {

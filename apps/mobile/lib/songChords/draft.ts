@@ -100,7 +100,8 @@ export function previousSlot(wordCounts: readonly number[], line: number, word: 
 
 export function setInstrument(draft: Draft, instrument: ChordInstrument): Draft {
   if (instrument === draft.instrument) return draft
-  return instrument === "harmonium" ? { ...draft, instrument, capo: 0, strum: "" } : { ...draft, instrument }
+  // only a guitar has a capo and a strum pattern; a harmonium and a piano write the chords as they sound
+  return instrument !== "guitar" ? { ...draft, instrument, capo: 0, strum: "" } : { ...draft, instrument }
 }
 
 export function setCapo(draft: Draft, capo: number): Draft {

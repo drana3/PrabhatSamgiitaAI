@@ -18,7 +18,7 @@ import { ChartText, Note, R_ROUND, Stepper } from "./ui"
 import type { SheetsController } from "./useRecordingSheets"
 
 const REASONS: SheetReportReason[] = ["wrong_chords", "offensive", "spam", "other"]
-const INSTRUMENTS: SheetInstrument[] = ["guitar", "harmonium"]
+const INSTRUMENTS: SheetInstrument[] = ["harmonium", "piano", "guitar"]
 
 /** "+2", "-3" (a real minus sign), never "0": the label of a shifted chart. */
 function stepsLabel(n: number): string {

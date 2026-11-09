@@ -32,6 +32,18 @@ export function chartFormHref(input: { recordingId: string; title?: string; edit
 }
 
 /**
+ * The "Words and chords" screen opened from an upload row, before the recording exists: the same editor as for a published
+ * Bhajan, but the chart is kept in the upload queue (`row`) and sent when the recording is published.
+ */
+export function chartDraftHref(input: { row: string; kind?: string; title?: string; instrument?: string }): string {
+  const parts = [`row=${encodeURIComponent(input.row)}`]
+  if (input.kind) parts.push(`kind=${encodeURIComponent(input.kind)}`)
+  if (input.title) parts.push(`title=${encodeURIComponent(input.title.slice(0, 120))}`)
+  if (input.instrument) parts.push(`instrument=${encodeURIComponent(input.instrument)}`)
+  return `/recording-chart?${parts.join("&")}`
+}
+
+/**
  * The "Add the chord cycle" screen of a Kiirtan (docs/kiirtan-cycle.md). Same ids as the chart screen: `edit` a waiting or rejected
  * cycle of the member's own, `copy` a live one of their own (the new one replaces it), `from` somebody else's published cycle
  * (`tune`: the number of a tune with no chords yet that is being added).
