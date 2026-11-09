@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
 
@@ -536,3 +537,84 @@ async def test_the_options_and_the_queue_know_the_language_field(world: World, a
     await _bhajan(world, "a", 3670, "Pali")
     queue = await world.client.get(QUEUE, headers=as_team, params={"field": "language"})
     assert [i["label"] for i in queue.json()["items"]] == ["Pali"]
+
+
+# --------------------------------------------------------------------------- the language PATCH
+# The language of an old recording is added through the SAME road as an upload (the queue, the
+# merge, the refusal, the weekly three): no way round the team's moderation.
+
+
+async def _without_language(world: World, seed: int) -> str:
+    made = await world.publish("a", mp3(seed), kind="bhajan", language="bn", style=None)
+    assert made.status_code == 201, made.text
+    async with world.sessions() as session:
+        row = await session.get(Recording, UUID(made.json()["id"]))
+        assert row is not None
+        row.language = None
+        row.language_other = None
+        await session.commit()
+    return str(made.json()["id"])
+
+
+async def _patch_language(world: World, rid: str, word: str):  # type: ignore[no-untyped-def]
+    return await world.client.patch(
+        f"/api/v1/recordings/{rid}/language",
+        headers=AS_A,
+        json={"language": "other", "language_other": word},
+    )
+
+
+async def test_a_written_language_through_the_patch_joins_the_queue_with_its_use(
+    world: World,
+) -> None:
+    rid = await _without_language(world, 3700)
+    done = await _patch_language(world, rid, "Old Church Slavonic")
+    assert done.status_code == 200, done.text
+    assert (done.json()["language"], done.json()["language_other"]) == (
+        "other",
+        "Old Church Slavonic",
+    )
+    row = await world.scalar(select(ValueSuggestion))
+    assert (row.field, row.status, row.recordings_count) == ("language", "pending", 1)
+    async with world.sessions() as session:
+        uses = (await session.scalars(select(ValueSuggestionUse))).all()
+    assert [str(use.recording_id) for use in uses] == [rid]
+
+
+async def test_a_rejected_language_is_refused_through_the_patch(world: World, as_team) -> None:  # type: ignore[no-untyped-def]
+    await _bhajan(world, "a", 3710, "Nonsense")
+    row = await world.scalar(select(ValueSuggestion))
+    await world.client.post(
+        f"{QUEUE}/{row.id}/decision", headers=as_team, json={"action": "reject"}
+    )
+    rid = await _without_language(world, 3711)
+    refused = await _patch_language(world, rid, "nonsense")
+    assert refused.status_code == 422, refused.text
+    got = (await world.client.get(f"/api/v1/recordings/{rid}", headers=AS_A)).json()
+    assert got["language"] is None
+
+
+async def test_a_merged_language_is_swapped_for_its_code_through_the_patch(
+    world: World,
+    as_team,  # type: ignore[no-untyped-def]
+) -> None:
+    await _bhajan(world, "a", 3720, "Russkiy yazyk")
+    row = await world.scalar(select(ValueSuggestion))
+    await world.client.post(
+        f"{QUEUE}/{row.id}/decision", headers=as_team, json={"action": "merge", "merge_into": "ru"}
+    )
+    rid = await _without_language(world, 3721)
+    done = await _patch_language(world, rid, "russkiy YAZYK")
+    assert done.status_code == 200, done.text
+    assert (done.json()["language"], done.json()["language_other"]) == ("ru", None)
+
+
+async def test_the_patch_counts_against_the_three_new_words_a_week(world: World) -> None:
+    for i, word in enumerate(("Aaaa", "Bbbb", "Cccc")):
+        assert (await _bhajan(world, "a", 3730 + i, word)).status_code == 201
+    rid = await _without_language(world, 3740)
+    blocked = await _patch_language(world, rid, "Dddd")
+    assert blocked.status_code == 429, blocked.text
+    # a word that is already in the queue is free
+    free = await _patch_language(world, rid, "aaaa")
+    assert free.status_code == 200, free.text

@@ -279,8 +279,22 @@ async def set_missing_language(
         raise HTTPException(status_code=422, detail="This category has no language.")
     if recording.language:
         raise HTTPException(status_code=409, detail="This recording already has a language.")
+    # The same road as an upload: a merged word becomes its code, a rejected one is refused, a new
+    # one counts against the weekly three and joins the team's queue.
+    custom: list[words.Resolved] = []
+    if language == OTHER:
+        values, custom = await _resolve_words(
+            session,
+            member.id,
+            [(words.LANGUAGE, language_other)],
+            team=is_team_member(member, settings),
+        )
+        language, language_other = values[words.LANGUAGE]
     recording.language = language
     recording.language_other = language_other if language == OTHER else None
+    await session.flush()
+    for resolved in custom:
+        await words.register_use(session, resolved, member_id=member.id, recording_id=recording.id)
     await session.commit()
     await session.refresh(recording)
     return recording
@@ -616,7 +630,6 @@ async def _custom_values(
     style, style_other = payload.style, payload.style_other
     lead, lead_other = payload.lead_instrument, payload.lead_instrument_other
     language, language_other = payload.language, payload.language_other
-    custom: list[words.Resolved] = []
     asked = []
     if payload.kind == "kiirtan" and style == OTHER:
         asked.append((words.STYLE, style_other))
@@ -624,6 +637,28 @@ async def _custom_values(
         asked.append((words.INSTRUMENT, lead_other))
     if language == OTHER:
         asked.append((words.LANGUAGE, language_other))
+    values, custom = await _resolve_words(session, member_id, asked, team=team)
+    if words.STYLE in values:
+        style, style_other = values[words.STYLE]
+    if words.INSTRUMENT in values:
+        lead, lead_other = values[words.INSTRUMENT]
+    if words.LANGUAGE in values:
+        language, language_other = values[words.LANGUAGE]
+    return style, style_other, lead, lead_other, language, language_other, custom
+
+
+async def _resolve_words(
+    session: AsyncSession,
+    member_id: UUID,
+    asked: list[tuple[str, str | None]],
+    *,
+    team: bool,
+) -> tuple[dict[str, tuple[str, str | None]], list[words.Resolved]]:
+    """The ONE path of every written word (upload and the language PATCH): a listed or merged word
+    becomes its code, a rejected one is refused (422), a NEW one counts against the weekly three
+    (429). Returns {field: (code, other)} and the words to queue. Nothing is written here."""
+    values: dict[str, tuple[str, str | None]] = {}
+    custom: list[words.Resolved] = []
     fresh = 0
     for field, text in asked:
         try:
@@ -632,25 +667,15 @@ async def _custom_values(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         words.refuse_rejected(resolved)
         if resolved.kind in ("listed", "merged"):
-            if field == words.STYLE:
-                style, style_other = resolved.code, None
-            elif field == words.LANGUAGE:
-                language, language_other = resolved.code, None
-            else:
-                lead, lead_other = resolved.code, None
+            values[field] = (resolved.code, None)
             continue
         if resolved.kind == "new":
             fresh += 1
         # the word as the queue spells it ("dilruba" is stored as the first "Dilruba")
-        if field == words.STYLE:
-            style_other = resolved.label
-        elif field == words.LANGUAGE:
-            language_other = resolved.label
-        else:
-            lead_other = resolved.label
+        values[field] = (OTHER, resolved.label)
         custom.append(resolved)
     await words.ensure_allowance(session, member_id, fresh, team=team)
-    return style, style_other, lead, lead_other, language, language_other, custom
+    return values, custom
 
 
 async def create_recording(

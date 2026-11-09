@@ -73,7 +73,9 @@ that is a listed language ("Russian", "русский") becomes its code. A name
 is offered "Did you mean Bengali?" (`similarLanguage` in `lib/kirtan/languages.ts`, one rule `similarWord` for instrument, style and
 language). The same weekly limit (3 new words a week, the team exempt) and the same team decision (accept, merge into a listed
 language, reject) apply. The recording keeps `language = "other"` and `language_other = <the name>`; a merge writes the listed code
-into the recordings, a reject clears the word. Not built: an accepted language word is not yet offered as a pick for others.
+into the recordings, a reject clears the word. The old-recording road, `PATCH /recordings/{id}/language`, goes through the same code as an upload (`_resolve_words` in
+`services/recordings.py`): a rejected word is a 422, a merged word becomes its code, a new word counts against the weekly three and
+joins the queue with its use. Nothing writes a language word without the queue. Not built: an accepted language word is not yet offered as a pick for others.
 The box for the written name is the shared `OwnWord` component (spacing rule: `docs/layout-rules.md`, "An input beside a group of tags").
 
 ## AI recordings are never hidden
