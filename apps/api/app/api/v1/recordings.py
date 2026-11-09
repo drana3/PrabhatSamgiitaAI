@@ -37,6 +37,7 @@ from app.schemas.recordings import (
     BlockList,
     DiscardRequest,
     DuplicateOfRequest,
+    FromBroadcast,
     Kind,
     LanguageSet,
     NoticeOut,
@@ -52,9 +53,9 @@ from app.schemas.recordings import (
     UploadRequest,
     UploadTargetResponse,
 )
+from app.services import broadcast_recordings, upload_validation
 from app.services import recording_collections as sets
 from app.services import recordings as service
-from app.services import upload_validation
 from app.services.members import require_member_identity, sync_member, try_member_identity
 from app.services.recording_storage import (
     LocalDiskStorage,
@@ -385,6 +386,14 @@ async def publish_recording(
     """Step 2: the file is stored; publish it. It is live the moment this returns."""
     team = service.is_team_member(member, settings)
     in_set = payload.collection_id is not None
+    # a recording of a live broadcast: say now that it cannot go there, before the file is stored
+    for_broadcast = (
+        await broadcast_recordings.check_target(
+            session, payload.broadcast_id, member=member, team=team
+        )
+        if payload.broadcast_id is not None
+        else None
+    )
     service.limiter.hit(
         "publish-set" if in_set else "publish",
         str(member.id),
@@ -413,6 +422,15 @@ async def publish_recording(
         await session.rollback()
         logger.exception("Recording could not be stored")
         raise HTTPException(status_code=503, detail="Storage is temporarily unavailable") from exc
+    if for_broadcast is not None:
+        try:
+            await broadcast_recordings.attach_file(
+                session, for_broadcast, member=member, team=team, recording_id=recording.id
+            )
+        except SQLAlchemyError:
+            # the recording is in the library whatever happens to the link; say so in the log
+            await session.rollback()
+            logger.exception("Recording %s could not be linked to its broadcast", recording.id)
     return service.recording_out(recording, owner=True)
 
 
@@ -427,7 +445,11 @@ async def read_recording(
     owner = member is not None and recording.author_id == member.id
     if recording.status == "removed" and not owner:
         raise HTTPException(status_code=404, detail="Recording not found")
-    return service.recording_out(recording, owner=owner)
+    out = service.recording_out(recording, owner=owner)
+    mark = await broadcast_recordings.from_broadcast(session, recording.id)
+    if mark is not None:
+        out.from_broadcast = FromBroadcast.model_validate(mark)
+    return out
 
 
 @router.patch("/{recording_id}/language", response_model=RecordingOut)

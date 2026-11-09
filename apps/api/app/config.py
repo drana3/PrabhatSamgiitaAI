@@ -177,6 +177,21 @@ class Settings(BaseSettings):
         default=False, alias="RECORDING_SIGNING_ALLOW_PROXY_KEY"
     )
 
+    # --- YouTube Data API (docs/broadcasts.md): "is this broadcast live right now" ---
+    # The key comes ONLY from the environment. Without it (or with the flag off) a broadcast is
+    # "on" by the organizer's clock, as before. Never logged, never sent to a client.
+    youtube_api_key: str | None = Field(default=None, alias="YOUTUBE_API_KEY", repr=False)
+    youtube_status_enabled: bool = Field(default=True, alias="YOUTUBE_STATUS_ENABLED")
+    # One answer is reused this long, for every viewer.
+    youtube_status_ttl_seconds: int = Field(
+        default=60, alias="YOUTUBE_STATUS_TTL_SECONDS", ge=10, le=3600
+    )
+    # Calls to the API per UTC day in one server process (a videos.list call costs 1 unit of the
+    # 10,000 a day that are free; a list of up to 50 videos is ONE call).
+    youtube_daily_request_limit: int = Field(
+        default=3000, alias="YOUTUBE_DAILY_REQUEST_LIMIT", ge=1, le=10000
+    )
+
     # --- Request limiter (docs/rate-limits.md) ---
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
     # "database" (default, shared by all instances, survives restarts) or "memory" (one process)

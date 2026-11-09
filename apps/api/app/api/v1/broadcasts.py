@@ -3,7 +3,10 @@
 Reading is open to everyone. Posting needs a signed-in member. The address is read, never
 fetched (`services/broadcasts.parse_broadcast_url`); only a YouTube broadcast is looked at, after
 the answer, through the existing oEmbed layer. Anyone may report; the author ends or deletes their
-own; the team removes and keeps. Design and guarantees: docs/broadcasts.md.
+own; the team keeps, hides and removes (with a reason the author reads) and sees the history. A
+YouTube broadcast is asked about at the YouTube Data API (key from the environment only; without
+it the organizer's clock rules). The recording of an ended broadcast is a link or a library
+recording. Design and guarantees: docs/broadcasts.md.
 """
 
 from __future__ import annotations
@@ -34,15 +37,23 @@ from app.api.v1.extras_common import (
     client_host,
 )
 from app.core.db import SessionLocal
-from app.models.broadcasts import Broadcast
+from app.models.broadcasts import Broadcast, BroadcastRecording
 from app.schemas.broadcasts import (
     BroadcastCreate,
+    BroadcastDecisionList,
     BroadcastList,
     BroadcastOut,
+    BroadcastRecordingCreate,
+    BroadcastRecordingOut,
     BroadcastRemove,
     BroadcastReportCreate,
+    BroadcastReviewList,
+    RecordingSuggestionList,
+    RecordingSuggestionOut,
 )
 from app.schemas.recording_extras import ReportResponse
+from app.services import broadcast_recordings as recordings
+from app.services import broadcast_review as review_service
 from app.services import broadcasts as service
 from app.services.extras_common import display_name
 from app.services.recordings import is_team_member
@@ -89,8 +100,8 @@ async def list_broadcasts(
     _private(response)
     team = member is not None and is_team_member(member, settings)
     viewer = member.id if member else None
-    rows = await service.list_public(session, which=which, limit=limit)
-    items = [service.public_out(b, viewer_id=viewer, team=team) for b in rows]
+    rows = await service.list_public(session, which=which, limit=limit, settings=settings)
+    items = await recordings.present(session, rows, viewer_id=viewer, team=team)
     return BroadcastList(items=items, total=len(items))
 
 
@@ -101,26 +112,93 @@ async def my_broadcasts(
     """Everything the member posted, ended and archived ones too."""
     _private(response)
     team = is_team_member(member, settings)
-    rows = await service.list_mine(session, member.id)
-    items = [service.public_out(b, viewer_id=member.id, team=team) for b in rows]
+    rows = await service.list_mine(session, member.id, settings=settings)
+    items = await recordings.present(session, rows, viewer_id=member.id, team=team)
     return BroadcastList(items=items, total=len(items))
 
 
-@router.get("/review", response_model=BroadcastList)
+@router.get("/review", response_model=BroadcastReviewList)
 async def review(
     response: Response,
     session: DatabaseSession,
     team_member: TeamMember,
-    which: Annotated[Literal["reported", "removed"], Query()] = "reported",
+    which: Annotated[Literal["queue", "reported", "hidden", "removed"], Query()] = "queue",
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-) -> BroadcastList:
+) -> BroadcastReviewList:
+    """The team's queue: `queue` (reports not yet judged, the ones hidden by them first; `reported`
+    is the old name), `hidden` (by the team), `removed`. Team only, checked here on the server."""
     _private(response)
-    rows, total = await service.review_queue(session, which=which, limit=limit, offset=offset)
-    return BroadcastList(
-        items=[service.public_out(b, viewer_id=team_member.id, team=True) for b in rows],
-        total=total,
+    rows, total = await review_service.queue(session, which=which, limit=limit, offset=offset)
+    return BroadcastReviewList(
+        items=await review_service.present(session, rows, viewer_id=team_member.id), total=total
     )
+
+
+@router.get("/decisions", response_model=BroadcastDecisionList)
+async def decisions(
+    response: Response,
+    session: DatabaseSession,
+    team_member: TeamMember,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> BroadcastDecisionList:
+    """The history of the team's verdicts, newest first."""
+    del team_member
+    _private(response)
+    items, total = await review_service.history(session, limit=limit, offset=offset)
+    return BroadcastDecisionList(items=items, total=total)
+
+
+@router.get("/recording-suggestions", response_model=RecordingSuggestionList)
+async def recording_suggestions(
+    response: Response,
+    session: DatabaseSession,
+    team_member: TeamMember,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> RecordingSuggestionList:
+    """Recordings that members suggested for ended broadcasts, waiting for the team."""
+    _private(response)
+    rows, total = await recordings.suggestions(session, limit=limit, offset=offset)
+    items = []
+    for link, b, title in rows:
+        shown = await recordings.load(session, [b.id], viewer_id=team_member.id, team=True)
+        mine = next((r for r in shown.get(b.id, []) if r.id == str(link.id)), None)
+        if mine is None:  # a library recording that was removed since
+            continue
+        del title
+        items.append(
+            RecordingSuggestionOut(
+                id=str(link.id), broadcast_id=str(b.id), broadcast_title=b.title, recording=mine
+            )
+        )
+    return RecordingSuggestionList(items=items, total=total)
+
+
+async def _suggestion(session: AsyncSession, link_id: UUID) -> BroadcastRecording:
+    link = await session.get(BroadcastRecording, link_id)
+    if link is None:
+        raise HTTPException(status_code=404, detail="Recording not found")
+    return link
+
+
+@router.post("/recording-suggestions/{link_id}/accept", status_code=status.HTTP_204_NO_CONTENT)
+async def accept_recording(
+    link_id: UUID, session: DatabaseSession, team_member: TeamMember
+) -> Response:
+    link = await _suggestion(session, link_id)
+    await recordings.decide(session, link, accept=True, by=display_name(team_member))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/recording-suggestions/{link_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+async def reject_recording(
+    link_id: UUID, session: DatabaseSession, team_member: TeamMember
+) -> Response:
+    link = await _suggestion(session, link_id)
+    await recordings.decide(session, link, accept=False, by=display_name(team_member))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{broadcast_id}", response_model=BroadcastOut)
@@ -135,9 +213,12 @@ async def get_broadcast(
     row = await _get(session, broadcast_id)
     team = member is not None and is_team_member(member, settings)
     owner = member is not None and row.member_id == member.id
-    if not service.can_see(row, owner=owner, team=team):
+    await service.refresh_status(session, [row], settings)
+    has_recording = await recordings.has_accepted(session, row.id)
+    if not service.can_see(row, owner=owner, team=team, has_recording=has_recording):
         raise HTTPException(status_code=404, detail="Broadcast not found")
-    return service.public_out(row, viewer_id=member.id if member else None, team=team)
+    viewer = member.id if member else None
+    return (await recordings.present(session, [row], viewer_id=viewer, team=team))[0]
 
 
 # --------------------------------------------------------------------------- writing
@@ -163,6 +244,7 @@ async def post_broadcast(
     description = service.clean_description(payload.description)
     organizer = service.clean_organizer(payload.organizer)
     starts_at, zone = service.resolve_start(payload.starts_at, payload.timezone)
+    ends_at = service.resolve_end(payload.ends_at, payload.timezone, starts_at=starts_at)
     try:
         row = await service.create(
             session,
@@ -177,6 +259,7 @@ async def post_broadcast(
             organizer=organizer,
             starts_at=starts_at,
             zone=zone,
+            ends_at=ends_at,
         )
     except SQLAlchemyError as exc:
         await session.rollback()
@@ -186,21 +269,21 @@ async def post_broadcast(
         ) from exc
     if provider == "youtube":
         background.add_task(service.enrich_safely, factory, row.id)
-    return service.public_out(row, viewer_id=member.id, team=team)
+    return (await recordings.present(session, [row], viewer_id=member.id, team=team))[0]
 
 
 @router.post("/{broadcast_id}/end", response_model=BroadcastOut)
 async def end_broadcast(
     broadcast_id: UUID, session: DatabaseSession, member: Member, settings: AppSettings
 ) -> BroadcastOut:
-    """ "It is over": the author (or the team) closes it before the assumed end."""
+    """ "It is over": the author (or the team) closes it before its end."""
     row = await _get(session, broadcast_id)
     team = is_team_member(member, settings)
     if row.member_id != member.id and not team:
         raise HTTPException(status_code=403, detail="Only the person who posted it can do this.")
     await service.end_now(session, row)
     await session.refresh(row)
-    return service.public_out(row, viewer_id=member.id, team=team)
+    return (await recordings.present(session, [row], viewer_id=member.id, team=team))[0]
 
 
 @router.delete("/{broadcast_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -284,8 +367,23 @@ async def remove_broadcast(
     session: DatabaseSession,
     team_member: TeamMember,
 ) -> Response:
+    """Remove it for everybody but the team. The reason is required: the author reads it in their
+    notifications."""
     row = await _get(session, broadcast_id)
-    await service.remove_by_team(session, row, reason=payload.reason, by=display_name(team_member))
+    await review_service.remove(session, row, reason=payload.reason, by=display_name(team_member))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{broadcast_id}/hide", status_code=status.HTTP_204_NO_CONTENT)
+async def hide_broadcast(
+    broadcast_id: UUID,
+    payload: BroadcastRemove,
+    session: DatabaseSession,
+    team_member: TeamMember,
+) -> Response:
+    """Take it off the lists; the author and the team still read it. Needs a reason."""
+    row = await _get(session, broadcast_id)
+    await review_service.hide(session, row, reason=payload.reason, by=display_name(team_member))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -293,7 +391,58 @@ async def remove_broadcast(
 async def keep_broadcast(
     broadcast_id: UUID, session: DatabaseSession, team_member: TeamMember
 ) -> Response:
-    del team_member
+    """ "The reports were not right": clears them, remembers who looked and how many people had
+    reported, shows the broadcast again if it was hidden."""
     row = await _get(session, broadcast_id)
-    await service.keep(session, row)
+    await review_service.keep(session, row, by=display_name(team_member))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# --------------------------------------------------------------------------- the recording
+
+
+@router.post(
+    "/{broadcast_id}/recordings",
+    response_model=BroadcastRecordingOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_recording(
+    broadcast_id: UUID,
+    payload: BroadcastRecordingCreate,
+    session: DatabaseSession,
+    member: Member,
+    settings: AppSettings,
+) -> BroadcastRecordingOut:
+    """Add (the author, the team) or suggest (any other member: the team decides) the LINK of the
+    recording of an ended broadcast. A library recording goes through the upload wizard instead
+    (`broadcast_id` of the recording payload)."""
+    row = await _get(session, broadcast_id)
+    team = is_team_member(member, settings)
+    link = await recordings.add_link(session, row, member=member, team=team, raw_url=payload.url)
+    shown = await recordings.load(session, [row.id], viewer_id=member.id, team=team)
+    return next(r for r in shown[row.id] if r.id == str(link.id))
+
+
+@router.delete("/{broadcast_id}/recordings/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_recording(
+    broadcast_id: UUID,
+    link_id: UUID,
+    session: DatabaseSession,
+    member: Member,
+    settings: AppSettings,
+) -> Response:
+    """Take a recording off the broadcast (its author, the team, or the member who suggested it).
+    A library recording itself stays in the library."""
+    row = await _get(session, broadcast_id)
+    link = await session.get(BroadcastRecording, link_id)
+    if link is None or link.broadcast_id != row.id:
+        raise HTTPException(status_code=404, detail="Recording not found")
+    allowed = (
+        row.member_id == member.id
+        or is_team_member(member, settings)
+        or (link.member_id == member.id and link.status == "pending")
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Only the person who posted it can do this.")
+    await recordings.remove_link(session, link)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

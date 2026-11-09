@@ -189,6 +189,9 @@ class RecordingCreate(BaseModel):
     collection_id: UUID | None = None
     position: int | None = Field(default=None, ge=1, le=1000)
     recorded_on: date | None = None
+    # The recording of an ended live broadcast (docs/broadcasts.md): the broadcast it belongs to.
+    # The author of the broadcast and the team link it at once, anybody else suggests it.
+    broadcast_id: UUID | None = None
 
     @field_validator("language", mode="before")
     @classmethod
@@ -397,6 +400,14 @@ class RecordingBrief(BaseModel):
     _kind_read = field_validator("kind", mode="before")(_legacy_kind_is_a_bhajan)
 
 
+class FromBroadcast(BaseModel):
+    """The mark "From a live broadcast: <title>, <date>" of a recording made from one."""
+
+    id: str
+    title: str
+    date: date
+
+
 class RecordingOut(BaseModel):
     id: str
     kind: Kind
@@ -451,6 +462,8 @@ class RecordingOut(BaseModel):
     removed_at: datetime | None = None
     duplicate_of: str | None = None
     removed_duplicate_of: str | None = None
+    # Only on the page of ONE recording: the live broadcast it was recorded from, if any.
+    from_broadcast: FromBroadcast | None = None
 
     _kind_read = field_validator("kind", mode="before")(_legacy_kind_is_a_bhajan)
 

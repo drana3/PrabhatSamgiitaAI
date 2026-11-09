@@ -6,16 +6,21 @@ the YouTube oEmbed look of `video_checks` (a fixed host, an address built from t
 id), for a YouTube broadcast. Zoom, Facebook, Instagram and every other site are only ever stored
 and opened by the person in their own browser or app: the phone never loads them in a web view.
 
-State (`phase`), worked out when read, never stored:
+A broadcast can last days (a continuous Kiirtan of 7 to 10 days is an ordinary one), so there is
+no assumed length. State (`phase`), worked out when read, never stored:
 
-* upcoming  the start is in the future
+* upcoming  the start is in the future (or YouTube says the stream is announced, not begun)
 * now       the start has come and the broadcast has not ended. A broadcast without a start counts
-            as "now" from the moment it was posted. Nobody checks that a Zoom room is really open:
-            "now" means "by the clock of the organizer", and the page says so
-* ended     the author or the team said so, or ASSUMED_DURATION passed since the start
+            as "now" from the moment it was posted. For a Zoom room nobody checks that it is
+            really open: "now" means "by the clock of the organizer", and the page says so. For a
+            YouTube link and with a key (services/youtube_status.py) it means "YouTube says live"
+* ended     the author or the team said "it is over"; or YouTube reported the end; or the end the
+            organizer announced came; or, with no end announced, MAX_DURATION passed since the
+            start. Nothing is "on" longer than MAX_DURATION
 
-Archive: ARCHIVE_AFTER after the end a broadcast leaves every public list and its page is closed to
-everybody but its author and the team ("My broadcasts" keeps it).
+Archive: ARCHIVE_AFTER after the ACTUAL end (whichever of the above came) a broadcast leaves every
+public list and its page is closed to everybody but its author and the team ("My broadcasts" keeps
+it), unless it has a recording that was accepted (services/broadcast_recordings.py).
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import Settings
 from app.models import UserAccount
 from app.models.broadcasts import (
     BROADCAST_DESCRIPTION_MAX_LENGTH,
@@ -40,11 +46,12 @@ from app.models.broadcasts import (
     BROADCAST_TITLE_MAX_LENGTH,
     BROADCAST_URL_MAX_LENGTH,
     Broadcast,
+    BroadcastRecording,
     BroadcastReport,
 )
-from app.schemas.broadcasts import BroadcastOut
-from app.services import video_checks
-from app.services.extras_common import AUTHOR_DELETED_BY, one_line, team_removed_by
+from app.schemas.broadcasts import BroadcastOut, BroadcastRecordingOut
+from app.services import video_checks, youtube_status
+from app.services.extras_common import AUTHOR_DELETED_BY, one_line
 from app.services.invisible_text import strip_invisible
 from app.services.recording_info import has_non_latin_letters
 from app.services.recordings import RateLimiter, now_utc
@@ -58,8 +65,16 @@ from app.services.video_links import (
 
 logger = logging.getLogger(__name__)
 
-ASSUMED_DURATION = timedelta(hours=6)
+# The longest a broadcast is "on": a continuous Kiirtan of 7 to 10 days fits with room to spare.
+# An end announced later than this is refused; with no end announced it ends here by itself.
+MAX_DURATION = timedelta(days=14)
 ARCHIVE_AFTER = timedelta(days=7)
+# A look of the YouTube Data API older than this is not trusted any more (the clock rules again).
+YT_FRESH = timedelta(minutes=10)
+# After the clock says "ended", YouTube is still asked this long (a stream can run past the end
+# the organizer announced), and an announced stream is asked about from this far ahead.
+YT_RECHECK_AFTER_END = timedelta(hours=6)
+YT_LOOK_AHEAD = timedelta(days=3)
 STARTED_AGO_MAX = timedelta(hours=6)
 FAR_AHEAD_MAX = timedelta(days=365)
 # Reports that hide a broadcast from the public lists until the team has looked at it.
@@ -249,6 +264,22 @@ def clean_zone(raw: str | None) -> str | None:
     return name
 
 
+def _to_utc(value: datetime, zone: str | None) -> datetime:
+    """A time with an offset is taken as it is; one without needs the zone it was meant in."""
+    if value.tzinfo is None:
+        if zone is None:
+            raise HTTPException(
+                status_code=422, detail="Say in which time zone the time is, or give an offset."
+            )
+        try:
+            from zoneinfo import ZoneInfo
+
+            value = value.replace(tzinfo=ZoneInfo(zone))
+        except Exception as exc:  # noqa: BLE001  (an unknown name, or no zone data on the server)
+            raise HTTPException(status_code=422, detail="Unknown time zone.") from exc
+    return value.astimezone(UTC)
+
+
 def resolve_start(
     starts_at: datetime | None, zone: str | None, *, now: datetime | None = None
 ) -> tuple[datetime | None, str | None]:
@@ -257,18 +288,7 @@ def resolve_start(
     if starts_at is None:
         return None, None
     moment = now or now_utc()
-    if starts_at.tzinfo is None:
-        if name is None:
-            raise HTTPException(
-                status_code=422, detail="Say in which time zone the start is, or give an offset."
-            )
-        try:
-            from zoneinfo import ZoneInfo
-
-            starts_at = starts_at.replace(tzinfo=ZoneInfo(name))
-        except Exception as exc:  # noqa: BLE001  (an unknown name, or no zone data on the server)
-            raise HTTPException(status_code=422, detail="Unknown time zone.") from exc
-    utc = starts_at.astimezone(UTC)
+    utc = _to_utc(starts_at, name)
     if utc < moment - STARTED_AGO_MAX:
         raise HTTPException(status_code=422, detail="That start is already in the past.")
     if utc > moment + FAR_AHEAD_MAX:
@@ -276,6 +296,33 @@ def resolve_start(
             status_code=422, detail="Start dates more than a year ahead are not taken."
         )
     return utc, name or "UTC"
+
+
+def resolve_end(
+    ends_at: datetime | None,
+    zone: str | None,
+    *,
+    starts_at: datetime | None,
+    now: datetime | None = None,
+) -> datetime | None:
+    """The end the organizer announced, in UTC, or None. It must come after the start (after now,
+    when there is no start: the broadcast then begins when it is posted) and at most MAX_DURATION
+    after it."""
+    if ends_at is None:
+        return None
+    moment = now or now_utc()
+    utc = _to_utc(ends_at, clean_zone(zone))
+    begin = starts_at or moment
+    if starts_at is not None and utc <= starts_at:
+        raise HTTPException(status_code=422, detail="The end must come after the start.")
+    if utc <= moment:
+        raise HTTPException(status_code=422, detail="That end is already in the past.")
+    if utc > begin + MAX_DURATION:
+        days = MAX_DURATION.days
+        raise HTTPException(
+            status_code=422, detail=f"A broadcast can last up to {days} days from its start."
+        )
+    return utc
 
 
 # --------------------------------------------------------------------------- state
@@ -289,41 +336,104 @@ def begins_at(b: Broadcast) -> datetime:
     return _aware(b.starts_at) if b.starts_at else _aware(b.created_at)
 
 
-def ends_at(b: Broadcast) -> datetime:
-    """When it ended or, if nobody said, when it is taken to end."""
-    return _aware(b.ended_at) if b.ended_at else begins_at(b) + ASSUMED_DURATION
+def _yt_fresh(b: Broadcast, moment: datetime) -> bool:
+    return b.yt_checked_at is not None and moment - _aware(b.yt_checked_at) <= YT_FRESH
+
+
+def _yt_says(b: Broadcast, moment: datetime) -> str | None:
+    """ "live" or "upcoming" when a recent look of the YouTube API said so, else None."""
+    if b.yt_state in ("live", "upcoming") and _yt_fresh(b, moment):
+        return b.yt_state
+    return None
+
+
+def last_moment(b: Broadcast) -> datetime:
+    """The latest a broadcast can be "on": MAX_DURATION after its start."""
+    return begins_at(b) + MAX_DURATION
+
+
+def ends_at(b: Broadcast, *, now: datetime | None = None) -> datetime:
+    """When it ended or, while it still goes on, when it is taken to end. The first that holds:
+    "it is over", the end YouTube reported, the end YouTube's live look overrides (a stream that
+    runs past the announced end goes on, up to the limit), the announced end, the limit."""
+    moment = now or now_utc()
+    cap = last_moment(b)
+    if b.ended_at:
+        return min(_aware(b.ended_at), cap)
+    if b.yt_ended_at:
+        return min(_aware(b.yt_ended_at), cap)
+    if _yt_says(b, moment) == "live" or not b.declared_ends_at:
+        return cap
+    return min(_aware(b.declared_ends_at), cap)
 
 
 def phase(b: Broadcast, *, now: datetime | None = None) -> str:
     moment = now or now_utc()
     if b.ended_at and _aware(b.ended_at) <= moment:
         return "ended"
+    if b.yt_ended_at and _aware(b.yt_ended_at) <= moment:
+        return "ended"
+    says = _yt_says(b, moment)
+    if says == "upcoming":
+        return "upcoming"
+    if says == "live":
+        return "now" if moment < last_moment(b) else "ended"
     if moment < begins_at(b):
         return "upcoming"
-    return "now" if moment < ends_at(b) else "ended"
+    return "now" if moment < ends_at(b, now=moment) else "ended"
+
+
+def live_source(b: Broadcast, *, now: datetime | None = None) -> str:
+    """ "youtube" when YouTube's own word decides the state, "clock" when the organizer's clock."""
+    moment = now or now_utc()
+    if b.yt_ended_at or _yt_says(b, moment):
+        return "youtube"
+    return "clock"
 
 
 def is_archived(b: Broadcast, *, now: datetime | None = None) -> bool:
     moment = now or now_utc()
-    return phase(b, now=moment) == "ended" and moment >= ends_at(b) + ARCHIVE_AFTER
+    return phase(b, now=moment) == "ended" and moment >= ends_at(b, now=moment) + ARCHIVE_AFTER
 
 
 def hidden_by_reports(b: Broadcast) -> bool:
     return (b.reports_count or 0) >= REPORTS_HIDE
 
 
-def can_see(b: Broadcast, *, owner: bool, team: bool, now: datetime | None = None) -> bool:
+def is_hidden(b: Broadcast) -> bool:
+    """Off the public lists: by the team's "Hide", or by the reports that count."""
+    return b.hidden_at is not None or hidden_by_reports(b)
+
+
+def can_see(
+    b: Broadcast,
+    *,
+    owner: bool,
+    team: bool,
+    now: datetime | None = None,
+    has_recording: bool = False,
+) -> bool:
     """Who may read a broadcast: everybody while it is live and in its week after the end; only
-    its author and the team once it is removed, archived or hidden by reports."""
+    its author and the team once it is removed, hidden, or archived. An archived one that has an
+    accepted recording stays readable by its address (it is on no list), so that the recording
+    can still be found."""
     if b.status == "removed" and b.removed_by == AUTHOR_DELETED_BY:
         return False  # the author deleted it: nobody reads it, not even the author
     if owner or team:
         return True
-    return b.status == "published" and not is_archived(b, now=now) and not hidden_by_reports(b)
+    if b.status != "published" or is_hidden(b):
+        return False
+    return not is_archived(b, now=now) or has_recording
 
 
 def public_out(
-    b: Broadcast, *, viewer_id: UUID | None, team: bool, now: datetime | None = None
+    b: Broadcast,
+    *,
+    viewer_id: UUID | None,
+    team: bool,
+    now: datetime | None = None,
+    recordings: list[BroadcastRecordingOut] | None = None,
+    recording_action: str | None = None,
 ) -> BroadcastOut:
     moment = now or now_utc()
     mine = viewer_id is not None and b.member_id == viewer_id
@@ -337,7 +447,9 @@ def public_out(
         organizer=b.organizer,
         starts_at=_aware(b.starts_at) if b.starts_at else None,
         timezone=b.timezone,
-        ends_at=ends_at(b),
+        ends_at=ends_at(b, now=moment),
+        ends_declared=b.declared_ends_at is not None,
+        live_source=live_source(b, now=moment),  # type: ignore[arg-type]
         phase=phase(b, now=moment),  # type: ignore[arg-type]
         archived=is_archived(b, now=moment),
         thumbnail_url=b.thumbnail_url,
@@ -348,6 +460,9 @@ def public_out(
         can_remove=mine or team,
         created_at=_aware(b.created_at),
         reports_count=(b.reports_count or 0) if (mine or team) else None,
+        hidden=is_hidden(b) if (mine or team) else None,
+        recordings=recordings or [],
+        recording_action=recording_action,  # type: ignore[arg-type]
     )
 
 
@@ -360,31 +475,118 @@ def _order_key(b: Broadcast, moment: datetime) -> tuple[int, float]:
     return kind, begins_at(b).timestamp()
 
 
+def _needs_look(b: Broadcast, moment: datetime, ttl: timedelta) -> bool:
+    """Is a YouTube look due for this broadcast? Not when it is over for good, far in the future,
+    long past, or was looked at within the cache time."""
+    if b.provider != "youtube" or not b.external_id or b.status != "published":
+        return False
+    if b.ended_at or b.yt_ended_at:
+        return False
+    if begins_at(b) > moment + YT_LOOK_AHEAD or moment > last_moment(b):
+        return False
+    clock_end = min(_aware(b.declared_ends_at), last_moment(b)) if b.declared_ends_at else None
+    if clock_end is not None and moment > clock_end + YT_RECHECK_AFTER_END:
+        return False
+    return b.yt_checked_at is None or moment - _aware(b.yt_checked_at) >= ttl
+
+
+async def refresh_status(
+    session: AsyncSession,
+    rows: list[Broadcast],
+    settings: Settings | None,
+    *,
+    now: datetime | None = None,
+) -> None:
+    """Ask the YouTube Data API about the YouTube broadcasts that are due, in ONE batched call per
+    50, and keep the answer on the rows (the cache). Without a key, or when anything goes wrong,
+    nothing changes and the clock rules. Never raises."""
+    if settings is None or not youtube_status.is_on(settings):
+        return
+    moment = now or now_utc()
+    ttl = timedelta(seconds=settings.youtube_status_ttl_seconds)
+    due = [b for b in rows if _needs_look(b, moment, ttl)]
+    if not due:
+        return
+    try:
+        facts = await youtube_status.look([b.external_id for b in due], settings, now=moment)
+        for b in due:
+            got = facts.get(b.external_id)
+            if got is None:
+                continue  # not asked (ceiling, failure): the old answer stays
+            b.yt_checked_at = moment
+            b.yt_state, b.yt_started_at, b.yt_ended_at = got.state, got.started, got.ended
+            if got.ended is not None:
+                await _add_youtube_recording(session, b)
+        await session.commit()
+    except Exception as exc:  # noqa: BLE001
+        await session.rollback()
+        logger.warning("YouTube status could not be kept: %s", type(exc).__name__)
+
+
+async def _add_youtube_recording(session: AsyncSession, b: Broadcast) -> None:
+    """The stream is over: on YouTube the same video stays as the recording. Added once."""
+    have = await session.scalar(
+        select(BroadcastRecording.id).where(
+            BroadcastRecording.broadcast_id == b.id, BroadcastRecording.source == "youtube"
+        )
+    )
+    if have is None:
+        session.add(
+            BroadcastRecording(
+                broadcast_id=b.id,
+                kind="link",
+                provider="youtube",
+                url=b.url,
+                host=b.host,
+                status="accepted",
+                source="youtube",
+            )
+        )
+
+
 async def list_public(
-    session: AsyncSession, *, which: str, limit: int = 40, now: datetime | None = None
+    session: AsyncSession,
+    *,
+    which: str,
+    limit: int = 40,
+    now: datetime | None = None,
+    settings: Settings | None = None,
 ) -> list[Broadcast]:
     """`shelf`: live and upcoming. `recent`: those and the ones that ended less than a week ago
     (newest end first, after the live ones). Hidden, removed and archived ones never show."""
     moment = now or now_utc()
-    rows = (
-        await session.scalars(
-            select(Broadcast)
-            .where(Broadcast.status == "published", Broadcast.reports_count < REPORTS_HIDE)
-            .order_by(Broadcast.created_at.desc())
-            .limit(500)
-        )
-    ).all()
+    rows = list(
+        (
+            await session.scalars(
+                select(Broadcast)
+                .where(
+                    Broadcast.status == "published",
+                    Broadcast.reports_count < REPORTS_HIDE,
+                    Broadcast.hidden_at.is_(None),
+                )
+                .order_by(Broadcast.created_at.desc())
+                .limit(500)
+            )
+        ).all()
+    )
+    await refresh_status(session, rows, settings, now=moment)
     live = [b for b in rows if phase(b, now=moment) in ("now", "upcoming")]
     live.sort(key=lambda b: _order_key(b, moment))
     if which == "shelf":
         return live[:limit]
     ended = [b for b in rows if phase(b, now=moment) == "ended" and not is_archived(b, now=moment)]
-    ended.sort(key=lambda b: ends_at(b), reverse=True)
+    ended.sort(key=lambda b: ends_at(b, now=moment), reverse=True)
     return (live + ended)[:limit]
 
 
-async def list_mine(session: AsyncSession, member_id: UUID, limit: int = 100) -> list[Broadcast]:
-    return list(
+async def list_mine(
+    session: AsyncSession,
+    member_id: UUID,
+    limit: int = 100,
+    *,
+    settings: Settings | None = None,
+) -> list[Broadcast]:
+    rows = list(
         (
             await session.scalars(
                 select(Broadcast)
@@ -397,6 +599,8 @@ async def list_mine(session: AsyncSession, member_id: UUID, limit: int = 100) ->
             )
         ).all()
     )
+    await refresh_status(session, rows, settings)
+    return rows
 
 
 # --------------------------------------------------------------------------- writing
@@ -428,6 +632,7 @@ async def create(
     organizer: str | None,
     starts_at: datetime | None,
     zone: str | None,
+    ends_at: datetime | None = None,
 ) -> Broadcast:
     """Store a checked broadcast. Everything that can refuse comes BEFORE the hourly allowance."""
     if not team and await broadcasts_in_last_day(session, member.id) >= DAILY_BROADCASTS:
@@ -474,6 +679,7 @@ async def create(
         organizer=organizer,
         starts_at=starts_at,
         timezone=zone,
+        declared_ends_at=ends_at,
     )
     session.add(row)
     await session.commit()
@@ -507,22 +713,12 @@ async def delete_by_author(session: AsyncSession, row: Broadcast) -> None:
     row.organizer = None
     row.thumbnail_url = None
     row.fetched_title = None
-    await session.commit()
-
-
-async def remove_by_team(session: AsyncSession, row: Broadcast, *, reason: str, by: str) -> None:
-    row.status = "removed"
-    row.removed_reason = one_line(reason, 500) or None
-    row.removed_at = now_utc()
-    row.removed_by = team_removed_by(by)
-    await session.commit()
-
-
-async def keep(session: AsyncSession, row: Broadcast) -> None:
-    if row.status != "published":
-        raise HTTPException(status_code=409, detail="Only a live broadcast can be kept.")
-    row.reports_count = 0
-    await session.execute(delete(BroadcastReport).where(BroadcastReport.broadcast_id == row.id))
+    row.hidden_reason = None
+    # the links to its recordings go; the recordings themselves are ordinary library recordings
+    # of the people who uploaded them and stay
+    await session.execute(
+        delete(BroadcastRecording).where(BroadcastRecording.broadcast_id == row.id)
+    )
     await session.commit()
 
 
@@ -554,6 +750,21 @@ def report_weight(*, member: UserAccount | None, team: bool, now: datetime | Non
     return 1 if (now or now_utc()) - created >= MEMBER_REPORT_MIN_AGE else 0
 
 
+async def counted_weight(session: AsyncSession, row: Broadcast) -> int:
+    """What the reports that the team has not yet judged add up to: each person counts once, with
+    the largest weight of their open reports."""
+    best: dict[str, int] = {}
+    for key, weight in (
+        await session.execute(
+            select(BroadcastReport.reporter_key, BroadcastReport.weight).where(
+                BroadcastReport.broadcast_id == row.id, BroadcastReport.cleared_at.is_(None)
+            )
+        )
+    ).all():
+        best[key] = max(best.get(key, 0), weight or 0)
+    return sum(best.values())
+
+
 async def add_report(
     session: AsyncSession,
     *,
@@ -564,9 +775,14 @@ async def add_report(
     note: str | None,
     weight: int = 0,
 ) -> bool:
+    """One report per person and reason. A report the team already judged ("Keep") still blocks
+    the same person from sending the same reason again; another reason, or another person, is
+    new, and only the new ones count towards hiding."""
     already = await session.scalar(
         select(BroadcastReport.id).where(
-            BroadcastReport.broadcast_id == row.id, BroadcastReport.reporter_key == reporter_key
+            BroadcastReport.broadcast_id == row.id,
+            BroadcastReport.reporter_key == reporter_key,
+            BroadcastReport.reason == reason,
         )
     )
     if already is not None:
@@ -578,31 +794,13 @@ async def add_report(
             reporter_id=reporter_id,
             reason=reason,
             note=one_line(note, 1000) or None,
+            weight=weight,
         )
     )
-    row.reports_count = (row.reports_count or 0) + weight
+    await session.flush()
+    row.reports_count = await counted_weight(session, row)
     await session.commit()
     return True
-
-
-async def review_queue(
-    session: AsyncSession, *, which: str, limit: int, offset: int
-) -> tuple[list[Broadcast], int]:
-    any_report = select(BroadcastReport.id).where(BroadcastReport.broadcast_id == Broadcast.id)
-    conditions = [Broadcast.status == "published", any_report.exists()]
-    if which == "removed":
-        conditions = [Broadcast.status == "removed", Broadcast.removed_by != AUTHOR_DELETED_BY]
-    total = await session.scalar(select(func.count()).select_from(Broadcast).where(*conditions))
-    rows = (
-        await session.scalars(
-            select(Broadcast)
-            .where(*conditions)
-            .order_by(Broadcast.reports_count.desc(), Broadcast.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-    ).all()
-    return list(rows), int(total or 0)
 
 
 # --------------------------------------------------------------------------- YouTube look

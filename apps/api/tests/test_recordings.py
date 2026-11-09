@@ -35,6 +35,7 @@ from app.core.db import get_session
 from app.core.middleware import RequestContextMiddleware
 from app.core.security import require_admin
 from app.models import Base, UserAccount
+from app.models.broadcasts import Broadcast, BroadcastRecording
 from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
 from app.models.recordings import (
     AuthorBlock,
@@ -428,6 +429,8 @@ async def build_world(tmp_path: Path, *, file_database: bool) -> AsyncIterator[W
             ValueSuggestion,
             ValueSuggestionUse,
             BlockedAudioHash,
+            Broadcast,
+            BroadcastRecording,
         )
     ]
     async with engine.begin() as conn:

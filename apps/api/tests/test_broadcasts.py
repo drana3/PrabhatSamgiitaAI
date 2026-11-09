@@ -25,7 +25,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.v1.broadcasts import get_session_factory
 from app.api.v1.broadcasts import router as broadcasts_router
 from app.models import Base, UserAccount
-from app.models.broadcasts import Broadcast, BroadcastReport
+from app.models.broadcasts import Broadcast, BroadcastDecision, BroadcastRecording, BroadcastReport
 from app.services import broadcasts as service
 from app.services import video_checks
 from app.services.recordings import now_utc
@@ -53,7 +53,10 @@ async def world_fixture() -> AsyncIterator[World]:
     engine = create_async_engine(
         "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
-    tables = [cast(Table, m.__table__) for m in (*TABLES, Broadcast, BroadcastReport)]
+    tables = [
+        cast(Table, m.__table__)
+        for m in (*TABLES, Broadcast, BroadcastReport, BroadcastDecision, BroadcastRecording)
+    ]
     async with engine.begin() as conn:
         await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
     sessions = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -208,7 +211,14 @@ def test_a_look_alike_host_is_not_zoom_or_youtube() -> None:
 
 
 def _row(
-    starts: datetime | None, *, ended: datetime | None = None, made: datetime | None = None
+    starts: datetime | None,
+    *,
+    ended: datetime | None = None,
+    made: datetime | None = None,
+    declared: datetime | None = None,
+    yt_state: str | None = None,
+    yt_ended: datetime | None = None,
+    yt_checked: datetime | None = None,
 ) -> Broadcast:
     return Broadcast(
         member_id=MEMBER_A,
@@ -218,30 +228,107 @@ def _row(
         title="T",
         starts_at=starts,
         ended_at=ended,
+        declared_ends_at=declared,
+        yt_state=yt_state,
+        yt_ended_at=yt_ended,
+        yt_checked_at=yt_checked,
         created_at=made or now_utc(),
         reports_count=0,
         status="published",
     )
 
 
+NOW = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)
+
+
 def test_the_state_is_worked_out_from_the_clock() -> None:
-    now = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)
+    now = NOW
     assert service.phase(_row(now + timedelta(minutes=1)), now=now) == "upcoming"
     assert service.phase(_row(now - timedelta(minutes=1)), now=now) == "now"
-    assert service.phase(_row(now - service.ASSUMED_DURATION), now=now) == "ended"
     # without a start it is live from the moment it was posted
     assert service.phase(_row(None, made=now - timedelta(hours=1)), now=now) == "now"
-    assert service.phase(_row(None, made=now - timedelta(hours=7)), now=now) == "ended"
     # "it is over" ends it early
     assert service.phase(_row(now - timedelta(hours=1), ended=now), now=now) == "ended"
+    # there is no assumed length of a few hours any more: seven hours later it is still on
+    assert service.phase(_row(now - timedelta(hours=7)), now=now) == "now"
+    assert not hasattr(service, "ASSUMED_DURATION")
 
 
-def test_a_week_after_the_end_it_is_archived() -> None:
-    now = datetime(2026, 11, 9, 12, 0, tzinfo=UTC)
-    start = now - service.ASSUMED_DURATION - service.ARCHIVE_AFTER
+def test_a_nine_day_broadcast_stays_live_for_its_whole_span() -> None:
+    now = NOW
+    started = now - timedelta(days=9)
+    # no end announced: still on at day 9, and the end shown is the limit of 14 days
+    open_ended = _row(started)
+    assert service.phase(open_ended, now=now) == "now"
+    assert service.ends_at(open_ended, now=now) == started + timedelta(days=14)
+    # an announced end on day 10: on at day 9, ended at day 10
+    announced = _row(started, declared=started + timedelta(days=10))
+    assert service.phase(announced, now=now) == "now"
+    assert service.phase(announced, now=now + timedelta(days=1, minutes=1)) == "ended"
+    assert service.ends_at(announced, now=now) == started + timedelta(days=10)
+    # "it is over" ends it whatever was announced
+    pressed = _row(started, declared=started + timedelta(days=10), ended=now)
+    assert service.phase(pressed, now=now) == "ended"
+    assert service.ends_at(pressed, now=now) == now
+
+
+def test_with_no_end_it_ends_by_itself_on_the_fourteenth_day() -> None:
+    start = NOW - timedelta(days=14)
+    assert service.phase(_row(start + timedelta(minutes=1)), now=NOW) == "now"
+    assert service.phase(_row(start), now=NOW) == "ended"
+    assert service.phase(_row(start - timedelta(minutes=1)), now=NOW) == "ended"
+    # an announced end beyond the limit is cut to it
+    far = _row(NOW - timedelta(days=13), declared=NOW + timedelta(days=30))
+    assert service.ends_at(far, now=NOW) == NOW - timedelta(days=13) + timedelta(days=14)
+
+
+def test_the_archive_is_counted_from_the_actual_end() -> None:
+    now = NOW
+    week = service.ARCHIVE_AFTER
+    # no end: it ended on day 14; archived 7 days after that, not 7 days after the start
+    start = now - timedelta(days=14) - week
     assert service.is_archived(_row(start - timedelta(minutes=1)), now=now)
     assert not service.is_archived(_row(start + timedelta(minutes=1)), now=now)
-    assert not service.is_archived(_row(now + timedelta(days=1)), now=now)
+    assert not service.is_archived(_row(now - timedelta(days=9)), now=now)  # still on
+    # an announced end: the week runs from it
+    began = now - timedelta(days=12)
+    announced = _row(began, declared=now - timedelta(days=7, minutes=1))
+    assert service.is_archived(announced, now=now)
+    assert not service.is_archived(
+        _row(began, declared=now - timedelta(days=7) + timedelta(minutes=1)), now=now
+    )
+    # "it is over": from the moment it was pressed, whatever was announced or the start was
+    assert not service.is_archived(
+        _row(now - timedelta(days=12), ended=now - timedelta(days=6)), now=now
+    )
+    assert service.is_archived(
+        _row(now - timedelta(days=12), ended=now - timedelta(days=8)), now=now
+    )
+    # the end YouTube reported counts the same way
+    assert service.is_archived(
+        _row(now - timedelta(days=20), yt_state="none", yt_ended=now - timedelta(days=8)), now=now
+    )
+
+
+def test_what_youtube_said_overrides_the_clock_only_while_it_is_fresh() -> None:
+    now = NOW
+    began = now - timedelta(days=3)
+    fresh = now - timedelta(minutes=2)
+    stale = now - timedelta(hours=1)
+    # the announced end has passed, but YouTube says live: still on, and shown as YouTube's word
+    row = _row(began, declared=now - timedelta(hours=1), yt_state="live", yt_checked=fresh)
+    assert service.phase(row, now=now) == "now" and service.live_source(row, now=now) == "youtube"
+    # an old look is not trusted: the clock says ended
+    old = _row(began, declared=now - timedelta(hours=1), yt_state="live", yt_checked=stale)
+    assert service.phase(old, now=now) == "ended" and service.live_source(old, now=now) == "clock"
+    # announced, not begun: upcoming even though the clock says the start has come
+    waiting = _row(now - timedelta(minutes=5), yt_state="upcoming", yt_checked=fresh)
+    assert service.phase(waiting, now=now) == "upcoming"
+    # an end reported by YouTube is a fact and needs no freshness
+    over = _row(began, yt_state="none", yt_ended=now - timedelta(hours=2), yt_checked=stale)
+    assert (
+        service.phase(over, now=now) == "ended" and service.live_source(over, now=now) == "youtube"
+    )
 
 
 # --------------------------------------------------------------------------- posting
@@ -340,10 +427,15 @@ async def test_an_ended_one_leaves_the_shelf_stays_in_recent_and_is_archived_aft
 ) -> None:
     made = (await post(world, title="Old talk")).json()
     row = (await world.rows(Broadcast))[0]
-    await world.update(Broadcast, row.id, starts_at=now_utc() - timedelta(hours=10))
+    await world.update(
+        Broadcast,
+        row.id,
+        starts_at=now_utc() - timedelta(days=3),
+        ended_at=now_utc() - timedelta(days=2),
+    )
     assert await shelf(world) == []
     assert [i["title"] for i in await shelf(world, which="recent")] == ["Old talk"]
-    await world.update(Broadcast, row.id, starts_at=now_utc() - timedelta(days=9))
+    await world.update(Broadcast, row.id, ended_at=now_utc() - timedelta(days=8))
     assert await shelf(world, which="recent") == []
     # closed to strangers, kept for its author and the team
     assert (await world.call("GET", f"{URL}/{made['id']}", "b")).status_code == 404
@@ -352,6 +444,41 @@ async def test_an_ended_one_leaves_the_shelf_stays_in_recent_and_is_archived_aft
     assert (await world.call("GET", f"{URL}/{made['id']}", "team")).status_code == 200
     listing = (await world.call("GET", f"{URL}/mine", "a")).json()["items"]
     assert [i["title"] for i in listing] == ["Old talk"]
+
+
+async def test_a_multi_day_broadcast_is_live_for_its_whole_span_in_the_api(world: World) -> None:
+    ends = (now_utc() + timedelta(days=2)).isoformat()
+    made = await post(world, title="Nine days of Kiirtan", ends_at=ends)
+    assert made.status_code == 201, made.text
+    row = (await world.rows(Broadcast))[0]
+    await world.update(Broadcast, row.id, starts_at=now_utc() - timedelta(days=9))
+    item = (await shelf(world))[0]
+    assert item["phase"] == "now" and item["ends_declared"] is True
+    assert item["live_source"] == "clock"
+    # without an end it is on too, and says the end is not announced
+    other = await post(world, url="https://z.example.org/x", title="No end")
+    assert other.json()["ends_declared"] is False
+    assert other.json()["ends_at"] > made.json()["created_at"]
+
+
+async def test_the_end_of_a_broadcast_is_checked(world: World) -> None:
+    start = now_utc() + timedelta(hours=2)
+    before = (start - timedelta(hours=1)).isoformat()
+    too_far = (start + timedelta(days=14, minutes=5)).isoformat()
+    ok_far = (start + timedelta(days=13)).isoformat()
+    kwargs = {"starts_at": start.isoformat()}
+    assert (await post(world, ends_at=before, **kwargs)).status_code == 422
+    assert (await post(world, ends_at=too_far, **kwargs)).status_code == 422
+    # no start: the end must lie ahead and within 14 days of now
+    assert (
+        await post(world, ends_at=(now_utc() - timedelta(hours=1)).isoformat())
+    ).status_code == 422
+    naive = (now_utc() + timedelta(days=3)).replace(tzinfo=None).isoformat()
+    assert (await post(world, ends_at=naive)).status_code == 422  # a time without a zone
+    ok = await post(world, ends_at=naive, timezone="Asia/Kolkata")
+    assert ok.status_code == 201 and ok.json()["ends_declared"] is True
+    far = await post(world, url="https://far.example.org/x", ends_at=ok_far, **kwargs)
+    assert far.status_code == 201, far.text
 
 
 async def test_the_author_ends_a_broadcast_and_nobody_else_can(world: World) -> None:
@@ -394,7 +521,10 @@ async def test_two_established_members_hide_it_and_the_team_can_keep_or_remove(
     assert (await world.call("POST", f"{URL}/{rid}/keep", "b")).status_code == 403
     assert (await world.call("POST", f"{URL}/{rid}/keep", "team")).status_code == 204
     assert [i["id"] for i in await shelf(world)] == [rid]
-    assert await world.rows(BroadcastReport) == []  # the verdict clears the reports
+    # the verdict clears the reports: they stay (the same one cannot be sent again), uncounted
+    rows = await world.rows(BroadcastReport)
+    assert len(rows) == 2 and all(r.cleared_at is not None for r in rows)
+    assert (await world.rows(Broadcast))[0].reports_count == 0
     assert (
         await world.call("POST", f"{URL}/{rid}/remove", "team", json={"reason": "not a broadcast"})
     ).status_code == 204
