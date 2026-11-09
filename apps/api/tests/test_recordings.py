@@ -381,8 +381,13 @@ class World:
 
 
 def mp3(seed: int = 0, extra: bytes = b"") -> bytes:
-    """Distinct fake MP3 bytes. `FP=<seed>;` is what the fake fpcalc fingerprints."""
-    return b"ID3\x04" + f"FP={seed};".encode() + extra + os.urandom(16)
+    """Distinct fake MP3 bytes. `FP=<seed>;` is what the fake fpcalc fingerprints.
+
+    Shaped like a real file as far as the upload checks look (services/upload_validation.py): an ID3
+    tag of size 0, one MPEG frame header, and enough length.
+    """
+    body = b"ID3\x04\x00\x00\x00\x00\x00\x00" + f"FP={seed};".encode() + extra
+    return body + b"\xff\xfb\x90\x00" + os.urandom(16) + bytes(600)
 
 
 @pytest_asyncio.fixture
@@ -592,7 +597,7 @@ async def test_validation_of_type_size_and_owner(world: World) -> None:
         await world.client.post(
             "/api/v1/recordings/uploads",
             headers={"X-Test-Member": "a"},
-            json={"file_name": "x.mp3", "content_type": "audio/mpeg", "size_bytes": 20},
+            json={"file_name": "x.mp3", "content_type": "audio/mpeg", "size_bytes": 2000},
         )
     ).json()
     path = "/" + target["url"].split("://", 1)[1].split("/", 1)[1]

@@ -98,6 +98,11 @@ class Settings(BaseSettings):
         default="./data/generated/recordings", alias="RECORDING_LOCAL_DIR"
     )
     recording_max_bytes: int = Field(default=60 * 1024 * 1024, alias="RECORDING_MAX_BYTES", ge=1024)
+    # The longest recording we accept (docs/upload-validation.md). A file that declares or measures
+    # more is refused before ffmpeg is started on it.
+    recording_max_duration_seconds: int = Field(
+        default=4 * 3600, alias="RECORDING_MAX_DURATION_SECONDS", ge=60, le=24 * 3600
+    )
     recording_signing_secret: str | None = Field(default=None, alias="RECORDING_SIGNING_SECRET")
     recording_upload_ttl_seconds: int = Field(
         default=900, alias="RECORDING_UPLOAD_TTL_SECONDS", ge=60, le=86_400

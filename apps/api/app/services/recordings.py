@@ -51,6 +51,7 @@ from app.schemas.recordings import (
     RecordingCreate,
     RecordingOut,
 )
+from app.services import upload_validation
 from app.services import recording_matches as matches
 from app.services import value_suggestions as words
 from app.services.admin_members import normalize_member_email, owner_admin_emails
@@ -71,7 +72,6 @@ from app.services.recording_storage import (
     RecordingStorage,
     StorageError,
     key_belongs_to,
-    sniff_audio,
 )
 
 VISIBLE = ("published", "flagged")
@@ -558,15 +558,32 @@ async def inspect_stored_file(
             await storage.materialize(key, local)
         except StorageError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        with local.open("rb") as handle:
-            head = handle.read(16)
-        extension = sniff_audio(head)
-        if extension is None:
+        # One entry point for "may this become a recording" (services/upload_validation.py): first
+        # bytes, container, declared length. Before any tool is started on the file.
+        max_duration = float(settings.recording_max_duration_seconds)
+        try:
+            extension, _ = upload_validation.check_file(
+                local, max_bytes=settings.recording_max_bytes, max_duration_sec=max_duration
+            )
+        except upload_validation.UploadRejected as exc:
             await storage.delete(key)
             raise HTTPException(
-                status_code=422, detail="This does not look like an audio file (MP3, M4A, WAV)."
-            )
+                status_code=exc.status_code,
+                detail=exc.message,
+                headers={"X-Error-Code": exc.code},
+            ) from exc
         fingerprint = await compute_fingerprint(local, settings.recording_fpcalc_path)
+        try:
+            upload_validation.check_duration(
+                fingerprint.duration_sec if fingerprint else None, max_duration_sec=max_duration
+            )
+        except upload_validation.UploadRejected as exc:
+            await storage.delete(key)
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail=exc.message,
+                headers={"X-Error-Code": exc.code},
+            ) from exc
         loudness = await measure_loudness(
             local,
             settings.recording_ffmpeg_path,

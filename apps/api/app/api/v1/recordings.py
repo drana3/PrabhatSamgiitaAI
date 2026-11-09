@@ -54,16 +54,15 @@ from app.schemas.recordings import (
 )
 from app.services import recording_collections as sets
 from app.services import recordings as service
+from app.services import upload_validation
 from app.services.members import require_member_identity, sync_member, try_member_identity
 from app.services.recording_storage import (
     LocalDiskStorage,
     RecordingStorage,
     StorageError,
-    extension_for,
     get_recording_storage,
     key_belongs_to,
     new_key,
-    sniff_audio,
     verify_upload_token,
 )
 
@@ -279,12 +278,17 @@ async def create_upload(
         )
     else:
         await service.ensure_daily_allowance(session, member.id, settings, team=team)
-    extension = extension_for(payload.content_type)
-    if extension is None:
-        raise HTTPException(status_code=415, detail="Send an MP3, M4A, WAV, OGG or FLAC file.")
-    if payload.size_bytes > settings.recording_max_bytes:
-        limit_mb = settings.recording_max_bytes // (1024 * 1024)
-        raise HTTPException(status_code=413, detail=f"The file is larger than {limit_mb} MB.")
+    try:
+        extension = upload_validation.check_request(
+            file_name=payload.file_name,
+            content_type=payload.content_type,
+            size_bytes=payload.size_bytes,
+            max_bytes=settings.recording_max_bytes,
+        )
+    except upload_validation.UploadRejected as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.message, headers={"X-Error-Code": exc.code}
+        ) from exc
     if payload.sha256:
         existing = await service.exact_duplicate(session, payload.sha256)
         if existing is not None:
@@ -343,8 +347,12 @@ async def put_local_upload(token: str, request: Request, storage: Storage) -> Re
     body = await request.body()
     if len(body) > limit:
         raise HTTPException(status_code=413, detail="The audio file is too large.")
-    if sniff_audio(body[:16]) is None:
-        raise HTTPException(status_code=422, detail="This does not look like an audio file.")
+    try:
+        upload_validation.check_head(body[: upload_validation.HEAD_BYTES])
+    except upload_validation.UploadRejected as exc:
+        raise HTTPException(
+            status_code=exc.status_code, detail=exc.message, headers={"X-Error-Code": exc.code}
+        ) from exc
     storage.write(str(claims["k"]), body)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

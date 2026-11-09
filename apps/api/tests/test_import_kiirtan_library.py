@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import os
+import struct
 import sys
 from datetime import date
 from pathlib import Path
@@ -44,7 +45,11 @@ script = load_script()
 
 def wav(seed: int) -> bytes:
     """A tiny WAV-looking file; the fake fpcalc reads `FP=<seed>;` from it."""
-    return b"RIFF\x24\x00\x00\x00WAVE" + f"FP={seed};".encode() + os.urandom(16)
+    marker = f"FP={seed};".encode()
+    fmt = b"fmt " + struct.pack("<IHHIIHH", 16, 1, 1, 8000, 16000, 2, 16)
+    data = marker + os.urandom(16) + bytes(600)
+    body = b"WAVE" + fmt + b"data" + struct.pack("<I", len(data)) + data
+    return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
 async def fake_convert(source: Path, target: Path, _ffmpeg: str) -> bool:
