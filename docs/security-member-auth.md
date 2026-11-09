@@ -17,8 +17,9 @@ and the signing of recording links.
 
 ## 2. What it is now, in plain words
 
-1. The member signs in with Google, Apple, Microsoft, Facebook or e-mail and password, as before.
-2. For Google, Apple, Microsoft and Facebook the phone sends the provider's own signed proof to
+1. The member signs in with Google, Apple, Microsoft or e-mail and password. (Facebook login was removed on
+   9 November 2026.)
+2. For Google, Apple and Microsoft the phone sends the provider's own signed proof to
    `POST /api/v1/members/session/exchange`. The **server checks that proof with the provider** (signature,
    issuer, audience = our app ids, expiry). A made-up profile fails here.
    E-mail sign-in is checked by the password on the server and returns the tokens directly.
@@ -52,11 +53,11 @@ its **own** key (`WEB_PROXY_KEY`, never shipped to a phone). That key keeps the 
 ## 3. Other holes closed on the way
 
 - An address is only matched against accounts whose own address a provider confirmed (Google, Apple,
-  Microsoft). An account made with e-mail and password or with Facebook is never matched by address at sign-in,
+  Microsoft). An account made with e-mail and password or with Facebook (old accounts) is never matched by address at sign-in,
   so a stranger cannot register someone else's address first and have the real owner land in that account.
   An unverified address is not stored at all.
 - An **unverified e-mail** never finds, merges or promotes an account. Google and Apple say whether the e-mail is
-  verified, Microsoft only for known tenants or when it says so, Facebook never.
+  verified, Microsoft only for known tenants or when it says so.
 - **Owner e-mails cannot be registered** as a local (password) account: 409.
 - The **deploy-smoke name trick** works only for the website key, not for tokens or the legacy key.
 - Recording links and the author-statistics pepper no longer fall back to the shared key in production;
@@ -67,7 +68,7 @@ its **own** key (`WEB_PROXY_KEY`, never shipped to a phone). That key keeps the 
 ## 4. Files
 
 API: `app/services/member_tokens.py` (issue, verify, refresh, revoke), `app/services/provider_tokens.py`
-(Google, Apple, Microsoft, Facebook proofs), `app/api/v1/member_sessions.py` (exchange, refresh, revoke),
+(Google, Apple, Microsoft proofs), `app/api/v1/member_sessions.py` (exchange, refresh, revoke),
 `app/models/member_session.py`, migration `0055_member_sessions_rate_limits`, and edits in
 `app/services/members.py`, `admin_members.py`, `recordings.py` (`is_team_member`), `local_auth.py`,
 `password_reset.py`, `recording_storage.py`, `author_profiles.py`, `app/config.py`.
@@ -84,12 +85,13 @@ Web and deploy: `apps/web/lib/runtime-env.ts` and the routes that forward to the
 | `MEMBER_SESSION_SECRET_PREVIOUS` | API | Old secret during a rotation, so live tokens keep working for up to an hour. |
 | `WEB_PROXY_KEY` | API and website | The website's own key. Never in a mobile build. |
 | `ALLOW_LEGACY_MEMBER_PRINCIPAL` | API | Default `true`. `false` ends the old shared key for members. |
+| `LEGACY_PRINCIPAL_UNTIL` | API | Optional date `YYYY-MM-DD`, the last day the old shared key works; the day after it is refused, as with `false`. No default. Recommended `2027-01-31` (`docs/decisions-security.md`). |
+| `COPYRIGHT_CONTACT_EMAIL` | API | Where rights holders write (default `info@anandamarga.org`), used in the takedown letters. |
 | `LEGACY_PRINCIPAL_ADMIN` | API | Emergency switch, default `false`. `true` gives the shared key its old powers back. |
 | `GOOGLE_OAUTH_CLIENT_IDS` | API | Comma list of the Google client ids our apps use (web, iOS, Android). |
 | `APPLE_BUNDLE_IDS` | API | Default `net.prabhatasamgiita.ai`. |
 | `AZURE_CLIENT_IDS` | API | Microsoft app (client) ids. |
 | `MEMBER_TRUSTED_MS_TENANTS` | API | Optional: Microsoft tenants whose e-mail counts as verified. |
-| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | API | Needed only if Facebook sign-in stays. |
 | `MEMBER_ACCESS_TTL_SECONDS`, `MEMBER_REFRESH_TTL_DAYS` | API | Optional, defaults 3600 and 30. |
 
 `.env.example` lists the names without values. `EXPO_PUBLIC_MEMBER_PROXY_KEY` in the mobile build is now
@@ -135,12 +137,12 @@ key stays a plain member. Mobile: `__tests__/memberSession.test.ts`. Web: `tests
 - **The deploy-smoke name trick still exists** for the website key (the deploy script uses it). A dedicated
   smoke token would remove it; not done here.
 - **Team members must sign in again once** after the release.
-- **Not checked without production:** the real Google, Apple, Microsoft and Facebook verification (tests use
+- **Not checked without production:** the real Google, Apple and Microsoft verification (tests use
   generated keys), the number of proxy hops for the client IP in Azure ingress (`RATE_LIMIT_TRUSTED_PROXY_HOPS`),
   secure storage on devices, and the whole flow on a store build.
 
 ## 10. DECISIONS for the owner
 
-- **Facebook:** keep or drop. It works through Facebook's token check and needs the app secret on the server.
-- **Client ids and tenants:** which Google, Azure and Apple ids go into the server settings.
-- **Cut-off date** for the legacy key, and whether to push the forced update first.
+- **Facebook: decided 9 November 2026, dropped.** Only Apple, Google and e-mail (Microsoft stays optional).
+- **Client ids and tenants:** created by the owner, steps in `docs/sign-in-setup.md`. Secrets never go in a chat.
+- **Cut-off date** for the legacy key: decided, `2027-01-31` after the forced update (`docs/decisions-security.md`).

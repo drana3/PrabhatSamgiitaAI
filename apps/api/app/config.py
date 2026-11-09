@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -169,6 +169,13 @@ class Settings(BaseSettings):
     # Last day (UTC, YYYY-MM-DD) the old shared key still works for members. The day after, old app
     # versions are refused with "please update". Empty = no end date (docs/decisions-security.md).
     legacy_principal_until: date | None = Field(default=None, alias="LEGACY_PRINCIPAL_UNTIL")
+
+    @field_validator("legacy_principal_until", mode="before")
+    @classmethod
+    def _empty_date_is_no_date(cls, value: object) -> object:
+        """`LEGACY_PRINCIPAL_UNTIL=` (empty, as in .env.example) means no end date, not an error."""
+        return None if isinstance(value, str) and not value.strip() else value
+
     # Emergency switch: true = the shared key may again act as admin/team. Keep false.
     legacy_principal_admin: bool = Field(default=False, alias="LEGACY_PRINCIPAL_ADMIN")
     # Who may sign a token the server accepts (comma lists; the ids are public, not secrets).
