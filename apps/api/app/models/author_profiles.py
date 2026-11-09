@@ -395,6 +395,12 @@ class PlayEvent(Base):
     counts_listener: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="true", nullable=False
     )
+    # false: stored (it takes part in the per-client caps) but never added to `play_daily`, because
+    # the client was over its cap. The fraud rules look only at rows that really became plays, so
+    # a source that spams uncounted events cannot make anybody's real plays look inflated.
+    counted: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
 
 
 class PlayDaily(Base):

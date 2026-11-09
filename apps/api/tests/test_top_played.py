@@ -423,3 +423,46 @@ async def test_signed_in_members_are_not_held_by_the_client_caps(tw: World, monk
     assert r.json() == {"accepted": 4, "duplicates": 0, "rejected": {}}
     assert await recording_daily_total(tw) == 2
     assert await song_counts(tw) == (2, 2)
+
+
+async def test_plays_held_back_by_the_fraud_check_are_not_in_the_list(tw: World) -> None:
+    """Every number that sums the daily counter subtracts what services/play_fraud.py holds."""
+    from app.models.play_flag import PlayFlag
+    from app.services import play_fraud as pf
+
+    busy = await tw.recording(None, title="Busy")
+    calm = await tw.recording(None, title="Calm")
+    await put_rec_plays(tw, busy, 500)
+    await put_rec_plays(tw, calm, 40)
+    async with tw.sessions() as session:
+        flag = await pf.evaluate(session, busy, TODAY)
+        await session.commit()
+    assert flag is not None and flag.held > 0
+    page = await top_list(tw)
+    plays = {i["recording"]["id"]: i["plays"] for i in page["items"]}
+    assert plays[str(busy)] == 500 - flag.held
+    assert plays[str(calm)] == 40
+
+    async with tw.sessions() as session:
+        await pf.review(session, busy, TODAY, verdict="cleared", by="team")
+    page = await top_list(tw)
+    assert {i["recording"]["id"]: i["plays"] for i in page["items"]}[str(busy)] == 500
+
+    # held plays also count against the minimum: a recording held down to nothing is not listed
+    tiny = await tw.recording(None, title="Tiny")
+    await put_rec_plays(tw, tiny, 60, TODAY - timedelta(days=1))
+    async with tw.sessions() as session:
+        session.add(
+            PlayFlag(
+                recording_id=tiny,
+                day=TODAY - timedelta(days=1),
+                plays=60,
+                held=60 - (top.TOP_MIN_PLAYS - 1),
+                baseline=10.0,
+                reason="spike",
+                status="open",
+            )
+        )
+        await session.commit()
+    page = await top_list(tw)
+    assert str(tiny) not in {i["recording"]["id"] for i in page["items"] if i["ref"] == "rec"}

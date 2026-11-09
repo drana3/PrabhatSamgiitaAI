@@ -62,6 +62,7 @@ from app.schemas.author_profiles import (
 )
 from app.services import author_rules as rules
 from app.services import author_stats as stats
+from app.services import play_fraud
 from app.services.recordings import VISIBLE
 
 # ---- the knobs (one place each) --------------------------------------------------------------
@@ -1494,29 +1495,30 @@ async def owner_stats(session: AsyncSession, profile: AuthorProfile, *, days: in
     series = await stats.daily_series(session, ids, today=today, days=days)
     start = today - timedelta(days=days - 1)
     in_period = sum(point["plays"] for point in series)
-    top_rows = (
+    # Per recording, with the plays that play_fraud holds back for the same days taken off, so the
+    # top list and the split by kind agree with every other number.
+    held = play_fraud.held_per_recording(since=start)
+    per_recording = (
         await session.execute(
             select(
-                Recording.id, Recording.title, Recording.kind, func.sum(PlayDaily.plays).label("n")
+                Recording.id,
+                Recording.title,
+                Recording.kind,
+                (func.sum(PlayDaily.plays) - func.coalesce(func.max(held.c.held), 0)).label("n"),
             )
             .join(PlayDaily, PlayDaily.recording_id == Recording.id)
+            .outerjoin(held, held.c.recording_id == Recording.id)
             .where(Recording.id.in_(ids), PlayDaily.day >= start)
             .group_by(Recording.id, Recording.title, Recording.kind)
-            .order_by(func.sum(PlayDaily.plays).desc(), Recording.title)
-            .limit(5)
         )
     ).all()
-    kind_rows = (
-        await session.execute(
-            select(Recording.kind, func.sum(PlayDaily.plays))
-            .join(PlayDaily, PlayDaily.recording_id == Recording.id)
-            .where(Recording.id.in_(ids), PlayDaily.day >= start)
-            .group_by(Recording.kind)
-        )
-    ).all()
+    top_rows = sorted(
+        ((rid, title, kind, max(0, int(n or 0))) for rid, title, kind, n in per_recording),
+        key=lambda row: (-row[3], row[1]),
+    )[:5]
     by_kind: dict[str, int] = {}
-    for kind, n in kind_rows:
-        by_kind[public_kind(kind)] = by_kind.get(public_kind(kind), 0) + int(n or 0)
+    for _rid, _title, kind, n in per_recording:
+        by_kind[public_kind(kind)] = by_kind.get(public_kind(kind), 0) + max(0, int(n or 0))
     countries = stats.visible_countries(await stats.country_counts(session, ids, today=today))
     enough = numbers.total_plays >= stats.MIN_PUBLIC_PLAYS
     notes = ["counting_rule", "own_plays_excluded", "listener_estimate"]

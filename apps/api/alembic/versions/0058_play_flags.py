@@ -8,8 +8,12 @@ play_flags
     ordinary level it was compared with, the reason, and whether a person cleared or confirmed it.
     No listener or address data.
 
-One new table, nothing existing is touched. Safe to run twice. Works on PostgreSQL and SQLite.
-Downgrade drops the table.
+play_events.counted
+    New column, true by default: false marks a stored play that never reached play_daily because
+    the client was over its cap, so the fraud rules ignore it.
+
+One new table and one new column with a default, nothing else is touched. Safe to run twice. Works
+on PostgreSQL and SQLite. Downgrade drops both.
 """
 
 from __future__ import annotations
@@ -25,8 +29,22 @@ branch_labels = None
 depends_on = None
 
 
+def _columns(table: str) -> set[str]:
+    return {c["name"] for c in sa.inspect(op.get_bind()).get_columns(table)}
+
+
 def upgrade() -> None:
+    # play_events.counted: false for a stored play that never reached play_daily (client over its cap)
+    if "play_events" in sa.inspect(op.get_bind()).get_table_names() and "counted" not in _columns(
+        "play_events"
+    ):
+        op.add_column(
+            "play_events",
+            sa.Column("counted", sa.Boolean(), nullable=False, server_default=sa.true()),
+        )
     if "play_flags" in sa.inspect(op.get_bind()).get_table_names():
+        if "reviewed_plays" not in _columns("play_flags"):
+            op.add_column("play_flags", sa.Column("reviewed_plays", sa.Integer()))
         return
     op.create_table(
         "play_flags",
@@ -45,6 +63,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("reviewed_by", sa.String(120)),
         sa.Column("reviewed_at", sa.DateTime(timezone=True)),
+        sa.Column("reviewed_plays", sa.Integer()),
         sa.CheckConstraint(
             "status IN ('open', 'cleared', 'confirmed')", name="ck_play_flag_status"
         ),
@@ -55,3 +74,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     if "play_flags" in sa.inspect(op.get_bind()).get_table_names():
         op.drop_table("play_flags")
+    if "play_events" in sa.inspect(op.get_bind()).get_table_names() and "counted" in _columns(
+        "play_events"
+    ):
+        op.drop_column("play_events", "counted")

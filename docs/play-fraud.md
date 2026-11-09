@@ -44,16 +44,24 @@ status. The flag is created at once, not by a nightly job.
 
 **Held plays are not deleted.** They stay in the raw counters, so a person can look. But they are
 subtracted from every number an author or the public sees: total plays, plays in 30 days, the daily
-graph, the weekly line on the public page.
+graph, the weekly line on the public page, the author's own top recordings and split by kind, and
+the Top Played list (including its minimum). Every query that sums `play_daily.plays` subtracts the
+held plays of the same period (`play_fraud.held_per_recording`, one shared subquery), so two screens
+cannot disagree. A flag a person cleared is not subtracted.
 
 ### The team decides
 
 Admin key, `GET /api/v1/admin/play-flags` (default: open flags), then one of:
 
 - `POST /api/v1/admin/play-flags/{recording_id}/{day}/clear`: the plays were real. Nothing is held
-  back any more, and that day is never judged again.
+  back any more for the plays the day had at that moment.
 - `POST /api/v1/admin/play-flags/{recording_id}/{day}/confirm`: they were inflated. The held count
-  stays for good.
+  stays.
+
+A decision covers the plays the day had when it was made (`reviewed_plays`). It is not a licence for
+more: if that day later grows by at least 50 plays and by at least half of what it had, it is judged
+again and the flag opens again, holding back only the new part (a confirmed day keeps what it held
+and adds to it). A small trickle after the decision changes nothing.
 
 There is no admin screen yet; the team works it through the admin API.
 
@@ -77,9 +85,10 @@ A script must not learn where the line is.
 
 - A patient attacker with many real accounts and many addresses, each playing a little, looks like
   a popular recording. No rule can tell, and none tries to. The rules are for floods.
-- The "one source" count is taken from stored events. Plays a client sent above its daily cap are
-  stored too, so the count can be a little high; it errs toward holding back, and the team can clear
-  it.
+- The "one source" count uses only events that really became plays (`play_events.counted`). Events
+  a client sent above its cap are stored but not counted, and they are left out here, so spamming a
+  recording with uncounted events cannot get anybody's real plays held back. What is held never
+  exceeds the day's plays.
 - Signed-in plays are not bucketed by address (a member is one account). A farm of accounts is
   caught by the spike rule, not by the source rule.
 - A real surge (a share to a big group, a festival) can be held. That is why a person looks, and why
@@ -88,4 +97,6 @@ A script must not learn where the line is.
 
 ## Tables
 
-`play_flags` (migration `0058_play_flags`). One new table, nothing existing is changed.
+`play_flags` (migration `0058_play_flags`), and one new column on `play_events`, `counted` (same
+migration, default true). Both were added before the migration was released, so it was edited in
+place; a database that already ran an earlier 0058 needs the column added by hand.

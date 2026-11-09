@@ -28,6 +28,9 @@ class PlayFlag(Base):
     open       found by the rules, held back until a person looks
     cleared    a person says the plays are real: nothing is held back any more
     confirmed  a person says the plays are inflated: they stay held back for good
+
+    A decision covers the plays the day had at that moment (`reviewed_plays`). If the day grows
+    well beyond that, the flag opens again for the new part (services/play_fraud.py).
     """
 
     __tablename__ = "play_flags"
@@ -50,3 +53,6 @@ class PlayFlag(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     reviewed_by: Mapped[str | None] = mapped_column(String(120))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # How many plays the day had when a person decided. A day that grows well past this is judged
+    # again (the decision covered those plays, not whatever is added afterwards).
+    reviewed_plays: Mapped[int | None] = mapped_column(Integer)

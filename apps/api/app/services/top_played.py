@@ -33,6 +33,7 @@ from app.models.song import Song
 from app.models.song_plays import SongPlayDaily
 from app.schemas.top_played import Period, TopPlayedItem, TopPlayedPage
 from app.services import author_stats as stats
+from app.services import play_fraud
 from app.services.recordings import VISIBLE, recording_out
 
 # One place for each number.
@@ -55,10 +56,15 @@ def clean_kinds(kinds: list[str] | None) -> list[str]:
 
 
 def _recording_query(start: date | None, kinds: list[str]) -> Select[Any]:
-    plays = func.sum(PlayDaily.plays).label("plays")
+    # Plays held back by services/play_fraud.py are not shown here either: they are subtracted
+    # per recording (for the same period), both in the number and in the minimum below.
+    held = play_fraud.held_per_recording(since=start)
+    shown = func.sum(PlayDaily.plays) - func.coalesce(func.max(held.c.held), 0)
+    plays = shown.label("plays")
     query = (
         select(PlayDaily.recording_id, plays)
         .join(Recording, Recording.id == PlayDaily.recording_id)
+        .outerjoin(held, held.c.recording_id == PlayDaily.recording_id)
         .where(Recording.status.in_(VISIBLE))
     )
     if start is not None:
@@ -66,7 +72,7 @@ def _recording_query(start: date | None, kinds: list[str]) -> Select[Any]:
     if kinds:
         stored = [s for k in kinds for s in stored_kinds(k)]
         query = query.where(Recording.kind.in_(stored))
-    return query.group_by(PlayDaily.recording_id).having(func.sum(PlayDaily.plays) >= TOP_MIN_PLAYS)
+    return query.group_by(PlayDaily.recording_id).having(shown >= TOP_MIN_PLAYS)
 
 
 def _song_query(start: date | None) -> Select[Any]:

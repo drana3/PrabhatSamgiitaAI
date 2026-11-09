@@ -10,7 +10,7 @@ os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -24,7 +24,7 @@ from test_author_stats import event, send
 from app.api.v1 import play_flags as flags_api
 from app.core.db import get_session
 from app.core.security import require_admin
-from app.models.author_profiles import PlayDaily
+from app.models.author_profiles import PlayDaily, PlayEvent
 from app.models.play_flag import PlayFlag
 from app.services import play_fraud as pf
 
@@ -173,6 +173,137 @@ async def test_confirming_keeps_the_plays_held(world: World) -> None:
     assert (await mine(world))["total_plays"] == 10 * pf.BASELINE_DAYS + 500 + 100 - held
 
 
+async def test_a_new_surge_after_a_cleared_day_is_flagged_again(world: World) -> None:
+    """A person said "fine" to the plays the day had then. That is not a licence for more."""
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await history(world, rid)
+    await add_plays(world, rid, day_ago(0), 500)
+    await evaluate(world, rid, day_ago(0))
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="cleared", by="team")
+    base = 10 * pf.BASELINE_DAYS + 500
+    assert (await mine(world))["total_plays"] == base
+
+    # a small trickle after the decision changes nothing: the decision stands
+    await add_plays(world, rid, day_ago(0), 10)
+    quiet = await evaluate(world, rid, day_ago(0))
+    assert quiet is not None and quiet.status == "cleared"
+    assert (await mine(world))["total_plays"] == base + 10
+
+    # a new surge of the same size opens it again, and only the new part is held back
+    await add_plays(world, rid, day_ago(0), 500)
+    again = await evaluate(world, rid, day_ago(0))
+    assert again is not None and again.status == "open"
+    assert again.reviewed_by is None and again.reviewed_at is None
+    assert 0 < again.held <= 510
+    assert (await mine(world))["total_plays"] == base + 510 - again.held
+
+    # the second decision covers the new total, and another small step stays decided
+    async with world.sessions() as session:
+        done = await pf.review(session, rid, day_ago(0), verdict="cleared", by="team")
+    assert done is not None and done.reviewed_plays == 1010
+    await add_plays(world, rid, day_ago(0), 5)
+    assert (await evaluate(world, rid, day_ago(0))) is not None
+    assert (await mine(world))["total_plays"] == 10 * pf.BASELINE_DAYS + 1015
+
+
+async def test_a_confirmed_day_that_surges_again_holds_more(world: World) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    await history(world, rid)
+    await add_plays(world, rid, day_ago(0), 500)
+    first = await evaluate(world, rid, day_ago(0))
+    assert first is not None
+    held = first.held
+    async with world.sessions() as session:
+        await pf.review(session, rid, day_ago(0), verdict="confirmed", by="team")
+    await add_plays(world, rid, day_ago(0), 500)
+    after = await evaluate(world, rid, day_ago(0))
+    assert after is not None and after.status == "open" and after.held > held
+    assert after.held <= after.plays
+
+
+async def test_held_plays_are_off_the_authors_top_list_and_split_by_kind(world: World) -> None:
+    await world.create()
+    busy = await world.recording(MEMBER_A, title="Busy", kind="kiirtan")
+    calm = await world.recording(MEMBER_A, title="Calm", kind="kiirtan")
+    await history(world, busy)
+    await add_plays(world, busy, day_ago(0), 500)
+    await add_plays(world, calm, day_ago(0), 200)
+    flag = await evaluate(world, busy, day_ago(0))
+    assert flag is not None and flag.held > 0
+    shown_busy = 10 * pf.BASELINE_DAYS + 500 - flag.held
+
+    stats = await mine(world)
+    by_id = {r["recording_id"]: r["plays"] for r in stats["top_recordings"]}
+    assert by_id[str(busy)] == shown_busy
+    assert by_id[str(calm)] == 200
+    assert stats["total_plays"] == shown_busy + 200
+    assert sum(k["count"] for k in stats["by_kind"]) == stats["total_plays"]
+
+    # a person clears it: the plays come back everywhere at once
+    async with world.sessions() as session:
+        await pf.review(session, busy, day_ago(0), verdict="cleared", by="team")
+    stats = await mine(world)
+    by_id = {r["recording_id"]: r["plays"] for r in stats["top_recordings"]}
+    assert by_id[str(busy)] == 10 * pf.BASELINE_DAYS + 500
+    assert sum(k["count"] for k in stats["by_kind"]) == stats["total_plays"]
+
+
+async def test_plays_from_an_uncounted_flood_do_not_make_real_plays_look_like_one_source(
+    world: World,
+) -> None:
+    """Events over a client's cap are stored but never became plays. They must not feed the
+    one-source rule, or anyone could get a recording's real plays held back by spamming it."""
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    today = datetime.now(UTC).date()
+    plays = pf.SOURCE_MIN_PLAYS + 5
+    async with world.sessions() as session:
+        for i in range(plays):  # real plays, each from a different client
+            session.add(_play_event(rid, today, f"real-{i}", counted=True))
+        for i in range(plays + 10):  # the flood: one client, over its cap, never counted
+            session.add(_play_event(rid, today, f"flood-{i}", counted=False, client="flooder"))
+        session.add(PlayDaily(recording_id=rid, day=today, plays=plays))
+        await session.commit()
+    assert await evaluate(world, rid, today) is None
+    assert (await mine(world))["total_plays"] == plays
+
+
+async def test_one_counted_source_is_still_held_and_never_more_than_the_plays(
+    world: World,
+) -> None:
+    await world.create()
+    rid = await world.recording(MEMBER_A)
+    today = datetime.now(UTC).date()
+    plays = pf.SOURCE_MIN_PLAYS + 10
+    async with world.sessions() as session:
+        for i in range(plays):
+            session.add(_play_event(rid, today, f"mine-{i}", counted=True, client="one-client"))
+        session.add(PlayDaily(recording_id=rid, day=today, plays=plays))
+        await session.commit()
+    flag = await evaluate(world, rid, today)
+    assert flag is not None and "one_source" in flag.reason
+    assert flag.held == plays - pf.SOURCE_KEEP and flag.held <= flag.plays
+
+
+def _play_event(
+    rid: UUID, day: date, listener: str, *, counted: bool, client: str | None = None
+) -> PlayEvent:
+    return PlayEvent(
+        recording_id=rid,
+        day=day,
+        listener_key=f"{listener}-{uuid4().hex}"[:64],
+        country="PL",
+        listened_sec=60,
+        created_at=datetime.now(UTC),
+        client_key=client or f"client-{listener}",
+        counts_listener=counted,
+        counted=counted,
+    )
+
+
 async def test_a_held_day_does_not_raise_the_bar_for_the_next(world: World) -> None:
     await world.create()
     rid = await world.recording(MEMBER_A)
@@ -240,6 +371,7 @@ def test_a_flag_holds_no_listener_or_address_data() -> None:
         "created_at",
         "reviewed_by",
         "reviewed_at",
+        "reviewed_plays",
     }
 
 

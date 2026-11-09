@@ -24,7 +24,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, Subquery, func, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,6 +50,10 @@ SHOWN_FACTOR = 3.0
 SOURCE_KEEP = 25
 # One source is looked at only when the day has this many plays.
 SOURCE_MIN_PLAYS = 30
+# A day a person already decided is judged again when it grew by at least this many plays AND by at
+# least this share of what it had at the decision (so the decision is not a licence for more).
+REVIEW_REGROWTH_MIN = 50
+REVIEW_REGROWTH_SHARE = 0.5
 
 
 @dataclass(frozen=True)
@@ -131,6 +135,8 @@ async def _top_source(session: AsyncSession, recording_id: UUID, day: date) -> i
             PlayEvent.recording_id == recording_id,
             PlayEvent.day == day,
             PlayEvent.client_key.is_not(None),
+            # only plays that really became plays: an uncounted flood changes nothing here
+            PlayEvent.counted.is_(True),
         )
         .group_by(PlayEvent.client_key)
         .order_by(count.desc())
@@ -144,12 +150,11 @@ async def evaluate(
 ) -> PlayFlag | None:
     """Judge one recording on one day and record the result. Returns the flag, if there is one.
 
-    A day a person already looked at is not judged again: a cleared day stays clear, a confirmed
-    day keeps the held count it had.
+    A day a person already looked at keeps that decision for the plays it covered
+    (`reviewed_plays`). If the day then grows well past them, it is judged again and the flag opens
+    again for the new part only: a cleared day never turns into a licence to add more plays.
     """
     existing = await session.get(PlayFlag, (recording_id, day))
-    if existing is not None and existing.status != "open":
-        return existing
     plays = int(
         await session.scalar(
             select(PlayDaily.plays).where(
@@ -158,6 +163,13 @@ async def evaluate(
         )
         or 0
     )
+    decided = existing is not None and existing.status != "open"
+    if decided:
+        assert existing is not None
+        covered = existing.reviewed_plays if existing.reviewed_plays is not None else existing.plays
+        grown = plays - covered
+        if grown < REVIEW_REGROWTH_MIN or grown < REVIEW_REGROWTH_SHARE * covered:
+            return existing
     if plays < min(SPIKE_MIN_PLAYS, SOURCE_MIN_PLAYS):
         return existing
     baseline = baseline_of(await _shown_history(session, recording_id, day))
@@ -186,9 +198,29 @@ async def evaluate(
             verdict.reason,
         )
         return flag
-    # still open: the numbers may have grown since the last look; held never goes down
+    if decided:
+        # Open again, for what was added after the decision. A cleared day holds back at most the
+        # new part (the earlier plays were judged real); a confirmed day keeps what it held.
+        covered = existing.reviewed_plays if existing.reviewed_plays is not None else existing.plays
+        added = max(0, verdict.plays - covered)
+        if existing.status == "cleared":
+            existing.held = min(verdict.held, added)
+        else:
+            existing.held = min(existing.held + min(verdict.held, added), verdict.plays)
+        existing.status = "open"
+        existing.reviewed_by = None
+        existing.reviewed_at = None
+        logger.warning(
+            "play spike held back again after a decision: recording=%s day=%s plays=%d held=%d",
+            recording_id,
+            day,
+            verdict.plays,
+            existing.held,
+        )
+    else:
+        # still open: the numbers may have grown since the last look; held never goes down
+        existing.held = max(existing.held, verdict.held)
     existing.plays = verdict.plays
-    existing.held = max(existing.held, verdict.held)
     existing.baseline = verdict.baseline
     existing.reason = verdict.reason
     return existing
@@ -228,6 +260,18 @@ async def held_by_day(
     return {row.day: int(row.n) for row in (await session.execute(query)).all()}
 
 
+def held_per_recording(*, since: date | None = None) -> Subquery:
+    """A subquery (recording_id, held): plays held back per recording, flags a person cleared
+    left out. LEFT JOIN it to any query that sums `play_daily.plays`, and subtract it, so no
+    number anywhere shows plays that were held back."""
+    query = select(PlayFlag.recording_id, func.sum(PlayFlag.held).label("held")).where(
+        PlayFlag.status != "cleared"
+    )
+    if since is not None:
+        query = query.where(PlayFlag.day >= since)
+    return query.group_by(PlayFlag.recording_id).subquery("held_plays")
+
+
 # ---- the team ---------------------------------------------------------------------------------
 
 
@@ -243,5 +287,10 @@ async def review(
     flag.status = verdict
     flag.reviewed_by = by[:120]
     flag.reviewed_at = datetime.now(UTC)
+    # the decision covers the plays the day has right now
+    current = await session.scalar(
+        select(PlayDaily.plays).where(PlayDaily.recording_id == recording_id, PlayDaily.day == day)
+    )
+    flag.reviewed_plays = int(current if current is not None else flag.plays)
     await session.commit()
     return flag

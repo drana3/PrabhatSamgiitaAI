@@ -370,6 +370,7 @@ async def ingest_plays(
                 created_at=now,
                 client_key=ckey,
                 counts_listener=counts,
+                counted=not over_cap,
             )
             .on_conflict_do_nothing(index_elements=["recording_id", "listener_key", "day"])
         )

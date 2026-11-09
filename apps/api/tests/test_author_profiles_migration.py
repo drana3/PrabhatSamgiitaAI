@@ -70,6 +70,11 @@ def m38() -> ModuleType:
 
 
 @pytest.fixture
+def m58() -> ModuleType:
+    return load("0058_play_flags")
+
+
+@pytest.fixture
 def engine() -> Iterator[sa.Engine]:
     engine = sa.create_engine("sqlite://", poolclass=sa.pool.StaticPool)
     # what 0032 leaves: the account and recording tables, none of the new ones
@@ -114,11 +119,12 @@ def test_upgrade_on_a_database_the_app_already_filled_with_create_all(
 
 
 def test_the_tables_match_the_models(
-    engine: sa.Engine, m33: ModuleType, m35: ModuleType, m38: ModuleType
+    engine: sa.Engine, m33: ModuleType, m35: ModuleType, m38: ModuleType, m58: ModuleType
 ) -> None:
     run(engine, m33.upgrade)
     run(engine, m35.upgrade)
     run(engine, m38.upgrade)
+    run(engine, m58.upgrade)  # adds play_events.counted
     inspector = sa.inspect(engine)
     for model in MODELS:
         table = cast(sa.Table, model.__table__)
