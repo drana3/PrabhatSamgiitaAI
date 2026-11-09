@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { StyleSheet, Text, TextInput, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 
 import { FieldError, RequiredMark } from "@/components/kirtan/add/KindFields"
+import { OwnWord, TAG_INPUT_GAP } from "@/components/kirtan/add/OwnWord"
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amColors } from "@/constants/tokens/amColors"
@@ -34,6 +35,8 @@ export function InstrumentField({ theme, kind, value, onChange, accepted, newWor
     setWriting(false)
     onChange(current === id ? { instrument: null, instrumentOther: "" } : { instrument: id, instrumentOther: "" })
   }
+  const suggested = sameAsListed ?? didYouMean
+  const suggestion = suggested ? { question: sameAsListed ? undefined : t("instrument.didYouMean", { name: instrumentLabel(suggested) }), actionLabel: t("instrument.useListed", { name: instrumentLabel(suggested) }), onUse: () => pick(suggested) } : null
   return (
     <View style={s.root}>
       <View style={s.head}>
@@ -41,50 +44,42 @@ export function InstrumentField({ theme, kind, value, onChange, accepted, newWor
         <RequiredMark theme={theme} required={false} />
       </View>
       <Text style={[s.hint, { color: theme.textBody }]}>{t("instrument.hint")}</Text>
-      <View style={s.chips}>
-        {choices.map((c) => (
-          <Chip key={c.id} theme={theme} label={c.label} on={current === c.id} invalid={invalid} disabled={disabled} onPress={() => pick(c.id)} />
-        ))}
-        {accepted.map((a) => (
-          <Chip key={`word-${a.key}`} theme={theme} label={a.label} on={current === OTHER_INSTRUMENT && !writing && normalizedWord(word) === a.key} invalid={invalid} disabled={disabled} onPress={() => {
-            setWriting(false)
-            const on = current === OTHER_INSTRUMENT && normalizedWord(word) === a.key
-            onChange(on ? { instrument: null, instrumentOther: "" } : { instrument: OTHER_INSTRUMENT, instrumentOther: a.label })
+      <View style={s.tags}>
+        <View style={s.chips}>
+          {choices.map((c) => (
+            <Chip key={c.id} theme={theme} label={c.label} on={current === c.id} invalid={invalid} disabled={disabled} onPress={() => pick(c.id)} />
+          ))}
+          {accepted.map((a) => (
+            <Chip key={`word-${a.key}`} theme={theme} label={a.label} on={current === OTHER_INSTRUMENT && !writing && normalizedWord(word) === a.key} invalid={invalid} disabled={disabled} onPress={() => {
+              setWriting(false)
+              const on = current === OTHER_INSTRUMENT && normalizedWord(word) === a.key
+              onChange(on ? { instrument: null, instrumentOther: "" } : { instrument: OTHER_INSTRUMENT, instrumentOther: a.label })
+            }} />
+          ))}
+          <Chip theme={theme} label={t("instrument.addOwn")} on={showInput} invalid={invalid} disabled={disabled} onPress={() => {
+            if (showInput) {
+              setWriting(false)
+              onChange({ instrument: null, instrumentOther: "" })
+            } else {
+              setWriting(true)
+              onChange({ instrument: OTHER_INSTRUMENT, instrumentOther: "" })
+            }
           }} />
-        ))}
-        <Chip theme={theme} label={t("instrument.addOwn")} on={showInput} invalid={invalid} disabled={disabled} onPress={() => {
-          if (showInput) {
-            setWriting(false)
-            onChange({ instrument: null, instrumentOther: "" })
-          } else {
-            setWriting(true)
-            onChange({ instrument: OTHER_INSTRUMENT, instrumentOther: "" })
-          }
-        }} />
-      </View>
-      {showInput ? (
-        <View style={s.writeBox}>
-          <TextInput
-            value={word}
-            onChangeText={(text) => onChange({ instrument: OTHER_INSTRUMENT, instrumentOther: text.slice(0, WORD_MAX) })}
-            placeholder={t("instrument.otherName")}
-            placeholderTextColor={theme.textMuted}
-            accessibilityLabel={t("instrument.otherName")}
-            maxLength={WORD_MAX}
-            editable={!disabled}
-            style={[s.input, { color: theme.textHeading, backgroundColor: theme.card, borderColor: invalid ? amColors.danger : theme.line }]}
-          />
-          {sameAsListed ? (
-            <Chip theme={theme} label={t("instrument.useListed", { name: instrumentLabel(sameAsListed) })} on={false} disabled={disabled} onPress={() => pick(sameAsListed)} />
-          ) : didYouMean ? (
-            <View style={s.didYouMean} accessibilityLiveRegion="polite">
-              <Text style={[s.hint, { color: theme.textBody }]}>{t("instrument.didYouMean", { name: instrumentLabel(didYouMean) })}</Text>
-              <Chip theme={theme} label={t("instrument.useListed", { name: instrumentLabel(didYouMean) })} on={false} disabled={disabled} onPress={() => pick(didYouMean)} />
-            </View>
-          ) : null}
-          <Text style={[s.hint, { color: theme.textBody }]}>{t("instrument.newNote", { count: newWordsPerWeek })}</Text>
         </View>
-      ) : null}
+        {showInput ? (
+          <OwnWord
+            theme={theme}
+            value={word}
+            onChange={(text) => onChange({ instrument: OTHER_INSTRUMENT, instrumentOther: text })}
+            placeholder={t("instrument.otherName")}
+            maxLength={WORD_MAX}
+            note={t("instrument.newNote", { count: newWordsPerWeek })}
+            suggestion={suggestion}
+            invalid={invalid}
+            disabled={disabled}
+          />
+        ) : null}
+      </View>
       {errorText ? <FieldError theme={theme} text={errorText} /> : null}
     </View>
   )
@@ -111,10 +106,8 @@ const s = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   label: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  tags: { gap: TAG_INPUT_GAP },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { minHeight: 40, paddingHorizontal: 14, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },
-  writeBox: { gap: 8 },
-  didYouMean: { gap: 8, alignItems: "flex-start" },
-  input: { minHeight: 48, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, fontFamily: amFonts.medium, fontSize: 16 },
 })

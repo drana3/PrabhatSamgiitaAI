@@ -32,12 +32,15 @@ export function PickerSearch({
   onChangeText,
   inputRef,
   autoFocus,
+  placeholder,
 }: {
   p: AmProto
   value: string
   onChangeText: (text: string) => void
   inputRef: RefObject<TextInput | null>
   autoFocus?: boolean
+  /** the hint inside the field; the song chooser's own by default */
+  placeholder?: string
 }) {
   const t = useT()
   return (
@@ -47,7 +50,7 @@ export function PickerSearch({
         ref={inputRef}
         value={value}
         onChangeText={onChangeText}
-        placeholder={t("learn.add.search.placeholder")}
+        placeholder={placeholder ?? t("learn.add.search.placeholder")}
         placeholderTextColor={p.ink500}
         accessibilityLabel={t("learn.add.search.a11y")}
         returnKeyType="search"

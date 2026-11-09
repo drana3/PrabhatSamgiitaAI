@@ -64,6 +64,18 @@ ukulele, voice only. The synthesizer and the keyboard are marked "electronic". T
   take the listed value) or **rejects** it (the recordings lose the word, the author gets a notice, the word is refused next time).
 * The search menu builds "Kiirtans for piano" from `lead_instrument` (`docs/search-menu.md`, section 11).
 
+### "Add a language" (9 Nov 2026)
+
+The language sheet (Bhajan, Baba audio, and every sheet that uses the language picker) has an "Add a language" row for a language
+that is not in the list. It uses the **same queue**, field `language` (migration 0060 widens the check constraint of
+`value_suggestions`; no second queue). The person writes the name (2 to 80 characters), the same normalization applies, and a name
+that is a listed language ("Russian", "русский") becomes its code. A name at least 85 percent like a listed language ("Bengalli")
+is offered "Did you mean Bengali?" (`similarLanguage` in `lib/kirtan/languages.ts`, one rule `similarWord` for instrument, style and
+language). The same weekly limit (3 new words a week, the team exempt) and the same team decision (accept, merge into a listed
+language, reject) apply. The recording keeps `language = "other"` and `language_other = <the name>`; a merge writes the listed code
+into the recordings, a reject clears the word. Not built: an accepted language word is not yet offered as a pick for others.
+The box for the written name is the shared `OwnWord` component (spacing rule: `docs/layout-rules.md`, "An input beside a group of tags").
+
 ## AI recordings are never hidden
 
 `ai` is stored, returned by the API as `recording_type: "ai"`, drawn on the recording page as a tag "Made by AI" **and** a plain sentence

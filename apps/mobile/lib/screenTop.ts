@@ -45,6 +45,8 @@ export function sheetTopInset(insetTop: number, platform: string): number {
 
 /** Minimum height of the title row of a full-screen picker sheet (components/common/SheetModal). */
 export const MODAL_HEADER_MIN_HEIGHT = 64
+/** Air under the title row of a picker sheet: the close button and the search field below it are never closer than this. */
+export const MODAL_HEADER_GAP_BELOW = 16
 
 /**
  * Top padding of the title row of a sheet drawn by a React Native <Modal> (the pickers of the upload forms). The

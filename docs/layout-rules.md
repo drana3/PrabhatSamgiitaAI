@@ -87,3 +87,32 @@ part that broke.
 
 Adding a page: build it from `Section` and `BlockStack`, add the file to `SPACING_FILES`, and look at it at 390 px: no two
 blocks may touch.
+
+## An input beside a group of tags (9 Nov 2026)
+
+What went wrong. On the upload form, when the person chose "Other" under the style chips, the box for their own word sat right under
+the chip row (the chips had only their own 8 px row gap), and the "Did you mean ..." card stuck to the box. The same shape is used by
+the main instrument ("Add your own") and the language sheet ("Add a language").
+
+The rule: an input that sits beside a group of tags (chips) is NOT closer than 16 to the tags above it and NOT closer than 16 to
+anything below it (the "Did you mean" card, the next block). Its note about the weekly limit belongs to the input and sits 8 below it.
+
+How it is built. One component, `OwnWord` (`components/kirtan/add/OwnWord.tsx`), draws the box, the note and the suggestion with a
+16 gap; the caller puts the chips and `OwnWord` in a stack with `gap: TAG_INPUT_GAP` (16). Style, instrument and language all use it,
+so a new "create your own tag" field (dance, mood ...) uses `OwnWord` and does not write its own `TextInput`.
+
+How it is checked. `layoutRules.test.ts`, "Nothing overlaps and nothing sticks": `OwnWord` keeps 16 and 8, the style and
+instrument fields use `OwnWord` inside a `TAG_INPUT_GAP` stack and have no bare `TextInput`, the language picker uses it.
+
+## Nothing overlaps and nothing sticks (9 Nov 2026)
+
+The general rule behind the two above: two neighbouring elements (a title and a close button, a close button and a search field,
+a field and a note, a field and the button under it) are never closer than 16, and never overlap. A line of one text block and a
+label with its own field are the exceptions (4 to 8, see "Space between blocks").
+
+In a picker sheet (`SheetModal`, `ModalHeader`): the title and the close button are 16 apart and the title shrinks (`flex: 1`,
+`minWidth: 0`) instead of running under the button; the header leaves 16 (`MODAL_HEADER_GAP_BELOW` in `lib/screenTop.ts`) before
+the search field. The language picker, the song picker and every other sheet get it from the shared header, so a sheet does not
+need its own number.
+
+Checked at 390 px (a headless browser) on the language sheet, the style, instrument and language "own word" boxes.

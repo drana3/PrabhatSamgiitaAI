@@ -3641,7 +3641,12 @@
     "searchBy.empty.performer": false,
     "searchBy.empty.language": false,
     "searchBy.empty.collections": false,
-    "searchBy.empty.psMood": false
+    "searchBy.empty.psMood": false,
+    "rec.lang.other": false,
+    "rec.lang.otherLabel": false,
+    "rec.lang.didYouMean": false,
+    "rec.lang.useListed": false,
+    "rec.lang.newNote": false
   },
   "es": {
     "unit.kb": false,
@@ -7101,7 +7106,12 @@
     "searchBy.empty.performer": false,
     "searchBy.empty.language": false,
     "searchBy.empty.collections": false,
-    "searchBy.empty.psMood": false
+    "searchBy.empty.psMood": false,
+    "rec.lang.other": false,
+    "rec.lang.otherLabel": false,
+    "rec.lang.didYouMean": false,
+    "rec.lang.useListed": false,
+    "rec.lang.newNote": false
   },
   "_languages": {
     "hi": "не переведено",

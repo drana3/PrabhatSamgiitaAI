@@ -6,14 +6,17 @@ import { SheetModal } from "@/components/common/SheetModal"
 import { PICKER_INSET, PickerSearch } from "@/components/learn-v2/SongPicker"
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { KPress } from "@/components/kirtan/KPress"
+import { OwnWord, TAG_INPUT_GAP, type OwnWordSuggestion } from "@/components/kirtan/add/OwnWord"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { protoFor, type AmProto } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useT } from "@/lib/i18n"
 import { kindHasLanguage, kindRequiresLanguage } from "@/lib/kirtan/kind"
-import { cleanLanguageOther, LANGUAGE_OTHER_MAX, languageLabel, OTHER_LANGUAGE, searchLanguages, type LanguageChoice } from "@/lib/kirtan/languages"
+import { NEW_WORDS_PER_WEEK } from "@/lib/kirtan/instruments"
+import { cleanLanguageOther, LANGUAGE_OTHER_MAX, languageLabel, listedLanguageFor, OTHER_LANGUAGE, searchLanguages, similarLanguage, type LanguageChoice } from "@/lib/kirtan/languages"
 import { DANCES, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
 
 /**
@@ -125,13 +128,16 @@ export function DanceChoices({ theme, value, onChange, invalid, disabled, large 
 /* ------------------------------------------------------------------ the picker */
 
 /**
- * The language picker: a sheet with a search field and every language of the catalog, then "Other (name it)".
- * Tapping a language picks it and closes; "Other" asks for the name in words (up to 80 characters).
+ * The language picker: a sheet with a search field and every language of the catalog, then "Add a language".
+ * Tapping a language picks it and closes; "Add a language" asks for the name in words (up to 80 characters). A name that IS a
+ * listed language becomes its code, a name almost like one is offered it ("Did you mean ..."), any other goes to the team's queue
+ * of new words (docs/kiirtan-recording-info.md, "Add your own"; at most NEW_WORDS_PER_WEEK new words a person a week).
  * `allowClear` adds "No language" at the top (languages that are optional).
  */
 export function LanguagePicker({ visible, value, allowClear, title, onPick, onClose }: { visible: boolean; value: LanguageValue; allowClear: boolean; title?: string; onPick: (value: LanguageValue) => void; onClose: () => void }) {
   const t = useT()
   const p = protoFor(useAmTheme())
+  const theme = useSongsTheme()
   const searchRef = useRef<TextInput | null>(null)
   const [query, setQuery] = useState("")
   const [naming, setNaming] = useState(false)
@@ -148,6 +154,17 @@ export function LanguagePicker({ visible, value, allowClear, title, onPick, onCl
   const pick = useCallback((choice: LanguageChoice) => onPick({ language: choice.code, languageOther: "" }), [onPick])
   const renderItem = useCallback(({ item }: { item: LanguageChoice }) => <LanguageRow p={p} choice={item} chosen={item.code === value.language} onChoose={pick} />, [p, value.language, pick])
   const otherClean = cleanLanguageOther(otherName)
+  const listedName = naming ? listedLanguageFor(otherName) : null
+  const nearName = naming && !listedName ? similarLanguage(otherName) : null
+  const suggestedCode = listedName ?? nearName
+  const suggestion: OwnWordSuggestion | null = suggestedCode
+    ? { question: nearName ? t("rec.lang.didYouMean", { name: languageLabel(suggestedCode) }) : undefined, actionLabel: t("rec.lang.useListed", { name: languageLabel(suggestedCode) }), onUse: () => onPick({ language: suggestedCode, languageOther: "" }) }
+    : null
+  // what "Done" sends: a listed language as its code, any other name as "other" with the name
+  const submitName = () => {
+    if (listedName) onPick({ language: listedName, languageOther: "" })
+    else if (otherClean) onPick({ language: OTHER_LANGUAGE, languageOther: otherClean })
+  }
 
   const header = (
     <>
@@ -170,26 +187,22 @@ export function LanguagePicker({ visible, value, allowClear, title, onPick, onCl
     <SheetModal visible={visible} title={naming ? t("rec.lang.otherLabel") : (title ?? t("rec.lang.title"))} closeLabel={t("ugc.add.close")} onClose={onClose}>
       {naming ? (
         <View style={styles.nameBody}>
-          <View style={[styles.nameBox, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-            <TextInput
-              value={otherName}
-              onChangeText={setOtherName}
-              autoFocus
-              maxLength={LANGUAGE_OTHER_MAX}
-              placeholder={t("rec.lang.otherPlaceholder")}
-              placeholderTextColor={p.ink500}
-              accessibilityLabel={t("rec.lang.otherLabel")}
-              returnKeyType="done"
-              onSubmitEditing={() => otherClean && onPick({ language: OTHER_LANGUAGE, languageOther: otherClean })}
-              style={[styles.nameInput, { color: p.ink800 }]}
-            />
-          </View>
-          <Text style={[styles.count, { color: p.ink500, paddingHorizontal: 0 }]}>{t("rec.lang.otherHint", { max: LANGUAGE_OTHER_MAX })}</Text>
+          <OwnWord
+            theme={theme}
+            value={otherName}
+            onChange={setOtherName}
+            placeholder={t("rec.lang.otherPlaceholder")}
+            maxLength={LANGUAGE_OTHER_MAX}
+            note={t("rec.lang.newNote", { count: NEW_WORDS_PER_WEEK })}
+            suggestion={suggestion}
+            autoFocus
+            onSubmit={submitName}
+          />
           <KPress
             accessibilityRole="button"
             accessibilityLabel={t("ugc.add.change")}
             accessibilityState={{ disabled: !otherClean }}
-            onPress={() => otherClean && onPick({ language: OTHER_LANGUAGE, languageOther: otherClean })}
+            onPress={submitName}
             pressedScale={0.98}
             style={[styles.done, { backgroundColor: amColors.orange700, opacity: otherClean ? 1 : 0.4 }]}
           >
@@ -202,7 +215,7 @@ export function LanguagePicker({ visible, value, allowClear, title, onPick, onCl
       ) : (
         <>
           <View style={styles.searchRow}>
-            <PickerSearch p={p} value={query} onChangeText={setQuery} inputRef={searchRef} />
+            <PickerSearch p={p} value={query} onChangeText={setQuery} inputRef={searchRef} placeholder={t("rec.lang.search")} />
           </View>
           <FlatList
             data={results}
@@ -272,9 +285,7 @@ const styles = StyleSheet.create({
   rowEnglish: { flex: 1, minWidth: 0, fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
   state: { alignItems: "center", paddingTop: 48, paddingHorizontal: 24 },
   stateText: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21, textAlign: "center" },
-  nameBody: { paddingHorizontal: PICKER_INSET, gap: 14, paddingTop: 8 },
-  nameBox: { minHeight: 56, borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 16, justifyContent: "center" },
-  nameInput: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 22, paddingVertical: 12, outlineStyle: "none" as never },
+  nameBody: { paddingHorizontal: PICKER_INSET, gap: TAG_INPUT_GAP, paddingTop: 8 },
   done: { height: 56, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   doneText: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, color: "#FFFFFF" },
   back: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center" },

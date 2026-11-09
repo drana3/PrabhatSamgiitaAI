@@ -8,7 +8,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSheetTop } from "@/hooks/useScreenTop"
-import { MODAL_HEADER_MIN_HEIGHT } from "@/lib/screenTop"
+import { MODAL_HEADER_GAP_BELOW, MODAL_HEADER_MIN_HEIGHT } from "@/lib/screenTop"
 
 /**
  * THE way to draw a full-screen picker sheet with React Native's <Modal> (a song chooser, a language list, a year list).
@@ -39,7 +39,7 @@ export function ModalHeader({ title, closeLabel, onClose }: { title: string; clo
   const p = protoFor(useAmTheme())
   const top = useSheetTop()
   return (
-    <View style={[styles.header, { paddingTop: top, minHeight: top + MODAL_HEADER_MIN_HEIGHT - 8 }]}>
+    <View style={[styles.header, { paddingTop: top, paddingBottom: MODAL_HEADER_GAP_BELOW, minHeight: top + MODAL_HEADER_MIN_HEIGHT - 8 }]}>
       <Text accessibilityRole="header" style={[styles.heading, { color: p.ink800 }]} numberOfLines={2}>
         {title}
       </Text>
@@ -66,7 +66,7 @@ export function SheetModal({ visible, title, closeLabel, onClose, children }: { 
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20 },
+  header: { flexDirection: "row", alignItems: "center", gap: 16, paddingHorizontal: 20 },
   heading: { flex: 1, minWidth: 0, fontFamily: amFonts.display, fontSize: 26, lineHeight: 28, letterSpacing: -0.5, textTransform: "uppercase" },
   close: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
 })

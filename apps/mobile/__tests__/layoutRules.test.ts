@@ -236,3 +236,52 @@ describe("Space between blocks: the upload forms", () => {
     expect(read("components/kirtan/sets/EventDateField.tsx")).toMatch(/\bfield:\s*\{\s*gap:\s*8\s*\}/)
   })
 })
+
+describe("Nothing overlaps and nothing sticks: neighbours are not closer than 16", () => {
+  const GAP = (source: string, name: string) => {
+    const match = new RegExp(`\\b${name}\\s*=\\s*(\\d+)`).exec(source)
+    return match ? Number(match[1]) : null
+  }
+
+  it("an input beside a group of tags (style, instrument, language) is 16 below the tags and 16 above its suggestion card", () => {
+    const own = read("components/kirtan/add/OwnWord.tsx")
+    expect(GAP(own, "export const TAG_INPUT_GAP")).toBeGreaterThanOrEqual(16)
+    // OwnWord's own stack: input, then the "Did you mean" card, 16 apart; the note belongs to the input (8)
+    expect(own).toMatch(/\broot:\s*\{\s*gap:\s*16\s*\}/)
+    expect(own).toMatch(/\binputGroup:\s*\{\s*gap:\s*8\s*\}/)
+  })
+
+  const TAG_FIELDS = ["components/kirtan/add/StyleField.tsx", "components/kirtan/add/InstrumentField.tsx"]
+  for (const file of TAG_FIELDS) {
+    it(`${file}: the own-word box is OwnWord inside a TAG_INPUT_GAP stack, not a bare TextInput under the chips`, () => {
+      const source = read(file)
+      expect(source).toContain("<OwnWord")
+      expect(source).toMatch(/\btags:\s*\{\s*gap:\s*TAG_INPUT_GAP\s*\}/)
+      expect(source).not.toContain("<TextInput")
+    })
+  }
+
+  it("the language picker writes its own word with OwnWord and keeps its stack TAG_INPUT_GAP apart", () => {
+    const source = read("components/kirtan/add/KindFields.tsx")
+    expect(source).toContain("<OwnWord")
+    expect(source).toMatch(/\bnameBody:\s*\{[^}]*gap:\s*TAG_INPUT_GAP/)
+  })
+
+  it("a picker sheet's header: 16 between the title and the close button, 16 between the header and the search", () => {
+    const top = read("lib/screenTop.ts")
+    expect(GAP(top, "export const MODAL_HEADER_GAP_BELOW")).toBeGreaterThanOrEqual(16)
+    const sheet = read("components/common/SheetModal.tsx")
+    expect(sheet).toMatch(/paddingBottom:\s*MODAL_HEADER_GAP_BELOW/)
+    expect(sheet).toMatch(/\bheader:\s*\{[^}]*\bgap:\s*(\d+)/)
+    const gap = Number(/\bheader:\s*\{[^}]*\bgap:\s*(\d+)/.exec(sheet)![1])
+    expect(gap).toBeGreaterThanOrEqual(16)
+    // the title shrinks (flex 1, minWidth 0) instead of running under the close button
+    expect(sheet).toMatch(/\bheading:\s*\{[^}]*flex:\s*1[^}]*minWidth:\s*0/)
+  })
+
+  it("the rule is written down in docs/layout-rules.md", () => {
+    const doc = readFileSync(join(ROOT, "../../docs/layout-rules.md"), "utf8")
+    expect(doc).toContain("An input beside a group of tags")
+    expect(doc).toContain("Nothing overlaps and nothing sticks")
+  })
+})

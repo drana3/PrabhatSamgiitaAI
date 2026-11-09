@@ -1,4 +1,5 @@
 import { t } from "@/lib/i18n"
+import { similarWord } from "@/lib/kirtan/instruments"
 import { titleCase } from "@/lib/searchMenu/facets"
 
 /**
@@ -49,4 +50,10 @@ export function cleanStyle(
   if (name.replace(/[^\p{L}\p{N}]/gu, "").length < STYLE_OTHER_MIN) return { style: OTHER_STYLE, styleOther: null, missingName: true }
   const listed = KIIRTAN_STYLES.find((id) => id === name.toLowerCase())
   return listed ? { style: listed, styleOther: null, missingName: false } : { style: OTHER_STYLE, styleOther: name, missingName: false }
+}
+
+/** The listed style a written name is at least 85% like ("dhrupat" and Dhrupad), or null; the form offers it as "Did you mean". */
+export function similarStyle(text: string | null | undefined): KiirtanStyleId | null {
+  const table = Object.fromEntries(KIIRTAN_STYLES.map((id) => [id, [id, styleLabel(id)]])) as Record<KiirtanStyleId, string[]>
+  return similarWord(text, table)
 }

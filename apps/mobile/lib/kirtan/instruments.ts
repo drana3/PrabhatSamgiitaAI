@@ -116,7 +116,7 @@ export function listedInstrumentFor(text: string | null | undefined): Instrument
 }
 
 /** 2 x (longest common subsequence) / (both lengths): 1 for the same word, near 1 for a typo. */
-function likeness(a: string, b: string): number {
+export function likeness(a: string, b: string): number {
   if (!a.length || !b.length) return 0
   const row = new Array<number>(b.length + 1).fill(0)
   for (let i = 1; i <= a.length; i += 1) {
@@ -130,18 +130,30 @@ function likeness(a: string, b: string): number {
   return (2 * (row[b.length] ?? 0)) / (a.length + b.length)
 }
 
-/** The listed instrument a written word is at least 85% like ("harmonyum" and harmonium), or null. The form offers it as "Did you mean". */
-export function similarInstrument(text: string | null | undefined): InstrumentId | null {
+/**
+ * The key of the table whose words a written word is at least 85% like ("harmonyum" and harmonium), or null; a word that IS a
+ * listed one is not "like" one (it is that one). One rule for every "Add your own": instrument, style, language.
+ */
+export function similarWord<K extends string>(text: string | null | undefined, table: Readonly<Record<K, readonly string[]>>): K | null {
   const key = normalizedWord(text)
-  if (!key || listedInstrumentFor(text)) return null
-  let best: { ratio: number; id: InstrumentId } | null = null
-  for (const id of INSTRUMENT_IDS) {
-    for (const name of [id.replace(/_/g, " "), ...NAMES[id]]) {
-      const ratio = likeness(key, normalizedWord(name))
+  if (!key) return null
+  let best: { ratio: number; id: K } | null = null
+  for (const id of Object.keys(table) as K[]) {
+    for (const name of table[id]) {
+      const known = normalizedWord(name)
+      if (known === key) return null
+      const ratio = likeness(key, known)
       if (ratio >= SIMILAR_RATIO && (!best || ratio > best.ratio)) best = { ratio, id }
     }
   }
   return best?.id ?? null
+}
+
+/** The listed instrument a written word is at least 85% like ("harmonyum" and harmonium), or null. The form offers it as "Did you mean". */
+export function similarInstrument(text: string | null | undefined): InstrumentId | null {
+  if (!normalizedWord(text) || listedInstrumentFor(text)) return null
+  const table = Object.fromEntries(INSTRUMENT_IDS.map((id) => [id, [id.replace(/_/g, " "), ...NAMES[id]]])) as Record<InstrumentId, string[]>
+  return similarWord(text, table)
 }
 
 /* ------------------------------------------------------------------ what the form sends */

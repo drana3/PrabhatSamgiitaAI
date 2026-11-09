@@ -1,4 +1,5 @@
 import { t } from "@/lib/i18n"
+import { normalizedWord, similarWord } from "@/lib/kirtan/instruments"
 
 /**
  * The languages a recording can be sung in: ISO 639 codes, one list, with labels in the app's three languages
@@ -119,4 +120,20 @@ export function searchLanguages(query: string, label: (code: string) => string =
     return []
   })
   return scored.sort((a, b) => a.rank - b.rank).map((entry) => entry.choice)
+}
+
+/** The listed language a written name IS ("Russian", "Русский", "russian "): the picker turns it into the code before sending. */
+export function listedLanguageFor(text: string | null | undefined, label: (code: string) => string = (code) => languageLabel(code)): string | null {
+  const key = normalizedWord(text)
+  if (!key) return null
+  const found = LANGUAGES.find((language) => normalizedWord(language.english) === key || normalizedWord(label(language.code)) === key)
+  return found?.code ?? null
+}
+
+/** The listed language a written name is at least 85% like ("Bengalli" and Bengali), or null: "Did you mean ...". */
+export function similarLanguage(text: string | null | undefined, label: (code: string) => string = (code) => languageLabel(code)): string | null {
+  if (listedLanguageFor(text, label)) return null
+  const table: Record<string, string[]> = {}
+  for (const language of LANGUAGES) table[language.code] = [language.english, label(language.code)]
+  return similarWord(text, table)
 }
