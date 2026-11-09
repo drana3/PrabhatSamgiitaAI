@@ -111,9 +111,11 @@ export const amColorPairs: AmColorPair[] = [
     pair("dark", `error text on ${n}`, D.dangerText, bg, "text"),
     pair("dark", `bright orange graphics on ${n}`, D.accentBright, bg, "graphic"),
   ]),
-  // `tile` (progress tracks, pressed fills): body, never muted
+  // `tile` (pressed fills, peach-free chips): muted passes here since the 10 Nov 2026 correction (4.79:1)
   pair("dark", "heading on tile", S.heading, S.tile, "text"),
-  pair("dark", "body on tile (muted is NOT allowed here)", S.body, S.tile, "text"),
+  pair("dark", "body on tile", S.body, S.tile, "text"),
+  pair("dark", "muted on tile", S.muted, S.tile, "text"),
+  pair("dark", "muted on peach (selected row)", S.muted, S.peach, "text"),
   pair("dark", "accent text on tile (orange500)", D.accentText, S.tile, "text"),
   pair("dark", "heading on peach tile", S.heading, S.peach, "text"),
   pair("dark", "body on peach tile", S.body, S.peach, "text"),
@@ -161,6 +163,6 @@ export const amForbiddenPairs: AmForbiddenPair[] = [
   { fg: c.orange700, bg: c.tintPeach, why: "orange700 text on peach: 3.95:1; accent text is orange800", reason: "contrast" },
   { fg: c.orange500, bg: L.card, why: "bright orange500 as text on light: 2.73:1", reason: "contrast" },
   { fg: c.danger, bg: L.page, why: "danger #EC221F as text on sand200: 3.62:1; error text is dangerText", reason: "contrast" },
-  { fg: S.muted, bg: S.tile, why: "muted dark text on the tile fill: 4.38:1; use body", reason: "contrast" },
+  { fg: "#948E86", bg: S.tile, why: "the old dark muted #948E86 on the tile fill: 4.38:1 (replaced by #9B958D on 10 Nov 2026)", reason: "contrast" },
   { fg: c.orange700, bg: S.page, why: "orange700 as text on the dark page: 3.71:1; accent text on dark is orange500 or gold300", reason: "contrast" },
 ]

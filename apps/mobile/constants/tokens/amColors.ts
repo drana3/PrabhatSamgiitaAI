@@ -59,6 +59,11 @@ export const amColors = {
    * still gives 4:1 on sand200 and the peach page wash. ink400/300/200 are never text colours.
    */
   headingSecond: "#77716B",
+  /**
+   * Mid grey for graphics that must be seen (progress track, field outline) on light surfaces:
+   * 3.07:1 on sand200, 3.5:1 on white. Never a text colour. Accepted 10 Nov 2026 (onboarding board).
+   */
+  stone500: "#8A847E",
 } as const
 
 export interface AmTheme {
@@ -96,6 +101,14 @@ export interface AmTheme {
   glass: string
   glassStrong: string
   glassEdge: string
+  /** the empty part of a progress bar or an off switch: at least 3:1 against the page (onboarding, switches) */
+  trackOff: string
+  /** outline of a button or field, as opposed to `line` which only divides rows (at least 3:1) */
+  lineStrong: string
+  /** a switched-on control: the filled radio, the knob of a selected row (at least 3:1 on card and on peach) */
+  controlOn: string
+  /** the dot or tick drawn on `controlOn` */
+  controlOnDot: string
 }
 
 export const amLight: AmTheme = {
@@ -119,6 +132,10 @@ export const amLight: AmTheme = {
   glass: "rgba(255, 255, 255, 0.55)",
   glassStrong: "rgba(255, 255, 255, 0.9)",
   glassEdge: "rgba(255, 255, 255, 0.7)",
+  trackOff: amColors.stone500,
+  lineStrong: amColors.stone500,
+  controlOn: amColors.orange700,
+  controlOnDot: amColors.white,
 }
 
 /**
@@ -129,8 +146,9 @@ export const amLight: AmTheme = {
  * The ONE place dark surfaces are defined: neutral near-black with a barely warm tint
  * (Spotify structure, orange where Spotify uses green). amDark, protoDark, spDark, the
  * Songs and Learn themes, the mini player and the tab pill all read from here.
- * Contrast (WCAG): heading 15:1+, body 6:1+, muted 4.8:1+ on page/raised/card/inner.
- * `muted` is NOT allowed on `tile` (4.38:1): use `body` there (5.6:1).
+ * Contrast (WCAG): heading 15:1+, body 6:1+, muted 5.2:1+ on page/raised/card/inner, 4.79 on `tile`.
+ * Corrected 10 Nov 2026 (onboarding board, accepted by Dada): muted #948E86 -> #9B958D so it also passes
+ * on `tile` and on the selected-row peach; new `trackOff`, `lineStrong`, `controlOn`, `controlOnDot`.
  */
 export const amDarkSurface = {
   page: "#121110",
@@ -142,7 +160,14 @@ export const amDarkSurface = {
   line: "rgba(255, 255, 255, 0.09)",
   heading: "#F4F1EC",
   body: "#A8A29A",
-  muted: "#948E86",
+  muted: "#9B958D",
+  /** the empty part of a progress bar / an off switch (3.69:1 on the page) */
+  trackOff: "#736D66",
+  /** outline of buttons and fields: white at 36 percent (3.3:1 on page and card) */
+  lineStrong: "rgba(255, 255, 255, 0.36)",
+  /** a switched-on control (filled radio): bright orange, with `controlOnDot` drawn on it (5.3:1 on the selected peach row) */
+  controlOn: "#F67931",
+  controlOnDot: "#121110",
   /** warm tint of orange on dark: selected chips behind text, peach tiles */
   peach: "#3A2418",
   glass: "rgba(28, 26, 24, 0.55)",
@@ -176,6 +201,10 @@ export const amDark: AmTheme = {
   glass: amDarkSurface.glass,
   glassStrong: "rgba(28, 26, 24, 0.92)",
   glassEdge: amDarkSurface.glassEdge,
+  trackOff: amDarkSurface.trackOff,
+  lineStrong: amDarkSurface.lineStrong,
+  controlOn: amDarkSurface.controlOn,
+  controlOnDot: amDarkSurface.controlOnDot,
 }
 
 /**

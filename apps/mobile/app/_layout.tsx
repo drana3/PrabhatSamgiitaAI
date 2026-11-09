@@ -79,7 +79,15 @@ export default function RootLayout() {
   useDevanagari({ NotoSansDevanagari_400Regular, NotoSansDevanagari_600SemiBold, NotoSansDevanagari_700Bold })
   const [fontWaitExpired, setFontWaitExpired] = useState(false)
   const fontsReady = (interLoaded && loraLoaded && robotoLoaded) || fontWaitExpired
-  const shellReady = fontsReady && authHydrated && (appearanceHydrated || fontWaitExpired) && (languageHydrated || fontWaitExpired)
+  // The theme default is settled once, after both stores have loaded: an install that finished the old
+  // welcome before Auto existed keeps Light, a new install keeps Auto (docs/onboarding.md).
+  const [appearanceSettled, setAppearanceSettled] = useState(false)
+  const shellReady =
+    fontsReady &&
+    authHydrated &&
+    (appearanceHydrated || fontWaitExpired) &&
+    (appearanceSettled || fontWaitExpired) &&
+    (languageHydrated || fontWaitExpired)
 
   useEffect(() => {
     if (useAuthStore.persist.hasHydrated()) setAuthHydrated(true)
@@ -90,6 +98,12 @@ export default function RootLayout() {
     if (useAppearanceStore.persist.hasHydrated()) setAppearanceHydrated(true)
     return useAppearanceStore.persist.onFinishHydration(() => setAppearanceHydrated(true))
   }, [])
+
+  useEffect(() => {
+    if (!authHydrated || !appearanceHydrated) return
+    useAppearanceStore.getState().settleAppearance(useAuthStore.getState().hasCompletedWelcome)
+    setAppearanceSettled(true)
+  }, [authHydrated, appearanceHydrated])
 
   useEffect(() => {
     if (useLanguageStore.persist.hasHydrated()) setLanguageHydrated(true)

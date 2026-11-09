@@ -98,10 +98,10 @@ describe("colour system: roles of the themes", () => {
     expect(amLight.accentText).toBe(amColors.orange800)
   })
 
-  it("text roles in dark: F4F1EC / A8A29A / 948E86, accent text orange500", () => {
+  it("text roles in dark: F4F1EC / A8A29A / 9B958D, accent text orange500", () => {
     expect(amDark.textHeading).toBe("#F4F1EC")
     expect(amDark.textBody).toBe("#A8A29A")
-    expect(amDark.textMuted).toBe("#948E86")
+    expect(amDark.textMuted).toBe("#9B958D")
     expect(amDark.accentText).toBe(amColors.orange500)
   })
 

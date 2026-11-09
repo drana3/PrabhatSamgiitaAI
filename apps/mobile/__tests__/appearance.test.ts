@@ -24,11 +24,13 @@ import { amDark, amLight } from "@/constants/tokens/amColors"
 import {
   DEFAULT_APPEARANCE,
   DEFAULT_REVIEW_STYLE,
+  LEGACY_APPEARANCE,
   migrateAppearanceState,
   normalizeAppearance,
   normalizeReviewStyle,
   resolveAmTheme,
   resolveAppearance,
+  settleAppearance,
   statusBarStyleFor,
   themeFor,
 } from "@/lib/appearance"
@@ -63,8 +65,9 @@ describe("appearance: theme resolution", () => {
     expect(statusBarStyleFor("light")).toBe("dark")
   })
 
-  it("defaults to light so existing installs look the same", () => {
-    expect(DEFAULT_APPEARANCE).toBe("light")
+  it("a new install defaults to Auto (follows the phone); an existing one is pinned to Light", () => {
+    expect(DEFAULT_APPEARANCE).toBe("auto")
+    expect(LEGACY_APPEARANCE).toBe("light")
     expect(DEFAULT_REVIEW_STYLE).toBe("simple")
   })
 })
@@ -73,28 +76,63 @@ describe("appearance: normalising stored values", () => {
   it("keeps valid values and replaces anything else with the default", () => {
     expect(normalizeAppearance("dark")).toBe("dark")
     expect(normalizeAppearance("auto")).toBe("auto")
-    expect(normalizeAppearance("sepia")).toBe("light")
-    expect(normalizeAppearance(undefined)).toBe("light")
-    expect(normalizeAppearance(3)).toBe("light")
+    expect(normalizeAppearance("sepia")).toBe("auto")
+    expect(normalizeAppearance(undefined)).toBe("auto")
+    expect(normalizeAppearance(3)).toBe("auto")
+    expect(normalizeAppearance(3, "light")).toBe("light")
     expect(normalizeReviewStyle("adaptive")).toBe("adaptive")
     expect(normalizeReviewStyle("fast")).toBe("simple")
   })
 })
 
 describe("appearance: persistence migration", () => {
-  it("migrates nothing, version 0 and damaged payloads to the defaults", () => {
-    const defaults = { appearance: "light", reviewStyle: "simple" }
-    expect(migrateAppearanceState(undefined, 0)).toEqual(defaults)
-    expect(migrateAppearanceState(null)).toEqual(defaults)
-    expect(migrateAppearanceState("junk", 0)).toEqual(defaults)
-    expect(migrateAppearanceState({}, 0)).toEqual(defaults)
-    expect(migrateAppearanceState({ appearance: 7, reviewStyle: {} }, 1)).toEqual(defaults)
+  it("migrates nothing and junk to the new-install defaults: Auto, not settled", () => {
+    const fresh = { appearance: "auto", reviewStyle: "simple", appearanceSettled: false }
+    expect(migrateAppearanceState(undefined, 0)).toEqual(fresh)
+    expect(migrateAppearanceState(null)).toEqual(fresh)
+    expect(migrateAppearanceState("junk", 0)).toEqual(fresh)
+  })
+
+  it("an existing payload with a missing or damaged theme means Light (what that install was showing)", () => {
+    const legacy = { appearance: "light", reviewStyle: "simple", appearanceSettled: true }
+    expect(migrateAppearanceState({}, 0)).toEqual(legacy)
+    expect(migrateAppearanceState({ appearance: 7, reviewStyle: {} }, 1)).toEqual(legacy)
   })
 
   it("keeps saved choices and ignores unrelated keys", () => {
     expect(
       migrateAppearanceState({ appearance: "dark", reviewStyle: "daily", savedSongIds: ["ps-1"] }, 1),
-    ).toEqual({ appearance: "dark", reviewStyle: "daily" })
+    ).toEqual({ appearance: "dark", reviewStyle: "daily", appearanceSettled: true })
+  })
+})
+
+describe("appearance: the default is settled once", () => {
+  it("a new install (welcome not finished) keeps Auto", () => {
+    expect(settleAppearance({ appearance: "auto", appearanceSettled: false }, false)).toBe("auto")
+  })
+
+  it("an install that finished the old welcome and never chose a theme keeps Light", () => {
+    expect(settleAppearance({ appearance: "auto", appearanceSettled: false }, true)).toBe("light")
+  })
+
+  it("an install that already settled, or whose person chose a theme, is never touched", () => {
+    expect(settleAppearance({ appearance: "dark", appearanceSettled: true }, true)).toBeNull()
+    expect(settleAppearance({ appearance: "auto", appearanceSettled: true }, true)).toBeNull()
+  })
+
+  it("the store applies it once and Profile > Appearance can still change it", async () => {
+    useAppearanceStore.setState({ appearance: "auto", appearanceSettled: false })
+    useAppearanceStore.getState().settleAppearance(true)
+    expect(useAppearanceStore.getState().appearance).toBe("light")
+    expect(useAppearanceStore.getState().appearanceSettled).toBe(true)
+    useAppearanceStore.getState().setAppearance("auto")
+    useAppearanceStore.getState().settleAppearance(true)
+    expect(useAppearanceStore.getState().appearance).toBe("auto")
+
+    useAppearanceStore.setState({ appearance: "auto", appearanceSettled: false })
+    useAppearanceStore.getState().settleAppearance(false)
+    expect(useAppearanceStore.getState().appearance).toBe("auto")
+    expect(useAppearanceStore.getState().appearanceSettled).toBe(true)
   })
 })
 
@@ -109,8 +147,8 @@ describe("appearance: store persistence", () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     const stored = JSON.parse((await AsyncStorage.getItem("prabhat-appearance")) as string)
-    expect(stored.state).toEqual({ appearance: "dark", reviewStyle: "adaptive" })
-    expect(stored.version).toBe(1)
+    expect(stored.state).toEqual({ appearance: "dark", reviewStyle: "adaptive", appearanceSettled: true })
+    expect(stored.version).toBe(2)
     expect(JSON.parse((await AsyncStorage.getItem("prabhat-preferences")) as string).state.savedSongIds).toEqual([
       "ps-7",
     ])
@@ -125,7 +163,16 @@ describe("appearance: store persistence", () => {
     expect(useAppearanceStore.getState().appearance).toBe("auto")
     expect(useAppearanceStore.getState().reviewStyle).toBe("daily")
 
-    // An older payload (version 0) with a value this build does not know.
+    // An existing install: a version 1 payload that chose Dark keeps it, and counts as settled.
+    await AsyncStorage.setItem(
+      "prabhat-appearance",
+      JSON.stringify({ state: { appearance: "dark", reviewStyle: "simple" }, version: 1 }),
+    )
+    await useAppearanceStore.persist.rehydrate()
+    expect(useAppearanceStore.getState().appearance).toBe("dark")
+    expect(useAppearanceStore.getState().appearanceSettled).toBe(true)
+
+    // An older payload (version 0) with a value this build does not know: that install showed Light.
     await AsyncStorage.setItem(
       "prabhat-appearance",
       JSON.stringify({ state: { appearance: "sepia" }, version: 0 }),
@@ -137,7 +184,7 @@ describe("appearance: store persistence", () => {
 
   it("ignores an invalid value passed to the setter", () => {
     useAppearanceStore.getState().setAppearance("neon" as never)
-    expect(useAppearanceStore.getState().appearance).toBe("light")
+    expect(useAppearanceStore.getState().appearance).toBe("auto")
   })
 })
 

@@ -10,6 +10,7 @@ import {
   migrateAppearanceState,
   normalizeAppearance,
   normalizeReviewStyle,
+  settleAppearance,
   type AppearancePreference,
   type ReviewStyle,
 } from "@/lib/appearance"
@@ -17,8 +18,15 @@ import {
 type AppearanceStoreState = {
   appearance: AppearancePreference
   reviewStyle: ReviewStyle
+  /** see AppearanceState.appearanceSettled in lib/appearance.ts */
+  appearanceSettled: boolean
   setAppearance: (value: AppearancePreference) => void
   setReviewStyle: (value: ReviewStyle) => void
+  /**
+   * Run once both stores have loaded: an install that finished the old welcome before Auto was the
+   * default keeps Light; a new install keeps Auto. Does nothing again after that.
+   */
+  settleAppearance: (hasCompletedWelcome: boolean) => void
 }
 
 /**
@@ -31,12 +39,20 @@ export const useAppearanceStore = create<AppearanceStoreState>()(
     (set) => ({
       appearance: DEFAULT_APPEARANCE,
       reviewStyle: DEFAULT_REVIEW_STYLE,
+      appearanceSettled: false,
       setAppearance: (value) => {
         const appearance = normalizeAppearance(value)
-        set({ appearance })
+        set({ appearance, appearanceSettled: true })
         applyNativeColorScheme(appearance)
       },
       setReviewStyle: (value) => set({ reviewStyle: normalizeReviewStyle(value) }),
+      settleAppearance: (hasCompletedWelcome) => {
+        const state = useAppearanceStore.getState()
+        const next = settleAppearance(state, hasCompletedWelcome)
+        if (next === null) return
+        set({ appearance: next, appearanceSettled: true })
+        applyNativeColorScheme(next)
+      },
     }),
     {
       name: "prabhat-appearance",
@@ -49,6 +65,7 @@ export const useAppearanceStore = create<AppearanceStoreState>()(
       partialize: (state) => ({
         appearance: state.appearance,
         reviewStyle: state.reviewStyle,
+        appearanceSettled: state.appearanceSettled,
       }),
     },
   ),

@@ -20,8 +20,8 @@ risky pairs in the source.
 | --- | --- | --- |
 | Heading | ink800 #333333 | #F4F1EC |
 | Body | ink600 #525252 | #A8A29A |
-| Muted | ink500 #68635F | #948E86 (not on the `tile` fill #2E2A27: use body there) |
-| Two-tone heading, second line (large text only) | headingSecond #77716B (4:1) | #948E86 |
+| Muted | ink500 #68635F | #9B958D (was #948E86 until 10 Nov 2026; now also passes on the `tile` fill, 4.79:1) |
+| Two-tone heading, second line (large text only) | headingSecond #77716B (4:1) | #9B958D |
 | Action fill (`brand`) | orange700 #B94D0C | orange700 #B94D0C |
 | Label on action fill (`onBrand`) | white (5.1:1) | white (5.1:1) |
 | Pressed action fill (`brandPress`) | orange800 #8F3B08 | orange800 #8F3B08 |
@@ -62,6 +62,6 @@ Dark), the fill is `action`.
 | orange700 text on sand200 (forbidden) | 4.22 |
 | ink500 on sand200 | 4.92 |
 | ink400 on sand200 (was textMuted, forbidden) | 2.36 |
-| dark muted #948E86 on inner / tile | 4.82 / 4.38 (tile forbidden) |
+| dark muted #9B958D on inner / tile | 5.27 / 4.79 (the old #948E86 gave 4.82 / 4.38) |
 | orange500 on dark page | 6.91 |
 | white on dark-glass chip over a white photo | 7+ |
