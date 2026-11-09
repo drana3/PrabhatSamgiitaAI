@@ -20,7 +20,6 @@ information notice once a claim is approved, without a button and without a ques
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -43,13 +42,15 @@ from app.schemas.author_claims import (
     ClaimResult,
     ClaimsCreated,
     ClaimSummary,
+    DeskSummary,
+    ShownOnPages,
+    ShownPage,
 )
 from app.services import author_claim_rules as match
 from app.services import author_rules as rules
 from app.services.author_profiles import (
     AuthorError,
     attribution,
-    aware,
     now_utc,
     refresh_snapshot,
 )
@@ -57,14 +58,15 @@ from app.services.recordings import VISIBLE
 
 # ---- the knobs (one place each) --------------------------------------------------------------
 
-CLAIMS_PER_DAY = 30  # new claims one page may make in 24 hours
+# No daily number and no pause after refusals (Dada, 2026-11-08): a person may ask for as many
+# recordings as are theirs. What stays: the waiting list below, the alias rules, the call size
+# and the per-hour call limit of the router, which stop a script and never a person.
 OPEN_CLAIMS_MAX = 200  # claims waiting for the team, per page
-REJECTED_IN_A_ROW = 3  # this many refusals one after another ...
-PAUSE_DAYS = 7  # ... and the page may not claim for this long
 MAX_ALIASES = 5
 BATCH_MAX = 50
-# A name credited on this many library recordings is a famous one: the team decides.
-FAMOUS_RECORDING_COUNT = 25
+# A name credited on MORE than this many library recordings is a famous one: the team decides
+# (Dada, 2026-11-08: more than 15; it was 25).
+FAMOUS_AFTER = 15
 SCAN_CREDITS = 5000  # distinct credits looked at when searching by name
 SUGGESTION_MAX = 200
 SEARCH_MAX = 200
@@ -216,7 +218,7 @@ class Ladder:
                     func.lower(Recording.author) == key,
                 )
             )
-            if int(count or 0) >= FAMOUS_RECORDING_COUNT:
+            if int(count or 0) > FAMOUS_AFTER:
                 reason = "famous_name"
         if reason is None:
             others = (
@@ -420,27 +422,10 @@ async def summary(session: AsyncSession, profile: AuthorProfile) -> ClaimSummary
         suggested=sum(1 for c in found if c.claim_status is None and c.level != "title"),
         pending=int(counts.get("pending", 0)),
         approved=int(counts.get("approved", 0)),
-        paused_until=await paused_until(session, profile),
     )
 
 
 # --------------------------------------------------------------------------- making a claim
-
-
-async def paused_until(session: AsyncSession, profile: AuthorProfile) -> datetime | None:
-    """After REJECTED_IN_A_ROW refusals one after another the page waits PAUSE_DAYS."""
-    last = (
-        await session.scalars(
-            select(AuthorClaim)
-            .where(AuthorClaim.profile_id == profile.id, AuthorClaim.decided_at.is_not(None))
-            .order_by(AuthorClaim.decided_at.desc())
-            .limit(REJECTED_IN_A_ROW)
-        )
-    ).all()
-    if len(last) < REJECTED_IN_A_ROW or any(c.status != "rejected" for c in last):
-        return None
-    until = (aware(last[0].decided_at) or now_utc()) + timedelta(days=PAUSE_DAYS)
-    return until if until > now_utc() else None
 
 
 async def _log(
@@ -483,7 +468,13 @@ async def _tell_uploader(
             f"The author page of {profile.display_name} now shows “{recording.title}”, which you "
             f"added. The recording is still yours and nothing changes for you.",
             recording.id,
-            {"profile_slug": profile.slug, "claim_id": str(claim.id)},
+            {
+                "profile_slug": profile.slug,
+                "profile_id": str(profile.id),
+                "page_name": profile.display_name,
+                "recording_title": recording.title,
+                "claim_id": str(claim.id),
+            },
         )
     )
 
@@ -491,21 +482,10 @@ async def _tell_uploader(
 async def claim(
     session: AsyncSession, member_id: UUID, profile: AuthorProfile, recording_ids: list[UUID]
 ) -> ClaimsCreated:
-    """Put a claim on each recording. Each gets its own outcome; the rules that stop a script
-    (daily number, waiting list, pause) stop the whole call."""
+    """Put a claim on each recording. Each gets its own outcome; the waiting-list rule stops the
+    whole call. There is no daily number and no pause."""
     if profile.status == "suspended":
         raise AuthorError("page_suspended", 403, "This page is suspended")
-    if await paused_until(session, profile):
-        raise AuthorError("claims_paused", 429, "Claiming is paused for now")
-    since = now_utc() - timedelta(days=1)
-    today = int(
-        await session.scalar(
-            select(func.count())
-            .select_from(AuthorClaim)
-            .where(AuthorClaim.profile_id == profile.id, AuthorClaim.created_at >= since)
-        )
-        or 0
-    )
     open_now = int(
         await session.scalar(
             select(func.count())
@@ -560,8 +540,6 @@ async def claim(
         elif rid in on_page:
             results.append(ClaimResult(recording_id=str(rid), outcome="already_on_page"))
             continue
-        if today >= CLAIMS_PER_DAY:
-            raise AuthorError("claims_per_day", 429, "Too many claims today")
         standing = await ladder.standing(recording)
         if standing.route == "team" and open_now >= OPEN_CLAIMS_MAX:
             raise AuthorError("claims_waiting", 429, "Too many claims are waiting")
@@ -587,7 +565,6 @@ async def claim(
         else:
             pending += 1
             open_now += 1
-        today += 1
         results.append(
             ClaimResult(
                 recording_id=str(rid),
@@ -723,6 +700,8 @@ _NEXT = {
     "approve": ("approved", ("pending", "rejected", "withdrawn", "revoked")),
     "reject": ("rejected", ("pending",)),
     "revoke": ("revoked", ("approved",)),
+    # the desk's Undo: a decision goes back to "waiting". Nobody is told; the log keeps it.
+    "reopen": ("pending", ("approved", "rejected", "revoked")),
 }
 
 
@@ -747,6 +726,8 @@ async def admin_decide(
         conditions.append(AuthorClaim.profile_id == profile_id)
     if claim_ids is None and profile_id is None:
         raise AuthorError("nothing_selected", 422, "Choose claims")
+    if claim_ids is not None and not claim_ids:
+        return 0
     rows = (
         await session.execute(
             select(AuthorClaim, Recording, AuthorProfile)
@@ -757,15 +738,21 @@ async def admin_decide(
     ).all()
     cleaned = rules.clean_paragraphs(note, 1000) or None
     per_profile: dict[UUID, tuple[AuthorProfile, int]] = {}
+    reopening = action == "reopen"
     for row, recording, profile in rows:
         row.status = target
-        row.decided_by = by
-        row.decided_at = now_utc()
-        row.decision_note = cleaned
-        await _log(session, row, by, target, cleaned)
+        row.decided_by = None if reopening else by
+        row.decided_at = None if reopening else now_utc()
+        row.decision_note = None if reopening else cleaned
+        await _log(session, row, by, "reopened" if reopening else target, cleaned)
         if target == "approved":
             await _tell_uploader(session, profile, row, recording)
         per_profile[profile.id] = (profile, per_profile.get(profile.id, (profile, 0))[1] + 1)
+    if reopening:
+        await session.commit()
+        for profile, _ in per_profile.values():
+            await refresh_snapshot(session, profile, force=True)
+        return len(rows)
     kinds = {"approve": "claim_approved", "reject": "claim_rejected", "revoke": "claim_revoked"}
     words = {
         "approve": "Your page now shows",
@@ -784,10 +771,71 @@ async def admin_decide(
                 f"Claimed recordings: {target}",
                 body,
                 None,
-                {"profile_slug": profile.slug, "count": count},
+                {
+                    "profile_slug": profile.slug,
+                    "profile_id": str(profile.id),
+                    "count": count,
+                    "note": cleaned,
+                },
             )
         )
     await session.commit()
     for profile, _ in per_profile.values():
         await refresh_snapshot(session, profile, force=True)
     return len(rows)
+
+
+async def desk_summary(session: AsyncSession) -> DeskSummary:
+    """What waits on the team's desk: counts per status, and the waiting ones per reason, so the
+    screen can show a badge and filter chips without loading every row."""
+    by_status = {
+        status: int(n)
+        for status, n in (
+            await session.execute(
+                select(AuthorClaim.status, func.count()).group_by(AuthorClaim.status)
+            )
+        ).all()
+    }
+    by_reason = {
+        (reason or "other"): int(n)
+        for reason, n in (
+            await session.execute(
+                select(AuthorClaim.team_reason, func.count())
+                .where(AuthorClaim.status == "pending")
+                .group_by(AuthorClaim.team_reason)
+            )
+        ).all()
+    }
+    return DeskSummary(
+        pending=by_status.get("pending", 0),
+        approved=by_status.get("approved", 0),
+        rejected=by_status.get("rejected", 0),
+        revoked=by_status.get("revoked", 0),
+        by_reason=by_reason,
+    )
+
+
+async def pages_of_my_recordings(session: AsyncSession, member_id: UUID) -> list[ShownOnPages]:
+    """For "My uploads": which of the member's own recordings are now shown on somebody else's
+    author page (an approved claim on a published page that is not the member's own)."""
+    rows = (
+        await session.execute(
+            select(AuthorClaim.recording_id, AuthorProfile, AuthorClaim.decided_at)
+            .join(Recording, Recording.id == AuthorClaim.recording_id)
+            .join(AuthorProfile, AuthorProfile.id == AuthorClaim.profile_id)
+            .where(
+                Recording.author_id == member_id,
+                Recording.status.in_(VISIBLE),
+                AuthorClaim.status == "approved",
+                AuthorProfile.status == "published",
+                AuthorProfile.member_id != member_id,
+            )
+            .order_by(AuthorClaim.decided_at)
+        )
+    ).all()
+    grouped: dict[UUID, list[ShownPage]] = {}
+    for recording_id, profile, _ in rows:
+        grouped.setdefault(recording_id, []).append(
+            ShownPage(id=str(profile.id), slug=profile.slug, name=profile.display_name)
+        )
+    return [ShownOnPages(recording_id=str(rid), pages=pages) for rid, pages in grouped.items()]

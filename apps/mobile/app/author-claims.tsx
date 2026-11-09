@@ -14,10 +14,9 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
 import { canPick, reasonKey } from "@/lib/authors/claims"
 import { AUTHOR_FIND_HREF, authorHref } from "@/lib/authors/constants"
-import { formatDay } from "@/lib/authors/format"
 import { say } from "@/lib/authors/text"
 import type { Alias, AuthorProfileOwner, ClaimCandidate, ClaimOut } from "@/lib/authors/types"
-import { useLanguage, useT } from "@/lib/i18n"
+import { useT } from "@/lib/i18n"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { errorKeyOf } from "@/stores/authorStore"
 import { href } from "@/utils/href"
@@ -34,25 +33,21 @@ export default function AuthorClaimsScreen() {
 
 function Body({ mine }: { mine: AuthorProfileOwner }) {
   const t = useT()
-  const locale = useLanguage()
   const theme = useSongsTheme()
   const router = useRouter()
   const bottom = useScrollBottomInset()
   const api = authorsApi()
   const found = useAuthorRequest(() => api.claimSuggestions(), [])
   const requests = useAuthorRequest(() => api.myClaims(), [])
-  const summary = useAuthorRequest(() => api.claimSummary(), [])
   const reload = useCallback(() => {
     found.reload()
     requests.reload()
-    summary.reload()
-  }, [found, requests, summary])
+  }, [found, requests])
   const picker = useClaimPicker(reload)
 
   const same = found.data?.same ?? []
   const alike = found.data?.alike ?? []
   const nothing = Boolean(found.data) && !same.length && !alike.length
-  const paused = summary.data?.paused_until ?? null
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={keyboardBehavior(Platform.OS)}>
@@ -64,11 +59,6 @@ function Body({ mine }: { mine: AuthorProfileOwner }) {
             </Text>
             <Text style={[styles.body, { color: theme.textBody }]}>{t("authors.claims.lead", { names: found.data.names.join(", ") })}</Text>
             <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.claims.uploaderNote")}</Text>
-          </View>
-        ) : null}
-        {paused ? (
-          <View style={styles.pad}>
-            <InlineError theme={theme}>{t("authors.claims.paused", { date: formatDay(paused, locale) })}</InlineError>
           </View>
         ) : null}
 

@@ -85,13 +85,6 @@ describe("claim my recordings, demo", () => {
     expect((await api.claimSearch("p")).items).toEqual([])
   })
 
-  it("is paused after too many refusals", async () => {
-    const api = await demoWithPage()
-    api.control.setClaimsPaused("2026-11-20T00:00:00Z")
-    expect((await api.claimSummary()).paused_until).toBe("2026-11-20T00:00:00Z")
-    await expect(api.createClaims(["lib-1"])).rejects.toMatchObject({ status: 429, code: "claims_paused" })
-  })
-
   it("an empty library has nothing to suggest", async () => {
     const api = await demoWithPage()
     api.control.setClaimLibrary("none")
@@ -114,7 +107,7 @@ describe("claim my recordings, screen helpers", () => {
   })
 
   it("maps every claim error code to a sentence", () => {
-    for (const code of ["claims_paused", "claims_per_day", "claims_waiting", "claim_closed", "alias_taken", "alias_limit"]) {
+    for (const code of ["claims_waiting", "claim_closed", "alias_taken", "alias_limit"]) {
       expect(errorKey({ code })).not.toBe("authors.error.generic")
     }
   })

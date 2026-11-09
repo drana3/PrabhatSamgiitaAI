@@ -104,8 +104,6 @@ const ERROR_KEYS: Record<string, string> = {
   alias_taken: "authors.error.alias_taken",
   alias_limit: "authors.error.alias_limit",
   alias_not_found: "authors.error.generic",
-  claims_paused: "authors.error.claims_paused",
-  claims_per_day: "authors.error.claims_per_day",
   claims_waiting: "authors.error.claims_waiting",
   claim_not_found: "authors.error.claim_gone",
   claim_closed: "authors.error.claim_gone",

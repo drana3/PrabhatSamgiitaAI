@@ -162,8 +162,6 @@ export type DemoControl = {
   setClaimLibrary(mode: "some" | "none"): void
   /** the person's claims, by recording id and status */
   setClaims(rows: Parameters<DemoClaims["setClaims"]>[0]): void
-  /** claiming is paused until this time (after three rejections in a row) */
-  setClaimsPaused(until: string | null): void
 }
 
 export type DemoAuthorsApi = AuthorsApi & { control: DemoControl }
@@ -381,9 +379,6 @@ export function createDemoApi(): DemoAuthorsApi {
     },
     setClaims(rows) {
       claims.setClaims(rows)
-    },
-    setClaimsPaused(until) {
-      claims.setPaused(until)
     },
   }
 

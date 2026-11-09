@@ -7,6 +7,8 @@ import { KPress } from "@/components/kirtan/KPress"
 import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { authorHref } from "@/lib/authors/constants"
+import { useShownOnPages } from "@/lib/authors/onPages"
 import { formatDate, useT } from "@/lib/i18n"
 import { kindHasDiscourse } from "@/lib/kirtan/kind"
 import { CONTACT_ROUTE, uploadErrorText } from "@/lib/kirtan/rules"
@@ -31,6 +33,9 @@ export function UploadRow({ theme, kirtan: k, onOpen, onMore, onOpenArtist }: Ro
     void runUpload(id)
   }
   const failed = k.status === "failed"
+  const router = useRouter()
+  // the author pages of other people that now show this recording (docs/author-profiles.md, "The uploader is told")
+  const shown = useShownOnPages(k.status === "published" ? k.serverId : undefined)
   return (
     <View style={styles.wrap}>
       <KirtanRow
@@ -48,6 +53,14 @@ export function UploadRow({ theme, kirtan: k, onOpen, onMore, onOpenArtist }: Ro
         }
       />
       {kindHasDiscourse(k.kind) && (k.place || k.discourse) ? <Text style={[styles.note, { color: theme.textBody }]}>{[k.place, k.discourse].filter(Boolean).join(" · ")}</Text> : null}
+      {shown.length > 3 ? <Text style={[styles.note, { color: theme.textBody }]}>{t("authors.uploads.onPageMany", { count: shown.length })}</Text> : null}
+      {shown.length > 0 && shown.length <= 3
+        ? shown.map((page) => (
+            <KPress key={page.id} accessibilityRole="link" accessibilityLabel={`${t("authors.uploads.onPage", { page: page.name })}. ${t("authors.uploads.onPageOpen")}`} onPress={() => router.push(href(authorHref(page.slug)))} pressedScale={0.97} style={styles.onPage}>
+              <Text style={[styles.note, { color: theme.accent }]}>{t("authors.uploads.onPage", { page: page.name })}</Text>
+            </KPress>
+          ))
+        : null}
       <AddLanguagePrompt theme={theme} kirtan={k} variant="inline" />
       {k.status === "uploading" ? <Text style={[styles.note, { color: theme.textBody }]}>{t("ugc.mine.uploading")}</Text> : null}
       {failed ? (
@@ -130,6 +143,7 @@ const styles = StyleSheet.create({
   status: { alignItems: "flex-end", gap: 4, paddingRight: 12 },
   byAuthor: { fontFamily: amFonts.regular, fontSize: 12, lineHeight: 16 },
   note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: 4 },
+  onPage: { minHeight: 32, justifyContent: "center", alignSelf: "flex-start" },
   failed: { gap: 8, paddingHorizontal: 4 },
   actions: { flexDirection: "row", alignItems: "center", gap: 14, flexWrap: "wrap" },
   pill: { minHeight: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },

@@ -5,6 +5,7 @@ from app.api.v1.ai import router as ai_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.author_claims import admin_router as author_claims_admin_router
 from app.api.v1.author_claims import router as author_claims_router
+from app.api.v1.author_claims import uploads_router as author_claims_uploads_router
 from app.api.v1.author_profiles import admin_router as author_profiles_admin_router
 from app.api.v1.author_profiles import plays_router as author_plays_router
 from app.api.v1.author_profiles import router as author_profiles_router
@@ -67,6 +68,7 @@ router.include_router(song_chords_router)
 router.include_router(song_chords_admin_router)
 router.include_router(author_claims_router)
 router.include_router(author_claims_admin_router)
+router.include_router(author_claims_uploads_router)
 router.include_router(author_profiles_router)
 router.include_router(author_plays_router)
 router.include_router(author_profiles_admin_router)

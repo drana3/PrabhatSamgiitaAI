@@ -176,7 +176,8 @@ All under `/api/v1`.
 | `GET /admin/authors`, `GET /admin/authors/{id}/reports` | team | List, read reports |
 | `POST /admin/authors/{id}/approve`, `/verify`, `/unverify`, `/suspend`, `/unsuspend` | team | Team actions |
 | `GET /authors/me/claims/summary`, `/suggestions`, `/search`, `GET\|POST /authors/me/claims`, `DELETE /authors/me/claims/{id}`, `GET\|POST /authors/me/aliases`, `DELETE /authors/me/aliases/{key}` | member | Claiming recordings (see below) |
-| `GET /admin/authors/claims`, `POST /admin/authors/claims/bulk`, `POST /admin/authors/claims/{id}/approve\|reject\|revoke` | team | Claims desk |
+| `GET /admin/authors/claims`, `GET /admin/authors/claims/summary`, `POST /admin/authors/claims/bulk`, `POST /admin/authors/claims/{id}/approve\|reject\|revoke\|reopen` | team | Claims desk |
+| `GET /recordings/mine/author-pages` | member | Which author pages of other people show my recordings ("My uploads") |
 | `GET /admin/authors/suspensions` | team | Member suspensions with evidence |
 | `POST /admin/authors/members/{member_id}/lift-suspension` | team | Allow the member a new page |
 
@@ -225,19 +226,41 @@ Matching. A credit is split into names (`,` `;` `&` `+` `/`, "and", "with", "fea
 
 The ladder (`Ladder.standing()`). A claim is **approved at once** (route `self`) only when all hold: the page is published and verified, has no review or report flag, is a solo page, the credit names one person, the level is "same" against the **trusted names** of the page, and the name is not protected, famous or already asked for by another page. Otherwise it goes **to the team** (route `team`) with the first matching reason: `protected_name`, `famous_name`, `taken_by_other`, `alias_match`, `group_credit`, `group_page`, `not_same_name`, `unverified_page`, `draft_page`, `review_flag`. The screens show the reason to the person.
 
-- Famous name: credited on 25 or more library recordings (no uploader), or equal to another published verified page's name or claimed name, or protected or staff-like (`FAMOUS_RECORDING_COUNT = 25`).
+- Famous name: credited on **more than 15** library recordings (no uploader; Dada, 8 Nov 2026, was 25), or equal to another published verified page's name or claimed name, or protected or staff-like (`FAMOUS_AFTER = 15` in `services/author_claims.py`).
 - Trusted names are the display name and, only for a verified page, the claimed name. **A name the member adds as "written another way" (an alias) is never trusted.** A match found only through an alias always goes to the team as `alias_match`. Aliases are limited to 5 per page and checked when added: not protected, not staff-like, not the name of another page (`alias_not_allowed`, `alias_taken`, `alias_limit`). Tests (`test_author_claims.py`): an alias equal to a famous name or to another page's name never approves by itself; alias-only matches go to the team; a verified page with its exact claimed name still approves by itself; an alias flood is capped.
-- Limits: 30 requests a day, 200 waiting, a pause of 7 days after 3 refusals in a row, at most 50 recordings in a call.
+- Limits (Dada, 8 Nov 2026: **no limits on claims**): there is no daily number and no pause after refusals; a refusal never counts against the person. What stays is what stops a script, not a person: 200 waiting requests per page, at most 50 recordings in a call, 40 claim calls an hour per member, 5 added names (aliases) per page, alias-only matches always go to the team.
 - Once approved, the recording is on the page (`attribution()` includes recordings with an approved claim) and counts in the page's statistics like any other (statistics follow the recordings on the page; the member's own plays are still not counted). The owner can take a waiting or approved request back (`DELETE /authors/me/claims/{id}`); the team can reject or revoke.
 - The old rule stays: a verified page also shows recordings whose credit equals its claimed name exactly (no backfill into claims).
 
-Team desk (API only, no screen yet): `GET /admin/authors/claims`, `POST /admin/authors/claims/bulk`, `POST /admin/authors/claims/{id}/approve|reject|revoke`. Each decision tells the member (`claim_approved`, `claim_rejected`, `claim_revoked`).
+### The team desk
+
+Screen `app/team-claims.tsx` (parts in `components/authors/DeskParts.tsx`, rules in `lib/authors/desk.ts`, calls in `deskRemote.ts`, the preview's stand-in in `deskDemo.ts`; open it from the Upload hub, row "Author claims", team only; in the web preview add `?team`). Modelled on the review desk (`/team-review`):
+
+- Four tabs with counts: Waiting, Approved, Declined, Taken off. In Waiting, chips by the reason a request came to the team (`protected_name`, `famous_name`, ... , `other`), each with its count (`GET /admin/authors/claims/summary`).
+- Requests are grouped by author page. Each card shows the recording, the credit in the library, who added it (or "From the library import"), plays, why it came to the team (a chip and one sentence), the match level and the date.
+- Decide one request, a whole page ("Approve all (3)") or any tick-picked set, also across pages (`POST /admin/authors/claims/bulk`, `profile_id` is optional). Waiting: approve or decline. Approved: take off. Declined and taken off: approve again.
+- **Rollback.** After every decision a bar shows "Undo" for 8 seconds. Undo is the server action `reopen` (`POST /admin/authors/claims/{id}/reopen` or bulk `reopen`): the request goes back to Waiting, the decision fields are cleared, and **nobody is told** (a plain revoke would have told the owner and kept the name blocked). A reopened request can also be put back later from the Approved, Declined or Taken off tabs ("Put back"). Each decision is written to `author_claim_events` (`reopened` too).
+- The member is told once per page and decision (`claim_approved`, `claim_rejected`, `claim_revoked`, with the team's note); the uploader once per recording (`claim_on_your_recording`).
+- Tests: `apps/api/tests/test_author_claims.py` (summary, bulk across pages, rollback, reopen) and `apps/mobile/__tests__/claimsDesk.test.ts`.
+
+### Messages (notification centre)
+
+The phone asks for unread server notices when the app opens and comes to the front (`components/notifications/ReplyNoticeSync.tsx`, next to the reply notices) and `lib/authors/claimNotices.ts` turns them into items of two kinds registered in `lib/notifications/kinds.ts`:
+
+- `claim` (to the page owner): "Claim approved", "Claim declined" (opens the list of requests), "Taken off your author page"; account-bound, kept 90 days, channel `notices`.
+- `onpage` (to the uploader): "Your recording is on an author page", opens that page; account-bound, kept 30 days, iOS quiet delivery.
+
+The uploader also sees a quiet line under the recording in Kiirtan, My uploads: "On the author page of {name}" (a link; "On N author pages" above three) from `GET /recordings/mine/author-pages` (`lib/authors/onPages.ts`). The recording stays the uploader's; nothing is asked.
 
 Member endpoints: `GET /authors/me/claims/summary`, `/suggestions`, `/search?q=`, `GET|POST /authors/me/claims`, `DELETE /authors/me/claims/{id}`, `GET|POST /authors/me/aliases`, `DELETE /authors/me/aliases/{key}`.
 
-Board with the real screens and the decisions: `Для-Дады/автор-подтянуть-записи/index.html` (top section "Готово · фаза 1"; the four earlier proposals are kept below it as an archive). The preview demo (`lib/authors/demoClaims.ts`) answers the same calls from invented library recordings and can be put into states with `__authorsDemo.setClaims`, `setClaimLibrary` and `setClaimsPaused`.
+Board with the real screens and the decisions: `Для-Дады/автор-подтянуть-записи/index.html` (top section "Готово · фаза 1"; the four earlier proposals are kept below it as an archive). The preview demo (`lib/authors/demoClaims.ts`) answers the same calls from invented library recordings and can be put into states with `__authorsDemo.setClaims` and `setClaimLibrary` (the pause is gone). The team desk's stand-in answers with invented pages.
 
-Still for Dada: whether an unverified page may approve clear same-name recordings by itself; how fast the team verifies pages (verification gates every automatic approval); whether the member's own uploads credited to another name stay on the page by default; whether 25 is the right famous-name threshold; whether the team desk needs a screen; and the display of the new notice kinds in the notification centre (another agent's file).
+Decided by Dada on 8 Nov 2026: the famous-name threshold is more than 15; no limits on claims; the team desk gets a screen; the uploader is shown that the recording is on an author page; the new notice kinds go into the notification centre.
+
+Still for Dada: whether an unverified page may approve clear same-name recordings by itself; how fast the team verifies pages (verification gates every automatic approval); whether the member's own uploads credited to another name stay on the page by default.
+
+Share preview of an author page: see `docs/share.md`, "Author page preview".
 
 ## Scenarios that were worked through and tested
 

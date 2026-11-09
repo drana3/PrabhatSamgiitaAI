@@ -33,6 +33,7 @@ import { songCommentsEs } from "./songComments"
 import { chordProposalsEs } from "./chordProposals"
 import { pronunciationEs } from "./pronunciation"
 import { authorsEs } from "./authors"
+import { claimsDeskEs } from "./claimsDesk"
 import { notificationCentreEs } from "./notificationCentre"
 import { listeningEs } from "./listening"
 import { radioEs } from "./radio"
@@ -1308,6 +1309,7 @@ export const es: Dictionary = {
   ...chordProposalsEs,
   ...pronunciationEs,
   ...authorsEs,
+  ...claimsDeskEs,
   ...notificationCentreEs,
   ...searchMenuEs,
   ...listeningEs,

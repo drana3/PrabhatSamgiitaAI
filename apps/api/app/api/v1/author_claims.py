@@ -36,11 +36,15 @@ from app.schemas.author_claims import (
     ClaimSearch,
     ClaimSuggestions,
     ClaimSummary,
+    DeskSummary,
+    ShownOnPagesList,
 )
 from app.services import author_claims as service
 from app.services.recordings import limiter
 
 router = APIRouter(prefix="/authors", tags=["authors"])
+# "My uploads": which of the member's own recordings sit on someone else's author page
+uploads_router = APIRouter(prefix="/recordings/mine", tags=["authors"])
 admin_router = APIRouter(prefix="/admin/authors/claims", tags=["admin"])
 
 # Limits that stop a script, not a person (one place each).
@@ -126,6 +130,11 @@ async def withdraw_claim(claim_id: UUID, session: DatabaseSession, member: Membe
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@uploads_router.get("/author-pages", response_model=ShownOnPagesList)
+async def my_uploads_on_author_pages(session: DatabaseSession, member: Member) -> ShownOnPagesList:
+    return ShownOnPagesList(items=await service.pages_of_my_recordings(session, member.id))
+
+
 @router.get("/me/aliases", response_model=AliasList)
 async def my_aliases(session: DatabaseSession, member: Member) -> AliasList:
     profile = await own_profile(session, member)
@@ -181,6 +190,11 @@ async def desk_list(
     return AdminClaimList(items=items, total=total)
 
 
+@admin_router.get("/summary", response_model=DeskSummary)
+async def desk_summary(session: DatabaseSession, team: Team) -> DeskSummary:
+    return await service.desk_summary(session)
+
+
 async def _decide(
     session: DatabaseSession, team: Team, claim_id: UUID, action: str, note: str | None
 ) -> AdminBulkResult:
@@ -201,7 +215,7 @@ async def desk_bulk(payload: AdminBulk, session: DatabaseSession, team: Team) ->
         changed = await service.admin_decide(
             session,
             None if payload.ids is None else _ids(payload.ids),
-            profile_id=_ids([payload.profile_id])[0],
+            profile_id=_ids([payload.profile_id])[0] if payload.profile_id else None,
             action=payload.action,
             by=_by(team),
             note=payload.note,
@@ -228,3 +242,10 @@ async def desk_revoke(
     claim_id: UUID, payload: AdminDecision, session: DatabaseSession, team: Team
 ) -> AdminBulkResult:
     return await _decide(session, team, claim_id, "revoke", payload.note)
+
+
+@admin_router.post("/{claim_id}/reopen", response_model=AdminBulkResult)
+async def desk_reopen(
+    claim_id: UUID, payload: AdminDecision, session: DatabaseSession, team: Team
+) -> AdminBulkResult:
+    return await _decide(session, team, claim_id, "reopen", payload.note)

@@ -84,7 +84,6 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
   let mode: "some" | "none" = "some"
   let claims: Held[] = []
   let extra: Alias[] = []
-  let paused: string | null = null
   let counter = 0
 
   const library = () => (mode === "none" ? [] : DEMO_LIBRARY)
@@ -154,21 +153,17 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
       })
       counter = claims.length
     },
-    setPaused(until: string | null) {
-      paused = until
-    },
     reset() {
       mode = "some"
       claims = []
       extra = []
-      paused = null
       counter = 0
     },
     api: {
       async claimSummary(): Promise<ClaimSummary> {
         const s = suggestions()
         const open = [...s.same, ...s.alike].filter((c) => c.claim_status === null).length
-        return { suggested: open, pending: claims.filter((c) => c.status === "pending").length, approved: claims.filter((c) => c.status === "approved").length, paused_until: paused }
+        return { suggested: open, pending: claims.filter((c) => c.status === "pending").length, approved: claims.filter((c) => c.status === "approved").length }
       },
       async claimSuggestions(): Promise<ClaimSuggestions> {
         return suggestions()
@@ -189,7 +184,6 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
         return { query: q.trim(), items: page, total: items.length, has_more: offset + 30 < items.length }
       },
       async createClaims(ids: string[]): Promise<ClaimsCreated> {
-        if (paused) throw new RemoteError(429, "Claiming is paused for now", { code: "claims_paused" })
         const results: ClaimResult[] = []
         let approved = 0
         let pending = 0

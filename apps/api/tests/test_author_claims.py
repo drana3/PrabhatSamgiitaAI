@@ -209,7 +209,7 @@ async def test_a_protected_a_famous_and_a_taken_name_go_to_the_team(
     world: World, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     await verified_page(world)
-    monkeypatch.setattr(claims_service, "FAMOUS_RECORDING_COUNT", 3)
+    monkeypatch.setattr(claims_service, "FAMOUS_AFTER", 2)  # more than 2 library recordings
     for i in range(3):
         await world.recording(None, title=f"Library {i}", author="Madhu Vrata")
     rid = await world.recording(MEMBER_B, author="Madhu Vrata")
@@ -441,15 +441,32 @@ async def _claim_ids(world: World) -> list[UUID]:
 # --------------------------------------------------------------------------- limits
 
 
-async def test_claims_per_day_are_capped(world: World, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_there_is_no_daily_number_of_claims(world: World) -> None:
+    """Dada, 2026-11-08: no limit of 30 a day. A person asks for every recording that is theirs."""
+    assert not hasattr(claims_service, "CLAIMS_PER_DAY")
     await world.create()
-    monkeypatch.setattr(claims_service, "CLAIMS_PER_DAY", 2)
-    ids = [await world.recording(MEMBER_B, title=f"T{i}", author="Madhu Vrata") for i in range(3)]
-    r = await world.client.post(
-        CLAIMS, headers=AS["a"], json={"recording_ids": [str(i) for i in ids]}
-    )
-    assert r.status_code == 429 and code(r) == "claims_per_day"
-    assert await world.rows(AuthorClaim) == []  # nothing half done
+    ids = [await world.recording(MEMBER_B, title=f"T{i}", author="Madhu Vrata") for i in range(40)]
+    first = await claim(world, ids[:30])
+    second = await claim(world, ids[30:])
+    assert first["pending"] == 30 and second["pending"] == 10
+    assert len(await world.rows(AuthorClaim)) == 40
+
+
+async def test_a_name_credited_on_more_than_fifteen_library_recordings_is_famous(
+    world: World,
+) -> None:
+    """Dada, 2026-11-08: "famous" is more than 15 library recordings (it was 25)."""
+    assert claims_service.FAMOUS_AFTER == 15
+    await verified_page(world)
+    for i in range(15):
+        await world.recording(None, title=f"Library {i}", author="Madhu Vrata")
+    ok = await world.recording(MEMBER_B, author="Madhu Vrata", title="Mine")
+    # exactly 15 library recordings: not famous yet, the verified page is approved at once
+    assert (await claim(world, [ok]))["results"][0]["outcome"] == "approved"
+    await world.recording(None, title="Library 16", author="Madhu Vrata")
+    again = await world.recording(MEMBER_B, author="Madhu Vrata", title="Mine too")
+    result = (await claim(world, [again]))["results"][0]
+    assert result["outcome"] == "pending" and result["team_reason"] == "famous_name"
 
 
 async def test_too_many_waiting_claims_stop_the_page(
@@ -464,7 +481,8 @@ async def test_too_many_waiting_claims_stop_the_page(
     assert r.status_code == 429 and code(r) == "claims_waiting"
 
 
-async def test_three_refusals_in_a_row_pause_claiming(world: World) -> None:
+async def test_refusals_never_pause_claiming(world: World) -> None:
+    """Dada, 2026-11-08: no pause after three refusals in a row."""
     pid = (await world.create()).json()["id"]
     ids = [await world.recording(MEMBER_B, title=f"T{i}", author="Madhu Vrata") for i in range(4)]
     await claim(world, ids[:3])
@@ -472,9 +490,8 @@ async def test_three_refusals_in_a_row_pause_claiming(world: World) -> None:
         f"{DESK}/bulk", headers=AS_TEAM, json={"profile_id": pid, "action": "reject"}
     )
     summary = (await world.client.get(f"{CLAIMS}/summary", headers=AS["a"])).json()
-    assert summary["paused_until"] is not None
-    r = await world.client.post(CLAIMS, headers=AS["a"], json={"recording_ids": [str(ids[3])]})
-    assert r.status_code == 429 and code(r) == "claims_paused"
+    assert "paused_until" not in summary
+    assert (await claim(world, [ids[3]]))["pending"] == 1
 
 
 async def test_a_suspended_page_cannot_claim(world: World) -> None:
@@ -484,3 +501,109 @@ async def test_a_suspended_page_cannot_claim(world: World) -> None:
     r = await world.client.post(CLAIMS, headers=AS["a"], json={"recording_ids": [str(rid)]})
     assert r.status_code == 403
     assert TEAM
+
+
+# ---------------------------------------------------------------------- the desk screen's calls
+
+
+async def test_the_desk_summary_counts_by_status_and_reason(world: World) -> None:
+    pid = (await world.create()).json()["id"]
+    ids = [await world.recording(MEMBER_B, title=f"T{i}", author="Madhu Vrata") for i in range(3)]
+    await claim(world, ids)
+    assert (await world.client.get(f"{DESK}/summary", headers=AS["a"])).status_code == 403
+    summary = (await world.client.get(f"{DESK}/summary", headers=AS_TEAM)).json()
+    assert summary["pending"] == 3 and summary["by_reason"] == {"unverified_page": 3}
+    await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"profile_id": pid, "action": "reject"}
+    )
+    summary = (await world.client.get(f"{DESK}/summary", headers=AS_TEAM)).json()
+    assert summary["pending"] == 0 and summary["rejected"] == 3 and summary["by_reason"] == {}
+
+
+async def test_the_desk_can_decide_claims_of_several_pages_at_once_and_undo(
+    world: World,
+) -> None:
+    await world.create()
+    await world.create("b", slug="ravi-kiirtan", display_name="Ravi Kiirtan")
+    one = await world.recording(MEMBER_C, title="One", author="Madhu Vrata")
+    two = await world.recording(MEMBER_C, title="Two", author="Ravi Kiirtan")
+    await claim(world, [one], "a")
+    await claim(world, [two], "b")
+    ids = [str(i) for i in await _claim_ids(world)]
+    rejected = await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"action": "reject", "ids": ids}
+    )
+    assert rejected.json() == {"changed": 2}
+    # the undo of a refusal is an approval; the undo of an approval is a revoke
+    approved = await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"action": "approve", "ids": ids}
+    )
+    assert approved.json() == {"changed": 2}
+    assert (await world.get("madhu-vrata", "/recordings")).json()["total"] == 1
+    revoked = await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"action": "revoke", "ids": ids}
+    )
+    assert revoked.json() == {"changed": 2}
+    assert (await world.get("madhu-vrata", "/recordings")).json()["total"] == 0
+    # nothing chosen is an error, an empty list changes nothing
+    assert (
+        await world.client.post(f"{DESK}/bulk", headers=AS_TEAM, json={"action": "approve"})
+    ).status_code == 422
+    empty = await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"action": "approve", "ids": []}
+    )
+    assert empty.json() == {"changed": 0}
+
+
+async def test_the_uploader_sees_which_of_their_recordings_are_on_author_pages(
+    world: World,
+) -> None:
+    pid = (await world.create()).json()["id"]
+    mine = await world.recording(MEMBER_B, title="Mine", author="Madhu Vrata")
+    other = await world.recording(MEMBER_B, title="Other", author="Madhu Vrata")
+    await claim(world, [mine, other])
+    url = "/api/v1/recordings/mine/author-pages"
+    assert (await world.client.get(url, headers=AS["b"])).json() == {"items": []}  # still waiting
+    await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"profile_id": pid, "action": "approve"}
+    )
+    items = (await world.client.get(url, headers=AS["b"])).json()["items"]
+    assert {i["recording_id"] for i in items} == {str(mine), str(other)}
+    page = items[0]["pages"][0]
+    assert page["slug"] == "madhu-vrata" and page["id"] == pid and page["name"]
+    # the page owner's own recordings are not "on somebody else's page"
+    assert (await world.client.get(url, headers=AS["a"])).json() == {"items": []}
+    # the uploader's notice carries what a tap needs, and a taken-off recording leaves the list
+    notice = next(n for n in await notices(world, MEMBER_B) if n.kind == "claim_on_your_recording")
+    assert notice.payload["profile_id"] == pid and notice.payload["profile_slug"] == "madhu-vrata"
+    claim_id = (await world.client.get(CLAIMS, headers=AS["a"])).json()["items"][0]["id"]
+    await world.client.delete(f"{CLAIMS}/{claim_id}", headers=AS["a"])
+    after = (await world.client.get(url, headers=AS["b"])).json()["items"]
+    assert len(after) == 1
+
+
+async def test_the_desk_can_put_a_decision_back_to_waiting_without_telling_anyone(
+    world: World,
+) -> None:
+    pid = (await world.create()).json()["id"]
+    ids = [await world.recording(MEMBER_B, title=f"T{i}", author="Madhu Vrata") for i in range(2)]
+    await claim(world, ids)
+    await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"profile_id": pid, "action": "approve"}
+    )
+    claim_ids = [str(i) for i in await _claim_ids(world)]
+    before = len(await notices(world, MEMBER_A)) + len(await notices(world, MEMBER_B))
+    back = await world.client.post(
+        f"{DESK}/bulk", headers=AS_TEAM, json={"action": "reopen", "ids": claim_ids}
+    )
+    assert back.json() == {"changed": 2}
+    assert (await world.get("madhu-vrata", "/recordings")).json()["total"] == 0
+    waiting = (await world.client.get(DESK, headers=AS_TEAM)).json()
+    assert waiting["total"] == 2 and all(i["decided_by"] is None for i in waiting["items"])
+    assert len(await notices(world, MEMBER_A)) + len(await notices(world, MEMBER_B)) == before
+    # a waiting claim cannot be reopened, and a single one can
+    again = await world.client.post(f"{DESK}/{claim_ids[0]}/reopen", headers=AS_TEAM, json={})
+    assert again.status_code == 409
+    async with world.sessions() as session:
+        actions = [e.action for e in (await session.scalars(select(AuthorClaimEvent))).all()]
+    assert actions.count("reopened") == 2

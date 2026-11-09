@@ -232,7 +232,7 @@ export type ClaimCandidate = {
 
 export type ClaimSuggestions = { names: string[]; same: ClaimCandidate[]; alike: ClaimCandidate[]; total: number }
 export type ClaimSearch = { query: string; items: ClaimCandidate[]; total: number; has_more: boolean }
-export type ClaimSummary = { suggested: number; pending: number; approved: number; paused_until: string | null }
+export type ClaimSummary = { suggested: number; pending: number; approved: number }
 
 export type ClaimOutcome =
   | "approved"

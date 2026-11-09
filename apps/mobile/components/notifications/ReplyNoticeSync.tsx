@@ -1,6 +1,8 @@
 import { useEffect } from "react"
 import { AppState, type AppStateStatus } from "react-native"
 
+import { syncClaimNotices } from "@/lib/authors/claimNotices"
+import { forgetShownOnPages } from "@/lib/authors/onPages"
 import { syncReplyNotices } from "@/lib/comments/replyNotices"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
@@ -16,6 +18,8 @@ async function look(): Promise<void> {
   if (now - lastLook < MIN_GAP_MS) return
   lastLook = now
   await syncReplyNotices()
+  // claims of author pages: decisions for the page owner, "your recording is on a page" for the uploader
+  if ((await syncClaimNotices()) > 0) forgetShownOnPages()
 }
 
 /**

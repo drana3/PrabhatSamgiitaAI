@@ -51,7 +51,7 @@ const API_ERROR_CODES = [
   "slug_too_short", "slug_too_long", "slug_characters", "slug_needs_letter", "slug_reserved", "slug_taken", "slug_quarantined",
   "slug_cooldown", "name_too_short", "text_has_link", "language_unknown", "already_exists", "suspended", "photo_empty",
   "photo_too_big", "photo_type", "link_scheme", "link_url", "link_host", "link_count", "link_repeat", "no_profile", "rate_limited",
-  "bad_id", "alias_invalid", "alias_not_allowed", "alias_taken", "alias_limit", "alias_not_found", "claims_paused", "claims_per_day",
+  "bad_id", "alias_invalid", "alias_not_allowed", "alias_taken", "alias_limit", "alias_not_found",
   "claims_waiting", "claim_not_found", "claim_closed", "page_suspended",
 ]
 // the server's TeamReason, ClaimStatus and MatchLevel (apps/api/app/schemas/author_claims.py)

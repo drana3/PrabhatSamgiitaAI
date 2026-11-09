@@ -68,7 +68,6 @@ class ClaimSummary(BaseModel):
     suggested: int  # recordings to look at (same + alike, not claimed yet)
     pending: int
     approved: int
-    paused_until: datetime | None = None
 
 
 class ClaimsCreate(BaseModel):
@@ -159,11 +158,36 @@ class AdminDecision(BaseModel):
 
 
 class AdminBulk(BaseModel):
-    profile_id: str
-    action: Literal["approve", "reject", "revoke"]
+    # one page (every claim waiting, or the ids given), or none when the ids come from several pages
+    profile_id: str | None = None
+    action: Literal["approve", "reject", "revoke", "reopen"]
     ids: list[str] | None = Field(default=None, max_length=500)  # none = every claim waiting
     note: str | None = Field(default=None, max_length=1000)
 
 
 class AdminBulkResult(BaseModel):
     changed: int
+
+
+class DeskSummary(BaseModel):
+    pending: int
+    approved: int
+    rejected: int
+    revoked: int
+    # the waiting ones per reason (`other` when a claim has none)
+    by_reason: dict[str, int]
+
+
+class ShownPage(BaseModel):
+    id: str
+    slug: str
+    name: str
+
+
+class ShownOnPages(BaseModel):
+    recording_id: str
+    pages: list[ShownPage]
+
+
+class ShownOnPagesList(BaseModel):
+    items: list[ShownOnPages]

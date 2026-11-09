@@ -60,6 +60,8 @@ export const KIND_META = {
   live: { source: "server", tier: "reminder", keepDays: 2, priority: 0, groupable: false, accountBound: false, channel: "team", ios: "active", icon: "radio", tone: "sageDeep", fallback: "/v2/kiirtan" },
   announcement: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: false, accountBound: false, channel: "team", ios: "active", icon: "megaphone", tone: "sand", fallback: "/v2/today" },
   reply: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: true, accountBound: true, channel: "replies", ios: "active", icon: "reply", tone: "sage", fallback: "/v2/songs", groupCount: "replies" },
+  claim: { source: "server", tier: "reminder", keepDays: 90, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "active", icon: "check", tone: "sage", fallback: "/author-claims" },
+  onpage: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "passive", icon: "music", tone: "sage", fallback: "/v2/kiirtan" },
   upload: { source: "server", tier: "important", keepDays: 90, unreadKeepDays: 180, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "active", icon: "music", tone: "warn", fallback: "/v2/kiirtan" },
 } as const satisfies Record<string, KindMeta>
 
