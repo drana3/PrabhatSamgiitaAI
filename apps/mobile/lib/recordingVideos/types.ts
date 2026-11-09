@@ -30,7 +30,12 @@ export type VideoLink = {
   canRemove: boolean
   /** what the last automatic look found; "unknown" when the server did not say (an older server) */
   linkStatus: VideoLinkStatus
+  /** the picture of the video as the server kept it (the site's own image host, https); null/absent when it has none: the app then builds one from the id (lib/recordingVideos/thumbnail.ts) */
+  thumbnailUrl?: string | null
 }
+
+/** What the upload form shows under a typed link, before it is added (GET /video-links/preview). */
+export type VideoPreview = { provider: VideoProvider; url: string; title: string | null; thumbnailUrl: string | null; linkStatus: VideoLinkStatus }
 
 export type VideoList = { items: VideoLink[]; total: number; room: number }
 
@@ -62,5 +67,7 @@ export interface VideosBackend {
   list(target: VideoTarget): Promise<VideoList>
   add(target: VideoTarget, draft: { url: string; title: string | null; isAnonymous: boolean }): Promise<VideoLink>
   remove(videoId: string): Promise<void>
+  /** A look at a link that is not stored yet. Never throws for "no picture": the fields are then null. */
+  preview(url: string): Promise<VideoPreview>
   report(videoId: string, report: { reason: VideoReportReason }): Promise<{ status: "received" | "already_reported" }>
 }

@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TextInput, View } from "react-native"
 
+import { VideoLinkPreview } from "@/components/video/VideoLinkPreview"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -33,6 +34,7 @@ export function VideoLinkField({ theme, value, onChange, disabled }: { theme: So
           style={[s.input, { color: theme.textHeading }]}
         />
       </View>
+      {!problem && value.trim() ? <VideoLinkPreview value={value} textColor={theme.textHeading} /> : null}
       {problem ? (
         <Text style={[s.hint, { color: theme.dangerText }]} accessibilityLiveRegion="polite">
           {videoFailureText(t, problem)}

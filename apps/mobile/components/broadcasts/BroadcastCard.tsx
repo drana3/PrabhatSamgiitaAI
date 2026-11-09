@@ -1,8 +1,9 @@
-import { Image, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import Svg, { Circle, Path } from "react-native-svg"
 
 import { KPress } from "@/components/kirtan/KPress"
 import { LiveMark } from "@/components/broadcasts/LiveMark"
+import { VideoThumb } from "@/components/video/VideoThumb"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useLanguage, useT } from "@/lib/i18n"
@@ -38,7 +39,18 @@ export function BroadcastCard({ item, theme, onPress, width }: { item: Broadcast
       style={[s.card, { backgroundColor: theme.card, borderColor: theme.line }]}
     >
       <View style={[s.picture, { backgroundColor: theme.peach }]}>
-        {thumbnail ? <Image source={{ uri: thumbnail }} style={s.image} accessibilityIgnoresInvertColors /> : <AirGlyph color={theme.accent} />}
+        {thumbnail ? (
+          <VideoThumb
+            video={{ provider: "youtube", url: item.url, thumbnailUrl: thumbnail }}
+            fill
+            radius={0}
+            background={theme.peach}
+            placeholder={<AirGlyph color={theme.accent} />}
+            testID={`broadcast-thumb-${item.id}`}
+          />
+        ) : (
+          <AirGlyph color={theme.accent} />
+        )}
       </View>
       <View style={s.text}>
         <LiveMark phase={phase} theme={theme} day={liveDay(item)} />
@@ -57,7 +69,6 @@ const s = StyleSheet.create({
   fill: { alignSelf: "stretch" },
   card: { borderRadius: 20, borderWidth: 1.5, overflow: "hidden" },
   picture: { height: 120, alignItems: "center", justifyContent: "center" },
-  image: { width: "100%", height: "100%" },
   text: { padding: 16, gap: 8 },
   title: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22 },
   when: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },

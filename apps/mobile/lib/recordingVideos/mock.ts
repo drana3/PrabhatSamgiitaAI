@@ -1,4 +1,5 @@
 import { MAX_PER_MEMBER_PER_TARGET, MAX_PER_TARGET, cleanVideoTitle, parseVideoUrl } from "./rules"
+import { thumbnailSourcesForText } from "./thumbnail"
 import type { VideoFailure, VideoLink, VideoList, VideoReportReason, VideoTarget, VideosBackend } from "./types"
 
 /**
@@ -90,6 +91,11 @@ export function createVideosMock(options: { me: () => string; now?: () => number
         }
       }
       throw new VideoMockFailure("gone")
+    },
+    async preview(url) {
+      const link = parseVideoUrl(url)
+      if (!link.ok) throw new VideoMockFailure(link.failure)
+      return { provider: link.provider, url: link.url, title: null, thumbnailUrl: thumbnailSourcesForText(link.url)[0] ?? null, linkStatus: "unknown" }
     },
     async report(videoId, _report: { reason: VideoReportReason }) {
       if (![...lists.values()].some((items) => items.some((v) => v.id === videoId))) throw new VideoMockFailure("gone")

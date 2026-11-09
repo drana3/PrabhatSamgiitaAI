@@ -20,6 +20,7 @@ import { videoFailureText } from "@/lib/recordingVideos/words"
 import { elapsed, postingAccess } from "@/lib/songComments/rules"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
+import { VideoThumb } from "@/components/video/VideoThumb"
 
 import { DeletePanel, ReportPanel } from "./Panels"
 import { Note, R_CARD, R_FIELD } from "./ui"
@@ -146,9 +147,13 @@ function VideoRow({ t, video, videos, onFlash, watch }: { t: SpTheme; video: Vid
     <View style={[styles.card, { backgroundColor: t.white, borderColor: t.sand400 }]}>
       <View style={styles.head}>
         <SpPress onPress={press} disabled={!openable} accessibilityRole={embed ? "button" : "link"} accessibilityLabel={embed ? tr("recVideos.watch.a11y", { title }) : tr("recVideos.open.a11y", { title, site })} style={styles.main}>
-          <View style={[styles.play, { backgroundColor: t.action }]}>
-            <SpIcon name="play" size={18} color={t.onAction} />
-          </View>
+          <VideoThumb video={video} title={title} width={96} radius={10} compact scrim testID={`video-thumb-${video.id}`}>
+            <View style={styles.thumbOver}>
+              <View style={[styles.playSmall, { backgroundColor: t.action }]}>
+                <SpIcon name="play" size={14} color={t.onAction} />
+              </View>
+            </View>
+          </VideoThumb>
           <View style={styles.text}>
             <Text style={[styles.title, { color: t.ink900 }]} numberOfLines={2}>
               {title}
@@ -225,7 +230,8 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: R_FIELD, padding: 12, gap: 4 },
   head: { flexDirection: "row", alignItems: "center", gap: 8 },
   main: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56 },
-  play: { width: 44, height: 44, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
+  thumbOver: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  playSmall: { width: 28, height: 28, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
   text: { flex: 1, minWidth: 0 },
   title: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
   sub: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },

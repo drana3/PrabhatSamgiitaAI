@@ -11,6 +11,8 @@ import { openExternal } from "@/lib/openLink"
 import { featuredVideo, videoEmbed } from "@/lib/recordingVideos/embed"
 import { providerHost, safeToOpen } from "@/lib/recordingVideos/rules"
 
+import { VideoThumb } from "@/components/video/VideoThumb"
+
 import { Note, R_FIELD } from "./ui"
 import type { VideosController } from "./useVideos"
 import type { VideoWatch } from "./useVideoWatch"
@@ -61,15 +63,21 @@ export function VideoBlock({
                   accessibilityRole={embed ? "button" : "link"}
                   accessibilityLabel={embed ? tr("recVideos.watch.a11y", { title }) : tr("recVideos.open.a11y", { title, site })}
                   pressedScale={0.98}
-                  style={[styles.poster, { backgroundColor: t.ink900 }]}
+                  style={styles.poster}
                 >
-                  <View style={[styles.play, { backgroundColor: t.action }]}>
-                    <SpIcon name="play" size={24} color={t.onAction} />
-                  </View>
-                  <Text style={[styles.posterTitle, { color: t.white }]} numberOfLines={2}>
-                    {title}
-                  </Text>
-                  <Text style={[styles.posterSub, { color: t.sand300 }]}>{embed ? tr("recVideos.watch") : tr("recVideos.openSite", { site })}</Text>
+                  <VideoThumb video={video} title={title} radius={R_FIELD} scrim showTitle={false} testID="recording-video-thumb">
+                    <View style={styles.over}>
+                      <View style={[styles.play, { backgroundColor: t.action }]}>
+                        <SpIcon name="play" size={24} color={t.onAction} />
+                      </View>
+                    </View>
+                    <View style={styles.caption}>
+                      <Text style={[styles.posterTitle, { color: t.white }]} numberOfLines={2}>
+                        {title}
+                      </Text>
+                      <Text style={[styles.posterSub, { color: t.sand300 }]}>{embed ? tr("recVideos.watch") : tr("recVideos.openSite", { site })}</Text>
+                    </View>
+                  </VideoThumb>
                 </SpPress>
               )}
               {video.linkStatus === "no_embed" ? <Note t={t} tone="body">{tr("recVideos.status.noEmbed", { site })}</Note> : null}
@@ -98,9 +106,11 @@ export function VideoBlock({
 }
 
 const styles = StyleSheet.create({
-  poster: { minHeight: 160, borderRadius: R_FIELD, padding: 16, gap: 8, alignItems: "center", justifyContent: "center" },
+  poster: { borderRadius: R_FIELD },
+  over: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", paddingBottom: 28 },
+  caption: { position: "absolute", left: 16, right: 16, bottom: 12, gap: 2 },
   play: { width: 56, height: 56, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
-  posterTitle: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22, textAlign: "center" },
+  posterTitle: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
   posterSub: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
   line: { borderWidth: 1, borderRadius: R_FIELD, padding: 16, gap: 4 },
   lineText: { fontFamily: amFonts.bold, fontSize: 18, lineHeight: 26 },

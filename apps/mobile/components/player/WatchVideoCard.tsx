@@ -10,6 +10,8 @@ import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import type { SongVideo } from "@/data/mock"
+import { VideoThumb } from "@/components/video/VideoThumb"
+import { subjectFromUrl } from "@/lib/recordingVideos/thumbnail"
 import { toInAppVideoEmbedUrl, youtubeEmbedWebSource, YOUTUBE_EMBED_REFERER } from "@/lib/mediaEmbed"
 import { usePlayerStore } from "@/stores/playerStore"
 
@@ -110,7 +112,15 @@ export function WatchVideoCard({ video, songNumber, compact = false, onPlayingCh
         pressed && embedUrl && { opacity: 0.94, transform: [{ scale: 0.99 }] },
       ]}
     >
-      <Image source={{ uri: video.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      <View style={StyleSheet.absoluteFill}>
+        <VideoThumb
+          video={subjectFromUrl(video.url) ?? { provider: "youtube", url: video.url }}
+          fill
+          radius={0}
+          showTitle={false}
+          placeholder={<Image source={{ uri: video.thumbnailUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+        />
+      </View>
       <LinearGradient
         colors={["rgba(20,14,10,0.1)", "rgba(20,14,10,0.72)"]}
         style={StyleSheet.absoluteFill}

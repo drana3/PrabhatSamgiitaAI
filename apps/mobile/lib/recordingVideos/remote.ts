@@ -1,7 +1,8 @@
 import { NetworkError, RemoteError, type RemoteConfig } from "@/lib/kirtan/remote"
 import { callFor } from "@/lib/recordingExtras/http"
 
-import type { VideoFailure, VideoLink, VideoLinkStatus, VideoList, VideoProvider, VideoReportReason, VideoTarget, VideosBackend } from "./types"
+import { safeThumbnailUrl } from "./thumbnail"
+import type { VideoFailure, VideoLink, VideoLinkStatus, VideoList, VideoPreview, VideoProvider, VideoReportReason, VideoTarget, VideosBackend } from "./types"
 
 /** The phone's side of the video links API (apps/api `/api/v1/video-links`). */
 const call = callFor("/api/v1/video-links")
@@ -18,6 +19,16 @@ export type WireVideo = {
   mine: boolean
   can_remove: boolean
   link_status?: VideoLinkStatus
+  thumbnail_url?: string | null
+}
+
+/** `VideoPreview` of the API. */
+export type WirePreview = { provider: VideoProvider; url: string; title: string | null; thumbnail_url: string | null; link_status?: VideoLinkStatus }
+
+const statusOf = (value: unknown): VideoLinkStatus => (value === "ok" || value === "no_embed" || value === "unavailable" ? value : "unknown")
+
+export function previewFromWire(w: WirePreview): VideoPreview {
+  return { provider: w.provider, url: w.url, title: w.title ?? null, thumbnailUrl: safeThumbnailUrl(w.provider, w.thumbnail_url), linkStatus: statusOf(w.link_status) }
 }
 
 /** Wire to app. An anonymous link keeps `author: null` whatever else the answer carries. */
@@ -32,7 +43,8 @@ export function videoFromWire(w: WireVideo): VideoLink {
     author: w.is_anonymous || !w.author ? null : { name: w.author.name, avatarUrl: w.author.avatar_url ?? null },
     mine: Boolean(w.mine),
     canRemove: Boolean(w.can_remove),
-    linkStatus: w.link_status === "ok" || w.link_status === "no_embed" || w.link_status === "unavailable" ? w.link_status : "unknown",
+    linkStatus: statusOf(w.link_status),
+    thumbnailUrl: safeThumbnailUrl(w.provider, w.thumbnail_url),
   }
 }
 
@@ -51,6 +63,9 @@ export function videosRemote(cfg: RemoteConfig): VideosBackend {
     },
     async remove(videoId) {
       await call<void>(cfg, "DELETE", `/${encodeURIComponent(videoId)}`)
+    },
+    async preview(url) {
+      return previewFromWire(await call<WirePreview>(cfg, "GET", `/preview?url=${encodeURIComponent(url)}`))
     },
     async report(videoId, report: { reason: VideoReportReason }) {
       return call<{ status: "received" | "already_reported" }>(cfg, "POST", `/${encodeURIComponent(videoId)}/report`, { reason: report.reason })

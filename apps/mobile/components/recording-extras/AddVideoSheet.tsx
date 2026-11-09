@@ -13,6 +13,8 @@ import type { VideoFailure } from "@/lib/recordingVideos/types"
 import { videoFailureText } from "@/lib/recordingVideos/words"
 import { useAuthStore } from "@/stores/authStore"
 
+import { VideoLinkPreview } from "@/components/video/VideoLinkPreview"
+
 import { CheckLine, Note, R_FIELD } from "./ui"
 import type { VideosController } from "./useVideos"
 
@@ -89,6 +91,7 @@ export function AddVideoSheet({ t, visible, onClose, videos, onAdded }: { t: SpT
           style={[styles.field, webField, { color: t.ink900, backgroundColor: t.white, borderColor: problem && url.trim() ? t.dangerText : t.sand400 }]}
         />
         {parsed?.ok && !failure ? <Note t={t} tone="body">{tr("recVideos.looksGood", { site: providerHost(parsed.provider) })}</Note> : null}
+        {parsed?.ok ? <VideoLinkPreview value={url} textColor={t.ink900} /> : null}
 
         <Text style={[styles.label, { color: t.ink900 }]}>{tr("recVideos.title.label")}</Text>
         <TextInput
