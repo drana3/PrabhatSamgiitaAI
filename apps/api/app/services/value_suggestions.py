@@ -1,8 +1,9 @@
-"""The team's queue of words authors write under "Add your own" (a main instrument, a style).
+"""The team's queue of words authors write under "Add your own" (instrument, style, language).
 
 Dada, 8 Nov 2026: a custom value goes to a suggestion queue. The author sees the word at once; the
 team accepts it, merges it into a listed value or rejects it; the word is normalized; one person may
-bring at most three NEW words a week; only an instrument and a style work this way.
+bring at most three NEW words a week; an instrument, a style and a language work this way (a
+language is "Add a language" in the language list; its code is `other`, its word `language_other`).
 
 Normalization (`normalized_key`): case, spaces, punctuation, marks and accents do not matter, so
 "Harmonium", " harmonium." and "HÁRMONIUM" are one word. A word that IS a listed value ("piano",
@@ -39,11 +40,13 @@ from app.models.recordings import (
 )
 from app.services.invisible_text import strip_invisible
 from app.services.recording_instruments import INSTRUMENTS, NAMES, OTHER_MAX, OTHER_MIN
+from app.services.recording_languages import LANGUAGE_CODES, LANGUAGE_OTHER_MAX, LANGUAGES
 from app.services.recording_styles import STYLES
 
 INSTRUMENT = "instrument"
 STYLE = "style"
-FIELDS = (INSTRUMENT, STYLE)
+LANGUAGE = "language"
+FIELDS = (INSTRUMENT, STYLE, LANGUAGE)
 # One person may bring this many NEW words in any seven days (words already in the queue are free).
 NEW_WORDS_PER_WEEK = 3
 WEEK = timedelta(days=7)
@@ -60,21 +63,37 @@ def normalized_key(text: str | None) -> str:
     return " ".join(letters.split())[:80]
 
 
-def clean_word(text: str | None) -> str:
-    """The word as it is stored: one printable line, 2 to 40 characters. ValueError otherwise."""
+def max_length(field: str) -> int:
+    """A language name may be longer (80) than an instrument or a style (40)."""
+    return LANGUAGE_OTHER_MAX if field == LANGUAGE else OTHER_MAX
+
+
+def clean_word(text: str | None, maximum: int = OTHER_MAX) -> str:
+    """The word as stored: one printable line, 2 to `maximum` characters. ValueError otherwise."""
     kept = "".join(ch for ch in strip_invisible(text or "") if ch.isprintable() or ch.isspace())
     word = " ".join(kept.split())
     if len(word) < OTHER_MIN:
         raise ValueError(f"Write at least {OTHER_MIN} letters.")
-    if len(word) > OTHER_MAX:
-        raise ValueError(f"Write at most {OTHER_MAX} characters.")
+    if len(word) > maximum:
+        raise ValueError(f"Write at most {maximum} characters.")
     return word
+
+
+def valid_codes(field: str) -> tuple[str, ...]:
+    """The listed values of a field: what a word can be merged into."""
+    if field == INSTRUMENT:
+        return INSTRUMENTS
+    if field == LANGUAGE:
+        return LANGUAGE_CODES
+    return tuple(STYLES)
 
 
 def listed_names(field: str) -> dict[str, tuple[str, ...]]:
     """Each listed code with the words that mean it (English)."""
     if field == INSTRUMENT:
         return NAMES
+    if field == LANGUAGE:
+        return {code: (name,) for code, name in LANGUAGES}
     return {code: (code,) for code in STYLES}
 
 
@@ -84,7 +103,8 @@ def listed_code(field: str, text: str | None) -> str | None:
     if not key:
         return None
     for code, names in listed_names(field).items():
-        if key == normalized_key(code.replace("_", " ")):
+        # a language code ("or", "my") is not a word a person writes
+        if field != LANGUAGE and key == normalized_key(code.replace("_", " ")):
             return code
         if key in {normalized_key(name) for name in names}:
             return code
@@ -98,7 +118,8 @@ def similar_code(field: str, text: str | None) -> str | None:
         return None
     best: tuple[float, str] | None = None
     for code, names in listed_names(field).items():
-        for name in (code.replace("_", " "), *names):
+        words = names if field == LANGUAGE else (code.replace("_", " "), *names)
+        for name in words:
             ratio = difflib.SequenceMatcher(None, key, normalized_key(name)).ratio()
             if ratio >= SIMILAR_RATIO and (best is None or ratio > best[0]):
                 best = (ratio, code)
@@ -123,7 +144,7 @@ class Resolved:
 
 async def resolve_word(session: AsyncSession, field: str, text: str | None) -> Resolved:
     """Look the word up. Raises ValueError for a word that is too short or too long."""
-    label = clean_word(text)
+    label = clean_word(text, max_length(field))
     key = normalized_key(label)
     if len(key) < OTHER_MIN:
         raise ValueError(f"Write at least {OTHER_MIN} letters.")
@@ -234,6 +255,8 @@ async def list_suggestions(
 def _recording_field_names(field: str) -> tuple[str, str]:
     if field == INSTRUMENT:
         return ("lead_instrument", "lead_instrument_other")
+    if field == LANGUAGE:
+        return ("language", "language_other")
     return ("style", "style_other")
 
 
@@ -272,7 +295,7 @@ async def decide(
     if action == "accept":
         if label:
             try:
-                row.label = clean_word(label)
+                row.label = clean_word(label, max_length(row.field))
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
         row.status = "accepted"
@@ -282,7 +305,7 @@ async def decide(
                 if row.field == INSTRUMENT:
                     rec.lead_instrument_checked = True
     elif action == "merge":
-        if merge_into not in (INSTRUMENTS if row.field == INSTRUMENT else STYLES):
+        if merge_into not in valid_codes(row.field):
             raise HTTPException(status_code=422, detail="Choose the listed value to merge into.")
         row.status = "merged"
         row.merged_into = merge_into
@@ -300,11 +323,16 @@ async def decide(
                     rec.lead_instrument = None
                     rec.lead_instrument_other = None
                     rec.lead_instrument_checked = False
+                elif row.field == LANGUAGE:
+                    # a required language stays "other", without the name
+                    rec.language_other = None
                 else:
                     # a Kiirtan must keep a style: it stays "other", without the word
                     rec.style_other = None
                 if rec.author_id is not None:
-                    what = "main instrument" if row.field == INSTRUMENT else "style"
+                    what = {INSTRUMENT: "main instrument", LANGUAGE: "language"}.get(
+                        row.field, "style"
+                    )
                     notice = MemberNotice(
                         user_id=rec.author_id,
                         kind="value_rejected",

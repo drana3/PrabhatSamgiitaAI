@@ -605,20 +605,25 @@ async def inspect_stored_file(
 
 async def _custom_values(
     session: AsyncSession, member_id: UUID, payload: RecordingCreate, *, team: bool
-) -> tuple[str | None, str | None, str | None, str | None, list[words.Resolved]]:
-    """The style and main instrument as they will be stored, and the words for the team's queue.
+) -> tuple[
+    str | None, str | None, str | None, str | None, str | None, str | None, list[words.Resolved]
+]:
+    """The style, main instrument and language as they will be stored, and the words for the queue.
 
     A word the team merged is swapped for its listed value; a word they rejected is refused (422);
     a NEW word counts against the three a week (429). Nothing is written here.
     """
     style, style_other = payload.style, payload.style_other
     lead, lead_other = payload.lead_instrument, payload.lead_instrument_other
+    language, language_other = payload.language, payload.language_other
     custom: list[words.Resolved] = []
     asked = []
     if payload.kind == "kiirtan" and style == OTHER:
         asked.append((words.STYLE, style_other))
     if keeps_instrument(payload.kind) and lead == OTHER:
         asked.append((words.INSTRUMENT, lead_other))
+    if language == OTHER:
+        asked.append((words.LANGUAGE, language_other))
     fresh = 0
     for field, text in asked:
         try:
@@ -629,6 +634,8 @@ async def _custom_values(
         if resolved.kind in ("listed", "merged"):
             if field == words.STYLE:
                 style, style_other = resolved.code, None
+            elif field == words.LANGUAGE:
+                language, language_other = resolved.code, None
             else:
                 lead, lead_other = resolved.code, None
             continue
@@ -637,11 +644,13 @@ async def _custom_values(
         # the word as the queue spells it ("dilruba" is stored as the first "Dilruba")
         if field == words.STYLE:
             style_other = resolved.label
+        elif field == words.LANGUAGE:
+            language_other = resolved.label
         else:
             lead_other = resolved.label
         custom.append(resolved)
     await words.ensure_allowance(session, member_id, fresh, team=team)
-    return style, style_other, lead, lead_other, custom
+    return style, style_other, lead, lead_other, language, language_other, custom
 
 
 async def create_recording(
@@ -696,7 +705,7 @@ async def create_recording(
 
     # A word written under "Add your own" (a style, a main instrument): looked up and counted
     # before the file is touched, so a refused word leaves the upload exactly as it was.
-    style, style_other, lead, lead_other, custom = await _custom_values(
+    style, style_other, lead, lead_other, language, language_other, custom = await _custom_values(
         session, member_id, payload, team=team
     )
 
@@ -781,8 +790,8 @@ async def create_recording(
         published_at=moment,
         duplicate_of=similar[0][0].id if similar else None,
         year=payload.year,
-        language=payload.language,  # None for a Kiirtan (the schema drops it)
-        language_other=payload.language_other,
+        language=language,  # None for a Kiirtan (the schema drops it)
+        language_other=language_other,
         style=style if payload.kind == "kiirtan" else None,
         style_other=style_other if payload.kind == "kiirtan" else None,
         practice=payload.practice if payload.kind == "kiirtan" else None,

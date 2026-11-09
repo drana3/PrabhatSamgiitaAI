@@ -35,7 +35,14 @@ from app.services.recording_languages import (
 )
 from app.services.recording_practice import normalize_practice
 from app.services.recording_styles import clean_style_other, normalize_style
-from app.services.value_suggestions import INSTRUMENT, STYLE, clean_word, listed_code
+from app.services.value_suggestions import (
+    INSTRUMENT,
+    LANGUAGE,
+    STYLE,
+    clean_word,
+    listed_code,
+    max_length,
+)
 
 # The category of a recording. "kiirtan" is Baba Nam Kevalam (the only mantra of the library),
 # "prabhat_samgiita" is a performance of one Prabhat Samgiita song (`ps_song_number`),
@@ -120,7 +127,7 @@ def _custom_word(field: str, text: str | None, empty_message: str | None) -> tup
         if empty_message is None:
             return OTHER, None  # the style rule above already asks for the name
         raise ValueError(empty_message)
-    word = clean_word(text)
+    word = clean_word(text, max_length(field))
     code = listed_code(field, word)
     return (code, None) if code else (OTHER, word)
 
@@ -308,9 +315,14 @@ class RecordingCreate(BaseModel):
         if self.collection_id is None and self.kind != "baba_audio" and not self.author.strip():
             raise ValueError("Add who performs it.")
         # The free-text name only goes with "other", and is cleaned before it is stored.
-        self.language_other = (
-            clean_language_other(self.language_other) if self.language == OTHER else None
-        )
+        # A written language goes through the same queue as an instrument: a name that IS a listed
+        # language ("Russian") becomes its code, the rest is cleaned and stays "other" + the name.
+        if self.language == OTHER and (self.language_other or "").strip():
+            self.language, self.language_other = _custom_word(LANGUAGE, self.language_other, None)
+        else:
+            self.language_other = (
+                clean_language_other(self.language_other) if self.language == OTHER else None
+            )
         # A track of a playlist may take its language or dance from the playlist, so the service
         # checks it after the defaults are in; a plain upload is checked here.
         if self.collection_id is None:
@@ -358,9 +370,14 @@ class LanguageSet(BaseModel):
 
     @model_validator(mode="after")
     def _other_has_its_name(self) -> Self:
-        self.language_other = (
-            clean_language_other(self.language_other) if self.language == OTHER else None
-        )
+        # A written language goes through the same queue as an instrument: a name that IS a listed
+        # language ("Russian") becomes its code, the rest is cleaned and stays "other" + the name.
+        if self.language == OTHER and (self.language_other or "").strip():
+            self.language, self.language_other = _custom_word(LANGUAGE, self.language_other, None)
+        else:
+            self.language_other = (
+                clean_language_other(self.language_other) if self.language == OTHER else None
+            )
         if self.language == OTHER and not self.language_other:
             raise ValueError("Write the name of the language.")
         return self

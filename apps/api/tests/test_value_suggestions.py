@@ -430,3 +430,109 @@ async def test_uses_are_counted_per_recording(world: World) -> None:
         uses = (await session.scalars(select(ValueSuggestionUse))).all()
         recs = (await session.scalars(select(Recording))).all()
     assert len(uses) == 2 and {u.recording_id for u in uses} == {r.id for r in recs}
+
+
+# --------------------------------------------------------------------------- "Add a language"
+
+
+def test_a_listed_language_typed_as_text_is_its_code_and_a_near_one_is_hinted() -> None:
+    assert listed_code("language", "Russian") == "ru"
+    assert listed_code("language", " old  CHURCH slavonic") is None
+    # a two-letter code is not a word a person writes
+    assert listed_code("language", "or") is None
+    assert similar_code("language", "Bengalli") == "bn"
+    assert similar_code("language", "Old Church Slavonic") is None
+    # a language name may be 80 characters, an instrument or a style 40
+    assert clean_word("y" * 80, 80) == "y" * 80
+    with pytest.raises(ValueError):
+        clean_word("y" * 81, 80)
+
+
+async def _bhajan(world: World, who: str, seed: int, word: str):  # type: ignore[no-untyped-def]
+    return await world.publish(
+        who, mp3(seed), kind="bhajan", language="other", language_other=word, style=None
+    )
+
+
+async def test_a_written_language_is_seen_at_once_and_waits_in_the_same_queue(
+    world: World,
+) -> None:
+    made = await _bhajan(world, "a", 3600, "Old Church Slavonic")
+    assert made.status_code == 201, made.text
+    assert (made.json()["language"], made.json()["language_other"]) == (
+        "other",
+        "Old Church Slavonic",
+    )
+    row = await world.scalar(select(ValueSuggestion))
+    assert (row.field, row.key, row.status) == ("language", "old church slavonic", "pending")
+    # the same word from another person is the same row
+    again = await _bhajan(world, "b", 3601, " old church SLAVONIC. ")
+    assert again.status_code == 201
+    async with world.sessions() as session:
+        rows = (await session.scalars(select(ValueSuggestion))).all()
+    assert len(rows) == 1 and rows[0].people_count == 2
+
+
+async def test_a_listed_language_written_under_other_becomes_its_code(world: World) -> None:
+    made = await _bhajan(world, "a", 3610, "Russian")
+    assert made.status_code == 201, made.text
+    assert (made.json()["language"], made.json()["language_other"]) == ("ru", None)
+    assert await world.scalar(select(ValueSuggestion)) is None
+
+
+async def test_a_language_counts_against_the_three_new_words_a_week(world: World) -> None:
+    for i, word in enumerate(("Aaaa", "Bbbb", "Cccc")):
+        assert (await _bhajan(world, "a", 3620 + i, word)).status_code == 201
+    # the style's Other and the instrument's Add your own are in the same count
+    blocked = await _bhajan(world, "a", 3630, "Dddd")
+    assert blocked.status_code == 429
+    free = await _bhajan(world, "a", 3631, "aaaa")  # a word already in the queue is free
+    assert free.status_code == 201, free.text
+
+
+async def test_a_language_name_may_be_longer_than_forty_characters(world: World) -> None:
+    long_name = "Old Church Slavonic of the Kievan Rus " * 2
+    made = await _bhajan(world, "a", 3640, long_name.strip()[:70])
+    assert made.status_code == 201, made.text
+
+
+async def test_merging_a_language_gives_the_recordings_its_code(world: World, as_team) -> None:  # type: ignore[no-untyped-def]
+    made = await _bhajan(world, "a", 3650, "Russkiy yazyk")
+    row = await world.scalar(select(ValueSuggestion))
+    bad = await world.client.post(
+        f"{QUEUE}/{row.id}/decision", headers=as_team, json={"action": "merge", "merge_into": "xx"}
+    )
+    assert bad.status_code == 422
+    done = await world.client.post(
+        f"{QUEUE}/{row.id}/decision", headers=as_team, json={"action": "merge", "merge_into": "ru"}
+    )
+    assert done.status_code == 200 and done.json()["field"] == "language"
+    got = (await world.client.get(f"/api/v1/recordings/{made.json()['id']}", headers=AS_A)).json()
+    assert (got["language"], got["language_other"]) == ("ru", None)
+
+
+async def test_rejecting_a_language_keeps_it_other_without_the_name_and_tells_the_author(
+    world: World,
+    as_team,  # type: ignore[no-untyped-def]
+) -> None:
+    made = await _bhajan(world, "a", 3660, "Nonsense")
+    row = await world.scalar(select(ValueSuggestion))
+    done = await world.client.post(
+        f"{QUEUE}/{row.id}/decision", headers=as_team, json={"action": "reject"}
+    )
+    assert done.status_code == 200
+    got = (await world.client.get(f"/api/v1/recordings/{made.json()['id']}", headers=AS_A)).json()
+    assert (got["language"], got["language_other"]) == ("other", None)
+    async with world.sessions() as session:
+        notice = (await session.scalars(select(MemberNotice))).one()
+    assert "language" in notice.body and "Nonsense" in notice.body
+    again = await _bhajan(world, "b", 3661, "nonsense")
+    assert again.status_code == 422
+
+
+async def test_the_options_and_the_queue_know_the_language_field(world: World, as_team) -> None:  # type: ignore[no-untyped-def]
+    got = await world.client.get(OPTIONS, params={"field": "language"})
+    assert got.status_code == 200 and got.json()["field"] == "language"
+    await _bhajan(world, "a", 3670, "Pali")
+    queue = await world.client.get(QUEUE, headers=as_team, params={"field": "language"})
+    assert [i["label"] for i in queue.json()["items"]] == ["Pali"]

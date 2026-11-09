@@ -360,7 +360,7 @@ class MemberNotice(Base, TimestampMixin):
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
-SUGGESTION_FIELDS = ("instrument", "style")
+SUGGESTION_FIELDS = ("instrument", "style", "language")
 SUGGESTION_STATUSES = ("pending", "accepted", "merged", "rejected")
 
 
@@ -376,7 +376,9 @@ class ValueSuggestion(Base, TimestampMixin):
     __tablename__ = "value_suggestions"
     __table_args__ = (
         UniqueConstraint("field", "key", name="uq_value_suggestions_word"),
-        CheckConstraint("field IN ('instrument', 'style')", name="ck_value_suggestions_field"),
+        CheckConstraint(
+            "field IN ('instrument', 'style', 'language')", name="ck_value_suggestions_field"
+        ),
         CheckConstraint(
             "status IN ('pending', 'accepted', 'merged', 'rejected')",
             name="ck_value_suggestions_status",

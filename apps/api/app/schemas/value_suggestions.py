@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Field_ = Literal["instrument", "style"]
+Field_ = Literal["instrument", "style", "language"]
 Status = Literal["pending", "accepted", "merged", "rejected"]
 
 
