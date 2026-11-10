@@ -49,7 +49,7 @@ on the system). Not Neon itself.
   `PG_REHEARSAL_URL=postgresql+psycopg://user:pw@host/scratch_db PYTHONPATH=tests .venv/bin/python -m pytest -p pg_rehearsal -q`
   (the database name must contain `rehearsal` or `scratch`; the plugin refuses anything else).
 * **What the 68 are** (checked one by one by their first error line; none is a bug in the running app):
-  * 49 are in files named `*_migration*`: they test migrations on SQLite with Alembic batch mode, `PRAGMA` or raw
+  * 53 are migration tests (49 in files named `*_migration*`, 4 more in song_chords, song_comments, recording_info): they test migrations on SQLite with Alembic batch mode, `PRAGMA` or raw
     SQLite statements (`type "datetime" does not exist`, `PRAGMA foreign_keys=ON`);
   * 6 errors in `test_account_deletion.py`: its fixture runs `PRAGMA foreign_keys=ON` (SQLite only);
   * `test_play_fraud` (2) and `test_song_translations` (1): the test writes made-up keys longer than the column
