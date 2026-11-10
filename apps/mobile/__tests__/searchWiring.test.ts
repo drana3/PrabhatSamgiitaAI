@@ -60,7 +60,10 @@ function hrefLiterals(file: string): string[] {
 
 const SEARCH_FILES = [
   "app/search-v2.tsx",
+  "app/search-browse.tsx",
   "components/search-v2/BrowseBlocks.tsx",
+  "components/search-v2/SearchCards.tsx",
+  "components/search-v2/NothingFound.tsx",
   "components/search-v2/SearchBlocks.tsx",
   "components/search-v2/StoryResults.tsx",
   "hooks/useKirtanActions.ts",

@@ -4,6 +4,8 @@
  * come from the app's own dictionaries. English is the source of truth; ru and es mirror it key for key.
  * "Kiirtan" is spelled with two i's in English.
  */
+import { searchCardsEn, searchCardsEs, searchCardsRu } from "./searchCards"
+
 export const searchMenuEn = {
   "searchMenu.new.title": "New this month",
   "searchMenu.mostPlayed.title": "Most played",
@@ -65,6 +67,7 @@ export const searchMenuEn = {
   "mood.ecstatic": "Ecstatic",
   "mood.devotion": "Devotion",
   "mood.sad": "Sad",
+  ...searchCardsEn,
 } as const
 
 export const searchMenuRu = {
@@ -130,6 +133,7 @@ export const searchMenuRu = {
   "mood.ecstatic": "Экстатическое",
   "mood.devotion": "Преданность",
   "mood.sad": "Грустное",
+  ...searchCardsRu,
 } as const
 
 export const searchMenuEs = {
@@ -193,4 +197,5 @@ export const searchMenuEs = {
   "mood.ecstatic": "Extático",
   "mood.devotion": "Devoción",
   "mood.sad": "Triste",
+  ...searchCardsEs,
 } as const

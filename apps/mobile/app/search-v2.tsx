@@ -9,11 +9,13 @@ import {
   AnswerCard,
   CollectionChips,
   DetectLabel,
-  EmptyMessage,
   ResultList,
 } from "@/components/search-v2/SearchBlocks"
 import { SearchHeader } from "@/components/search-v2/BrowseBlocks"
-import { SearchMenuView } from "@/components/search-v2/SearchMenuView"
+import { ChordGroups, ChordsBar, ChordsNote } from "@/components/search-v2/ChordsParts"
+import { FiltersButton, FiltersPanel } from "@/components/search-v2/FiltersParts"
+import { NothingFound } from "@/components/search-v2/NothingFound"
+import { SearchCards } from "@/components/search-v2/SearchCards"
 import { AuthorsSearchBlock } from "@/components/authors/AuthorsSearchBlock"
 import { StoryResults } from "@/components/search-v2/StoryResults"
 import { ArtistChip } from "@/components/kirtan/ArtistParts"
@@ -24,8 +26,8 @@ import { Toast } from "@/components/songs-v2/Toast"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useKirtans } from "@/hooks/useKirtans"
+import { useSearchCardsData } from "@/hooks/useSearchCardsData"
 import { useSearchMenu } from "@/hooks/useSearchMenu"
-import { playHistoryEntry } from "@/lib/listening/playAgain"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsWithChords } from "@/hooks/useSongsWithChords"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
@@ -41,22 +43,26 @@ import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { api } from "@/lib/client"
 import { flattenResults } from "@/lib/searchProto"
+import { MOCK_SONGS_WITH_CHORDS } from "@/lib/fixtures/chordsMock"
 import { MOCK_OFFLINE } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { SEARCH_DISCOVER, SEARCH_TOP_TILES } from "@/lib/fixtures/home"
-import { browseKindTiles, realCollectionEntries } from "@/lib/searchBrowse"
-import { kindLabel } from "@/lib/songsV2/collectionsIndex"
+import { buildSearchCards, type SearchCard } from "@/lib/searchCards/cards"
+import { chordsModeAfterQuery, initialChordsMode, splitByChords, toggleChordsMode, type ChordsMode } from "@/lib/searchCards/chordsMode"
+import { applyFilters, buildFilterRows, selectedCount, toggleFilter, type FilterSelection } from "@/lib/searchCards/filters"
+import { buildSearchBy } from "@/lib/searchMenu/searchBy"
+import { shelfItems } from "@/lib/searchMenu/live"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
-  rankSearchByChords,
   searchLocal,
   type SearchResultItem,
   type UnifiedResult,
 } from "@/lib/unifiedSearch"
 import { useOfflineAudioStore } from "@/lib/offlineAudio"
+import { wantsChords } from "@/lib/songsV2/chordsFirst"
 import { hintLine, outOfRangeMessage, parseSearchParams, withoutRecent } from "@/lib/unifiedSearchQuery"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
+import { useAuthStore } from "@/stores/authStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
@@ -99,6 +105,7 @@ export default function UnifiedSearchScreen() {
   const top = insets.top || amProto.statusArea
   const navigation = useNavigation()
   const hasSong = usePlayerStore((st) => Boolean(st.currentSong))
+  const authMode = useAuthStore((st) => st.mode)
   // Search is a page of the tab it was opened from: the bar stays under it with that tab marked (none if opened directly).
   const underTab = useMemo<NavV2TabId | null>(() => {
     const state = navigation.getState()
@@ -200,12 +207,20 @@ export default function UnifiedSearchScreen() {
     }
   }, [local.query, local.wantsMeaning])
 
-  // a guitar-ish word in the query ("guitar", "chords", "capo", "гитара", "аккорды") ranks the songs with chords first
-  const songsWithChords = useSongsWithChords()
-  const result = useMemo(
-    () => rankSearchByChords(meaning.query === local.query ? mergeMeaningRows(local, meaning.rows) : local, songsWithChords),
-    [local, meaning, songsWithChords],
-  )
+  // "Songs with chords first": on by itself when the query has a guitar-ish word ("guitar", "chords", "capo", "гитара",
+  // "аккорды"), one tap turns it off (lib/searchCards/chordsMode.ts). The songs with chords become their own block on top.
+  // In the browser preview the server's list is not read, so a small sample stands in (lib/fixtures/chordsMock.ts).
+  const serverChords = useSongsWithChords()
+  const songsWithChords = serverChords ?? (MOCKUP_DATA ? MOCK_SONGS_WITH_CHORDS : null)
+  const [chords, setChords] = useState<ChordsMode>(() => initialChordsMode(parsed.query))
+  const lastQuery = useRef(query)
+  useEffect(() => {
+    // read the old query now: the updater below runs later, after the ref has moved on
+    const before = lastQuery.current
+    lastQuery.current = query
+    setChords((prev) => chordsModeAfterQuery(prev, before, query))
+  }, [query])
+  const result = useMemo(() => (meaning.query === local.query ? mergeMeaningRows(local, meaning.rows) : local), [local, meaning])
   const waitingForMeaning = !MOCKUP_DATA && meaning.pending && meaning.query === local.query
   const guestMeaning = !MOCKUP_DATA && Boolean(meaning.guest) && meaning.query === local.query
 
@@ -291,6 +306,8 @@ export default function UnifiedSearchScreen() {
     () => result.groups.flatMap((group) => group.collections ?? []),
     [result.groups],
   )
+  const split = useMemo(() => splitByChords(rows, (row) => Number(row.item.song.number), songsWithChords), [rows, songsWithChords])
+  const chordsAsked = wantsChords(query)
 
   // `.search`: the overlay drops in from 8dp above, 220ms (animation: searchin)
   const drop = useSharedValue(reduce ? 1 : 0)
@@ -301,10 +318,33 @@ export default function UnifiedSearchScreen() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` re-reads the scope labels when the language changes
   const scopeItems = useMemo(() => SEARCH_SCOPES.map((item) => ({ id: item.id, label: item.label })), [t])
-  // "Browse all": one tile per kind of collection the app really has (never a tile without a page behind it)
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` re-reads the kind names when the language changes
-  const kindTiles = useMemo(() => browseKindTiles(realCollectionEntries(), (kind) => kindLabel(kind, true)), [t])
-  const kirtanHits = useMemo(() => searchKirtans(kirtanCatalog, query, scope === "all" ? 5 : 50), [kirtanCatalog, query, scope])
+  // the five wide cards of the empty page, and the pages behind them: what the app really holds, nothing made up
+  const cardsData = useSearchCardsData(menu)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` re-reads the card names when the language changes
+  const cards = useMemo(() => buildSearchCards(cardsData.cards, (id) => t(`searchCards.card.${id}` as const)), [cardsData.cards, t])
+  const openCard = useCallback((card: SearchCard) => router.push(href(card.target)), [router])
+  const askToAdd = useCallback(() => router.push(href(authMode === "guest" ? "/signin" : "/feedback")), [router, authMode])
+  // "Filters" (after a query): Style, Instrument, Tempo, Performer narrow the Kiirtans; each is a shelf of the Search menu
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState<FilterSelection>({})
+  const filterRows = useMemo(
+    () => buildFilterRows(buildSearchBy({ stats: menu.stats, psKinds: [], psMoods: [] }), menu.stats.authors),
+    // the words follow the language
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [menu.stats, t],
+  )
+  const filtersOn = selectedCount(filters)
+  useEffect(() => {
+    if (!query.trim()) {
+      setFilters({})
+      setFiltersOpen(false)
+    }
+  }, [query])
+  const kirtanMatches = useMemo(() => searchKirtans(kirtanCatalog, query, scope === "all" ? 5 : 50), [kirtanCatalog, query, scope])
+  const kirtanHits = useMemo(
+    () => (filtersOn ? applyFilters(searchKirtans(kirtanCatalog, query, 200), filters, (id) => new Set(shelfItems(id, menu.kirtans, menu.stats, menu.now).map((k) => k.id))).slice(0, scope === "all" ? 5 : 50) : kirtanMatches),
+    [filtersOn, filters, kirtanCatalog, query, scope, kirtanMatches, menu.kirtans, menu.stats, menu.now],
+  )
   // TODO(api): artists come from the backend; today they are the preview fixtures.
   const artistHits = useMemo(() => searchArtists(sampleArtists(), kirtanCatalog, query, 6), [kirtanCatalog, query])
   const show = scopeShows(scope)
@@ -394,32 +434,27 @@ export default function UnifiedSearchScreen() {
         {showHint ? <DetectLabel p={p} text={voiceError ?? hintLine(query, parsed.hint)} /> : null}
 
         {empty ? (
-          <SearchMenuView
-            p={p}
-            theme={songsTheme}
-            menu={menu}
-            top={SEARCH_TOP_TILES}
-            discover={SEARCH_DISCOVER}
-            kindTiles={kindTiles}
-            recents={MOCKUP_DATA ? [] : recents}
-            played={recentPlays.slice(0, 8)}
-            history={menu.history}
-            onTile={(tile) => router.push(href(tile.target))}
-            onTag={(tag) => pick(tag.query)}
-            onRecent={pick}
-            onClearRecents={clearSearchRecents}
-            onPlayed={(play) => router.push(href(`/song-v2/${play.id}`))}
-            onOpen={(k, list, label) => kActions.open(k, list, label)}
-            onSeeAll={(target) => router.push(href(target))}
-            onPlayEntry={(entry) => {
-              const message = playHistoryEntry(entry)
-              if (message) kActions.flash(message)
-            }}
-            onHistory={() => router.push(href("/listening-history"))}
-          />
+          <SearchCards p={p} cards={cards} recents={recents} onRecent={pick} onClearRecents={clearSearchRecents} onOpen={openCard} />
+
         ) : (
           <View style={styles.results}>
             <StickyChipsRow items={scopeItems} value={scope} onChange={setScope} colors={chipColorsOf(p)} scrollY={chipScroll} stickAt={99999} />
+            {show.songs ? (
+              <View style={styles.chordsBlock}>
+                <ChordsBar p={p} theme={songsTheme} on={chords.on} asked={chordsAsked && chords.on} onToggle={() => setChords(toggleChordsMode)} />
+                {chords.on && rows.length && songsWithChords === null ? <ChordsNote p={p} text={t("searchCards.chords.unknown")} /> : null}
+                {chords.on && rows.length && songsWithChords !== null && split.withChords.length === 0 ? <ChordsNote p={p} text={t("searchCards.chords.none")} /> : null}
+              </View>
+            ) : null}
+            {show.kiirtans && filterRows.length ? (
+              <View style={styles.filtersBlock}>
+                <FiltersButton p={p} count={filtersOn} open={filtersOpen} onPress={() => setFiltersOpen((open) => !open)} />
+                {filtersOpen ? (
+                  <FiltersPanel p={p} rows={filterRows} selection={filters} onToggle={(row, shelfId) => setFilters((prev) => toggleFilter(prev, row, shelfId))} onClear={() => setFilters({})} />
+                ) : null}
+                {filtersOn && kirtanHits.length === 0 ? <ChordsNote p={p} text={t("searchCards.filters.none")} /> : null}
+              </View>
+            ) : null}
             {kirtanFirst ? kirtanSection : null}
             {show.stories ? (
               <StoryResults p={p} query={query} onOpen={(story) => { remember(query); router.push(href(`/stories/${story.slug}`)) }} onBrowse={() => router.push(href("/stories"))} />
@@ -427,7 +462,13 @@ export default function UnifiedSearchScreen() {
             {!show.songs ? null : !MOCKUP_DATA && result.answer ? (
               <AnswerCard p={p} answer={result.answer} onOpen={openItem} onAsk={() => router.push(href("/assistant"))} />
             ) : null}
-            {show.songs && rows.length ? <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} /> : null}
+            {show.songs && rows.length ? (
+              chords.on && split.withChords.length ? (
+                <ChordGroups p={p} split={split} offlineNumbers={offlineNumbers} onOpen={openItem} />
+              ) : (
+                <ResultList p={p} rows={rows} offlineNumbers={offlineNumbers} onOpen={openItem} />
+              )
+            ) : null}
             {show.songs && collections.length ? <CollectionChips p={p} names={collections} onPick={pick} /> : null}
             {show.songs && scope === "all" ? <AuthorsSearchBlock theme={songsTheme} query={query} /> : null}
             {kirtanFirst ? null : kirtanSection}
@@ -442,7 +483,18 @@ export default function UnifiedSearchScreen() {
                 {t("search.guest")}
               </Text>
             ) : null}
-            {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? <EmptyMessage p={p} text={result.message === outOfRangeMessage() ? result.message : null} onBrowse={() => router.push(href("/collections-v2"))} /> : null}
+            {show.songs && !(scope === "all" && (kirtanHits.length || artistHits.length)) && rows.length === 0 && !waitingForMeaning && (MOCKUP_DATA || !result.answer) ? (
+              <NothingFound
+                p={p}
+                query={query.trim()}
+                message={result.message === outOfRangeMessage() ? result.message : null}
+                moods={cardsData.moods.songs}
+                onTry={pick}
+                onMood={(tile) => router.push(href(tile.href))}
+                onAllMoods={() => router.push(href("/search-browse?section=mood"))}
+                onAsk={askToAdd}
+              />
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -472,6 +524,8 @@ const styles = StyleSheet.create({
   artists: { paddingHorizontal: 16, gap: 8 },
   quiet: { paddingHorizontal: 20, fontSize: 14 },
   results: { gap: 24 },
+  chordsBlock: { gap: 12 },
+  filtersBlock: { gap: 12 },
   kirtanList: { gap: 10, paddingHorizontal: 16 },
   groupLabel: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 1.2 },
   pad: { paddingHorizontal: 4 },
