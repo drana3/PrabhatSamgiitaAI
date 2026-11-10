@@ -47,7 +47,8 @@ import {
 import { PS_SONG_COUNT } from "@/lib/learn/learnSongs"
 import { nextOpenQuizLevel, type LearningSong } from "@/lib/learn/progress"
 import { LEARN_ROUTES, indexHref, wordsHref } from "@/lib/learn/routes"
-import { songStatusCounts } from "@/lib/learn/songStatus"
+import { songStatusCounts, songsToSettle, type SongStatus } from "@/lib/learn/songStatus"
+import { songFactsFor } from "@/lib/learn/songQuiz"
 import { dueCardCount, wordsLearnedCount } from "@/lib/learn/srs"
 import { sessionDeck, songNumbersFromIds, wordOfTheDay, wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
@@ -135,7 +136,20 @@ export default function LearnScreen() {
     () => buildContinue(songs, paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle, hasWords),
     [songs, paths, hasWords],
   )
-  const shelf = useMemo(() => buildShelf(songs, paths), [songs, paths])
+  const markPart = useLearnStore((state) => state.markPart)
+  // songs with too few words for a quiz are Learned by Words alone: mark their Quiz step so the chips agree
+  useEffect(() => {
+    if (!hydrated) return
+    for (const songId of songsToSettle(songs, paths, (n) => songFactsFor(wordList, n, null))) markPart(songId, "meaning")
+  }, [hydrated, songs, paths, wordList, markPart])
+  // tap a counter tile to see only those songs; tap it again to see all
+  const [statusFilter, setStatusFilter] = useState<SongStatus | null>(null)
+  const toggleFilter = useCallback((status: SongStatus) => setStatusFilter((now) => (now === status ? null : status)), [])
+  const fullShelf = useMemo(() => buildShelf(songs, paths), [songs, paths])
+  const shelf = useMemo(
+    () => (statusFilter ? fullShelf.filter((entry) => entry.state === statusFilter) : fullShelf),
+    [fullShelf, statusFilter],
+  )
   const choices = useMemo(() => buildChoices(songs, LEARN_SUGGESTED_NUMBERS, learnSongTitle), [songs])
 
   const deck = useMemo(
@@ -209,7 +223,7 @@ export default function LearnScreen() {
                 first={t("learn.page.my.first")}
                 second={t("learn.page.my.second")}
               />
-              <StatusCounters p={p} counts={counts} />
+              <StatusCounters p={p} counts={counts} selected={statusFilter} onSelect={toggleFilter} />
               {shelf.length > 0 ? (
                 <HubShelf>
                   {shelf.map((entry) => (
@@ -224,7 +238,7 @@ export default function LearnScreen() {
                   <SeeAllCard p={p} count={counts.total} onPress={() => go(HUB_LINKS.allSongs)} />
                 </HubShelf>
               ) : (
-                <HubEmpty p={p} text={t("learn.page.my.empty")} />
+                <HubEmpty p={p} text={statusFilter && fullShelf.length > 0 ? t("learn.page.filter.none") : t("learn.page.my.empty")} />
               )}
             </Reveal>
 

@@ -11,7 +11,7 @@ import {
   songQuizPassMark,
   songQuizQuestions,
 } from "@/lib/learn/songQuiz"
-import { nextRequiredStep, songStatus, songStatusCounts, songSteps } from "@/lib/learn/songStatus"
+import { nextRequiredStep, quizNotNeeded, songStatus, songStatusCounts, songSteps, songsToSettle } from "@/lib/learn/songStatus"
 import { wordsForSong } from "@/lib/learn/words"
 
 const path = (patch: Partial<PathState>): PathState => ({ ...EMPTY_PATH, ...patch })
@@ -89,10 +89,10 @@ describe("what each step of a song can do", () => {
     expect(steps[2]!.blocked).toBe(false)
   })
 
-  it("fewer than four different meanings: the Quiz needs more words, Words still work", () => {
+  it("fewer than four different meanings: the Quiz is 'not needed', Words still work", () => {
     const steps = songSteps(EMPTY_PATH, { ...withWords, wordCount: 6, distinctMeanings: 3 })
     expect(steps[0]!.availability).toBe("ready")
-    expect(steps[1]).toMatchObject({ availability: "needsMoreWords", blocked: true })
+    expect(steps[1]).toMatchObject({ availability: "notNeeded", blocked: true })
   })
 
   it("exactly four different meanings is enough for the Quiz", () => {
@@ -112,6 +112,36 @@ describe("what each step of a song can do", () => {
   it("marks the steps that are done", () => {
     const steps = songSteps(path({ words: true, chords: true }), withWords)
     expect(steps.map((s) => s.done)).toEqual([true, false, true])
+  })
+})
+
+describe("a song whose quiz is not possible is learned by Words alone", () => {
+  const few = { wordCount: 3, distinctMeanings: 3, minDistinct: 4 }
+  const enough = { wordCount: 12, distinctMeanings: 12, minDistinct: 4 }
+  const none = { wordCount: 0, distinctMeanings: 0, minDistinct: 4 }
+
+  it("knows when the quiz is not needed: words exist but under four meanings; never with no words", () => {
+    expect(quizNotNeeded(few)).toBe(true)
+    expect(quizNotNeeded(enough)).toBe(false)
+    expect(quizNotNeeded({ ...few, distinctMeanings: 4 })).toBe(false)
+    expect(quizNotNeeded(none)).toBe(false)
+  })
+
+  it("settles Words-done songs with too few words, and only those", () => {
+    const songs = [1, 2, 3, 4, 5].map((n) => ({ songId: `ps-${n}`, number: n }))
+    const paths = {
+      "ps-1": path({ words: true }), // few words, words done: settle
+      "ps-2": path({ words: true }), // enough words: needs its quiz
+      "ps-3": path({}), // few words but Words not done yet
+      "ps-4": path({ words: true, meaning: true }), // already marked
+      "ps-5": path({ words: true }), // no words at all: stays open
+    }
+    const facts = (n: number) => (n === 1 || n === 3 || n === 4 ? few : n === 5 ? none : enough)
+    expect(songsToSettle(songs, paths, facts)).toEqual(["ps-1"])
+  })
+
+  it("once settled the path reads Learned by Words alone", () => {
+    expect(songStatus(path({ words: true, meaning: true }))).toBe("learned")
   })
 })
 

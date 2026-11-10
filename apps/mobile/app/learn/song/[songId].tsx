@@ -22,7 +22,7 @@ import {
   stepOver,
 } from "@/lib/learn/songPath"
 import { SONG_QUIZ_LENGTH, songFactsFor, songQuizPassMark } from "@/lib/learn/songQuiz"
-import { songStatus, songSteps, type SongStepView } from "@/lib/learn/songStatus"
+import { quizNotNeeded, songStatus, songSteps, type SongStepView } from "@/lib/learn/songStatus"
 import { learnWordList } from "@/lib/learn/verified"
 import { useSongsWithChords } from "@/hooks/useSongsWithChords"
 import { resolveSongBundle } from "@/lib/songs"
@@ -80,6 +80,12 @@ export default function LearnSongScreen() {
     entered.current = true
     startLearning({ songId, number, title })
   }, [hydrated, number, listed, songId, title, startLearning])
+
+  // a song with too few words for a quiz is learned by Words alone: mark its Quiz step, so every screen agrees
+  useEffect(() => {
+    if (!hydrated || number === null || !path.words || path.meaning) return
+    if (quizNotNeeded(songFactsFor(learnWordList(), number, null))) markPart(songId, "meaning")
+  }, [hydrated, number, path.words, path.meaning, songId, markPart])
 
   const back = () => {
     if (router.canGoBack()) router.back()
@@ -140,8 +146,8 @@ export default function LearnSongScreen() {
       case "wordsSoon":
         return { title: t("learn.song.wordsSoon.title"), text: t("learn.song.wordsSoon.text"), note: null }
       case "quizSoon":
-        return { title: t("learn.song.quizMore.title"), text: t("learn.song.quizWait.text"), note: null }
-      case "needsMoreWords":
+        return { title: t("learn.song.quizWait.title"), text: t("learn.song.quizWait.text"), note: null }
+      case "notNeeded":
         return { title: t("learn.song.quizMore.title"), text: t("learn.song.quizMore.text", { count: facts.distinctMeanings }), note: null }
       case "noChords":
         return { title: t("learn.song.noChords.title"), text: t("learn.song.noChords.text"), note: null }

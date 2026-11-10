@@ -8,6 +8,9 @@ import type { LearningSong, PathState } from "@/lib/learn/progress"
  *   Not started  neither Words nor Quiz is done
  *   Learning     exactly one of them is done
  *   Learned      both are done
+ * One exception, decided by Dada on 10 November 2026: a song whose words are too few for a quiz (fewer than four
+ * different meanings) has no quiz to take, so its Words step alone makes it Learned. That is settled in the stored
+ * path (see `songsToSettle`), so every screen and chip keeps reading the path only.
  * Chords are an extra, never required: a song without chords (or a person who does not play) can be
  * learned all the same. Listening is a button at the top of the song page, not a step, so it does not
  * count either. Both facts are stored (`chords`, `listen` in the path) but they do not change the status.
@@ -53,8 +56,8 @@ export type StepAvailability =
   | "ready"
   /** Words: this song has no checked words yet */
   | "wordsSoon"
-  /** Quiz: the song has some words but fewer than four different meanings */
-  | "needsMoreWords"
+  /** Quiz: the song has some words but fewer than four different meanings, so no quiz is asked and Words alone make it learned */
+  | "notNeeded"
   /** Quiz: no words at all, so no quiz either */
   | "quizSoon"
   /** Chords: this song has no accepted chords (grey, never in the way) */
@@ -89,7 +92,7 @@ export function songSteps(path: PathState | undefined, facts: SongFacts): SongSt
   const wordsOk = facts.wordCount > 0
   const quizOk = wordsOk && facts.distinctMeanings >= facts.minDistinct
   const wordsAvailability: StepAvailability = wordsOk ? "ready" : "wordsSoon"
-  const quizAvailability: StepAvailability = quizOk ? "ready" : wordsOk ? "needsMoreWords" : "quizSoon"
+  const quizAvailability: StepAvailability = quizOk ? "ready" : wordsOk ? "notNeeded" : "quizSoon"
   const chordsAvailability: StepAvailability = facts.hasChords === false ? "noChords" : "ready"
   const steps: Array<Omit<SongStepView, "blocked">> = [
     { key: "words", part: "words", done: Boolean(path?.words), optional: false, availability: wordsAvailability },
@@ -107,4 +110,27 @@ export function nextRequiredStep(path: PathState | undefined): "words" | "quiz" 
   if (!path?.words) return "words"
   if (!path.meaning) return "quiz"
   return null
+}
+
+/** True when the song has words but too few different meanings for a quiz: the Quiz step is not needed. */
+export function quizNotNeeded(facts: Pick<SongFacts, "wordCount" | "distinctMeanings" | "minDistinct">): boolean {
+  return facts.wordCount > 0 && facts.distinctMeanings < facts.minDistinct
+}
+
+/**
+ * Songs whose Quiz step can be marked done for them: Words are done, the quiz is not needed (see `quizNotNeeded`)
+ * and it is not marked yet. The screens mark these, so the song becomes Learned by Words alone and the Songs chips
+ * (which read the path) agree. A song with no words at all is never settled: "Words coming soon" keeps it open.
+ */
+export function songsToSettle(
+  songs: ReadonlyArray<Pick<LearningSong, "songId" | "number">>,
+  paths: Readonly<Record<string, PathState>>,
+  factsOf: (songNumber: number) => Pick<SongFacts, "wordCount" | "distinctMeanings" | "minDistinct">,
+): string[] {
+  return songs
+    .filter((song) => {
+      const path = paths[song.songId]
+      return Boolean(path?.words) && !path?.meaning && quizNotNeeded(factsOf(song.number))
+    })
+    .map((song) => song.songId)
 }

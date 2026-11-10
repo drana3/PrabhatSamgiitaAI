@@ -25,6 +25,8 @@ import {
   REVIEW_STYLES,
   type Grade,
 } from "@/lib/learn/srs"
+import { songFactsFor } from "@/lib/learn/songQuiz"
+import { quizNotNeeded } from "@/lib/learn/songStatus"
 import { sessionDeck, songNumbersFromIds, wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -104,7 +106,11 @@ function WordCards() {
     setFlipped(false)
     if (songNumber !== undefined) {
       const latest = useLearnStore.getState().cards
-      if (songWordsComplete(deck.map((word) => word.id), latest)) markPart(`ps-${songNumber}`, "words")
+      if (songWordsComplete(deck.map((word) => word.id), latest)) {
+        markPart(`ps-${songNumber}`, "words")
+        // too few words for a quiz: Words alone make the song Learned, so mark the Quiz step with it
+        if (quizNotNeeded(songFactsFor(learnWordList(), songNumber, null))) markPart(`ps-${songNumber}`, "meaning")
+      }
     }
   }
 

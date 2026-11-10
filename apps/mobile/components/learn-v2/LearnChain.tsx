@@ -6,7 +6,7 @@ import { PressBox } from "@/components/learn-v2/PressBox"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
 import type { HubSong } from "@/lib/learn/hub"
-import type { StatusCounts } from "@/lib/learn/songStatus"
+import type { SongStatus, StatusCounts } from "@/lib/learn/songStatus"
 import { useT } from "@/lib/i18n"
 
 /**
@@ -16,8 +16,21 @@ import { useT } from "@/lib/i18n"
 
 /* ---------------------------------------------------------------- counters */
 
-/** Not started, Learning, Learned: three tiles with the number of songs on the learner's list. Display only. */
-export function StatusCounters({ p, counts }: { p: AmProto; counts: StatusCounts }) {
+/**
+ * Not started, Learning, Learned: three tiles with the number of songs on the learner's list. Each tile is a button:
+ * tap one and "My songs" shows only those songs; tap it again (or another tile) to change or clear the filter.
+ */
+export function StatusCounters({
+  p,
+  counts,
+  selected,
+  onSelect,
+}: {
+  p: AmProto
+  counts: StatusCounts
+  selected: SongStatus | null
+  onSelect: (status: SongStatus) => void
+}) {
   const t = useT()
   const items = [
     { key: "notStarted", label: t("learn.page.counter.notStarted"), count: counts.notStarted },
@@ -25,20 +38,27 @@ export function StatusCounters({ p, counts }: { p: AmProto; counts: StatusCounts
     { key: "learned", label: t("learn.page.counter.learned"), count: counts.learned },
   ] as const
   return (
-    <View accessibilityRole="summary" accessibilityLabel={t("learn.page.counters.a11y")} style={s.counters}>
-      {items.map((item) => (
-        <View
-          key={item.key}
-          accessible
-          accessibilityLabel={t("learn.page.counter.a11y", { label: item.label, count: item.count })}
-          style={[s.counter, { backgroundColor: p.white, borderColor: p.sand300 }]}
-        >
-          <Text style={[s.counterNum, { color: item.count > 0 && item.key !== "notStarted" ? p.ink800 : p.ink500 }]}>{item.count}</Text>
-          <Text style={[s.counterLabel, { color: p.ink500 }]} numberOfLines={1}>
-            {item.label}
-          </Text>
-        </View>
-      ))}
+    <View accessibilityLabel={t("learn.page.counters.a11y")} style={s.counters}>
+      {items.map((item) => {
+        const on = selected === item.key
+        return (
+          <PressBox
+            key={item.key}
+            outerStyle={s.counterOuter}
+            style={[s.counter, { backgroundColor: on ? p.ink800 : p.white, borderColor: on ? p.ink800 : p.sand300 }]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={t("learn.page.counter.a11y", { label: item.label, count: item.count })}
+            accessibilityHint={t("learn.page.counter.hint")}
+            onPress={() => onSelect(item.key)}
+          >
+            <Text style={[s.counterNum, { color: on ? p.white : item.count > 0 && item.key !== "notStarted" ? p.ink800 : p.ink500 }]}>{item.count}</Text>
+            <Text style={[s.counterLabel, { color: on ? p.white : p.ink500 }]} numberOfLines={1}>
+              {item.label}
+            </Text>
+          </PressBox>
+        )
+      })}
     </View>
   )
 }
@@ -122,6 +142,7 @@ export function SearchAllRow({ p, count, onPress }: { p: AmProto; count: number;
 const s = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   counters: { flexDirection: "row", gap: 8, paddingHorizontal: HUB_INSET },
+  counterOuter: { flex: 1 },
   counter: { flex: 1, minHeight: 84, borderRadius: 14, borderWidth: 1, paddingVertical: 12, paddingHorizontal: 12, justifyContent: "space-between", gap: 8 },
   counterNum: { fontFamily: amFonts.display, fontSize: 40, lineHeight: 40, letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
   counterLabel: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 16 },
