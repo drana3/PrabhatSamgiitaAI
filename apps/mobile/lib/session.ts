@@ -21,6 +21,7 @@ import {
 import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
 import "@/lib/account/ownership"
+import { mergeGuestKiirtanSaves } from "@/lib/guest/mergeKiirtanSaves"
 import { wipeLocalUserData } from "@/lib/account/wipeLocalUserData"
 import { hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
 import { memberPhoneRequired } from "@/lib/memberPhone"
@@ -143,6 +144,8 @@ async function finishSignIn(input: {
     memberBackend: false,
     identityProvider: input.identityProvider,
   })
+  // The Kiirtans saved as a guest join the account's (the songs follow in syncMemberData): docs/guest-saves.md
+  mergeGuestKiirtanSaves()
   if (input.photoUrl) useProfileStore.getState().setProviderPhoto(input.photoUrl)
   // The name comes from the provider; when it gave none (Apple only gives it once), the page asks once.
   const needsName = nameIsMissing(input.displayName, input.email)

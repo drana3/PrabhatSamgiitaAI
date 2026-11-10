@@ -1,3 +1,4 @@
+import { noteGuestSaved } from "@/lib/guest/afterSave"
 import { createdToast, nextPlaylistName, saveToast, songIdOf, type SaveItem } from "@/lib/save/saveToSheet"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
@@ -8,7 +9,8 @@ import { t } from "@/lib/i18n"
  * What a tick in the "Save to" sheet does to the stores. Mine is the saved songs (preferencesStore,
  * synced to the website favourites) or the saved Kiirtans (kirtanStore); a playlist is playlistStore.
  * Each returns a toast to show, or says the person has to sign in first (the stores decide that, we
- * invent no new rule), or an error message.
+ * invent no new rule), or an error message. A guest can tick Mine (it stays on the phone, docs/guest-saves.md);
+ * playlists still need an account. The save that makes three asks the guest to sign in (lib/guest/afterSave.ts).
  */
 export type SaveOutcome = { ok: true; toast: string; playlistId?: string } | { ok: false; needsAuth: true } | { ok: false; error: string }
 
@@ -16,12 +18,14 @@ export type SaveOutcome = { ok: true; toast: string; playlistId?: string } | { o
 export async function toggleMine(item: SaveItem): Promise<SaveOutcome> {
   if (item.kind === "kiirtan") {
     const now = useKirtanStore.getState().toggleSaved(item.id)
+    if (now) noteGuestSaved()
     return { ok: true, toast: saveToast(t("songs.mine"), now) }
   }
   const id = songIdOf(item.number)
   const was = usePreferencesStore.getState().savedSongIds.includes(id)
   const result = await usePreferencesStore.getState().toggleSaved(id)
   if (result.needsAuth) return { ok: false, needsAuth: true }
+  if (!was) noteGuestSaved()
   return { ok: true, toast: saveToast(t("songs.mine"), !was) }
 }
 

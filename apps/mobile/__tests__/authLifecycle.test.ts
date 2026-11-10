@@ -172,7 +172,8 @@ describe("mobile auth lifecycle (all providers)", () => {
         identityProvider: "aad",
         memberBackend: true,
       })
-      expect(usePreferencesStore.getState().savedSongIds).toEqual(["ps-12"])
+      // the account had song 12; the guest had saved song 1 on this phone: the account ends with both (docs/guest-saves.md)
+      expect(usePreferencesStore.getState().savedSongIds).toEqual(["ps-12", "ps-1"])
     })
 
     it("signs in with Google", async () => {

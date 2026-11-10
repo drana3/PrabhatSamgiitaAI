@@ -7,6 +7,7 @@ import { bindOwner } from "@/lib/account/bindOwner"
 import type { OwnedData } from "@/lib/account/owner"
 import { api } from "@/lib/client"
 import { favoritesScopeKey } from "@/lib/favoritesScope"
+import { missingNumbers, songNumbersOf, unionIds } from "@/lib/guest/guestSaves"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -114,27 +115,45 @@ export const usePreferencesStore = create<PreferencesState>()(
           const remote = await api.fetchMemberFavorites()
           if (remote === null) return
           const scope = get().favoritesScope
-          const localNumbers = (get().favoritesByScope[scope] ?? get().savedSongIds)
-            .map(toSongNumber)
-            .filter((n): n is number => n != null)
+          const own = get().favoritesByScope[scope] ?? get().savedSongIds
+          // What the person saved as a guest on this phone joins the account (docs/guest-saves.md): the union,
+          // no song twice, none lost. The guest list is emptied only once the account really holds it.
+          const guestIds = scope === "guest" ? [] : (get().favoritesByScope.guest ?? [])
+          const localNumbers = songNumbersOf(unionIds(own, guestIds))
           const merged = [...new Set([...remote, ...localNumbers])]
           const savedSongIds = merged.map(toSongId)
           set({
             savedSongIds,
             favoritesByScope: { ...get().favoritesByScope, [scope]: savedSongIds },
           })
-          for (const number of localNumbers) {
-            if (remote.includes(number)) continue
+          const missing = missingNumbers(localNumbers, remote)
+          let uploaded = true
+          if (missing.length) {
             try {
-              const next = await api.addMemberFavorite(number)
-              const synced = next.map(toSongId)
+              // one request for the whole list; an older server that has no such route is told one song at a time
+              const synced = (await api.mergeMemberFavorites(missing)).map(toSongId)
               set({
                 savedSongIds: synced,
                 favoritesByScope: { ...get().favoritesByScope, [scope]: synced },
               })
             } catch {
-              // Keep merged local list if upload fails.
+              for (const number of missing) {
+                try {
+                  const next = await api.addMemberFavorite(number)
+                  const synced = next.map(toSongId)
+                  set({
+                    savedSongIds: synced,
+                    favoritesByScope: { ...get().favoritesByScope, [scope]: synced },
+                  })
+                } catch {
+                  // Keep merged local list if upload fails.
+                  uploaded = false
+                }
+              }
             }
+          }
+          if (uploaded && guestIds.length) {
+            set({ favoritesByScope: { ...get().favoritesByScope, guest: [] } })
           }
         } finally {
           set({ syncingFavorites: false })
@@ -143,9 +162,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       toggleSaved: async (songId) => {
         const { mode } = useAuthStore.getState()
-        if (mode !== "signed_in") {
-          return { needsAuth: true }
-        }
+        // A guest saves on the phone only (the list of the "guest" scope); it joins the account at sign-in.
+        // Nothing is sent to the server for a guest.
+        const guest = mode !== "signed_in"
 
         const existing = get().savedSongIds
         const isSaved = existing.includes(songId)
@@ -159,7 +178,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         })
 
         const number = toSongNumber(songId)
-        if (!memberAuthAvailable() || !number) return { needsAuth: false }
+        if (guest || !memberAuthAvailable() || !number) return { needsAuth: false }
 
         try {
           const numbers = isSaved
