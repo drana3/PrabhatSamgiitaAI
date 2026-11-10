@@ -150,7 +150,8 @@ async def test_deep_health_is_200_when_the_database_answers_and_503_when_not() -
     async with httpx.AsyncClient(transport=transport, base_url="http://t") as client:
         up = await client.get("/api/v1/health/deep")
         assert up.status_code == 200 and up.json()["checks"]["database"] == "ok"
-        assert set(up.json()) == {"status", "version", "environment", "checks"}
+        assert set(up.json()) == {"status", "version", "environment", "checks", "tools"}
+        assert all(isinstance(v, bool) for v in up.json()["tools"].values())
         app.dependency_overrides[get_session] = bad_session
         down = await client.get("/api/v1/health/deep")
         assert down.status_code == 503 and down.json()["status"] == "down"
