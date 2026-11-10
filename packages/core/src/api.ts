@@ -1227,6 +1227,23 @@ export function createApiClient(options: ApiClientOptions) {
       return z.array(z.number()).parse(body)
     },
 
+    /**
+     * A guest's saved songs, sent in one request when the guest signs in. The account keeps what it had
+     * and gains what it lacked (no song twice, none removed). Returns the account's whole list.
+     */
+    async mergeMemberFavorites(songNumbers: readonly number[]): Promise<number[]> {
+      const response = await fetchJson("/api/v1/members/favorites/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ song_numbers: songNumbers }),
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(typeof body?.detail === "string" ? body.detail : "Could not merge saved songs.")
+      }
+      return z.array(z.number()).parse(body)
+    },
+
     async fetchMemberPlaylists(): Promise<MemberPlaylist[] | null> {
       try {
         const response = await fetchJson("/api/v1/members/playlists")

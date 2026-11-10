@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -16,6 +17,7 @@ from app.schemas.member import (
     AnonymousMember,
     ChatMemoryResponse,
     ChatMemoryWrite,
+    FavoritesMerge,
     FavoriteWrite,
     MemberPhoneWrite,
     MemberPreferencesWrite,
@@ -141,6 +143,45 @@ async def add_favorite(
     if exists is None:
         session.add(UserFavorite(user_id=member.id, song_number=payload.song_number))
         await session.commit()
+    return await favorites(request, session)
+
+
+@router.post("/favorites/merge", response_model=list[int])
+async def merge_favorites(
+    payload: FavoritesMerge, request: Request, session: DatabaseSession
+) -> list[int]:
+    """Add every song of the list that the account does not hold yet; remove nothing.
+
+    A guest's saved songs live on the phone. When the guest signs in they are sent here in one
+    request: the account ends with the union, no song twice, none lost. Sending the same list
+    again changes nothing. Returns the account's whole list, like the other favourites routes.
+    """
+    member = await current_member(request, session)
+    wanted = set(payload.song_numbers)
+    for attempt in (1, 2):
+        held = set(
+            (
+                await session.execute(
+                    select(UserFavorite.song_number).where(
+                        UserFavorite.user_id == member.id,
+                        UserFavorite.song_number.in_(wanted),
+                    )
+                )
+            ).scalars()
+        )
+        # keep the order the phone sent them in, so the newest end up as the phone had them
+        fresh = [n for n in dict.fromkeys(payload.song_numbers) if n not in held]
+        if not fresh:
+            break
+        session.add_all(UserFavorite(user_id=member.id, song_number=n) for n in fresh)
+        try:
+            await session.commit()
+            break
+        except IntegrityError:
+            # two merges of the same list at once: the other one won; look again, add the rest
+            await session.rollback()
+            if attempt == 2:
+                raise
     return await favorites(request, session)
 
 
