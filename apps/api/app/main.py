@@ -195,9 +195,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from app.services.catalog_sync import catalog_poll_loop
 
         catalog_poll_task = asyncio.create_task(catalog_poll_loop())
+    from app.services.housekeeping import start_housekeeping, stop_housekeeping
+
+    housekeeping_task = start_housekeeping() if settings.app_env != "test" else None
     try:
         yield
     finally:
+        await stop_housekeeping(housekeeping_task)
         bootstrap_task.cancel()
         if catalog_poll_task is not None:
             catalog_poll_task.cancel()

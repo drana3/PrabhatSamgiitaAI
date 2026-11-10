@@ -17,6 +17,7 @@ needs a login, a payment, a key or a decision that only the owner can make.
 | 7 | Deep-link files | existing in main | `apple-app-site-association` has the Team ID; `assetlinks.json` still has a placeholder | Dada: Play App Signing SHA-256 (`docs/app-links.md`) |
 | 8 | Store reviewer account | Claude | Built, disabled by default, 16 tests, documented | Dada: set three environment values, paste login into both consoles (`docs/store-review-account.md`) |
 | 9 | This list | Claude | this file | keep it current |
+| 10 | Daily housekeeping (cleanup of old rows and orphan uploads) | Claude | Built, off-switch `HOUSEKEEPING_ENABLED`, tests on SQLite, admin page `GET /api/v1/admin/housekeeping` | Team: deploy; watch the first run in the log (`docs/housekeeping.md`); decide on bucket files and song-bound chat messages |
 
 ## 1. Server tools
 
@@ -119,6 +120,16 @@ Both files already exist in `apps/web/public/.well-known/`. `apple-app-site-asso
 ## 8. Store reviewer account
 
 `docs/store-review-account.md`. Off unless `STORE_REVIEWER_ENABLED=true`; email and password only from the environment.
+
+## 9. Daily housekeeping
+
+`docs/housekeeping.md`. Once a day (first run 10 minutes after start) the API deletes expired sign-in sessions, old
+one-time codes and reset tokens (7 days after expiry), finished rate-limit counters, raw play rows older than 400 days
+(the daily counters stay), anonymous usage events older than 180 days, read notices older than 180 days and upload files
+on the server disk that no recording names (48 hours). Songs, recordings, comments, favourites, playlists and chat are
+never touched. Batches of 1000, one failing cleanup does not stop the others, nothing raises into the app.
+`HOUSEKEEPING_ENABLED=false` turns it off; `GET /api/v1/admin/housekeeping` (admin) shows the last run. No migration.
+Tests: `apps/api/tests/test_housekeeping.py`. Not covered: orphan files in an R2 bucket.
 
 ## What needs Dada (short list)
 
