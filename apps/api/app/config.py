@@ -147,6 +147,11 @@ class Settings(BaseSettings):
         default=None, alias="RECORDING_S3_SECRET_ACCESS_KEY"
     )
     recording_public_base_url: str | None = Field(default=None, alias="RECORDING_PUBLIC_BASE_URL")
+    # Account for Apple / Google store reviewers (docs/store-review-account.md). OFF by default.
+    # While enabled, one ordinary member (never admin) with this e-mail and password is kept.
+    store_reviewer_enabled: bool = Field(default=False, alias="STORE_REVIEWER_ENABLED")
+    store_reviewer_email: str | None = Field(default=None, alias="STORE_REVIEWER_EMAIL")
+    store_reviewer_password: str | None = Field(default=None, alias="STORE_REVIEWER_PASSWORD")
     # Crash reports (docs/observability.md). Off while SENTRY_DSN is empty.
     sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
     sentry_environment: str | None = Field(default=None, alias="SENTRY_ENVIRONMENT")

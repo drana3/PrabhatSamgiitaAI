@@ -23,6 +23,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLanguage, useT } from "@/lib/i18n"
 import { KPress } from "@/components/kirtan/KPress"
+import { askGuestToSignIn } from "@/lib/guest/askGuest"
 import { href } from "@/utils/href"
 import {
   NAV_V2_TABS,
@@ -242,7 +243,11 @@ export function FloatingTabBar({ activeId, onSelect, onReselect, tabs = NAV_V2_T
       <KPress
         accessibilityRole="button"
         accessibilityLabel={t("upload.button.a11y")}
-        onPress={() => router.push(href("/upload"))}
+        onPress={() => {
+          // A guest is offered a sign-in first (once a week); the Upload page opens after it either way.
+          const openUpload = () => router.push(href("/upload"))
+          askGuestToSignIn("upload", { after: openUpload, instead: openUpload })
+        }}
         pressedScale={0.94}
         outerStyle={styles.uploadHit}
         style={[styles.upload, { backgroundColor: theme.brand }]}

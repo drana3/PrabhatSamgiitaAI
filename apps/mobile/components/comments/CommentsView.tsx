@@ -8,6 +8,7 @@ import { SpIcon } from "@/components/song-v2/SpIcon"
 import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { askGuestToSignIn } from "@/lib/guest/askGuest"
 import { formatDate, useT } from "@/lib/i18n"
 import { authHeadersFromStore } from "@/lib/memberAuth"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
@@ -85,7 +86,10 @@ export function CommentsView<T extends CommentBase>({
       ) : (
         <View style={[styles.gate, { borderColor: t.sand400, backgroundColor: t.white }]}>
           <Text style={[styles.gateText, { color: t.ink800 }]}>{tr(access === "signin" ? "songComments.signin.text" : "songComments.unavailable")}</Text>
-          {access === "signin" ? <Button t={t} label={tr("songComments.signin.button")} onPress={() => router.push(href("/signin"))} /> : null}
+          {access === "signin" ? (
+            // a guest is offered the sign-in sheet (once a week); otherwise the sign-in page, as before
+            <Button t={t} label={tr("songComments.signin.button")} onPress={() => askGuestToSignIn("comment", { instead: () => router.push(href("/signin")) })} />
+          ) : null}
         </View>
       )}
 

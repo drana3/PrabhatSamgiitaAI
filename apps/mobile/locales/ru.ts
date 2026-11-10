@@ -17,6 +17,7 @@ import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { appUpdateRu } from "./appUpdate"
 import { takedownRu } from "./takedown"
+import { guestPromptRu } from "./guestPrompt"
 import { playerErrorsRu } from "./playerErrors"
 import { shareSheetRu } from "./shareSheet"
 import { scriptSheetRu } from "./scriptSheet"
@@ -1306,7 +1307,7 @@ export const ru: Dictionary = {
   "save.err.kiirtan": "Киртаны в плейлистах скоро появятся.",
   "save.err.notFound": "Плейлист не найден.",
   "save.title": "Сохранить в",
-  "save.alert.body": "Для сохранения нужен аккаунт, чтобы ваши песни были и на других телефонах.",
+  "save.alert.body": "Для плейлистов нужен аккаунт, чтобы они были и на других телефонах.",
   "save.note": "Киртаны и бхаджаны можно сохранять в «Моё». Плейлисты пока хранят только песни.",
 
   // Assistant
@@ -1384,6 +1385,7 @@ export const ru: Dictionary = {
   ...accountRu,
   ...appUpdateRu,
   ...takedownRu,
+  ...guestPromptRu,
   ...playerErrorsRu,
   ...shareSheetRu,
   ...scriptSheetRu,
@@ -1417,5 +1419,5 @@ export const ru: Dictionary = {
   ...chordInstrumentsRu,
   ...keyPickerRu,
   ...choiceFieldRu,
-}
   ...onboardingRu,
+}

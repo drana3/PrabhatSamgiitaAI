@@ -60,10 +60,7 @@ async def _ensure_member_schema() -> None:
             )
         )
         await conn.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin "
-                "ON user_accounts (is_admin)"
-            )
+            text("CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin ON user_accounts (is_admin)")
         )
         await conn.execute(
             text(
@@ -78,22 +75,13 @@ async def _ensure_member_schema() -> None:
             )
         )
         await conn.execute(
-            text(
-                "ALTER TABLE user_accounts "
-                "ADD COLUMN IF NOT EXISTS phone_e164 VARCHAR(20)"
-            )
+            text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS phone_e164 VARCHAR(20)")
         )
         await conn.execute(
-            text(
-                "ALTER TABLE user_accounts "
-                "ADD COLUMN IF NOT EXISTS phone_country_code VARCHAR(2)"
-            )
+            text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS phone_country_code VARCHAR(2)")
         )
         await conn.execute(
-            text(
-                "ALTER TABLE user_accounts "
-                "ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ"
-            )
+            text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ")
         )
         await conn.execute(
             text(
@@ -168,10 +156,24 @@ def _log_server_tools() -> None:
         logger.warning("could not check the server tools", exc_info=True)
 
 
+async def _sync_store_reviewer() -> None:
+    """Match the store reviewer account to STORE_REVIEWER_* (never stops the start)."""
+    if settings.app_env == "test":
+        return
+    try:
+        from app.services.store_reviewer import sync_store_reviewer
+
+        async with SessionLocal() as session:
+            await sync_store_reviewer(session, settings)
+    except Exception:  # noqa: BLE001
+        logger.exception("Store reviewer account could not be synchronised")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await initialize_schema()
     _log_server_tools()
+    await _sync_store_reviewer()
     load_faiss_snapshot(settings)
     if settings.scheduler_enabled:
         scheduler.start()

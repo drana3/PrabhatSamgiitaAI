@@ -16,6 +16,7 @@ import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { appUpdateEn } from "./appUpdate"
 import { takedownEn } from "./takedown"
+import { guestPromptEn } from "./guestPrompt"
 import { playerErrorsEn } from "./playerErrors"
 import { shareSheetEn } from "./shareSheet"
 import { scriptSheetEn } from "./scriptSheet"
@@ -1230,7 +1231,7 @@ export const en = {
   "save.err.kiirtan": "Kiirtans in playlists are coming soon.",
   "save.err.notFound": "Playlist not found.",
   "save.title": "Save to",
-  "save.alert.body": "Saving needs an account, so your songs follow you to other phones.",
+  "save.alert.body": "Playlists need an account, so they follow you to other phones.",
   "save.note": "Kiirtans and Bhajans can go into Mine. Playlists hold songs for now.",
 
   // Assistant
@@ -1304,6 +1305,7 @@ export const en = {
   ...accountEn,
   ...appUpdateEn,
   ...takedownEn,
+  ...guestPromptEn,
   ...playerErrorsEn,
   ...shareSheetEn,
   ...scriptSheetEn,
@@ -1337,5 +1339,5 @@ export const en = {
   ...chordInstrumentsEn,
   ...keyPickerEn,
   ...choiceFieldEn,
-} as const
   ...onboardingEn,
+} as const

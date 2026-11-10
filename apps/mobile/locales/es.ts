@@ -17,6 +17,7 @@ import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { appUpdateEs } from "./appUpdate"
 import { takedownEs } from "./takedown"
+import { guestPromptEs } from "./guestPrompt"
 import { playerErrorsEs } from "./playerErrors"
 import { shareSheetEs } from "./shareSheet"
 import { scriptSheetEs } from "./scriptSheet"
@@ -1224,7 +1225,7 @@ export const es: Dictionary = {
   "save.err.kiirtan": "Los Kiirtans en listas llegarán pronto.",
   "save.err.notFound": "No se encontró la lista.",
   "save.title": "Guardar en",
-  "save.alert.body": "Guardar necesita una cuenta para que tus canciones te sigan a otros teléfonos.",
+  "save.alert.body": "Las listas necesitan una cuenta para que te sigan a otros teléfonos.",
   "save.note": "Los Kiirtans y Bhajans pueden ir a Mío. Las listas por ahora solo guardan canciones.",
 
   // Assistant
@@ -1298,6 +1299,7 @@ export const es: Dictionary = {
   ...accountEs,
   ...appUpdateEs,
   ...takedownEs,
+  ...guestPromptEs,
   ...playerErrorsEs,
   ...shareSheetEs,
   ...scriptSheetEs,
@@ -1331,5 +1333,5 @@ export const es: Dictionary = {
   ...chordInstrumentsEs,
   ...keyPickerEs,
   ...choiceFieldEs,
-}
   ...onboardingEs,
+}

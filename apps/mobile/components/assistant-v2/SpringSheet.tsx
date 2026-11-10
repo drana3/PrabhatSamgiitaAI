@@ -29,6 +29,10 @@ type Props = {
   theme: AmTheme
   /** the sheet's own ground when it should not be the page colour (the preview window is plain white) */
   surface?: string
+  /** a one-pixel edge on the top of the sheet (dark sheets that stand on a surface of their own) */
+  edge?: string
+  /** replaces the title row (title and the X) with the caller's own heading; the grabber and the drag stay */
+  heading?: ReactNode
   children: ReactNode
 }
 
@@ -40,7 +44,7 @@ type Props = {
  *   the spring and the landing point is the projected momentum.
  * - Only transform and opacity move. With Reduce Motion the sheet cross-fades.
  */
-export function SpringSheet({ visible, onClose, title, theme, surface, children }: Props) {
+export function SpringSheet({ visible, onClose, title, theme, surface, edge, heading, children }: Props) {
   const t = useT()
   const insets = useSafeAreaInsets()
   const reduce = useReducedMotion()
@@ -154,26 +158,29 @@ export function SpringSheet({ visible, onClose, title, theme, surface, children 
           style={[
             styles.sheet,
             { backgroundColor: surface ?? theme.page, paddingBottom: Math.max(insets.bottom, 16) },
+            edge ? { borderTopWidth: StyleSheet.hairlineWidth * 2, borderColor: edge } : null,
             sheetStyle,
           ]}
         >
           <GestureDetector gesture={pan}>
             <View style={styles.header}>
               <View style={[styles.grabber, { backgroundColor: theme.line }]} />
-              <View style={styles.titleRow}>
-                <Text style={[amType.heading, { color: theme.textHeading, fontFamily: amFonts.bold }]}>
-                  {title}
-                </Text>
-                <PressScale
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.close")}
-                  onPress={dismiss}
-                  pressedScale={0.92}
-                  style={[styles.close, { backgroundColor: theme.card, borderColor: theme.line }]}
-                >
-                  <X size={20} color={theme.textHeading} />
-                </PressScale>
-              </View>
+              {heading ?? (
+                <View style={styles.titleRow}>
+                  <Text style={[amType.heading, { color: theme.textHeading, fontFamily: amFonts.bold }]}>
+                    {title}
+                  </Text>
+                  <PressScale
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.close")}
+                    onPress={dismiss}
+                    pressedScale={0.92}
+                    style={[styles.close, { backgroundColor: theme.card, borderColor: theme.line }]}
+                  >
+                    <X size={20} color={theme.textHeading} />
+                  </PressScale>
+                </View>
+              )}
             </View>
           </GestureDetector>
           {children}

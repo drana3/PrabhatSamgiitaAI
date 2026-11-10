@@ -99,25 +99,29 @@ passed. A video MP4 and a video WebM were refused.
   storage: there is no cleanup of such leftovers yet (a bucket lifecycle rule on the `recordings/`
   prefix for unpublished objects would do it; a decision for the deployment).
 
-## Planned: ClamAV
+## Virus scan (ClamAV): built, optional
 
-A virus scan is worth adding **before real traffic from unknown members**. The plan, not built:
+`apps/api/app/services/virus_scan.py`, called from `inspect_stored_file` right after the file checks.
+`RECORDING_VIRUS_SCAN` decides what happens when no scanner is there:
 
-1. Run `clamd` as a second container in the same Azure Container Apps environment (no public
-   address), with the signature database refreshed daily by `freshclam`.
-2. In `inspect_stored_file`, right after step 3, stream the file to `clamd` over its socket
-   (`INSTREAM`, with a 30 s time limit). A hit is refused with 422 `malware` and the object is
-   deleted; the member sees a general message.
-3. If `clamd` is down, **publish is not blocked** for members who already have published
-   recordings (fail open, logged and alerted); for a member's first upload it waits (fail closed),
-   because that is the case the scan exists for.
-4. Tests use a fake `clamd` that answers with the EICAR test string.
+| Value | Scanner present | Scanner missing, broken or slow |
+| --- | --- | --- |
+| `off` | not used | upload goes on |
+| `auto` (default) | scans; a hit is refused (422 `virus_found`) and the file is deleted | upload goes on, one line in the log |
+| `required` | same | upload refused with 503 "try again later", file stays unpublished |
 
-This needs a container, about 1 GB of memory for the signatures, and a decision on cost.
+Two ways to reach ClamAV: a `clamd` service (`CLAMD_HOST`, `CLAMD_PORT`, nothing to install in the API
+container) or the `clamscan` program inside the image (`RECORDING_CLAMSCAN_PATH`). The Docker image has
+ffmpeg, chromaprint and tzdata always; ClamAV only when built with `--build-arg INSTALL_CLAMAV=1`, because
+`clamscan` loads about 1 GB of signatures on every run and the Azure container has 1 GB. On a small server
+use a separate `clamd` container instead. `GET /api/v1/admin/server-tools` (admin) shows what the running
+server has; `/health/deep` shows the same as yes/no.
 
-**Decided (9 November 2026): not now.** Build it before uploads open to members the team does not know, before a
-button hands the uploaded file itself to other people, or before any file type other than audio and images is
-accepted. Reasons: `docs/decisions-security.md`, part 5.
+**Decision still open (9 November 2026): leave `auto` while uploads are limited to people the team knows;**
+switch to `required` and run a `clamd` container before uploads open to strangers, before a button hands
+the uploaded file itself to other people, or before any file type other than audio and images is accepted.
+Reasons: `docs/decisions-security.md`, part 5. Tests use a stand-in scanner and the EICAR test string:
+`apps/api/tests/test_server_tools.py`.
 
 ## Changing a limit
 

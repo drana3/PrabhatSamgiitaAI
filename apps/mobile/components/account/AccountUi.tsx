@@ -110,7 +110,7 @@ export const AccountField = forwardRef<TextInput, FieldProps>(function AccountFi
   )
 })
 
-export type ButtonTone = "brand" | "black" | "white" | "quiet"
+export type ButtonTone = "brand" | "black" | "white" | "ghost" | "quiet"
 
 /**
  * Full-width 52dp pill. brand: orange700 with white text (the one primary action). black: Apple.
@@ -166,6 +166,9 @@ function buttonLook(theme: SongsTheme, tone: ButtonTone): { bg: string; fg: stri
       return { bg: "#000000", fg: "#FFFFFF", border: theme.dark ? "rgba(255,255,255,0.28)" : "#000000" }
     case "white":
       return { bg: "#FFFFFF", fg: "#1F1F1F", border: theme.dark ? "rgba(255,255,255,0.28)" : "#C9C4BF" }
+    case "ghost":
+      // the third sign-in choice (email): the card colour with a clear edge, quieter than Apple and Google
+      return { bg: theme.card, fg: theme.textHeading, border: theme.dark ? "rgba(255,255,255,0.28)" : theme.line }
     case "quiet":
       return { bg: "transparent", fg: theme.accent, border: "transparent" }
   }
