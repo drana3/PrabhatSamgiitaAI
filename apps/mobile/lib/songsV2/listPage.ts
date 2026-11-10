@@ -11,11 +11,13 @@ import { t } from "@/lib/i18n"
 
 export type ChipDef = { id: string; label: string }
 
-/** The three chips every list has. */
+/**
+ * The two chips every list has. There is no "Downloaded" chip (Dada, 10 Nov 2026): saved and downloaded are ONE list, the
+ * download is the arrow on a saved song's row and the "Only on this phone" switch inside Saved (`ListContext.downloadedOnly`).
+ */
 export const BASE_CHIPS: readonly ChipDef[] = [
   { id: "all", get label() { return t("home.filter.all") } },
   { id: "saved", get label() { return t("songs.chip.saved") } },
-  { id: "downloaded", get label() { return t("home.filter.downloaded") } },
 ]
 
 /** Categories the app already has (lib/categorySongs ids); a chip shows only when the list holds a song of it. */
@@ -29,11 +31,13 @@ export const CATEGORY_CHIPS: readonly ChipDef[] = [
 export type ListContext = {
   saved: ReadonlySet<number>
   downloaded: ReadonlySet<number>
+  /** the "Only on this phone" switch of Saved: keep just the saved songs that are downloaded (no effect on any other chip) */
+  downloadedOnly?: boolean
   /** category id -> song numbers of that category */
   categories: Readonly<Record<string, ReadonlySet<number>>>
 }
 
-/** All, Saved, Downloaded, then the categories that really have songs in this list. */
+/** All, Saved, then the categories that really have songs in this list. */
 export function visibleChips(entries: readonly CatalogEntry[], ctx: Pick<ListContext, "categories">): ChipDef[] {
   const inList = new Set(entries.map((e) => e.number))
   const extra = CATEGORY_CHIPS.filter((chip) => {
@@ -50,9 +54,7 @@ export function filterByChip(entries: readonly CatalogEntry[], chip: string, ctx
     case "all":
       return [...entries]
     case "saved":
-      return entries.filter((e) => ctx.saved.has(e.number))
-    case "downloaded":
-      return entries.filter((e) => ctx.downloaded.has(e.number))
+      return entries.filter((e) => ctx.saved.has(e.number) && (!ctx.downloadedOnly || ctx.downloaded.has(e.number)))
     default: {
       const members = ctx.categories[chip]
       return members ? entries.filter((e) => members.has(e.number)) : []
@@ -66,9 +68,8 @@ export function withoutHidden(entries: readonly CatalogEntry[], hidden: Readonly
 }
 
 /** Text under the list when a chip has no songs. */
-export function emptyMessage(chip: string, chipLabel: string): string {
-  if (chip === "saved") return t("songs.empty.saved")
-  if (chip === "downloaded") return t("songs.empty.downloaded")
+export function emptyMessage(chip: string, chipLabel: string, downloadedOnly = false): string {
+  if (chip === "saved") return downloadedOnly ? t("songs.saved.downloadedNone") : t("songs.empty.saved")
   return t("songs.empty.chip", { chip: chipLabel.toLowerCase() })
 }
 

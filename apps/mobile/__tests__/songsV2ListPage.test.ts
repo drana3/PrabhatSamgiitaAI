@@ -15,6 +15,8 @@ import {
   sortList,
   splitTitle,
   totalSeconds,
+  BASE_CHIPS,
+  emptyMessage,
   visibleChips,
   withoutHidden,
   type ListContext,
@@ -34,16 +36,27 @@ const ctx: ListContext = {
 }
 
 describe("chips", () => {
-  it("filters All, Saved, Downloaded and a category", () => {
+  it("filters All, Saved and a category; Only on this phone narrows Saved to the downloaded ones", () => {
     expect(filterByChip(entries, "all", ctx)).toHaveLength(4)
     expect(filterByChip(entries, "saved", ctx).map((e) => e.number)).toEqual([3, 1])
-    expect(filterByChip(entries, "downloaded", ctx).map((e) => e.number)).toEqual([3, 6])
+    expect(filterByChip(entries, "saved", { ...ctx, downloadedOnly: true }).map((e) => e.number)).toEqual([3])
+    // the switch belongs to Saved only
+    expect(filterByChip(entries, "all", { ...ctx, downloadedOnly: true })).toHaveLength(4)
+    expect(filterByChip(entries, "morning", { ...ctx, downloadedOnly: true }).map((e) => e.number)).toEqual([3, 1])
     expect(filterByChip(entries, "morning", ctx).map((e) => e.number)).toEqual([3, 1])
     expect(filterByChip(entries, "nope", ctx)).toEqual([])
   })
   it("shows a category chip only when the list holds a song of it", () => {
     const ids = visibleChips(entries, ctx).map((c) => c.id)
-    expect(ids).toEqual(["all", "saved", "downloaded", "morning", "meditation"])
+    expect(ids).toEqual(["all", "saved", "morning", "meditation"])
+  })
+  it("has no Downloaded chip: Saved and downloaded are one list", () => {
+    expect(BASE_CHIPS.map((c) => c.id)).toEqual(["all", "saved"])
+    expect(visibleChips(entries, ctx).map((c) => c.id)).not.toContain("downloaded")
+  })
+  it("says why Saved is empty when only the songs on this phone are asked for", () => {
+    expect(emptyMessage("saved", "Saved")).toMatch(/No saved songs/)
+    expect(emptyMessage("saved", "Saved", true)).toMatch(/downloaded/i)
   })
   it("hides hidden songs", () => {
     expect(withoutHidden(entries, new Set([1, 9])).map((e) => e.number)).toEqual([3, 6])

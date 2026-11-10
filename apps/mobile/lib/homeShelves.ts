@@ -10,26 +10,47 @@ export const HOME_FILTERS = [
   { id: "all", get label() { return t("home.filter.all") } },
   { id: "songs", get label() { return t("tabs.songs") } },
   { id: "kiirtan", get label() { return t("tabs.kiirtan") } },
+  { id: "festivals", get label() { return t("home.filter.festivals") } },
   { id: "stories", get label() { return t("home.filter.stories") } },
   { id: "learn", get label() { return t("tabs.learn") } },
-  { id: "downloaded", get label() { return t("home.filter.downloaded") } },
 ] as const
 export type HomeFilterId = (typeof HOME_FILTERS)[number]["id"]
 
-export type HomeShelfId = "today" | "start" | "kmixes" | "kiirtan" | "mixes" | "because" | "trending" | "stories" | "learn" | "festivals" | "downloaded"
+/**
+ * `festcard` is the festival card (first block, only near a festival with songs), `mixes` the ONE shelf of mixes
+ * (Prabhat Samgiita mixes and Kiirtan mixes together), `spiritual` and `spiritualNew` the two spiritual-song shelves.
+ * There is no "Downloaded" chip and no downloaded shelf (Dada, 10 Nov 2026): downloaded is a state of a saved song, seen in Saved on Songs.
+ */
+export type HomeShelfId = "festcard" | "today" | "start" | "mixes" | "kiirtan" | "spiritual" | "spiritualNew" | "because" | "trending" | "stories" | "learn" | "festivals"
 
 const SHELVES: Record<HomeFilterId, readonly HomeShelfId[]> = {
-  all: ["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "festivals", "learn"],
-  songs: ["today", "start", "mixes", "because", "trending", "festivals"],
-  kiirtan: ["kiirtan", "kmixes"],
+  // everything mixed: Prabhat Samgiita, Kiirtan and spiritual songs side by side, not on separate tabs
+  all: ["festcard", "today", "start", "mixes", "kiirtan", "because", "spiritual", "trending", "spiritualNew", "stories", "festivals", "learn"],
+  songs: ["festcard", "today", "start", "mixes", "because", "trending", "festivals"],
+  kiirtan: ["kiirtan", "mixes", "spiritual", "spiritualNew"],
+  festivals: ["festcard", "festivals"],
   stories: ["stories"],
   learn: ["learn"],
-  downloaded: ["downloaded"],
 }
 
 /** The shelves a chip shows, in order. A shelf with no data is dropped by the caller. */
 export function shelvesFor(filter: HomeFilterId): readonly HomeShelfId[] {
   return SHELVES[filter]
+}
+
+/** Which kinds of mix the one "Mixes for you" shelf holds under a chip: Songs the Prabhat Samgiita mixes, Kiirtan the Kiirtan mixes, All both. */
+export function mixKindsFor(filter: HomeFilterId): { songs: boolean; kiirtan: boolean } {
+  return { songs: filter !== "kiirtan", kiirtan: filter !== "songs" }
+}
+
+/** Two lists in turns (a, b, a, b ...), the longer one's rest at the end: "everything mixed" for one shelf. */
+export function interleave<T>(a: readonly T[], b: readonly T[]): T[] {
+  const out: T[] = []
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (i < a.length) out.push(a[i]!)
+    if (i < b.length) out.push(b[i]!)
+  }
+  return out
 }
 
 export function isHomeFilter(value: unknown): value is HomeFilterId {

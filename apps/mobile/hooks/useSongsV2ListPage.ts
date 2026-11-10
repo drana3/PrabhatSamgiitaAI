@@ -51,6 +51,8 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
   const actions = useSongsV2Actions()
 
   const [chip, setChip] = useState("all")
+  /** "Only on this phone" inside Saved */
+  const [downloadedOnly, setDownloadedOnly] = useState(false)
   const [sort, setSort] = useState<ListSortKey>(DEFAULT_LIST_SORT)
   const [toast, setToast] = useState<string | null>(null)
   const [toastAction, setToastAction] = useState<ToastAction | null>(null)
@@ -121,14 +123,16 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
       ),
     [],
   )
-  const ctx = useMemo<ListContext>(() => ({ saved, downloaded, categories }), [saved, downloaded, categories])
+  const ctx = useMemo<ListContext>(() => ({ saved, downloaded, downloadedOnly, categories }), [saved, downloaded, downloadedOnly, categories])
   const chips = useMemo(() => visibleChips(base, ctx), [base, ctx, t])
   const activeChip = chips.some((c) => c.id === chip) ? chip : "all"
   const shown = useMemo(() => sortList(filterByChip(base, activeChip, ctx), sort, recent), [base, activeChip, ctx, sort, recent])
   const shownNumbers = useMemo(() => shown.map((e) => e.number), [shown])
   const meta = useMemo(() => metaLine(base), [base, t])
   const chipLabel = chips.find((c) => c.id === activeChip)?.label ?? t("home.filter.all")
-  const empty = base.length === 0 ? "" : emptyMessage(activeChip, chipLabel)
+  const empty = base.length === 0 ? "" : emptyMessage(activeChip, chipLabel, downloadedOnly)
+  /** The switch shows inside Saved once a saved song of this list is on the phone (and stays while it is on, so it can be turned off). */
+  const showOnlyOnPhone = activeChip === "saved" && (downloadedOnly || base.some((e) => saved.has(e.number) && downloaded.has(e.number)))
   const downloadedHere = useMemo(() => shownNumbers.filter((n) => downloaded.has(n)), [shownNumbers, downloaded])
   const source = listSourceId(listId)
   const playingHere = playingFrom === source && isPlaying
@@ -330,6 +334,9 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     chips,
     chip: activeChip,
     setChip,
+    downloadedOnly,
+    setDownloadedOnly,
+    showOnlyOnPhone,
     sort,
     setSort,
     sortOptionTitle,

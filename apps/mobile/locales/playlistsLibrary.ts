@@ -29,7 +29,7 @@ export const playlistsLibraryEn = {
   "songs.chip.learned": "Learned",
   "songs.learning.empty": "Songs you start to learn appear here. Open a song and tap Learn this song.",
   "songs.learned.empty": "Songs you have learned all three steps of (hear it, know what it means, play it) appear here.",
-  "songs.saved.downloadedOnly": "Downloaded only",
+  "songs.saved.downloadedOnly": "Only on this phone",
   "songs.saved.downloadedOnlyHint": "Show only saved songs that are on this phone",
   "songs.saved.downloadedNone": "None of your saved songs are downloaded yet. Turn on Download above to keep them on this phone.",
 } as const
@@ -61,7 +61,7 @@ export const playlistsLibraryRu: Record<keyof typeof playlistsLibraryEn | "pl.up
   "songs.chip.learned": "Выучено",
   "songs.learning.empty": "Здесь появятся песни, которые вы начали учить. Откройте песню и нажмите «Учить эту песню».",
   "songs.learned.empty": "Здесь появятся песни, в которых пройдены все три шага: услышать, понять смысл, сыграть.",
-  "songs.saved.downloadedOnly": "Только скачанные",
+  "songs.saved.downloadedOnly": "Только на этом телефоне",
   "songs.saved.downloadedOnlyHint": "Показать только сохранённые песни, которые есть на телефоне",
   "songs.saved.downloadedNone": "Ни одна из сохранённых песен пока не скачана. Включите «Скачать» выше, чтобы хранить их на телефоне.",
 }
@@ -91,7 +91,7 @@ export const playlistsLibraryEs: Record<keyof typeof playlistsLibraryEn, string>
   "songs.chip.learned": "Aprendidas",
   "songs.learning.empty": "Aquí aparecen las canciones que empiezas a aprender. Abre una canción y toca Aprender esta canción.",
   "songs.learned.empty": "Aquí aparecen las canciones con los tres pasos hechos (escucharla, entender su sentido, tocarla).",
-  "songs.saved.downloadedOnly": "Solo descargadas",
+  "songs.saved.downloadedOnly": "Solo en este teléfono",
   "songs.saved.downloadedOnlyHint": "Mostrar solo las canciones guardadas que están en este teléfono",
   "songs.saved.downloadedNone": "Ninguna de tus canciones guardadas está descargada todavía. Activa Descargar arriba para tenerlas en este teléfono.",
 }

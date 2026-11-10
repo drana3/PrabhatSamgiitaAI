@@ -35,6 +35,10 @@ import { songCategories } from "@/constants/categories"
 import { amProto, protoFor } from "@/constants/tokens/amToday"
 import { getUpcomingFestivals } from "@/data/festivals"
 import { festivalSongCount } from "@/data/festivalSongs"
+import { todayFestivalCards } from "@/lib/festivals/todayCard"
+import { sampleSpiritualSongs } from "@/lib/fixtures/todaySpiritual"
+import { spiritualForToday, spiritualNewlyAdded } from "@/lib/spiritualToday"
+import { SpiritualForToday, SpiritualNewlyAdded } from "@/components/today/TodaySpiritualShelves"
 import { mapApiStory, type StorySummary } from "@/data/stories"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useAmTheme } from "@/hooks/useAmTheme"
@@ -45,18 +49,16 @@ import { useKirtans } from "@/hooks/useKirtans"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Actions } from "@/hooks/useSongsV2Actions"
-import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { ensureCatalog, useCatalogStore } from "@/lib/catalogStore"
 import { useLanguage, useT } from "@/lib/i18n"
 import { festivalText } from "@/lib/i18n/festivalText"
-import { eveFestivals, festivalPhase } from "@/lib/festivalEve"
+import { festivalPhase } from "@/lib/festivalEve"
 import { nowMs } from "@/lib/notifications/clock"
 import { api } from "@/lib/client"
 import {
   HOME_BECAUSE,
   HOME_BECAUSE_OF,
-  HOME_DOWNLOADED_NUMBERS,
   HOME_LEARN,
   HOME_MIXES,
   HOME_RECENT_NUMBERS,
@@ -65,7 +67,7 @@ import {
   HOME_TRENDING,
   homeSong,
 } from "@/lib/fixtures/home"
-import { HOME_FILTERS, mergeStartRows, shelvesFor, songSub, type HomeFilterId, type HomeShelfId, type StartRow } from "@/lib/homeShelves"
+import { HOME_FILTERS, interleave, mergeStartRows, mixKindsFor, shelvesFor, songSub, type HomeFilterId, type HomeShelfId, type StartRow } from "@/lib/homeShelves"
 import { sampleMixes } from "@/lib/fixtures/kirtanGate"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
 import { mixCaption } from "@/lib/kirtan/mix"
@@ -77,8 +79,6 @@ import { runShare } from "@/lib/playerV2/playerActionsIO"
 import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { formatClock } from "@/lib/navV2"
-import { useOfflineAudioStore } from "@/lib/offlineAudio"
 import { songPlayback } from "@/lib/playback"
 import { readableTitle } from "@/lib/readableTitle"
 import { songSummaryToMockSong } from "@/lib/songMap"
@@ -130,9 +130,7 @@ export function HomeScreen() {
   const playOrToggle = usePlayerStore((s) => s.playOrToggle)
   const currentSong = usePlayerStore((s) => s.currentSong)
   const isPlaying = usePlayerStore((s) => s.isPlaying)
-  const offlineFiles = useOfflineAudioStore((s) => s.files)
   const actions = useSongsV2Actions()
-  const catalog = useSongsV2Catalog()
   const { unread } = useNotificationItems()
 
   const [today, setToday] = useState<TodayRecommendations | null>(null)
@@ -221,15 +219,6 @@ export function HomeScreen() {
     return made
   }, [todayRows, t])
 
-  const downloadedRows: HomeRowData[] = useMemo(() => {
-    const numbers = MOCKUP_DATA ? [...HOME_DOWNLOADED_NUMBERS] : Array.from(new Set(Object.values(offlineFiles).map((f) => f.songNumber)))
-    return numbers.map((n) => {
-      if (MOCKUP_DATA) return homeSong(n)
-      const entry = catalog.byNumber.get(n)
-      return { number: n, title: entry?.title ?? `Prabhat Samgiita ${n}`, sub: songSub(n, entry?.durationSeconds ? formatClock(entry.durationSeconds) : null) }
-    })
-  }, [offlineFiles, catalog.byNumber])
-
   const storyCards: (StripCardData & { slug: string })[] = useMemo(() => {
     if (MOCKUP_DATA) return HOME_STORIES.map((st) => ({ id: st.slug, slug: st.slug, label: st.eyebrow, tone: "sage" as const, cover: st.cover, title: st.title, caption: st.blurb }))
     return stories.slice(0, 6).map((st, i) => ({ id: st.slug, slug: st.slug, label: t("today.section.story"), tone: "sage" as const, cover: i + 1, title: st.title, caption: st.teaser }))
@@ -286,6 +275,20 @@ export function HomeScreen() {
     const mix = sampleMixes().find((m) => m.id === id)
     if (mix) kActions.flash(playMix(mix) ?? t("home.playing", { title: mix.title }))
   }
+  /** ONE shelf of mixes: the Prabhat Samgiita mixes and the Kiirtan mixes in turns (Songs shows the first kind, Kiirtan the second). */
+  const mixShelf = (() => {
+    const kinds = mixKindsFor(filter)
+    const ps = kinds.songs ? mixes.map((m) => ({ key: `ps-${m.id}`, card: m as StripCardData, press: () => openMix(m) })) : []
+    const kk = kinds.kiirtan ? mixCards.map((m) => ({ key: `kk-${m.id}`, card: m, press: () => playMixCard(m.id) })) : []
+    return interleave(ps, kk)
+  })()
+
+  /* --- spiritual songs: Today shows them next to Prabhat Samgiita and Kiirtan (lib/spiritualToday.ts) --- */
+  const spiritualPool = useMemo(() => [...kirtans, ...sampleSpiritualSongs()], [kirtans])
+  const spiritualToday = useMemo(() => spiritualForToday(spiritualPool, dayNumberOf(now.getTime())), [spiritualPool, now])
+  const spiritualNew = useMemo(() => spiritualNewlyAdded(spiritualPool, spiritualToday), [spiritualPool, spiritualToday])
+  const openSpiritual = (k: Kirtan, context: readonly Kirtan[]) => kActions.open(k, context, t("home.spiritual.today.first"))
+
   const onKirtanShare = async (k: Kirtan, target: ShareTargetId) => {
     const message = shareToast(await runShare(target, kirtanSharePayload(k)))
     if (message) kActions.flash(message)
@@ -312,44 +315,50 @@ export function HomeScreen() {
     return () => sub.remove()
   }, [])
   const festivalNow = useMemo(() => new Date(clock), [clock])
-  const eveList = useMemo(() => eveFestivals(festivalNow).slice(0, 2), [festivalNow])
+  /** The festival card (first block): a festival with confirmed songs, two days before, the day before and on the day. */
+  const cardList = useMemo(() => todayFestivalCards(festivalNow), [festivalNow])
+  /** The calendar shelf lists the festivals the card does not already show; the Festivals chip shows more of them. */
   const festivalCards: StripCardData[] = useMemo(
     () =>
-      getUpcomingFestivals(festivalNow, 4).map((f, i) => {
-        const phase = festivalPhase(f.daysUntil)
-        const songs = phase ? festivalSongCount(f) : 0
-        return {
-          id: f.id,
-          label: `${phase ? `${phase === "today" ? t("fest.today") : t("fest.tomorrow")} · ${f.dateLabel}` : f.dateLabel}${f.expected ? ` · ${t("fest.expected")}` : ""}`,
-          tone: (["orange", "sage", "gold", "forest"] as const)[i % 4],
-          cover: i + 3,
-          title: festivalText(f, language).title,
-          caption:
-            songs > 0
-              ? t("festSongs.card.caption", { count: songs })
-              : f.daysUntil === 0
-                ? t("fest.today")
-                : f.daysUntil === 1
-                  ? t("fest.tomorrow")
-                  : t("fest.inDays", { count: f.daysUntil }),
-        }
-      }),
-    [festivalNow, t, language],
+      getUpcomingFestivals(festivalNow, filter === "festivals" ? 12 : 4 + cardList.length)
+        .filter((f) => !cardList.some((c) => c.pageId === f.id))
+        .slice(0, filter === "festivals" ? 12 : 4)
+        .map((f, i) => {
+          const phase = festivalPhase(f.daysUntil)
+          const songs = phase ? festivalSongCount(f) : 0
+          return {
+            id: f.id,
+            label: `${phase ? `${phase === "today" ? t("fest.today") : t("fest.tomorrow")} · ${f.dateLabel}` : f.dateLabel}${f.expected ? ` · ${t("fest.expected")}` : ""}`,
+            tone: (["orange", "sage", "gold", "forest"] as const)[i % 4],
+            cover: i + 3,
+            title: festivalText(f, language).title,
+            caption:
+              songs > 0
+                ? t("festSongs.card.caption", { count: songs })
+                : f.daysUntil === 0
+                  ? t("fest.today")
+                  : f.daysUntil === 1
+                    ? t("fest.tomorrow")
+                    : t("fest.inDays", { count: f.daysUntil }),
+          }
+        }),
+    [festivalNow, t, language, filter, cardList],
   )
 
   const shelves = shelvesFor(filter)
   const has: Record<HomeShelfId, boolean> = {
+    festcard: cardList.length > 0,
     today: Boolean(hero),
     start: startRows.length > 0,
-    kmixes: mixCards.length > 0,
     kiirtan: kiirtanToday.length > 0,
-    mixes: mixes.length > 0,
+    mixes: mixShelf.length > 0,
+    spiritual: spiritualToday.length > 0,
+    spiritualNew: spiritualNew.length > 0,
     because: MOCKUP_DATA,
     trending: MOCKUP_DATA,
     stories: storyCards.length > 0,
     learn: true,
     festivals: festivalCards.length > 0,
-    downloaded: true,
   }
   const visible = shelves.filter((id) => has[id])
   let reveal = 1
@@ -357,6 +366,16 @@ export function HomeScreen() {
 
   const section = (id: HomeShelfId): ReactNodeOrNull => {
     switch (id) {
+      case "festcard":
+        return (
+          <Reveal key={id} index={next()}>
+            <View style={styles.list}>
+              {cardList.map((festival) => (
+                <FestivalEvePanel key={festival.id} p={p} festival={festival} now={festivalNow} onSeeAll={(pageId) => router.push(href(`/festival/${pageId}`))} />
+              ))}
+            </View>
+          </Reveal>
+        )
       case "today":
         return hero ? (
           <Reveal key={id} index={next()}>
@@ -381,23 +400,6 @@ export function HomeScreen() {
             <HomePagedRows p={p} rows={startRows} onOpen={openSong} onMore={(row) => setMenu({ number: row.number, title: row.title })} />
           </Reveal>
         )
-      case "kmixes":
-        return (
-          <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead
-              p={p}
-              eyebrow={t("home.kmixes.eyebrow")}
-              first={t("home.kmixes.first")}
-              second={t("home.kmixes.second")}
-              action={{ label: t("home.shuffle"), onPress: () => kActions.flash(playEverything() ?? t("home.shuffling")) }}
-            />
-            <HomeShelf itemWidth={MIX_WIDTH}>
-              {mixCards.map((card) => (
-                <StripCard key={card.id} p={p} card={card} width={MIX_WIDTH} height={170} onPress={() => playMixCard(card.id)} />
-              ))}
-            </HomeShelf>
-          </Reveal>
-        )
       case "kiirtan":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
@@ -419,12 +421,38 @@ export function HomeScreen() {
       case "mixes":
         return (
           <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow={t("home.mixes.eyebrow")} first={t("home.mixes.first")} second={t("home.mixes.second")} />
+            <HomeSectionHead
+              p={p}
+              eyebrow={t("home.kmixes.eyebrow")}
+              first={t("home.kmixes.first")}
+              second={t("home.kmixes.second")}
+              action={mixKindsFor(filter).kiirtan ? { label: t("home.shuffle"), onPress: () => kActions.flash(playEverything() ?? t("home.shuffling")) } : undefined}
+            />
             <HomeShelf itemWidth={MIX_WIDTH}>
-              {mixes.map((mix) => (
-                <StripCard key={mix.id} p={p} card={mix} width={MIX_WIDTH} onPress={() => openMix(mix)} />
+              {mixShelf.map((mix) => (
+                <StripCard key={mix.key} p={p} card={mix.card} width={MIX_WIDTH} height={170} onPress={mix.press} />
               ))}
             </HomeShelf>
+          </Reveal>
+        )
+      case "spiritual":
+        return (
+          <Reveal key={id} index={next()} style={styles.section}>
+            <SpiritualForToday
+              p={p}
+              theme={songsTheme}
+              items={spiritualToday}
+              onOpen={openSpiritual}
+              onMore={setKMenu}
+              onOpenArtist={(a) => router.push(href(`/kirtan-artist?id=${encodeURIComponent(a)}`))}
+              onAll={() => router.push(href("/browse-shelf?id=spiritual"))}
+            />
+          </Reveal>
+        )
+      case "spiritualNew":
+        return (
+          <Reveal key={id} index={next()} style={styles.section}>
+            <SpiritualNewlyAdded p={p} theme={songsTheme} items={spiritualNew} onOpen={openSpiritual} onAll={() => router.push(href("/browse-shelf?id=spiritual"))} />
           </Reveal>
         )
       case "because":
@@ -481,33 +509,11 @@ export function HomeScreen() {
               second={t("home.festivals.second")}
               action={{ label: t("home.festivals.all"), onPress: () => router.push(href("/festivals")) }}
             />
-            {eveList.length > 0 ? (
-              <View style={styles.list}>
-                {eveList.map((festival) => (
-                  <FestivalEvePanel key={festival.id} p={p} festival={festival} onSeeAll={() => router.push(href(`/festival/${festival.id}`))} />
-                ))}
-              </View>
-            ) : null}
             <HomeShelf itemWidth={STORY_WIDTH}>
               {festivalCards.map((card) => (
                 <StripCard key={card.id} p={p} card={card} width={STORY_WIDTH} height={150} onPress={() => router.push(href(`/festival/${card.id}`))} />
               ))}
             </HomeShelf>
-          </Reveal>
-        )
-      case "downloaded":
-        return (
-          <Reveal key={id} index={next()} style={styles.section}>
-            <HomeSectionHead p={p} eyebrow={t("home.downloaded.eyebrow")} first={t("home.filter.downloaded")} second={t("home.downloaded.second")} />
-            {downloadedRows.length ? (
-              <View style={styles.list}>
-                {downloadedRows.map((row) => (
-                  <HomeRow key={row.number} p={p} row={row} onOpen={() => openSong(row)} onMore={() => setMenu({ number: row.number, title: row.title })} />
-                ))}
-              </View>
-            ) : (
-              <HomeEmpty p={p} text={t("home.downloaded.empty")} />
-            )}
           </Reveal>
         )
     }

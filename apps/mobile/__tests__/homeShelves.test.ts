@@ -5,8 +5,10 @@ import {
   HOME_FILTERS,
   chunk,
   coverFor,
+  interleave,
   isHomeFilter,
   mergeStartRows,
+  mixKindsFor,
   shelvesFor,
   songSub,
   stripColors,
@@ -14,19 +16,51 @@ import {
 
 describe("home shelves", () => {
   it("All shows every shelf and each chip has its own", () => {
-    expect(shelvesFor("all")).toEqual(["today", "start", "kmixes", "kiirtan", "mixes", "because", "trending", "stories", "festivals", "learn"])
-    expect(shelvesFor("kiirtan")).toEqual(["kiirtan", "kmixes"])
+    expect(shelvesFor("all")).toEqual(["festcard", "today", "start", "mixes", "kiirtan", "because", "spiritual", "trending", "spiritualNew", "stories", "festivals", "learn"])
+    expect(shelvesFor("kiirtan")).toEqual(["kiirtan", "mixes", "spiritual", "spiritualNew"])
+    expect(shelvesFor("festivals")).toEqual(["festcard", "festivals"])
     expect(shelvesFor("stories")).toEqual(["stories"])
     expect(shelvesFor("learn")).toEqual(["learn"])
-    expect(shelvesFor("downloaded")).toEqual(["downloaded"])
     expect(shelvesFor("songs")).not.toContain("stories")
     expect(shelvesFor("songs")).not.toContain("kiirtan")
   })
 
-  it("knows the six chips", () => {
-    expect(HOME_FILTERS.map((f) => f.label)).toEqual(["All", "Songs", "Kiirtan", "Stories", "Learn", "Downloaded"])
+  it("knows the six chips: Festivals is new, Downloaded is gone", () => {
+    expect(HOME_FILTERS.map((f) => f.label)).toEqual(["All", "Songs", "Kiirtan", "Festivals", "Stories", "Learn"])
     expect(isHomeFilter("songs")).toBe(true)
+    expect(isHomeFilter("festivals")).toBe(true)
+    expect(isHomeFilter("downloaded")).toBe(false)
     expect(isHomeFilter("podcasts")).toBe(false)
+  })
+
+  it("puts the festival card first wherever it can show, and the spiritual shelves next to Prabhat Samgiita and Kiirtan", () => {
+    for (const filter of ["all", "songs", "festivals"] as const) expect(shelvesFor(filter)[0]).toBe("festcard")
+    const all = shelvesFor("all")
+    for (const id of ["today", "kiirtan", "spiritual", "spiritualNew"] as const) expect(all).toContain(id)
+    expect(all.indexOf("spiritual")).toBeLessThan(all.indexOf("stories"))
+    expect(shelvesFor("kiirtan")).toContain("spiritual")
+  })
+
+  it("has one shelf of mixes, never the old two, and no top lists", () => {
+    for (const filter of HOME_FILTERS.map((f) => f.id)) {
+      const shelves = shelvesFor(filter) as readonly string[]
+      expect(shelves.filter((id) => id === "mixes").length).toBeLessThanOrEqual(1)
+      expect(shelves).not.toContain("kmixes")
+      expect(shelves).not.toContain("downloaded")
+      expect(shelves.some((id) => id.startsWith("top"))).toBe(false)
+    }
+  })
+
+  it("fills the one mixes shelf by chip: Songs the Prabhat Samgiita mixes, Kiirtan the Kiirtan mixes, All both", () => {
+    expect(mixKindsFor("all")).toEqual({ songs: true, kiirtan: true })
+    expect(mixKindsFor("songs")).toEqual({ songs: true, kiirtan: false })
+    expect(mixKindsFor("kiirtan")).toEqual({ songs: false, kiirtan: true })
+  })
+
+  it("lays two lists in turns", () => {
+    expect(interleave<number | string>([1, 2, 3], ["a", "b"])).toEqual([1, "a", 2, "b", 3])
+    expect(interleave<string>([], ["a"])).toEqual(["a"])
+    expect(interleave<number>([1], [])).toEqual([1])
   })
 
   it("chunks rows into pages of three", () => {

@@ -1,5 +1,7 @@
 import compositionDates from "../../../data/generated/composition_dates.json"
 
+import { reviewedSongsFor } from "@/lib/festivals/reviewed"
+
 import { allCollections } from "./collections"
 
 /**
@@ -41,6 +43,12 @@ export const FESTIVAL_LISTS: Readonly<Record<string, FestivalListLink>> = {
   vijayotsava: { collections: ["Victory Day Song"] },
   diipavalii: { collections: ["Dipavali (Colour Festival) Day Songs"] },
 }
+
+/**
+ * Festivals whose older list above is NOT kept once the reviewed file names songs for them: "New Year Songs" are the songs
+ * of 1 January (Dada, 10 Nov 2026, decision 5), not of Navavarsa (14 April).
+ */
+const SUPERSEDED_LISTS: ReadonlySet<string> = new Set(["navavarsa"])
 
 export type FestivalSongLink =
   | {
@@ -85,6 +93,26 @@ export function songsForFestival(festival: { id: string; month: number; day: num
     if (seen.has(number)) continue
     seen.add(number)
     listed.push({ number, basis: "list", list: null })
+  }
+  // The reviewed list (data/festivalsReviewed.json, lib/festivals/reviewed.ts) is newer than FESTIVAL_LISTS: its songs come
+  // first, as the festival's own, and a song keeps the label of the collection it sits in. The older list then follows, so
+  // nothing Dada said to keep is lost (Prabháta Saḿgiita Divasa's mix), except a list the reviewed file moved to another
+  // festival (SUPERSEDED_LISTS). Today's card and the festival page read this one function, so they always agree.
+  const reviewed = reviewedSongsFor(festival.id)
+  if (reviewed.length > 0) {
+    const older = listed.splice(0, listed.length).filter(() => !SUPERSEDED_LISTS.has(festival.id.replace(/-\d{4}$/, "")))
+    const olderByNumber = new Map(older.map((link) => [link.number, link]))
+    seen.clear()
+    for (const number of reviewed) {
+      if (seen.has(number)) continue
+      seen.add(number)
+      listed.push(olderByNumber.get(number) ?? { number, basis: "list", list: null })
+    }
+    for (const link of older) {
+      if (seen.has(link.number)) continue
+      seen.add(link.number)
+      listed.push(link)
+    }
   }
   const composed: FestivalSongLink[] = []
   for (const [number, year] of songsComposedOn(festival.month, festival.day)) {

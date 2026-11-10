@@ -14,6 +14,7 @@ import {
   SongListRow,
 } from "@/components/songs-v2/ListParts"
 import { HiddenLine } from "@/components/songs-v2/HiddenLine"
+import { OnlyOnPhoneRow } from "@/components/songs-v2/OnlyOnPhoneRow"
 import { PillButton } from "@/components/songs-v2/Pill"
 import { ListMenuSheet, ListSortSheet, SongMenuSheet } from "@/components/songs-v2/ListSheets"
 import { SongCardRow } from "@/components/songs-v2/SongCardRow"
@@ -182,6 +183,7 @@ export function SongsListPage({
       </SongsReveal>
       <SongsReveal index={3}>
         <ChipsRow theme={theme} chips={list.chips} active={list.chip} onPick={list.setChip} />
+        {list.showOnlyOnPhone ? <OnlyOnPhoneRow theme={theme} on={list.downloadedOnly} onChange={list.setDownloadedOnly} /> : null}
       </SongsReveal>
     </View>
   )

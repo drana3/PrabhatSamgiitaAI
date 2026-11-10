@@ -31,6 +31,7 @@ import { kiirtanScreensEs } from "./kiirtanScreens"
 import { countsEs } from "./counts"
 import { homeStatesEs } from "./homeStates"
 import { homeFestivalsEs } from "./homeFestivals"
+import { todayV2Es } from "./todayV2"
 import { festivalSongsEs } from "./festivalSongs"
 import { profileRowsEs } from "./profileRows"
 import { volumeEs } from "./volume"
@@ -1318,6 +1319,7 @@ export const es: Dictionary = {
   ...countsEs,
   ...homeStatesEs,
   ...homeFestivalsEs,
+  ...todayV2Es,
   ...festivalSongsEs,
   ...profileRowsEs,
   ...volumeEs,

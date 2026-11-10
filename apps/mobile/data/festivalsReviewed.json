@@ -1,0 +1,377 @@
+{
+ "source": {
+  "calendar_site_checked": "landomarket.org: DNS не разрешается (ENOTFOUND), сверить нельзя",
+  "calendar_source_used": "anandamarga.org: список праздников и ICS поста (Asia/Kolkata), india.anandamarga.org"
+ },
+ "festivals": [
+  {
+   "id": "new-years-day",
+   "name_en": "New Year's Day",
+   "name_ru": "Новый год (1 января)",
+   "dates": {
+    "2026": "2026-01-01",
+    "2027": "2027-01-01",
+    "2028": "2028-01-01"
+   },
+   "rule": "fixed Gregorian: 1 January (ночь 31 декабря на 1 января)",
+   "songs": [
+    126,
+    127,
+    129,
+    130,
+    131
+   ],
+   "status": "ok",
+   "date_basis": "official-2026",
+   "note": "Решение Дады 10.11.2026: Новый год в песнях 127, 129–131 это 1 января (ночь с 31 декабря на 1 января). Песни из коллекции сайта «New Year Songs»; 126 из «Year-end» (проводы года, 31 декабря). Кандидаты 128, 3626, 4032 не берём: к этому дню не привязаны.",
+   "candidates": [
+    128,
+    3626,
+    4032
+   ]
+  },
+  {
+   "id": "ru-day",
+   "name_en": "R.U. Day",
+   "name_ru": "День R.U. (Renaissance Universal)",
+   "dates": {
+    "2026": "2026-01-25",
+    "2027": "2027-01-25",
+    "2028": "2028-01-25"
+   },
+   "rule": "fixed Gregorian: 25 January",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "official-2026",
+   "note": "В официальном списке только дата, без пояснений. Песен, привязанных к дню, нет. Не придумываю.",
+   "candidates": []
+  },
+  {
+   "id": "niilakantha",
+   "name_en": "Niilakanth'a Divasa",
+   "name_ru": "Нилакантха дивас",
+   "dates": {
+    "2026": "2026-02-12",
+    "2027": "2027-02-12",
+    "2028": "2028-02-12"
+   },
+   "rule": "fixed Gregorian: 12 February",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "official-2026",
+   "note": "Официальный список даёт только дату. Песня 3815 называет Шиву «Niilakantha» (текст), но связь с этим днём не подтверждена.",
+   "candidates": [
+    3815
+   ]
+  },
+  {
+   "id": "vasantotsava",
+   "name_en": "Vasantotsava",
+   "name_ru": "Васантоцава (праздник весны)",
+   "dates": {
+    "2026": "2026-03-04"
+   },
+   "rule": "lunar: Phalguna full moon (Caryacarya). Официальные даты 2024–2026 не сходятся с одним правилом. Полнолуния по официальному ICS поста: 2027-03-22, 2028-03-10; день самого праздника 2027–2028 не подтверждён, поэтому в файл не внесён",
+   "songs": [
+    1250,
+    1288
+   ],
+   "status": "ok-with-question",
+   "date_basis": "2026 official; 2027-28 not verified",
+   "note": "Решение Дады: весенние песни сайта (101–107, 1682, 3110) идут только в сезон «Весна». Здесь только песни, где текст про сам праздник: 1250 («colour festival of Vrindavana», сочинена 15.02.1984) и 1288 («festival of colours in spring», сочинена 24.02.1984). Другие песни про «festival of colours» используют образ как метафору природы, не беру. Основание: текст перевода и дата сочинения.",
+   "candidates": []
+  },
+  {
+   "id": "dadhicii",
+   "name_en": "Dadhicii Divas",
+   "name_ru": "Дадхичи дивас",
+   "dates": {
+    "2026": "2026-03-05",
+    "2027": "2027-03-05",
+    "2028": "2028-03-05"
+   },
+   "rule": "fixed Gregorian: 5 March",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "official-2026",
+   "note": "Только дата. Песен нет.",
+   "candidates": []
+  },
+  {
+   "id": "navavarsa",
+   "name_en": "Navavarsa",
+   "name_ru": "Нававарша (новый год по индийскому календарю)",
+   "dates": {
+    "2026": "2026-04-14"
+   },
+   "rule": "solar new year (Baeshakh); официальные даты 14.04.2024, 15.04.2025, 14.04.2026, правило не выведено; 2027 и 2028 не подтверждены",
+   "songs": [
+    4336
+   ],
+   "status": "ok",
+   "date_basis": "2026 official; 2027-28 not verified",
+   "note": "Решение Дады: определить по тексту. 4336: в тексте «Today in new year… caetra month passed, baeshakha month came», сочинена 14.04.1988, то есть в день Нававарши. Песни «New Year Songs» сайта сюда не входят (это 1 января). Кандидаты 128, 3626, 4032 не подтверждены.",
+   "candidates": [
+    128,
+    3626,
+    4032
+   ]
+  },
+  {
+   "id": "ananda-purnima",
+   "name_en": "Ánanda Purnimá",
+   "name_ru": "Ананда Пурнима (день рождения Бабы, один праздник)",
+   "dates": {
+    "2026": "2026-05-01",
+    "2027": "2027-05-20",
+    "2028": "2028-05-08"
+   },
+   "rule": "lunar: full moon of Vaeshakha; sunrise inside Purnima tithi",
+   "songs": [
+    133,
+    134,
+    135,
+    903,
+    2649
+   ],
+   "status": "ok",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "2026 — официальный список AMPS India. 2027–2028 — вычислено, полнолуние совпадает с официальным постом по полнолунию (20.05.2027, 08.05.2028). 2028-05-08: тити начинается за 1,4 ч до восхода — может сместиться на день. Решение Дады: Ананда Пурнима = день рождения Бабы, одно событие; отдельного дня «21 мая» нет. Песни: «Bábá Birthday Songs» сайта.",
+   "candidates": []
+  },
+  {
+   "id": "prout-day",
+   "name_en": "PROUT Day",
+   "name_ru": "День PROUT",
+   "dates": {
+    "2026": "2026-06-05",
+    "2027": "2027-06-05",
+    "2028": "2028-06-05"
+   },
+   "rule": "fixed Gregorian: 5 June",
+   "songs": [
+    4599,
+    4725,
+    4795
+   ],
+   "status": "ok",
+   "date_basis": "official-2026",
+   "note": "Песни: «PROUT Song» сайта. Другие песни упоминают prout в переводе (101, 109, 327, 1030, 1045, 2926, 3934), но это случайные слова, не отбираю.",
+   "candidates": []
+  },
+  {
+   "id": "shravanii",
+   "name_en": "Shrávanii Purnimá",
+   "name_ru": "Шравани Пурнима",
+   "dates": {
+    "2026": "2026-08-28",
+    "2027": "2027-08-17",
+    "2028": "2028-08-05"
+   },
+   "rule": "lunar: full moon of Shravana; sunrise inside Purnima tithi",
+   "songs": [
+    4954
+   ],
+   "status": "ok",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "2026 — официальный. 2027: пост полнолуния 16.08, праздник по правилу 17.08 (так же было в 2026: пост 27.08, праздник 28.08). Песня 4954 «Shrávanii Purńimár kathá».",
+   "candidates": []
+  },
+  {
+   "id": "kaoshiki",
+   "name_en": "Kaoshiki Divas",
+   "name_ru": "Каошики дивас",
+   "dates": {
+    "2026": "2026-09-06",
+    "2027": "2027-09-06",
+    "2028": "2028-09-06"
+   },
+   "rule": "fixed Gregorian: 6 September",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "official-2026",
+   "note": "Только дата. Песен нет.",
+   "candidates": []
+  },
+  {
+   "id": "ps-divasa",
+   "name_en": "Prabháta Saḿgiita Divasa",
+   "name_ru": "День Прабхата Самгита",
+   "dates": {
+    "2026": "2026-09-14",
+    "2027": "2027-09-14",
+    "2028": "2028-09-14"
+   },
+   "rule": "fixed Gregorian: 14 September",
+   "songs": [
+    1
+   ],
+   "status": "ok-with-question",
+   "date_basis": "official-2026",
+   "note": "Песня 1 «Bandhu he niye calo» сочинена 14.09.1982 (дата в данных приложения). Список приложения 68, 135, 647, 1418, 4281, 5018 оставлен как есть по решению Дады (основание неизвестно).",
+   "candidates": [
+    68,
+    135,
+    647,
+    1418,
+    4281,
+    5018
+   ]
+  },
+  {
+   "id": "kiirtana-divas",
+   "name_en": "Kiirtana Divas",
+   "name_ru": "Киртана дивас",
+   "dates": {
+    "2026": "2026-10-08",
+    "2027": "2027-10-08",
+    "2028": "2028-10-08"
+   },
+   "rule": "fixed Gregorian: 8 October",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "official-2026",
+   "note": "Только дата. Единственная «classicalised kiirtan-style» песня сайта — 1266, но к дню не привязана.",
+   "candidates": [
+    1266
+   ]
+  },
+  {
+   "id": "sharadotsava-children",
+   "name_en": "Sharadotsava / Children's Day (6th day)",
+   "name_ru": "Шарадоцава, День детей (6-й день)",
+   "dates": {
+    "2026": "2026-10-16",
+    "2027": "2027-10-05",
+    "2028": "2028-09-23"
+   },
+   "rule": "lunar: 6th–10th day of bright fortnight of Ashvina; first day of Sharadotsava",
+   "songs": [
+    361,
+    432,
+    1495,
+    1784
+   ],
+   "status": "ok-with-question",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "2026 — официальный. 2027–2028 вычислено (Vijayotsava минус 4 дня). Песни: «Children Songs» сайта; к самому празднику сайт их не привязывает, это решение приложения.",
+   "candidates": []
+  },
+  {
+   "id": "public-day",
+   "name_en": "Public Day (7th day)",
+   "name_ru": "День общественности (7-й день)",
+   "dates": {
+    "2026": "2026-10-17",
+    "2027": "2027-10-06",
+    "2028": "2028-09-24"
+   },
+   "rule": "lunar: Sharadotsava day 2",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "Только дата.",
+   "candidates": []
+  },
+  {
+   "id": "fine-arts-day",
+   "name_en": "Fine Arts Day (8th day)",
+   "name_ru": "День изящных искусств (8-й день)",
+   "dates": {
+    "2026": "2026-10-18",
+    "2027": "2027-10-07",
+    "2028": "2028-09-25"
+   },
+   "rule": "lunar: Sharadotsava day 3",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "Только дата.",
+   "candidates": []
+  },
+  {
+   "id": "music-day",
+   "name_en": "Music Day (9th day)",
+   "name_ru": "День музыки (9-й день)",
+   "dates": {
+    "2026": "2026-10-19",
+    "2027": "2027-10-08",
+    "2028": "2028-09-26"
+   },
+   "rule": "lunar: Sharadotsava day 4",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "Только дата. Можно привязать подборку «Music and Rhythm», но это тематическая, а не праздничная связь.",
+   "candidates": []
+  },
+  {
+   "id": "vijayotsava",
+   "name_en": "Vijayotsava",
+   "name_ru": "Виджаоцава (день победы)",
+   "dates": {
+    "2026": "2026-10-20",
+    "2027": "2027-10-09",
+    "2028": "2028-09-27"
+   },
+   "rule": "lunar: 10th day of bright fortnight of Ashvina (aparahna rule)",
+   "songs": [
+    5013
+   ],
+   "status": "ok",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "Песня 5013 «Victory Day Song» сайта («On this auspicious victory day of today…»).",
+   "candidates": []
+  },
+  {
+   "id": "navanna",
+   "name_en": "Navánna",
+   "name_ru": "Наванна (праздник нового урожая)",
+   "dates": {
+    "2026": "2026-10-25"
+   },
+   "rule": "lunar: любое полнолуние сезона уборки урожая местности; официальные даты 15.11.2024, 04.11.2025, 25.10.2026, 2027–2028 не вычисляются",
+   "songs": [
+    93
+   ],
+   "status": "ok-with-question",
+   "date_basis": "official-2026",
+   "note": "Песня 93 «Hemanteri dhaner gandhe»: в тексте прямо «harvest festival day… offerings». В списке сайта её нет — основание только текст.",
+   "candidates": []
+  },
+  {
+   "id": "diipavalii",
+   "name_en": "Diipavalii",
+   "name_ru": "Дипавали",
+   "dates": {
+    "2026": "2026-11-08",
+    "2027": "2027-10-29",
+    "2028": "2028-10-17"
+   },
+   "rule": "lunar: Kartika new moon, amavasya at dusk",
+   "songs": [
+    63,
+    64,
+    1637
+   ],
+   "status": "ok",
+   "date_basis": "2026 official; 2027-28 derived",
+   "note": "2026 — официальный. 2027–2028 вычислено, новолуние совпадает с официальным постом (29.10.2027, 17.10.2028). Песни: коллекция сайта «Dipavali (Colour Festival) Day Songs»; название сайта смешивает Дипавали и «праздник красок» — вопрос.",
+   "candidates": []
+  },
+  {
+   "id": "bhratrdvitiya",
+   "name_en": "Bhrátrdvitiiyá",
+   "name_ru": "Бхратридвития",
+   "dates": {
+    "2026": "2026-11-11"
+   },
+   "rule": "lunar: 2nd day of bright fortnight of Kartika; официальные сдвиги от Дипавали 2, 3, 3 дня, правило не выведено",
+   "songs": [],
+   "status": "нужно решение Дады",
+   "date_basis": "official-2026",
+   "note": "Нет бесспорных песен. 2027–2028 не подтверждены. Завтра (11.11.2026) — песен для показа нет.",
+   "candidates": []
+  }
+ ]
+}

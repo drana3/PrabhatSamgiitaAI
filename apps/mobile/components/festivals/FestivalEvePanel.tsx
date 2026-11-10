@@ -5,40 +5,43 @@ import { overStyle } from "@/components/today/TodayBlocks"
 import { TodayPress } from "@/components/today/TodayPress"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
+import { cardDateLabel, cardPreviewSongs, festivalCardTitle, type TodayFestivalCard } from "@/lib/festivals/todayCard"
 import { useLanguage, useT } from "@/lib/i18n"
-import { festivalText } from "@/lib/i18n/festivalText"
-import { previewSongs, type EveFestival } from "@/lib/festivalEve"
 
-/** How many songs the panel on Today shows; the festival page has the whole list. */
+/** How many songs the card on Today shows when the festival has a page of its own; the page has the whole list. */
 export const EVE_PREVIEW_SONGS = 3
 
 /**
- * Today's panel for a festival that is tomorrow or today: the state in the eyebrow, the festival's name,
- * "Prabhat Samgiita for this day" and the first songs (play and open), then the way to the festival's page
- * with the whole list. Shown only for a festival that has songs (lib/festivalEve.ts).
+ * Today's festival card, the first block of the page: the state in the eyebrow ("In 2 days · 8 Nov", "Tomorrow · 8 Nov",
+ * "Today · 8 Nov"), the festival's name, "Prabhat Samgiita for this day" and the first songs (play and open), then the way to
+ * the festival's page with the whole list. Shown only for a festival that has songs (lib/festivals/todayCard.ts).
  */
-export function FestivalEvePanel({ p, festival, onSeeAll }: { p: AmProto; festival: EveFestival; onSeeAll: () => void }) {
+export function FestivalEvePanel({ p, festival, now, onSeeAll }: { p: AmProto; festival: TodayFestivalCard; now: Date; onSeeAll: (pageId: string) => void }) {
   const t = useT()
   const language = useLanguage()
   const total = festival.songs.all.length
-  const shown = previewSongs(festival.songs, EVE_PREVIEW_SONGS)
-  const name = festivalText(festival, language).title
-  const state = festival.phase === "today" ? t("fest.today") : t("fest.tomorrow")
+  const shown = cardPreviewSongs(festival, EVE_PREVIEW_SONGS)
+  const name = festivalCardTitle(festival, language)
+  const date = cardDateLabel(festival, now)
+  const soon = t("fest.inDays", { count: festival.daysUntil })
+  const state = festival.phase === "today" ? t("fest.today") : festival.phase === "tomorrow" ? t("fest.tomorrow") : soon.charAt(0).toLocaleUpperCase(language) + soon.slice(1)
+  const eyebrow = `${state} · ${date}`
+  const pageId = festival.pageId
   return (
     <View style={[styles.panel, { backgroundColor: p.orange100 }]} accessibilityLabel={t("festSongs.panel.a11y", { state, title: name })}>
       <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
-        {`${state} · ${festival.dateLabel}${festival.expected ? ` · ${t("fest.expected")}` : ""}`}
+        {`${eyebrow}${festival.expected ? ` · ${t("fest.expected")}` : ""}`}
       </Text>
       <Text style={[styles.name, { color: p.ink800 }]} accessibilityRole="header">
         {name}
       </Text>
       <Text style={[styles.sub, { color: p.ink500 }]}>{t("festSongs.heading")}</Text>
       <FestivalSongRows p={p} songs={shown} />
-      {total > shown.length ? (
+      {pageId && total > shown.length ? (
         <TodayPress
           accessibilityRole="button"
           accessibilityLabel={t("festSongs.seeAll.a11y", { count: total, title: name })}
-          onPress={onSeeAll}
+          onPress={() => onSeeAll(pageId)}
           pressedScale={0.97}
           style={[styles.all, { backgroundColor: p.ink900 }]}
         >

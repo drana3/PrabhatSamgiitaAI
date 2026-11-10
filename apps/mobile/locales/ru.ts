@@ -31,6 +31,7 @@ import { kiirtanScreensRu } from "./kiirtanScreens"
 import { countsRu } from "./counts"
 import { homeStatesRu } from "./homeStates"
 import { homeFestivalsRu } from "./homeFestivals"
+import { todayV2Ru } from "./todayV2"
 import { festivalSongsRu } from "./festivalSongs"
 import { profileRowsRu } from "./profileRows"
 import { volumeRu } from "./volume"
@@ -1404,6 +1405,7 @@ export const ru: Dictionary = {
   ...countsRu,
   ...homeStatesRu,
   ...homeFestivalsRu,
+  ...todayV2Ru,
   ...festivalSongsRu,
   ...profileRowsRu,
   ...volumeRu,

@@ -30,6 +30,7 @@ import { kiirtanScreensEn } from "./kiirtanScreens"
 import { countsEn } from "./counts"
 import { homeStatesEn } from "./homeStates"
 import { homeFestivalsEn } from "./homeFestivals"
+import { todayV2En } from "./todayV2"
 import { festivalSongsEn } from "./festivalSongs"
 import { profileRowsEn } from "./profileRows"
 import { volumeEn } from "./volume"
@@ -1324,6 +1325,7 @@ export const en = {
   ...countsEn,
   ...homeStatesEn,
   ...homeFestivalsEn,
+  ...todayV2En,
   ...festivalSongsEn,
   ...profileRowsEn,
   ...volumeEn,
