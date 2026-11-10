@@ -195,6 +195,8 @@ async function postJson(baseUrl: string, path: string, body: unknown, headers: R
 export type ProviderProof = {
   provider: "google" | "apple" | "aad"
   idToken?: string | null
+  /** Apple only: see OAuthIdentity.authorizationCode. */
+  authorizationCode?: string | null
   deviceLabel?: string
 }
 
@@ -213,6 +215,9 @@ export async function exchangeProviderProof(
     const response = await postJson(baseUrl, "exchange", {
       provider: proof.provider,
       id_token: proof.idToken ?? undefined,
+      ...(proof.provider === "apple" && proof.authorizationCode
+        ? { authorization_code: proof.authorizationCode }
+        : {}),
       device_label: proof.deviceLabel,
     })
     if (!response.ok) return null

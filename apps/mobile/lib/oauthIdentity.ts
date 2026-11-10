@@ -10,6 +10,11 @@ export type OAuthIdentity = {
    * and hands back our session tokens (lib/memberSession.ts). Never stored, never logged.
    */
   idToken?: string | null
+  /**
+   * Apple only: the one-time `authorizationCode` of expo-apple-authentication. Sent with the proof so the
+   * server can revoke Apple's grant when the account is deleted. Never stored, never logged.
+   */
+  authorizationCode?: string | null
 }
 
 export type AuthSessionPayload = {

@@ -16,6 +16,10 @@ class LocalRegisterWrite(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=120)
+    # "I'm 16 or older" tick at sign-up (store requirement, docs/age-confirmation.md). Missing =
+    # an old app build: accepted unless REQUIRE_AGE_CONFIRMATION is on. False = always refused.
+    # Only validated, never stored (the account table has no column for it).
+    age_confirmed: bool | None = None
 
 
 class LocalLoginWrite(BaseModel):
@@ -40,6 +44,11 @@ class ProviderExchangeWrite(BaseModel):
     provider: str = Field(min_length=2, max_length=16)
     id_token: str | None = Field(default=None, max_length=8192)
     nonce: str | None = Field(default=None, max_length=256)
+    # Apple only: the one-time `authorizationCode` of expo-apple-authentication. The server
+    # trades it for a refresh token that it needs later to revoke Apple's grant when the account
+    # is deleted (docs/apple-token-revocation.md). Optional: old app builds do not send it.
+    # Never logged.
+    authorization_code: str | None = Field(default=None, max_length=2048, repr=False)
     device_label: str | None = Field(default=None, max_length=120)
 
 

@@ -196,6 +196,18 @@ class Settings(BaseSettings):
     google_oauth_client_ids: str = Field(default="", alias="GOOGLE_OAUTH_CLIENT_IDS")
     apple_bundle_ids: str = Field(default="net.prabhatasamgiita.ai", alias="APPLE_BUNDLE_IDS")
     azure_client_ids: str = Field(default="", alias="AZURE_CLIENT_IDS")
+    # Sign in with Apple, token revocation when an Apple member deletes the account (App Store
+    # rule 5.1.1(v), docs/apple-token-revocation.md). The key (.p8 file contents, "\n" escapes
+    # allowed) comes ONLY from the environment and is never logged. Without all three, deletion
+    # works and the revocation is skipped with a log line. APPLE_BUNDLE_IDS (first entry) is the
+    # client_id.
+    apple_team_id: str = Field(default="", alias="APPLE_TEAM_ID")
+    apple_key_id: str = Field(default="", alias="APPLE_KEY_ID")
+    apple_private_key: str | None = Field(default=None, alias="APPLE_PRIVATE_KEY", repr=False)
+    # Sign-up age confirmation (minimum age 16, docs/age-confirmation.md). False = a client that
+    # does not send `age_confirmed` at all (an old app build) is still accepted; an explicit false
+    # is always refused. Set true once the old builds are gone to refuse the missing field too.
+    require_age_confirmation: bool = Field(default=False, alias="REQUIRE_AGE_CONFIRMATION")
     # Microsoft tenants whose e-mail addresses we trust as verified (comma list of tenant ids).
     member_trusted_ms_tenants: str = Field(default="", alias="MEMBER_TRUSTED_MS_TENANTS")
     # Recording links are signed with RECORDING_SIGNING_SECRET, or with the member secret. The old

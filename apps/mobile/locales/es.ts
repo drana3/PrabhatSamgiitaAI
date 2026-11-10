@@ -17,6 +17,7 @@ import { offlineEs } from "./offline"
 import { accountEs } from "./account"
 import { appUpdateEs } from "./appUpdate"
 import { takedownEs } from "./takedown"
+import { legalEs } from "./legal"
 import { guestPromptEs } from "./guestPrompt"
 import { playerErrorsEs } from "./playerErrors"
 import { shareSheetEs } from "./shareSheet"
@@ -1300,6 +1301,7 @@ export const es: Dictionary = {
   ...appUpdateEs,
   ...takedownEs,
   ...guestPromptEs,
+  ...legalEs,
   ...playerErrorsEs,
   ...shareSheetEs,
   ...scriptSheetEs,

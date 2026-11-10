@@ -146,3 +146,6 @@ years old" with a tick box (it touches the sign-in screen), and a Terms page. Th
 has nowhere to be written. Write the Terms first. Until the age line and the tick box are in, the rule exists
 only on paper and in the store forms. `docs/store-compliance.md` ("Kids and COPPA") has the same open point.
 No age is collected or stored by the app.
+
+**Update 2026-11-10.** The Terms page (`/terms`), the sign-up tick "I'm 16 or older" (web and app) and the line under the
+Apple / Google buttons are built; the server validates `age_confirmed` but does not store it. See `docs/age-confirmation.md`.

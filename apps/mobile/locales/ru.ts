@@ -17,6 +17,7 @@ import { offlineRu } from "./offline"
 import { accountRu } from "./account"
 import { appUpdateRu } from "./appUpdate"
 import { takedownRu } from "./takedown"
+import { legalRu } from "./legal"
 import { guestPromptRu } from "./guestPrompt"
 import { playerErrorsRu } from "./playerErrors"
 import { shareSheetRu } from "./shareSheet"
@@ -1386,6 +1387,7 @@ export const ru: Dictionary = {
   ...appUpdateRu,
   ...takedownRu,
   ...guestPromptRu,
+  ...legalRu,
   ...playerErrorsRu,
   ...shareSheetRu,
   ...scriptSheetRu,

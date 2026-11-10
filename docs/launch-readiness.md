@@ -131,8 +131,26 @@ never touched. Batches of 1000, one failing cleanup does not stop the others, no
 `HOUSEKEEPING_ENABLED=false` turns it off; `GET /api/v1/admin/housekeeping` (admin) shows the last run. No migration.
 Tests: `apps/api/tests/test_housekeeping.py`. Not covered: orphan files in an R2 bucket.
 
+## 10. Terms page, age confirmation, Apple token revocation
+
+Store requirements, written 2026-11-10. Tests green; nothing run against Apple or a real device.
+
+* **Terms of use:** the website now serves `/terms` (`apps/web/app/terms/page.tsx`; before: 404). Short English text: who may
+  use it (16+), what may be uploaded, the licence to play uploads, takedown (links `/takedown` and the copyright address),
+  account deletion, no warranty, contact. Marked "[нужна проверка владельцем]" on the page: the owner / a lawyer reads it. The
+  support address shown is the one the privacy page uses (`apps/web/lib/contact.ts`, one line to change when it is decided).
+  The app links it from About (Legal card) and from the sign-in screens (existing `termsUrl()`).
+* **Age confirmation:** web and app e-mail sign-up have the box "I'm 16 or older"; Apple / Google buttons have the line "By
+  continuing you confirm you are 16 or older". API `age_confirmed`: false refused, missing accepted for old builds
+  (`REQUIRE_AGE_CONFIRMATION=true` later). Not stored (no column, no migration for it). `docs/age-confirmation.md`.
+* **Apple token revocation:** `apps/api/app/services/apple_revoke.py`; the app now sends `authorizationCode`; one new table
+  (migration `0069_apple_refresh_tokens`). Env: `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` (secret).
+  `docs/apple-token-revocation.md`. Dada: create the Apple key, set the three values, run migration 0069 on a copy first,
+  ship the app build, test once on a real device.
+
 ## What needs Dada (short list)
 
 Neon account and its direct address; backup bucket in another account, age key (offline), GitHub secrets; Cloudflare
 R2 bucket, token and public address; Sentry project; `eas login`, Apple developer team, Play Console, keystore; Play
-App Signing SHA-256; reviewer account values; deploy of the new image; the ClamAV decision.
+App Signing SHA-256; reviewer account values; deploy of the new image; the ClamAV decision; the Apple "Sign in with Apple" key
+(three environment values) and migration 0069; a read of the Terms text and the final support address.

@@ -15,6 +15,7 @@ from app.schemas.auth import (
     RevokeWrite,
     TokenPairResponse,
 )
+from app.services import apple_revoke
 from app.services.member_tokens import (
     TokenError,
     refresh_session,
@@ -92,7 +93,16 @@ async def exchange(
     pair = await start_session(
         session, member, device_label=payload.device_label, provider=proof.provider
     )
-    return _response(member, pair)
+    response = _response(member, pair)
+    if proof.provider == "apple" and payload.authorization_code:
+        # Kept only to revoke Apple's grant when the account is deleted
+        # (docs/apple-token-revocation.md). Best effort: a failure never fails the sign-in.
+        refresh = await apple_revoke.exchange_authorization_code(
+            payload.authorization_code, expected_subject=proof.subject
+        )
+        if refresh:
+            await apple_revoke.store_refresh_token(session, member.id, refresh)
+    return response
 
 
 @router.post("/refresh", response_model=TokenPairResponse)

@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models import UserAccount, UserCredential
 from app.schemas.auth import AuthSessionResponse, LocalLoginWrite, LocalRegisterWrite
 from app.services.admin_members import owner_admin_emails
@@ -45,9 +46,23 @@ async def _with_tokens(
     return response
 
 
+MINIMUM_AGE = 16
+AGE_REFUSAL = f"You must be {MINIMUM_AGE} or older to create an account."
+
+
+def _require_age_confirmed(payload: LocalRegisterWrite) -> None:
+    """The sign-up tick "I'm 16 or older". An explicit false is always refused. A missing field
+    (an old app build that has no tick) is accepted unless REQUIRE_AGE_CONFIRMATION is on."""
+    if payload.age_confirmed is False:
+        raise HTTPException(status_code=422, detail=AGE_REFUSAL)
+    if payload.age_confirmed is None and get_settings().require_age_confirmation:
+        raise HTTPException(status_code=422, detail=AGE_REFUSAL)
+
+
 async def register_local_user(
     session: AsyncSession, payload: LocalRegisterWrite, device: str | None = None
 ) -> AuthSessionResponse:
+    _require_age_confirmed(payload)
     email = _normalize_email(str(payload.email))
     if not EMAIL_PATTERN.match(email):
         raise HTTPException(status_code=422, detail="Enter a valid email address.")

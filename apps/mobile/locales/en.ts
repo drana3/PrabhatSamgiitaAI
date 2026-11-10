@@ -16,6 +16,7 @@ import { offlineEn } from "./offline"
 import { accountEn } from "./account"
 import { appUpdateEn } from "./appUpdate"
 import { takedownEn } from "./takedown"
+import { legalEn } from "./legal"
 import { guestPromptEn } from "./guestPrompt"
 import { playerErrorsEn } from "./playerErrors"
 import { shareSheetEn } from "./shareSheet"
@@ -1306,6 +1307,7 @@ export const en = {
   ...appUpdateEn,
   ...takedownEn,
   ...guestPromptEn,
+  ...legalEn,
   ...playerErrorsEn,
   ...shareSheetEn,
   ...scriptSheetEn,

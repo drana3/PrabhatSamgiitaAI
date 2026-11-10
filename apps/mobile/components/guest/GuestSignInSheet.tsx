@@ -5,6 +5,7 @@ import { useRouter } from "expo-router"
 import { SpringSheet } from "@/components/assistant-v2/SpringSheet"
 import { AccountButton, InlineError } from "@/components/account/AccountUi"
 import { AppleMark, GoogleMark } from "@/components/account/BrandMarks"
+import { AgeNotice } from "@/components/auth/AgeConfirm"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -134,6 +135,7 @@ export function GuestSignInSheet({ visible, kind, onClose }: Props) {
             {error}
           </InlineError>
         ) : null}
+        {providers.apple || providers.google ? <AgeNotice theme={songs} /> : null}
       </View>
       <AccountButton theme={songs} tone="quiet" label={t("common.notNow")} disabled={inactive} onPress={onClose} style={styles.notNow} />
     </SpringSheet>

@@ -4,7 +4,7 @@ import type { AuthSessionPayload } from "@/lib/oauthIdentity"
 import { apiBaseUrl } from "@/lib/client"
 import { adoptTokenResponse } from "@/lib/memberSession"
 
-async function postAuth(path: "register" | "login", body: Record<string, string>) {
+async function postAuth(path: "register" | "login", body: Record<string, string | boolean>) {
   const response = await fetch(`${apiBaseUrl}/api/v1/auth/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-device-label": `${Platform.OS} app` },
@@ -26,11 +26,14 @@ export async function registerWithEmail(input: {
   email: string
   password: string
   displayName: string
+  /** The "I'm 16 or older" tick of the sign-up form (docs/age-confirmation.md). Sent only when ticked. */
+  ageConfirmed?: boolean
 }) {
   return postAuth("register", {
     email: input.email,
     password: input.password,
     display_name: input.displayName,
+    ...(input.ageConfirmed ? { age_confirmed: true } : {}),
   })
 }
 

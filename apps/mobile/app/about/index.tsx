@@ -11,7 +11,7 @@ import type { AmTheme } from "@/constants/tokens/amColors"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useT } from "@/lib/i18n"
 import { copyrightEmail } from "@/lib/contactEmail"
-import { takedownUrl } from "@/lib/webLinks"
+import { privacyUrl, takedownUrl, termsUrl } from "@/lib/webLinks"
 
 /**
  * About — the guru quote art as a clean picture (BabaPhoto): nothing over it, the text below it.
@@ -62,6 +62,16 @@ export default function AboutScreen() {
           </Pressable>
           <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(`mailto:${copyrightEmail()}`)} hitSlop={8}>
             <Text style={[styles.bullet, styles.link]}>{t("about.copyright.write", { email: copyrightEmail() })}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t("about.legal.title")}</Text>
+          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(termsUrl())} hitSlop={8}>
+            <Text style={[styles.bullet, styles.link]}>{t("account.legal.terms")}</Text>
+          </Pressable>
+          <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(privacyUrl())} hitSlop={8}>
+            <Text style={[styles.bullet, styles.link]}>{t("account.legal.privacy")}</Text>
           </Pressable>
         </View>
       </ScrollView>

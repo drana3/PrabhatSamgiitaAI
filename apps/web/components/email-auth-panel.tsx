@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 
+import { MINIMUM_AGE } from "@/lib/contact"
 import { signInReturnPath } from "@/lib/sign-in"
 
 type Mode = "signin" | "signup"
@@ -18,11 +19,17 @@ export function EmailAuthPanel({ next }: { next: string }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [displayName, setDisplayName] = useState("")
+  // Store rule: a new account needs a tick that the person is old enough. Never pre-ticked.
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (mode === "signup" && !ageConfirmed) {
+      setError(`Please confirm that you are ${MINIMUM_AGE} or older to create an account.`)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -33,6 +40,7 @@ export function EmailAuthPanel({ next }: { next: string }) {
               email,
               password,
               display_name: displayName || email.split("@")[0] || "Member",
+              age_confirmed: true,
             }
           : { email, password }
       const response = await fetch(endpoint, {
@@ -124,6 +132,27 @@ export function EmailAuthPanel({ next }: { next: string }) {
             placeholder={mode === "signup" ? "At least 8 characters" : "Your password"}
           />
         </label>
+        {mode === "signup" ? (
+          <label className="flex items-start gap-2.5 text-sm text-stone-700">
+            <input
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={(event) => setAgeConfirmed(event.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-navy-900/30 accent-navy-950"
+            />
+            <span>
+              I&rsquo;m {MINIMUM_AGE} or older, and I agree to the{" "}
+              <a href="/terms" className="font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">
+                Terms
+              </a>{" "}
+              and{" "}
+              <a href="/privacy" className="font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">
+                Privacy policy
+              </a>
+              .
+            </span>
+          </label>
+        ) : null}
         {mode === "signin" ? (
           <p className="text-right text-sm">
             <a href="/forgot-password" className="font-semibold text-navy-900 underline decoration-gold-500 underline-offset-4">

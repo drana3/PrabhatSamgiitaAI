@@ -314,6 +314,28 @@ describe("mobile auth lifecycle (all providers)", () => {
       expect(useAuthStore.getState().mode).toBe("signed_in")
       expect(useAuthStore.getState().identityProvider).toBe("local")
     })
+
+    it("tells the server the age box was ticked when the sign-up form says so", async () => {
+      const principal = buildClientPrincipal("reg-oid", "New Member", "local", "new@example.com")
+      registerWithEmail.mockResolvedValue({
+        client_principal: principal,
+        display_name: "New Member",
+        email: "new@example.com",
+        identity_provider: "local",
+      })
+      fetchMemberSession.mockResolvedValue(
+        syncedMemberSession({ display_name: "New Member", email: "new@example.com", identity_provider: "local" }),
+      )
+
+      await signUpWithEmailPassword("new@example.com", "password123", "New Member", { ageConfirmed: true })
+
+      expect(registerWithEmail).toHaveBeenCalledWith({
+        email: "new@example.com",
+        password: "password123",
+        displayName: "New Member",
+        ageConfirmed: true,
+      })
+    })
   })
 
   describe("sign-out", () => {

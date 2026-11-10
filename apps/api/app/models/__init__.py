@@ -7,6 +7,7 @@ from app.models.ai_usage import AiDailyUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
 from app.models.app_telemetry import AppEvent, FeatureFlag
 from app.models.app_version import AppVersionPolicy
+from app.models.apple_token import AppleRefreshToken
 from app.models.author_profiles import (
     AuthorAlias,
     AuthorClaim,
@@ -99,6 +100,7 @@ from app.models.song_translations import SongTranslation
 from app.models.takedown import BlockedAudioHash, TakedownRequest
 
 __all__ = [
+    "AppleRefreshToken",
     "AppVersionPolicy",
     "MemberSession",
     "RateLimitCounter",

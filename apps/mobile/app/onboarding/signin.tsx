@@ -16,6 +16,7 @@ import {
   OnbSub,
   OnbTopBar,
 } from "@/components/onboarding/OnboardingUi"
+import { AgeNotice } from "@/components/auth/AgeConfirm"
 import { useOnboardingSignIn } from "@/components/onboarding/useOnboardingSignIn"
 import { RevealClock, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -132,6 +133,7 @@ export default function OnboardingSignInScreen() {
               onPress={() => router.push(href(`/onboarding/email${returning ? "?returning=1" : ""}`))}
             />
             {error && error.action !== "email" ? <OnbError theme={theme} text={error.text} onRetry={retry} /> : null}
+            {providers.apple || providers.google ? <AgeNotice theme={theme} /> : null}
           </OnbReveal>
 
           <OnbReveal index={2} style={styles.divider}>

@@ -84,6 +84,22 @@ describe("appleAuth", () => {
     })
   })
 
+  it("passes on the one-time authorization code (the server keeps it to revoke Apple's grant on deletion)", async () => {
+    signInAsync.mockResolvedValue({
+      user: "apple-sub-1",
+      email: "member@privaterelay.appleid.com",
+      fullName: null,
+      identityToken: "id-token",
+      authorizationCode: "auth-code",
+    })
+
+    await expect(signInWithApple()).resolves.toMatchObject({
+      id: "apple-sub-1",
+      idToken: "id-token",
+      authorizationCode: "auth-code",
+    })
+  })
+
   it("surfaces cancellation without a generic failure message", async () => {
     signInAsync.mockRejectedValue({ code: "ERR_REQUEST_CANCELED" })
     await expect(signInWithApple()).rejects.toThrow("Sign-in was cancelled.")

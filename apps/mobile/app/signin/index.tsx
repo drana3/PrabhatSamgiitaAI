@@ -7,12 +7,14 @@ import { openExternal } from "@/lib/openLink"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
 import { AppleMark, GoogleMark, MicrosoftMark } from "@/components/account/BrandMarks"
+import { AgeCheckbox, AgeNotice } from "@/components/auth/AgeConfirm"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { appleSignInOffered } from "@/lib/appleAuth"
+import { ageGateOk } from "@/lib/auth/ageConfirm"
 import {
   authErrorMessage,
   checkEmailForm,
@@ -89,6 +91,9 @@ export default function SignInScreen() {
   const [email, setEmail] = useState(preview === "typed" || preview === "password" || preview === "signup" ? PREVIEW_EMAIL : "")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
+  // "I'm 16 or older": needed to create an account, never pre-ticked (docs/age-confirmation.md)
+  const [ageTicked, setAgeTicked] = useState(false)
+  const [ageMissing, setAgeMissing] = useState(false)
   const [fieldError, setFieldError] = useState<{ field: FieldKey; error: string } | null>(null)
 
   const scrollRef = useRef<ScrollView>(null)
@@ -167,10 +172,14 @@ export default function SignInScreen() {
       setFieldError({ field: check.field, error: check.error })
       return
     }
+    if (!ageGateOk(mode, ageTicked)) {
+      setAgeMissing(true)
+      return
+    }
     const address = email.trim()
     void run("email", () =>
       mode === "signup"
-        ? signUpWithEmailPassword(address, password, name.trim())
+        ? signUpWithEmailPassword(address, password, name.trim(), { ageConfirmed: true })
         : signInWithEmailPassword(address, password),
     )
   }
@@ -242,6 +251,7 @@ export default function SignInScreen() {
                   {error.text}
                 </InlineError>
               ) : null}
+              {providers.apple || providers.google || providers.microsoft ? <AgeNotice theme={theme} /> : null}
             </SongsReveal>
 
             <SongsReveal index={3} style={styles.divider}>
@@ -343,6 +353,19 @@ export default function SignInScreen() {
                     editable={!inactive}
                     onSubmitEditing={submitEmail}
                   />
+
+                  {mode === "signup" ? (
+                    <AgeCheckbox
+                      theme={theme}
+                      checked={ageTicked}
+                      invalid={ageMissing && !ageTicked}
+                      disabled={inactive}
+                      onToggle={() => {
+                        setAgeTicked((on) => !on)
+                        setAgeMissing(false)
+                      }}
+                    />
+                  ) : null}
 
                   {error?.where === "email" ? (
                     <InlineError theme={theme} onRetry={() => lastRun.current?.()}>

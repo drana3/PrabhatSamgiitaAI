@@ -64,6 +64,11 @@ Limits, said plainly:
   copy of the production database before the deploy. Downgrade deletes the comments that lost
   their account, because the old schema cannot hold them.
 
+## Sign in with Apple (App Store 5.1.1(v))
+
+When the member signed in with Apple and the server holds an Apple refresh token for them, deletion also calls Apple's revoke
+endpoint after the account is gone. Apple trouble never blocks the deletion. See `docs/apple-token-revocation.md`.
+
 ## After deletion
 
 The sign-in provider (Google, Apple, e-mail) still knows the person, so signing in again makes a

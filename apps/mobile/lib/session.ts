@@ -263,7 +263,12 @@ export async function signInWithAppleAccount() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: identity.provider,
-    proof: { idToken: identity.idToken },
+    // The one-time authorization code lets the server keep what it needs to end Apple's link when the
+    // account is deleted (App Store 5.1.1(v), docs/apple-token-revocation.md). Never stored on the phone.
+    proof: {
+      idToken: identity.idToken,
+      ...(identity.authorizationCode ? { authorizationCode: identity.authorizationCode } : {}),
+    },
   })
 }
 
@@ -281,11 +286,13 @@ export async function signUpWithEmailPassword(
   email: string,
   password: string,
   displayName: string,
+  options?: { ageConfirmed?: boolean },
 ) {
   const session = await registerWithEmail({
     email,
     password,
     displayName,
+    ...(options?.ageConfirmed ? { ageConfirmed: true } : {}),
   })
   return finishSignIn({
     displayName: session.display_name,

@@ -16,6 +16,7 @@ import {
   OnbSub,
   OnbTopBar,
 } from "@/components/onboarding/OnboardingUi"
+import { AgeCheckbox } from "@/components/auth/AgeConfirm"
 import { useOnboardingSignIn } from "@/components/onboarding/useOnboardingSignIn"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, useRevealClock } from "@/components/songs-v2/SongsReveal"
@@ -23,6 +24,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useResolvedAppearance } from "@/hooks/useAmTheme"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { statusBarStyleFor } from "@/lib/appearance"
+import { ageGateOk } from "@/lib/auth/ageConfirm"
 import { checkEmailForm, isEmailValid, PASSWORD_MIN } from "@/lib/auth/signInFlow"
 import { useT } from "@/lib/i18n"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
@@ -57,6 +59,9 @@ export default function OnboardingEmailScreen() {
   const [email, setEmail] = useState(previewStage ? PREVIEW_EMAIL : "")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
+  // "I'm 16 or older": needed to create an account, never pre-ticked (docs/age-confirmation.md)
+  const [ageTicked, setAgeTicked] = useState(false)
+  const [ageMissing, setAgeMissing] = useState(false)
   const [fieldError, setFieldError] = useState<{ field: FieldKey; error: string } | null>(null)
 
   // A new account is never "welcome back": only a real sign-in to an existing account is.
@@ -109,8 +114,16 @@ export default function OnboardingEmailScreen() {
       setFieldError({ field: check.field, error: check.error })
       return
     }
+    if (!ageGateOk(mode, ageTicked)) {
+      setAgeMissing(true)
+      return
+    }
     const address = email.trim()
-    void run("email", () => (mode === "signup" ? signUpWithEmailPassword(address, password, name.trim()) : signInWithEmailPassword(address, password)))
+    void run("email", () =>
+      mode === "signup"
+        ? signUpWithEmailPassword(address, password, name.trim(), { ageConfirmed: true })
+        : signInWithEmailPassword(address, password),
+    )
   }
 
   const errorFor = (field: FieldKey) => (fieldError?.field === field ? fieldError.error : null)
@@ -213,6 +226,19 @@ export default function OnboardingEmailScreen() {
                   returnKeyType="go"
                   editable={!inactive}
                   onSubmitEditing={submit}
+                />
+              ) : null}
+
+              {stage === "signup" ? (
+                <AgeCheckbox
+                  theme={theme}
+                  checked={ageTicked}
+                  invalid={ageMissing && !ageTicked}
+                  disabled={inactive}
+                  onToggle={() => {
+                    setAgeTicked((on) => !on)
+                    setAgeMissing(false)
+                  }}
                 />
               ) : null}
 

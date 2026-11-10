@@ -32,6 +32,8 @@ from app.schemas.member import (
     QuizSubmitResponse,
     QuizSubmitWrite,
 )
+from app.services.apple_revoke import revoke_for_deleted_member as revoke_apple_grant
+from app.services.apple_revoke import stored_refresh_token as stored_apple_refresh_token
 from app.services.author_profiles import erase_member as erase_author_data
 from app.services.comment_authors import keep_comments_under_name
 from app.services.member_phone import set_member_phone
@@ -326,6 +328,11 @@ async def clear_chat_memory(request: Request, session: DatabaseSession) -> Respo
 @router.delete("/me", status_code=204)
 async def delete_member_data(request: Request, session: DatabaseSession) -> Response:
     member = await current_member(request, session)
+    # Apple rule 5.1.1(v): an Apple member's Apple grant is revoked too. The stored token is read
+    # now (the row goes with the account) and used after the commit; Apple trouble never stops the
+    # deletion (services/apple_revoke.py swallows and logs every failure).
+    is_apple_member = member.identity_provider == "apple"
+    apple_token = await stored_apple_refresh_token(session, member.id)
     # the author page (its address is held back for a while) and the member's raw listening
     # rows go first
     await erase_author_data(session, member, get_settings())
@@ -336,6 +343,8 @@ async def delete_member_data(request: Request, session: DatabaseSession) -> Resp
     await session.execute(delete(MemberSession).where(MemberSession.user_id == member.id))
     await session.delete(member)
     await session.commit()
+    if is_apple_member or apple_token:
+        await revoke_apple_grant(apple_token, is_apple_member=is_apple_member)
     return Response(status_code=204)
 
 
