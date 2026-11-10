@@ -159,8 +159,9 @@ export function buildLearnDemoSeed(now: number): LearnDemoSeed {
     "ps-2": done,
     "ps-4": done,
     "ps-6": done,
-    "ps-1": { ...EMPTY_PATH, listen: true },
-    "ps-3": { ...EMPTY_PATH, listen: true, words: true },
+    // Words and Quiz decide the status (Chords are an extra): PS 1 has its words, PS 3 has words and chords, no quiz yet
+    "ps-1": { ...EMPTY_PATH, listen: true, words: true },
+    "ps-3": { ...EMPTY_PATH, listen: true, words: true, chords: true },
   }
   const cards: Record<string, WordCard> = {}
   // two PS 1 words due now: they are the "Due" cards of the first practice

@@ -5,7 +5,6 @@ import { useFocusEffect, useRouter } from "expo-router"
 import { Guitar, Layers, CircleQuestionMark, Piano } from "lucide-react-native"
 
 import {
-  AddSongPill,
   ContinueCard,
   ExploreRow,
   HUB_INSET,
@@ -19,6 +18,7 @@ import {
   SongShelfCard,
   WordOfDayRow,
 } from "@/components/learn-v2/LearnHub"
+import { ChooseRow, SearchAllRow, StatusCounters } from "@/components/learn-v2/LearnChain"
 import { useLearnTopInset } from "@/components/learn-v2/ui"
 import { Toast } from "@/components/songs-v2/Toast"
 import { Reveal } from "@/components/today/motion"
@@ -36,6 +36,7 @@ import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
 import {
   HUB_LINKS,
+  buildChoices,
   buildContinue,
   buildShelf,
   quizSubtitle,
@@ -43,20 +44,23 @@ import {
   statsLine,
   wordCardsSubtitle,
 } from "@/lib/learn/hub"
-import { buildLibraryRows, libraryCounts } from "@/lib/learn/library"
+import { PS_SONG_COUNT } from "@/lib/learn/learnSongs"
 import { nextOpenQuizLevel, type LearningSong } from "@/lib/learn/progress"
 import { LEARN_ROUTES, indexHref, wordsHref } from "@/lib/learn/routes"
+import { songStatusCounts } from "@/lib/learn/songStatus"
 import { dueCardCount, wordsLearnedCount } from "@/lib/learn/srs"
-import { sessionDeck, songNumbersFromIds, wordOfTheDay } from "@/lib/learn/words"
+import { sessionDeck, songNumbersFromIds, wordOfTheDay, wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
 
 /**
- * Learn tab, as one hub that says what it is for: continue a song, a shelf of songs with
- * three steps each, today's practice, play along, and explore. It replaces the Practice /
- * My songs / Tools switch. The old "My songs" list is now the "See all" screen (/learn/songs).
+ * Learn tab, variant A (Dada, 10 November 2026): one page, one chain. Continue, then My songs with the three
+ * counters (Not started, Learning, Learned) and a shelf of songs with their steps (Words, Quiz, Chords), then
+ * "I want to learn this" (choose a new song, search all 5018), then Practice (word cards, the quiz over all words,
+ * word of the day). Below the chain stay the blocks that were there before: Play along (Harmonium, Chords), the raga
+ * and tala index, how to play the harmonium, Stories. The full list is the "See all" screen (/learn/songs).
  */
 export default function LearnScreen() {
   const t = useT()
@@ -88,7 +92,7 @@ export default function LearnScreen() {
   // taking a song off the list (the small x on its card): Undo for a few seconds, progress stays saved
   const songsTheme = useSongsTheme()
   const learn = useLearnSongs()
-  const [removedNote, setRemovedNote] = useState<{ message: string; song: LearningSong } | null>(null)
+  const [removedNote, setRemovedNote] = useState<{ message: string; song: LearningSong | null } | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => {
     if (noteTimer.current) clearTimeout(noteTimer.current)
@@ -104,22 +108,35 @@ export default function LearnScreen() {
     [learn, t],
   )
   const undoRemove = useCallback(() => {
-    if (!removedNote) return
+    if (!removedNote?.song) return
     learn.restore(removedNote.song)
     setRemovedNote(null)
   }, [learn, removedNote])
-
-  const counts = useMemo(
-    () => libraryCounts(buildLibraryRows({ songs, paths, cards, words: wordList, now, mockup: MOCKUP_DATA })),
-    [songs, paths, cards, now, wordList],
+  // "+ Learn" on a suggested song: it moves to My songs, a short note says so (no Undo: the x on its card takes it off)
+  const addChoice = useCallback(
+    (number: number, title: string) => {
+      learn.add(number, title)
+      if (noteTimer.current) clearTimeout(noteTimer.current)
+      setRemovedNote({ message: t("learn.add.toast.added", { number }), song: null })
+      noteTimer.current = setTimeout(() => setRemovedNote(null), 3000)
+    },
+    [learn, t],
   )
+
+  // Not started / Learning / Learned from the two steps that count, Words and Quiz (Chords are an extra)
+  const counts = useMemo(() => songStatusCounts(songs, paths), [songs, paths])
   const words = wordsReady ? wordsLearnedCount(cards) : 0
   const due = wordsReady ? dueCardCount(cards, now) : 0
   const hasCards = wordsReady && Object.keys(cards).length > 0
   const quizLevel = nextOpenQuizLevel(quizBest)
 
-  const continueModel = useMemo(() => buildContinue(songs, paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle), [songs, paths])
-  const shelf = useMemo(() => buildShelf(songs, paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle), [songs, paths])
+  const hasWords = useCallback((songNumber: number) => wordsForSong(wordList, songNumber).length > 0, [wordList])
+  const continueModel = useMemo(
+    () => buildContinue(songs, paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle, hasWords),
+    [songs, paths, hasWords],
+  )
+  const shelf = useMemo(() => buildShelf(songs, paths), [songs, paths])
+  const choices = useMemo(() => buildChoices(songs, LEARN_SUGGESTED_NUMBERS, learnSongTitle), [songs])
 
   const deck = useMemo(
     () => sessionDeck(wordList, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
@@ -188,12 +205,12 @@ export default function LearnScreen() {
             <Reveal index={3} style={styles.section}>
               <HubSectionHead
                 p={p}
-                eyebrow={t("learn.sect.steps")}
-                first={t("learn.sect.steps.first")}
-                second={t("learn.sect.steps.second")}
-                right={<AddSongPill p={p} onPress={() => go(LEARN_ROUTES.addSong)} />}
+                eyebrow={t("learn.page.my.eyebrow")}
+                first={t("learn.page.my.first")}
+                second={t("learn.page.my.second")}
               />
-              {shelf.length > 0 || counts.total > 0 ? (
+              <StatusCounters p={p} counts={counts} />
+              {shelf.length > 0 ? (
                 <HubShelf>
                   {shelf.map((entry) => (
                     <SongShelfCard
@@ -207,11 +224,34 @@ export default function LearnScreen() {
                   <SeeAllCard p={p} count={counts.total} onPress={() => go(HUB_LINKS.allSongs)} />
                 </HubShelf>
               ) : (
-                <HubEmpty p={p} text={t("learn.empty.songs")} />
+                <HubEmpty p={p} text={t("learn.page.my.empty")} />
               )}
             </Reveal>
 
             <Reveal index={4} style={styles.section}>
+              <HubSectionHead
+                p={p}
+                eyebrow={t("learn.page.choose.eyebrow")}
+                first={t("learn.page.choose.first")}
+                second={t("learn.page.choose.second")}
+              />
+              <View style={styles.pad}>
+                {choices.map((song) => (
+                  <ChooseRow
+                    key={song.songId}
+                    p={p}
+                    song={song}
+                    wordsReady={hasWords(song.number)}
+                    onOpen={() => go(`/learn/song/${song.songId}`)}
+                    onAdd={() => addChoice(song.number, song.title)}
+                  />
+                ))}
+                {choices.length === 0 ? <HubEmpty p={p} text={t("learn.page.choose.none")} /> : null}
+                <SearchAllRow p={p} count={PS_SONG_COUNT} onPress={() => go(HUB_LINKS.pickSong)} />
+              </View>
+            </Reveal>
+
+            <Reveal index={5} style={styles.section}>
               <HubSectionHead p={p} eyebrow={t("learn.sect.fresh")} first={t("learn.sect.fresh.first")} second={t("learn.sect.fresh.second")} />
               <View style={styles.pad}>
                 {wordsReady ? (
@@ -249,7 +289,7 @@ export default function LearnScreen() {
               </View>
             </Reveal>
 
-            <Reveal index={5} style={styles.section}>
+            <Reveal index={6} style={styles.section}>
               <HubSectionHead p={p} eyebrow={t("learn.sect.along")} first={t("learn.sect.along.first")} second={t("learn.sect.along.second")} />
               <View style={[styles.pad, styles.tiles]}>
                 <HubTile
@@ -269,10 +309,9 @@ export default function LearnScreen() {
               </View>
             </Reveal>
 
-            <Reveal index={6} style={styles.section}>
+            <Reveal index={7} style={styles.section}>
               <HubSectionHead p={p} eyebrow={t("learn.sect.deeper")} first={t("learn.sect.deeper.first")} second={t("learn.sect.deeper.second")} />
               <View style={[styles.pad, styles.rows]}>
-                <ExploreRow p={p} title={t("learn.stories")} onPress={() => go(HUB_LINKS.stories)} />
                 {/* The raga and tala index is prototype content (invented song counts); the catalog has no raga data yet. */}
                 {MOCKUP_DATA ? (
                   <ExploreRow
@@ -282,6 +321,13 @@ export default function LearnScreen() {
                     onPress={() => go(indexHref("tala"))}
                   />
                 ) : null}
+                <ExploreRow
+                  p={p}
+                  title={t("learn.page.harmoniumHow")}
+                  subtitle={t("learn.page.harmoniumHow.sub")}
+                  onPress={() => go(HUB_LINKS.harmonium)}
+                />
+                <ExploreRow p={p} title={t("learn.stories")} onPress={() => go(HUB_LINKS.stories)} />
                 {/* hidden for now, Dada 2026-11-05: <ExploreRow p={p} title="Certificates" subtitle="Live quiz · none yet" onPress={() => go(HUB_LINKS.certificates)} /> */}
               </View>
             </Reveal>

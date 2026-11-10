@@ -137,14 +137,13 @@ describe("list helpers", () => {
   })
 })
 
-describe("the hub shows a just-added song first among the songs not started", () => {
-  it("newest added first, then older ones, then suggestions", () => {
+describe("My songs shows a just-added song first among the songs not started", () => {
+  it("newest added first, then older ones; suggestions are not in My songs", () => {
     const songs = [song(1500, NOW - 3000), song(2200, NOW - 1000), song(3100, NOW - 2000)]
     const paths = { "ps-1500": EMPTY_PATH, "ps-2200": EMPTY_PATH, "ps-3100": EMPTY_PATH }
-    const shelf = buildShelf(songs, paths, [1], learnSongTitle)
-    expect(shelf.map((e) => e.number)).toEqual([2200, 3100, 1500, 1])
-    expect(shelf.slice(0, 3).every((e) => e.listed)).toBe(true)
-    expect(shelf[3]!.listed).toBe(false)
+    const shelf = buildShelf(songs, paths)
+    expect(shelf.map((e) => e.number)).toEqual([2200, 3100, 1500])
+    expect(shelf.every((e) => e.listed)).toBe(true)
   })
 })
 
@@ -164,7 +163,7 @@ describe("the Learn store", () => {
   it("a song added from the picker shows its start state at once: no steps done", () => {
     useLearnStore.getState().startLearning({ songId: "ps-3000", number: 3000, title: "Far Song" }, NOW)
     const { songs, paths } = useLearnStore.getState()
-    const shelf = buildShelf(songs, paths, [], learnSongTitle)
+    const shelf = buildShelf(songs, paths)
     expect(shelf[0]).toMatchObject({ number: 3000, state: "notStarted", listed: true })
     expect(shelf[0]!.path).toEqual(EMPTY_PATH)
   })

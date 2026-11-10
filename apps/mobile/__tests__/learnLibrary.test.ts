@@ -14,7 +14,7 @@ describe("songs list (old My songs tab)", () => {
     expect(libraryCounts(rows)).toEqual({ learned: 3, learning: 2, total: 5 })
     expect(rows.find((r) => r.number === 4)).toMatchObject({ learned: true, due: true, note: "Review due today" })
     expect(rows.find((r) => r.number === 2)?.note).toBe("Next review in 6 days")
-    expect(rows.find((r) => r.number === 3)?.note).toBe("Step 3 of 3 · play it")
+    expect(rows.find((r) => r.number === 3)?.note).toBe("Step 2 of 2 · Quiz")
   })
 
   it("filters All, Due, Learning, Learned", () => {
@@ -28,7 +28,7 @@ describe("songs list (old My songs tab)", () => {
     expect(libraryEmptyText(0)).toContain("No songs yet")
     expect(libraryEmptyText(5, "due")).toContain("nothing due")
     expect(libraryEmptyText(5, "learning")).toContain("Nothing in progress")
-    expect(libraryEmptyText(5, "learned")).toContain("No song is fully learned")
+    expect(libraryEmptyText(5, "learned")).toContain("No song is learned yet")
   })
 
   it("works with no learning data", () => {

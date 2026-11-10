@@ -37,32 +37,36 @@ function learned(id: string): WordCard {
 }
 
 describe("song path steps", () => {
-  it("each step has its own part: listen, words, chords", () => {
-    expect(pathStepDone(path({ listen: true }), 1)).toBe(true)
-    expect(pathStepDone(path({ listen: true }), 2)).toBe(false)
-    expect(pathStepDone(path({ words: true }), 2)).toBe(true)
-    expect(pathStepDone(path({ meaning: true }), 2)).toBe(false)
+  it("each step has its own part: Words, Quiz (stored as meaning), Chords; Listen is not a step", () => {
+    expect(pathStepDone(path({ words: true }), 1)).toBe(true)
+    expect(pathStepDone(path({ listen: true }), 1)).toBe(false)
+    expect(pathStepDone(path({ meaning: true }), 2)).toBe(true)
+    expect(pathStepDone(path({ words: true }), 2)).toBe(false)
     expect(pathStepDone(path({ chords: true }), 3)).toBe(true)
   })
 
-  it("counts steps and shows three dots", () => {
-    const p = path({ listen: true, chords: true })
-    expect(pathDoneCount(p)).toBe(2)
+  it("counts only Words and Quiz, and shows three dots (the third is Chords)", () => {
+    const p = path({ words: true, chords: true })
+    expect(pathDoneCount(p)).toBe(1)
     expect(pathDots(p)).toEqual([true, false, true])
     expect(pathDots(undefined)).toEqual([false, false, false])
     expect(pathDoneCount(undefined)).toBe(0)
+    expect(pathDoneCount(path({ listen: true, chords: true }))).toBe(0)
   })
 
-  it("a song is learned only when all three are done", () => {
-    expect(isSongLearned(path({ listen: true, words: true }))).toBe(false)
-    expect(isSongLearned(path({ listen: true, words: true, chords: true }))).toBe(true)
+  it("a song is learned when Words and Quiz are done, with or without Chords", () => {
+    expect(isSongLearned(path({ words: true }))).toBe(false)
+    expect(isSongLearned(path({ words: true, chords: true }))).toBe(false)
+    expect(isSongLearned(path({ words: true, meaning: true }))).toBe(true)
+    expect(isSongLearned(path({ listen: true, words: true, meaning: true, chords: true }))).toBe(true)
   })
 
   it("library state: not started, learning, learned", () => {
     expect(songLibraryState(undefined)).toBe("notStarted")
-    expect(songLibraryState(path({ meaning: true }))).toBe("notStarted")
-    expect(songLibraryState(path({ listen: true }))).toBe("learning")
-    expect(songLibraryState(path({ listen: true, words: true, chords: true }))).toBe("learned")
+    expect(songLibraryState(path({ listen: true, chords: true }))).toBe("notStarted")
+    expect(songLibraryState(path({ meaning: true }))).toBe("learning")
+    expect(songLibraryState(path({ words: true }))).toBe("learning")
+    expect(songLibraryState(path({ words: true, meaning: true }))).toBe("learned")
   })
 
   it("marks a part without touching other songs", () => {
@@ -103,7 +107,7 @@ describe("progress line", () => {
   it("reads '4 of 10 songs studied. 6 words learned.'", () => {
     const songs = Array.from({ length: 10 }, (_, i) => song(i + 1))
     const paths: Record<string, PathState> = {}
-    for (let i = 1; i <= 4; i += 1) paths[`ps-${i}`] = path({ listen: true })
+    for (let i = 1; i <= 4; i += 1) paths[`ps-${i}`] = path({ words: true })
     const cards: Record<string, WordCard> = {}
     for (let i = 0; i < 6; i += 1) cards[`w${i}`] = learned(`w${i}`)
     const progress = learnProgress(songs, paths, cards)

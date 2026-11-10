@@ -205,7 +205,7 @@ export function ContinueCard({ model, onGo }: { model: Exclude<ContinueModel, { 
   const bars = songStepBars(path)
   const next = isContinue ? model.step : null
   const eyebrow = isContinue ? t("learn.continue") : model.first ? t("learn.startFirst") : t("learn.startNext")
-  const line = isContinue ? stepLine(path) : t("learn.threeSteps")
+  const line = isContinue ? stepLine(path) : t("learn.page.startLine")
   const label = isContinue ? t("learn.go") : t("learn.start")
   return (
     <View style={s.cCard}>

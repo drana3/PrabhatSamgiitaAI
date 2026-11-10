@@ -14,36 +14,41 @@ import {
 } from "@/lib/learn/songPath"
 
 const path = (patch: Partial<PathState>): PathState => ({ ...EMPTY_PATH, ...patch })
-const learned = path({ listen: true, words: true, chords: true })
+const learned = path({ words: true, meaning: true })
 
 describe("the three steps", () => {
-  it("are hear it, learn what it means, play it, with the prototype's text", () => {
-    expect(PATH_STEPS.map((s) => s.title)).toEqual(["Hear it and sing it", "Learn what it means", "Play it"])
-    expect(PATH_STEPS.map((s) => s.part)).toEqual(["listen", "words", "chords"])
-    expect(PATH_STEPS.map((s) => s.cta)).toEqual(["Listen and sing", "Study the words", "Open the chords"])
+  it("are Words, Quiz, Chords (Listen is a button, not a step)", () => {
+    expect(PATH_STEPS.map((s) => s.title)).toEqual(["Words", "Quiz", "Chords"])
+    expect(PATH_STEPS.map((s) => s.part)).toEqual(["words", "meaning", "chords"])
+    expect(PATH_STEPS.map((s) => s.cta)).toEqual(["Start the word cards", "Start the quiz", "Show the chords"])
+    expect(PATH_STEPS.map((s) => s.optional)).toEqual([false, false, true])
   })
 
-  it("label the step and the button", () => {
+  it("label the step and the button; Chords are labelled as an extra", () => {
     expect(stepOver(1, false)).toBe("Step 1 · To do")
     expect(stepOver(2, true)).toBe("Step 2 · Done")
-    expect(stepCta(1, undefined)).toBe("Listen and sing")
-    expect(stepCta(1, path({ listen: true }))).toBe("Do it again")
-    expect(stepCta(3, path({ listen: true }))).toBe("Open the chords")
+    expect(stepOver(3, false)).toBe("Extra · To do")
+    expect(stepOver(3, true)).toBe("Extra · Done")
+    expect(stepCta(1, undefined)).toBe("Start the word cards")
+    expect(stepCta(1, path({ words: true }))).toBe("Do it again")
+    expect(stepCta(3, path({ words: true }))).toBe("Show the chords")
   })
 })
 
 describe("progress", () => {
-  it("counts steps for the label and the bar", () => {
-    expect(pathProgressLabel(undefined)).toBe("0 of 3 steps")
-    expect(pathProgressLabel(path({ listen: true, chords: true }))).toBe("2 of 3 steps")
+  it("counts the two steps that count for the label and the bar", () => {
+    expect(pathProgressLabel(undefined)).toBe("0 of 2 steps")
+    expect(pathProgressLabel(path({ listen: true, chords: true }))).toBe("0 of 2 steps")
+    expect(pathProgressLabel(path({ words: true, chords: true }))).toBe("1 of 2 steps")
     expect(pathFraction(learned)).toBe(1)
-    expect(pathFraction(path({ words: true }))).toBeCloseTo(1 / 3)
+    expect(pathFraction(path({ words: true }))).toBeCloseTo(1 / 2)
   })
 
   it("names the next step in the library row", () => {
-    expect(nextStepNote(undefined)).toBe("Step 1 of 3 · hear it")
-    expect(nextStepNote(path({ listen: true }))).toBe("Step 2 of 3 · know what it means")
-    expect(nextStepNote(path({ listen: true, words: true }))).toBe("Step 3 of 3 · play it")
+    expect(nextStepNote(undefined)).toBe("Step 1 of 2 · Words")
+    expect(nextStepNote(path({ words: true }))).toBe("Step 2 of 2 · Quiz")
+    expect(nextStepNote(path({ words: true, chords: true }))).toBe("Step 2 of 2 · Quiz")
+    expect(nextStepNote(learned)).toBe("Learned")
   })
 })
 
@@ -52,6 +57,7 @@ describe("links", () => {
     expect(pathLinks("ps-3", 3)).toEqual({
       listen: "/song-v2/ps-3",
       words: "/learn/words?song=3",
+      quiz: "/learn/quiz?song=3",
       harmoniumChords: "/harmonium-v2/chords",
     })
   })

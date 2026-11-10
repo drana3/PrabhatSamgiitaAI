@@ -1,7 +1,7 @@
 import type { LibraryRowData } from "@/components/learn-v2/LearnBlocks"
 import type { LearnWord } from "@/lib/learn/words"
 import { demoLibraryEntry } from "@/lib/fixtures/learn"
-import { pathDoneCount, pathDots, songsWithDueWords, type LearningSong, type PathState } from "@/lib/learn/progress"
+import { isSongLearned, pathDots, songsWithDueWords, type LearningSong, type PathState } from "@/lib/learn/progress"
 import { nextStepNote } from "@/lib/learn/songPath"
 import { describeNextDue, nextDueAt, type WordCard } from "@/lib/learn/srs"
 import { wordsForSong } from "@/lib/learn/words"
@@ -34,7 +34,7 @@ export function buildLibraryRows(input: {
   const dueBySong = songsWithDueWords(words, cards, now)
   return songs.map((song): LibraryRowData => {
     const path = paths[song.songId]
-    const learned = pathDoneCount(path) === 3
+    const learned = isSongLearned(path)
     // the prototype's sample "due today" and memory strength exist only in the preview
     const demo = mockup ? demoLibraryEntry(song.number) : undefined
     const due = learned && Boolean(demo?.due || (!mockup && dueBySong.has(song.number)))
@@ -47,7 +47,7 @@ export function buildLibraryRows(input: {
         Object.fromEntries(wordsForSong(words, song.number).flatMap((w) => (cards[w.id] ? [[w.id, cards[w.id]!]] : []))),
         now,
       )
-      note = nextWord ? describeNextDue(nextWord, now, "review") : t("learn.step.allDone")
+      note = nextWord ? describeNextDue(nextWord, now, "review") : t("learn.step.learned")
     }
     return {
       number: song.number,
@@ -73,10 +73,10 @@ export function filterLibraryRows(rows: readonly LibraryRowData[], filter: Libra
 /** Empty-state text of the songs list, for the chosen filter. */
 export function libraryEmptyText(totalRows: number, filter: LibraryFilter = "due"): string {
   if (totalRows === 0) {
-    return t("learn.empty.none")
+    return t("learn.page.empty.none")
   }
   if (filter === "learning") return t("learn.empty.learning")
-  if (filter === "learned") return t("learn.empty.learned")
+  if (filter === "learned") return t("learn.page.empty.learned")
   return t("learn.empty.due")
 }
 

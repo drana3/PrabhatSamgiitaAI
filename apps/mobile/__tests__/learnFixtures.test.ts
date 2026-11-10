@@ -22,7 +22,10 @@ describe("demo seed", () => {
     expect(seed.songs.map((s) => s.number).sort()).toEqual([1, 2, 3, 4, 6])
     for (const id of ["ps-2", "ps-4", "ps-6"]) expect(isSongLearned(seed.paths[id])).toBe(true)
     expect(songLibraryState(seed.paths["ps-1"])).toBe("learning")
-    expect(pathDoneCount(seed.paths["ps-3"])).toBe(2)
+    expect(songLibraryState(seed.paths["ps-3"])).toBe("learning")
+    // Words is done for both, the Quiz is not; PS 3 has played the chords, which does not count
+    expect(pathDoneCount(seed.paths["ps-3"])).toBe(1)
+    expect(seed.paths["ps-3"]!.chords).toBe(true)
   })
 
   it("has six learned words and two cards due today", () => {

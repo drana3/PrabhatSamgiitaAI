@@ -1,11 +1,12 @@
 import { t } from "@/lib/i18n"
-import { EMPTY_PATH, isSongLearned, pathDoneCount, pathStepDone, type PathPart, type PathState, type PathStep } from "@/lib/learn/progress"
-import { LEARN_ROUTES, songHref, wordsHref } from "@/lib/learn/routes"
+import { isSongLearned, pathDoneCount, pathStepDone, type PathPart, type PathState, type PathStep } from "@/lib/learn/progress"
+import { LEARN_ROUTES, quizHref, songHref, wordsHref } from "@/lib/learn/routes"
+import { nextRequiredStep } from "@/lib/learn/songStatus"
 
 /**
- * The three-step path of one song, as in the design prototype ("Learn a song"):
- * 1 hear it and sing it, 2 learn what it means (the song's word cards), 3 play it
- * (chords). Every step can be started at any time and repeated.
+ * The steps of one song (Dada, 10 November 2026): 1 Words (the song's word cards), 2 Quiz (questions on
+ * those words), 3 Chords (play along; an extra that never decides whether the song is learned).
+ * "Listen" is a button at the top of the page, not a step. Every step can be started at any time and repeated.
  */
 export const PATH_STEPS: ReadonlyArray<{
   step: PathStep
@@ -13,92 +14,100 @@ export const PATH_STEPS: ReadonlyArray<{
   title: string
   text: string
   cta: string
-  /** the short name used in the library row: "Step 2 of 3 · know what it means" */
+  /** the short name used in the library row: "Step 2 of 2 · Quiz" */
   short: string
+  /** Chords only */
+  optional: boolean
 }> = [
   {
     step: 1,
-    part: "listen",
+    part: "words",
+    optional: false,
     get title() {
-      return t("learn.path.s1.title")
+      return t("learn.song.s1.title")
     },
     get text() {
-      return t("learn.path.s1.text")
+      return t("learn.song.s1.text")
     },
     get cta() {
-      return t("learn.path.s1.cta")
+      return t("learn.song.s1.cta")
     },
     get short() {
-      return t("learn.path.s1.short")
+      return t("learn.step.words")
     },
   },
   {
     step: 2,
-    part: "words",
+    part: "meaning",
+    optional: false,
     get title() {
-      return t("learn.path.s2.title")
+      return t("learn.song.s2.title")
     },
     get text() {
-      return t("learn.path.s2.text")
+      return t("learn.song.s2.text")
     },
     get cta() {
-      return t("learn.path.s2.cta")
+      return t("learn.song.s2.cta")
     },
     get short() {
-      return t("learn.path.s2.short")
+      return t("learn.step.quiz")
     },
   },
   {
     step: 3,
     part: "chords",
+    optional: true,
     get title() {
-      return t("learn.path.s3.title")
+      return t("learn.song.s3.title")
     },
     get text() {
-      return t("learn.path.s3.text")
+      return t("learn.song.s3.text")
     },
     get cta() {
-      return t("learn.path.s3.cta")
+      return t("learn.song.s3.cta")
     },
     get short() {
-      return t("learn.path.s3.short")
+      return t("learn.step.chords")
     },
   },
 ]
 
-/** "Step 1 · To do" or "Step 2 · Done". */
+/** "Step 1 · To do" or "Step 2 · Done"; Chords are labelled "Extra". */
 export function stepOver(step: PathStep, done: boolean): string {
+  if (step === 3) return done ? t("learn.song.extraDone") : t("learn.song.extra")
   return done ? t("learn.path.overDone", { n: step }) : t("learn.path.overTodo", { n: step })
 }
 
 /** Button text of a step: its own, or "Do it again" once done. */
 export function stepCta(step: PathStep, path: PathState | undefined): string {
   const meta = PATH_STEPS[step - 1]!
-  return pathStepDone(path ?? EMPTY_PATH, step) ? t("learn.path.again") : meta.cta
+  return path && pathStepDone(path, step) ? t("learn.path.again") : meta.cta
 }
 
-/** "2 of 3 steps". */
+/** "1 of 2 steps": only Words and Quiz count. */
 export function pathProgressLabel(path: PathState | undefined): string {
-  return t("learn.path.progress", { done: pathDoneCount(path) })
+  return t("learn.song.progress", { done: pathDoneCount(path) })
 }
 
-/** 0 to 1 for the path progress bar. */
+/** 0 to 1 for the path progress bar (Words and Quiz). */
 export function pathFraction(path: PathState | undefined): number {
-  return pathDoneCount(path) / 3
+  return pathDoneCount(path) / 2
 }
 
-/** The "Learning now" line under a song in the library: "Step 2 of 3 · know what it means". */
+/** The line under a song in the library: "Step 2 of 2 · Quiz". */
 export function nextStepNote(path: PathState | undefined): string {
-  const done = pathDoneCount(path)
-  const step = Math.min(3, done + 1)
-  return t("learn.step.line", { n: step, name: PATH_STEPS[Math.min(2, done)]!.short })
+  const next = nextRequiredStep(path)
+  if (next === null) return t("learn.step.learned")
+  const step = next === "words" ? 1 : 2
+  return t("learn.step.line2", { n: step, name: PATH_STEPS[step - 1]!.short })
 }
 
-/** Where each button of the path goes. Harmonium routes belong to another branch and are linked by path only. */
+/** Where each button of the page goes. Harmonium routes belong to another branch and are linked by path only. */
 export function pathLinks(songId: string, songNumber: number) {
   return {
     listen: songHref(songId),
     words: wordsHref({ song: songNumber }),
+    quiz: quizHref({ song: songNumber }),
     harmoniumChords: LEARN_ROUTES.harmoniumChords,
   }
 }

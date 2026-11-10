@@ -4,6 +4,8 @@ import { LEARN_SUGGESTED_NUMBERS, buildLearnDemoSeed, learnSongTitle } from "@/l
 import {
   HUB_LINKS,
   HUB_SECTION_ORDER,
+  CHOOSE_LIMIT,
+  buildChoices,
   buildContinue,
   buildShelf,
   nextStep,
@@ -26,10 +28,11 @@ function song(number: number, startedAt = NOW): LearningSong {
 }
 
 describe("steps of one song", () => {
-  it("shows three bars with the done ones marked", () => {
+  it("shows three bars, Words, Quiz, Chords, with the done ones marked", () => {
     const bars = songStepBars({ ...EMPTY_PATH, listen: true, chords: true })
-    expect(bars.map((b) => b.label)).toEqual(["Hear", "Words", "Play"])
-    expect(bars.map((b) => b.done)).toEqual([true, false, true])
+    expect(bars.map((b) => b.label)).toEqual(["Words", "Quiz", "Chords"])
+    expect(bars.map((b) => b.done)).toEqual([false, false, true])
+    expect(bars.map((b) => b.optional)).toEqual([false, false, true])
   })
 
   it("treats a missing path as nothing done", () => {
@@ -37,49 +40,68 @@ describe("steps of one song", () => {
     expect(stepLine(undefined)).toBe("Not started")
   })
 
-  it("next step is the first one not done, in any order", () => {
+  it("next step is Words, then Quiz; Chords never come next", () => {
     expect(nextStep(EMPTY_PATH)).toBe(1)
-    expect(nextStep({ ...EMPTY_PATH, listen: true })).toBe(2)
-    expect(nextStep({ ...EMPTY_PATH, listen: true, words: true })).toBe(3)
-    expect(nextStep({ ...EMPTY_PATH, chords: true })).toBe(1)
-    expect(nextStep({ ...EMPTY_PATH, listen: true, chords: true })).toBe(2)
-    expect(nextStep(DONE)).toBeNull()
+    expect(nextStep({ ...EMPTY_PATH, words: true })).toBe(2)
+    expect(nextStep({ ...EMPTY_PATH, meaning: true })).toBe(1)
+    expect(nextStep({ ...EMPTY_PATH, chords: true, listen: true })).toBe(1)
+    expect(nextStep({ ...EMPTY_PATH, words: true, chords: true })).toBe(2)
+    expect(nextStep({ ...DONE, chords: false })).toBeNull()
   })
 
   it("describes the step in words", () => {
-    expect(stepLine({ ...EMPTY_PATH, listen: true })).toBe("Step 2 of 3 · Words")
-    expect(stepLine({ ...EMPTY_PATH, listen: true, words: true })).toBe("Step 3 of 3 · Play")
-    expect(stepLine(DONE)).toBe("All three steps done")
+    expect(stepLine({ ...EMPTY_PATH, words: true })).toBe("Step 2 of 2 · Quiz")
+    expect(stepLine({ ...EMPTY_PATH, meaning: true })).toBe("Step 1 of 2 · Words")
+    expect(stepLine({ ...EMPTY_PATH, listen: true, chords: true })).toBe("Not started")
+    expect(stepLine(DONE)).toBe("Learned")
+    expect(stepLine({ ...DONE, chords: false })).toBe("Learned")
   })
 
-  it("Go opens the song's word cards for the words step, the song path otherwise", () => {
-    expect(nextStepHref("ps-3", 3, { ...EMPTY_PATH, listen: true })).toBe("/learn/words?song=3")
-    expect(nextStepHref("ps-3", 3, EMPTY_PATH)).toBe("/learn/song/ps-3")
-    expect(nextStepHref("ps-3", 3, { ...EMPTY_PATH, listen: true, words: true })).toBe("/learn/song/ps-3")
+  it("Go opens the word cards for Words, the song quiz for Quiz, the song page otherwise", () => {
+    expect(nextStepHref("ps-3", 3, EMPTY_PATH)).toBe("/learn/words?song=3")
+    expect(nextStepHref("ps-3", 3, { ...EMPTY_PATH, words: true })).toBe("/learn/quiz?song=3")
+    expect(nextStepHref("ps-3", 3, DONE)).toBe("/learn/song/ps-3")
+  })
+
+  it("a song without checked words opens its own page, which says 'Words coming soon'", () => {
+    expect(nextStepHref("ps-9", 9, EMPTY_PATH, false)).toBe("/learn/song/ps-9")
+    expect(nextStepHref("ps-9", 9, { ...EMPTY_PATH, words: true }, false)).toBe("/learn/song/ps-9")
   })
 })
 
 describe("continue card", () => {
   const seed = buildLearnDemoSeed(NOW)
 
-  it("continues the song closest to finished (demo: PS 3 at step 3)", () => {
+  it("continues the song started last when two are equally far (demo: PS 3, its Quiz is next)", () => {
     const model = buildContinue(seed.songs, seed.paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle)
     expect(model.kind).toBe("continue")
     if (model.kind !== "continue") return
     expect(model.song.number).toBe(3)
-    expect(model.step).toBe(3)
-    expect(model.href).toBe("/learn/song/ps-3")
+    expect(model.step).toBe(2)
+    expect(model.href).toBe("/learn/quiz?song=3")
+  })
+
+  it("sends a song without checked words to its own page", () => {
+    const model = buildContinue(seed.songs, seed.paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle, () => false)
+    expect(model.kind === "continue" && model.href).toBe("/learn/song/ps-3")
   })
 
   it("on a tie, the song started last wins", () => {
     const songs = [song(1, NOW - 5000), song(3, NOW)]
-    const paths = { "ps-1": { ...EMPTY_PATH, listen: true }, "ps-3": { ...EMPTY_PATH, listen: true } }
+    const paths = { "ps-1": { ...EMPTY_PATH, words: true }, "ps-3": { ...EMPTY_PATH, words: true } }
     expect(pickContinue(songs, paths)?.number).toBe(3)
+  })
+
+  it("a song with only Listen or Chords done is not in progress (they do not count)", () => {
+    const songs = [song(1), song(3)]
+    expect(pickContinue(songs, { "ps-1": { ...EMPTY_PATH, listen: true }, "ps-3": { ...EMPTY_PATH, chords: true } })).toBeNull()
   })
 
   it("ignores learned songs and songs with no step done", () => {
     const songs = [song(2), song(4)]
     expect(pickContinue(songs, { "ps-2": DONE, "ps-4": EMPTY_PATH })).toBeNull()
+    // learned without chords is learned all the same
+    expect(pickContinue([song(2)], { "ps-2": { ...EMPTY_PATH, words: true, meaning: true } })).toBeNull()
   })
 
   it("offers the first suggested song when the learner has nothing", () => {
@@ -110,33 +132,47 @@ describe("continue card", () => {
   })
 })
 
-describe("song shelf order", () => {
+describe("My songs shelf", () => {
   const seed = buildLearnDemoSeed(NOW)
-  const shelf = buildShelf(seed.songs, seed.paths, LEARN_SUGGESTED_NUMBERS, learnSongTitle)
+  const shelf = buildShelf(seed.songs, seed.paths)
 
-  it("lists songs in progress first, then not started", () => {
+  it("lists Learning first, then Not started, then Learned", () => {
     expect(shelf.map((e) => `${e.state}:${e.number}`)).toEqual([
       "learning:3",
       "learning:1",
-      "notStarted:5",
-      "notStarted:7",
+      "learned:6",
+      "learned:4",
+      "learned:2",
     ])
   })
 
-  it("leaves learned songs out of the shelf", () => {
-    expect(shelf.some((e) => [2, 4, 6].includes(e.number))).toBe(false)
+  it("is empty for a new learner: suggestions are not in My songs", () => {
+    expect(buildShelf([], {})).toEqual([])
   })
 
-  it("is never empty for a new learner: it falls back to suggestions", () => {
-    const empty = buildShelf([], {}, LEARN_SUGGESTED_NUMBERS, learnSongTitle)
-    expect(empty).toHaveLength(LEARN_SUGGESTED_NUMBERS.length)
-    expect(empty.every((e) => e.state === "notStarted" && !e.listed)).toBe(true)
+  it("puts a just-added song (nothing done) after the songs in progress, newest first", () => {
+    const paths = { "ps-7": EMPTY_PATH, "ps-5": EMPTY_PATH, "ps-1": { ...EMPTY_PATH, meaning: true } }
+    const list = buildShelf([song(7, NOW), song(5, NOW - 1000), song(1, NOW - 2000)], paths)
+    expect(list.map((e) => `${e.state}:${e.number}`)).toEqual(["learning:1", "notStarted:7", "notStarted:5"])
+    expect(list.every((e) => e.listed)).toBe(true)
+  })
+})
+
+describe("I want to learn this", () => {
+  it("offers the first suggested songs, as many as the column holds", () => {
+    const choices = buildChoices([], LEARN_SUGGESTED_NUMBERS, learnSongTitle)
+    expect(choices).toHaveLength(CHOOSE_LIMIT)
+    expect(choices.map((c) => c.number)).toEqual(LEARN_SUGGESTED_NUMBERS.slice(0, CHOOSE_LIMIT))
+    expect(choices.every((c) => !c.listed)).toBe(true)
   })
 
-  it("puts listed not-started songs before suggestions", () => {
-    const list = buildShelf([song(7)], { "ps-7": EMPTY_PATH }, [1, 7], learnSongTitle)
-    expect(list.map((e) => e.number)).toEqual([7, 1])
-    expect(list[0]!.listed).toBe(true)
+  it("skips songs already on the list, so a song moves out of the column when it is added", () => {
+    const choices = buildChoices([song(1), song(3)], LEARN_SUGGESTED_NUMBERS, learnSongTitle)
+    expect(choices.map((c) => c.number)).toEqual([2, 4, 5, 6])
+  })
+
+  it("is empty when everything suggested is on the list", () => {
+    expect(buildChoices([song(1)], [1], learnSongTitle)).toEqual([])
   })
 })
 
@@ -159,8 +195,8 @@ describe("texts", () => {
 })
 
 describe("page structure", () => {
-  it("sections run continue, songs, practice, play, explore", () => {
-    expect([...HUB_SECTION_ORDER]).toEqual(["continue", "songs", "practice", "play", "explore"])
+  it("the chain runs continue, my songs, choose, practice; the old blocks follow", () => {
+    expect([...HUB_SECTION_ORDER]).toEqual(["continue", "songs", "choose", "practice", "play", "ragas", "harmonium", "stories"])
   })
 
   it("keeps every destination of the old Practice, My songs and Tools tabs", () => {
@@ -172,5 +208,6 @@ describe("page structure", () => {
     // the Certificates / Live quiz entry is hidden for now (Dada 2026-11-05)
     expect("certificates" in HUB_LINKS).toBe(false)
     expect(HUB_LINKS.allSongs).toBe("/learn/songs")
+    expect(HUB_LINKS.pickSong).toBe("/learn/add")
   })
 })

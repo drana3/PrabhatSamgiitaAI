@@ -1,5 +1,6 @@
 import { dueCardCount, endOfLocalDay, wordsLearnedCount, type WordCard } from "@/lib/learn/srs"
 import type { LearnQuizLevel, QuizBestMap } from "@/lib/learn/quiz"
+import { requiredStepsDone, songStatus, type SongStatus } from "@/lib/learn/songStatus"
 import { QUIZ_LEVELS, levelStatuses } from "@/lib/learn/quiz"
 
 /** A song the learner started to learn (spec SCR-21, "Learning now"). */
@@ -11,9 +12,13 @@ export type LearningSong = {
 }
 
 /**
- * Per song, what has been done (API-13: lpath). The prototype's three steps:
- * 1 hear it (listen), 2 know what it means (word cards), 3 play it (chords).
- * `meaning` records a passed song quiz; it is kept for sync but is not a step.
+ * Per song, what has been done (API-13: lpath). Since 10 November 2026 the steps of a song are
+ * Words, Quiz, Chords, in that order, and "Listen" is a button, not a step:
+ *   words    the word cards of the song were all answered       (step 1, required)
+ *   meaning  the song quiz was passed (stored name of "Quiz")   (step 2, required)
+ *   chords   the chords were opened                              (step 3, extra, never required)
+ *   listen   the Listen button was used (kept for sync, not a step)
+ * A song is Learned when Words and Quiz are done (lib/learn/songStatus.ts); chords and listen never decide it.
  */
 export type PathState = {
   listen: boolean
@@ -27,38 +32,38 @@ export type PathStep = 1 | 2 | 3
 
 export const EMPTY_PATH: PathState = { listen: false, words: false, meaning: false, chords: false }
 
+/** Step 1 is Words, 2 is Quiz, 3 is Chords. */
 export function pathStepDone(path: PathState, step: PathStep): boolean {
-  if (step === 1) return path.listen
-  if (step === 2) return path.words
+  if (step === 1) return path.words
+  if (step === 2) return path.meaning
   return path.chords
 }
 
-/** 0 to 3: how many of the three steps are done. */
+/** 0 to 2: how many of the two steps that count (Words, Quiz) are done. Chords are an extra and are not counted. */
 export function pathDoneCount(path: PathState | undefined): number {
-  if (!path) return 0
-  return ([1, 2, 3] as const).filter((step) => pathStepDone(path, step)).length
+  return requiredStepsDone(path)
 }
 
-/** True once anything on the path has been done. */
+/** True once Words or Quiz has been done (the song is then Learning or Learned). */
 export function pathStarted(path: PathState | undefined): boolean {
-  return Boolean(path && (path.listen || path.words || path.chords))
+  return requiredStepsDone(path) > 0
 }
 
 export function isSongLearned(path: PathState | undefined): boolean {
-  return pathDoneCount(path) === 3
+  return songStatus(path) === "learned"
 }
 
-/** The three dots on a "Learning now" row. */
+/** The three bars on a song row: Words, Quiz, Chords (the last one is an extra). */
 export function pathDots(path: PathState | undefined): [boolean, boolean, boolean] {
   const safe = path ?? EMPTY_PATH
   return [pathStepDone(safe, 1), pathStepDone(safe, 2), pathStepDone(safe, 3)]
 }
 
-export type SongLibraryState = "learned" | "learning" | "notStarted"
+export type SongLibraryState = SongStatus
 
+/** Not started, Learning or Learned: the rule is `songStatus` in lib/learn/songStatus.ts. */
 export function songLibraryState(path: PathState | undefined): SongLibraryState {
-  if (pathDoneCount(path) === 3) return "learned"
-  return pathStarted(path) ? "learning" : "notStarted"
+  return songStatus(path)
 }
 
 /** Set one part of a path done; returns a new map. */

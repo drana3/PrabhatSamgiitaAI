@@ -14,24 +14,28 @@ import { useT } from "@/lib/i18n"
 import { SAMPLE_QUIZ, SAMPLE_QUIZ_PASS_MARK } from "@/lib/fixtures/learn"
 import {
   QUIZ_LEVELS,
-  buildWordQuiz,
   levelStatuses,
+  passMarkFor,
   scoreQuiz,
   type LearnQuizLevel,
   type LearnQuizQuestion,
 } from "@/lib/learn/quiz"
+import { allWordsQuizQuestions, songQuizQuestions } from "@/lib/learn/songQuiz"
 import { quizFeedback } from "@/lib/learn/quizFeedback"
 import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
-import { LEARN_ROUTES, parseNumberParam } from "@/lib/learn/routes"
-import { wordsForSong } from "@/lib/learn/words"
+import { LEARN_ROUTES, parseNumberParam, songPathHref } from "@/lib/learn/routes"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useLearnStore } from "@/stores/learnStore"
 import { href } from "@/utils/href"
 
 /**
- * Quiz (prototype QUIZ, SCR-15). Level 1 is the three-question sample from the prototype
- * (pass mark 2); the real quiz has 10 questions and a pass mark of 7. ?level=1..3 picks the
- * level, ?song=3 asks about the words of that song. Level 2 and 3 have no question bank
- * yet (API-12) and say so.
+ * Quiz (prototype QUIZ, SCR-15). Two kinds, both made from the checked words and nothing else:
+ *  - ?song=3: the Quiz step of one song. Five questions on its words, pass mark 70 per cent (4 of 5).
+ *    Passing it marks the song's Quiz step done. A song with fewer than four different meanings has no
+ *    quiz and says "Quiz needs more words".
+ *  - no ?song: the quiz over all the words (Practice on the Learn page), ten questions, pass mark 7.
+ *    The preview keeps the prototype's three-question sample (pass mark 2) to compare with the design.
+ * ?level=1..3 picks the level; level 2 and 3 have no question bank yet (API-12) and say so.
  */
 export default function LearnQuizScreen() {
   return learnWordsAvailable() ? <LearnQuiz /> : <LearnGate kind="quiz" />
@@ -57,12 +61,11 @@ function LearnQuiz() {
   const [attempt, setAttempt] = useState(1)
   const questions = useMemo<LearnQuizQuestion[]>(() => {
     if (level !== 1) return []
-    if (songNumber !== undefined) {
-      const own = buildWordQuiz(wordsForSong(learnWordList(), songNumber), { count: 3, seed: attempt * 7919 + songNumber })
-      if (own.length > 0) return own
-    }
-    return SAMPLE_QUIZ
+    if (songNumber !== undefined) return songQuizQuestions(learnWordList(), songNumber, attempt)
+    if (MOCKUP_DATA) return SAMPLE_QUIZ
+    return allWordsQuizQuestions(learnWordList(), attempt)
   }, [level, songNumber, attempt])
+  const passMark = songNumber === undefined && MOCKUP_DATA ? SAMPLE_QUIZ_PASS_MARK : passMarkFor(questions.length)
 
   const [index, setIndex] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -85,7 +88,7 @@ function LearnQuiz() {
   }
 
   const question = questions[index]
-  const result = useMemo(() => scoreQuiz(questions, answers, SAMPLE_QUIZ_PASS_MARK), [questions, answers])
+  const result = useMemo(() => scoreQuiz(questions, answers, passMark), [questions, answers, passMark])
   const isLast = index >= questions.length - 1
 
   const onPick = (optionId: string) => {
@@ -106,11 +109,17 @@ function LearnQuiz() {
     }
     if (!recorded.current) {
       recorded.current = true
-      recordQuiz(level, { score: result.score, total: result.total, passed: result.passed })
-      if (result.passed && songNumber !== undefined) markPart(`ps-${songNumber}`, "meaning")
+      // a song quiz only marks its own step: it must not open level 2 of the all-words quiz
+      if (songNumber !== undefined) {
+        if (result.passed) markPart(`ps-${songNumber}`, "meaning")
+      } else {
+        recordQuiz(level, { score: result.score, total: result.total, passed: result.passed })
+      }
     }
     setFinished(true)
   }
+
+  const toSong = () => router.replace(href(songPathHref(`ps-${songNumber}`)))
 
   const label =
     songNumber !== undefined
@@ -130,20 +139,38 @@ function LearnQuiz() {
           action={t("learn.quiz.backToLearn")}
           onAction={back}
         />
+      ) : questions.length === 0 ? (
+        <EmptyCard
+          theme={theme}
+          eyebrow={t("learn.quiz.levelEyebrow", { level })}
+          title={songNumber !== undefined ? t("learn.quiz.song.needsMore.title") : t("learn.quiz.song.noQuestions.title")}
+          text={songNumber !== undefined ? t("learn.quiz.song.needsMore.text") : t("learn.quiz.song.noQuestions.text")}
+          action={songNumber !== undefined ? t("learn.quiz.backToSong") : t("learn.quiz.backToLearn")}
+          onAction={songNumber !== undefined ? toSong : back}
+        />
       ) : finished ? (
         <Reveal index={0} style={styles.stack}>
           <View style={styles.result}>
             <Over color={amColors.gold300}>{t("learn.quiz.result")}</Over>
             <Text style={styles.resultNumber}>{t("learn.quiz.score", { score: result.score, total: result.total })}</Text>
             <Text style={styles.resultText}>
-              {result.passed
-                ? t("learn.quiz.passed")
-                : t("learn.quiz.notYet")}
+              {songNumber !== undefined
+                ? result.passed
+                  ? t("learn.quiz.song.passed")
+                  : t("learn.quiz.song.notYet")
+                : result.passed
+                  ? t("learn.quiz.passed")
+                  : t("learn.quiz.notYet")}
             </Text>
           </View>
           <View style={styles.buttons}>
             <Pill theme={theme} label={t("learn.quiz.tryAgain")} onPress={restart} />
-            <Pill theme={theme} variant="sand" label={t("learn.quiz.backToLearn")} onPress={back} />
+            <Pill
+              theme={theme}
+              variant="sand"
+              label={songNumber !== undefined ? t("learn.quiz.backToSong") : t("learn.quiz.backToLearn")}
+              onPress={songNumber !== undefined ? toSong : back}
+            />
           </View>
         </Reveal>
       ) : question ? (

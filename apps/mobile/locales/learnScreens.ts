@@ -3,6 +3,8 @@
  * mirror it key for key. Spread into the main dictionaries. Word meanings themselves are content
  * (English) and are not translated here.
  */
+import { learnPageEn, learnPageEs, learnPageRu } from "./learnPage"
+
 export const learnScreensEn = {
   "common.dragToClose": "Drag down to close",
   "learn.cards.screen": "Words",
@@ -76,6 +78,7 @@ export const learnScreensEn = {
   "learn.strip.words": "Words learned",
   "learn.strip.cell.a11y": "{label}: {value}",
   "learn.strip.cellOf.a11y": "{label}: {value} of {total}",
+  ...learnPageEn,
 } as const
 
 export const learnScreensEs = {
@@ -151,6 +154,7 @@ export const learnScreensEs = {
   "learn.strip.words": "Palabras aprendidas",
   "learn.strip.cell.a11y": "{label}: {value}",
   "learn.strip.cellOf.a11y": "{label}: {value} de {total}",
+  ...learnPageEs,
 } as const
 
 export const learnScreensRu = {
@@ -228,4 +232,5 @@ export const learnScreensRu = {
   "learn.strip.words": "Слов выучено",
   "learn.strip.cell.a11y": "{label}: {value}",
   "learn.strip.cellOf.a11y": "{label}: {value} из {total}",
+  ...learnPageRu,
 } as const
