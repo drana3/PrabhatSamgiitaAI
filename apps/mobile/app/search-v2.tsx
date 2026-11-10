@@ -27,6 +27,7 @@ import { useKirtans } from "@/hooks/useKirtans"
 import { useSearchMenu } from "@/hooks/useSearchMenu"
 import { playHistoryEntry } from "@/lib/listening/playAgain"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { useSongsWithChords } from "@/hooks/useSongsWithChords"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
 import { SEARCH_SCOPES, parseSearchScope, scopeShows, searchArtists, searchKirtans, type SearchScope } from "@/lib/kirtan/search"
 import { NAV_V2_HOME_ROUTE, NAV_V2_TABS, contentInsetFor, miniPlayerVisible, tabIdForRouteName, type NavV2TabId } from "@/lib/navV2"
@@ -48,6 +49,7 @@ import { kindLabel } from "@/lib/songsV2/collectionsIndex"
 import { warmLyricSearchIndex } from "@/lib/lyricSearch"
 import {
   mergeMeaningRows,
+  rankSearchByChords,
   searchLocal,
   type SearchResultItem,
   type UnifiedResult,
@@ -198,9 +200,11 @@ export default function UnifiedSearchScreen() {
     }
   }, [local.query, local.wantsMeaning])
 
+  // a guitar-ish word in the query ("guitar", "chords", "capo", "гитара", "аккорды") ranks the songs with chords first
+  const songsWithChords = useSongsWithChords()
   const result = useMemo(
-    () => (meaning.query === local.query ? mergeMeaningRows(local, meaning.rows) : local),
-    [local, meaning],
+    () => rankSearchByChords(meaning.query === local.query ? mergeMeaningRows(local, meaning.rows) : local, songsWithChords),
+    [local, meaning, songsWithChords],
   )
   const waitingForMeaning = !MOCKUP_DATA && meaning.pending && meaning.query === local.query
   const guestMeaning = !MOCKUP_DATA && Boolean(meaning.guest) && meaning.query === local.query

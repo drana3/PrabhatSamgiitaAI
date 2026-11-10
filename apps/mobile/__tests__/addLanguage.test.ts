@@ -89,7 +89,7 @@ describe("the facts line and the words", () => {
     const tt = t as unknown as (key: string, vars?: Record<string, string | number>) => string
     expect(recordingFacts(k({ language: "bn", year: 1982 }), tt)).toEqual(["Bhajan", "Bengali", "1982"])
     const baba = recordingFacts(k({ kind: "baba_audio", language: "en", place: "Ranchi", discourse: "12" }), tt)
-    expect(baba).toEqual(["Baba's Audio Discourses", "English", "Given in Ranchi", "Discourse: 12"])
+    expect(baba).toEqual(["Baba's Discourses", "English", "Given in Ranchi", "Discourse: 12"])
     expect(recordingFacts(k({ kind: "kiirtan", language: "bn" }), tt)).toEqual(["Kiirtan"])
   })
   it("has every key in en, ru and es", () => {

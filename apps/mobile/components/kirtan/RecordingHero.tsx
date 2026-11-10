@@ -8,6 +8,7 @@ import { useRecordingPhoto } from "@/components/kirtan/useRecordingPhoto"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useT } from "@/lib/i18n"
+import { recordingSeed } from "@/lib/photos/recordingPhoto"
 import type { Kirtan } from "@/lib/kirtan/types"
 
 /** The picture takes this share of the page width (the Prabhat Samgiita page's photo is wide; a recording's cover is square). */
@@ -31,7 +32,7 @@ export function RecordingHero({ theme, kirtan }: { theme: SongsTheme; kirtan: Ki
         <LinearGradient pointerEvents="none" colors={[theme.page, theme.peach, theme.page]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
         {photo ? <Image source={{ uri: photo }} blurRadius={48} contentFit="cover" accessibilityIgnoresInvertColors style={[s.glow, { opacity: 0.35 }]} /> : null}
         <View style={s.cover} accessible accessibilityRole="image" accessibilityLabel={t("recPage.photo.a11y", { title: kirtan.title })}>
-          <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={photo} width={size} height={size} radius={24} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
+          <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={photo} width={size} height={size} radius={24} photoSeed={recordingSeed(kirtan)} title={kirtan.title} durationSec={kirtan.durationSec} />
         </View>
       </View>
       <View style={s.text}>

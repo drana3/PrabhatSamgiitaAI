@@ -283,6 +283,19 @@ async def test_a_team_member_publishes_at_once(world: World) -> None:
     assert public["items"][0]["author"] == {"name": "Carya"}
 
 
+async def test_with_chords_lists_the_songs_that_have_a_published_chart(world: World) -> None:
+    empty = await world.client.get(f"{URL}/with-chords")
+    assert empty.status_code == 200 and empty.json() == {"songs": []}
+    await world.offer("a", song_id=7)  # waits for review: does not count
+    assert (await world.client.get(f"{URL}/with-chords")).json() == {"songs": []}
+    await world.offer("team", song_id=19)
+    await world.offer("team", song_id=19, instrument="harmonium", capo=0, strum=None)
+    await world.offer("team", song_id=3)
+    answer = await world.client.get(f"{URL}/with-chords")
+    assert answer.json() == {"songs": [3, 19]}  # once per song, ascending
+    assert "public" in answer.headers["cache-control"]
+
+
 async def test_sign_in_is_required_and_the_chart_must_be_valid(world: World) -> None:
     assert (await world.offer(None)).status_code == 401
     assert (await world.offer("a", played_it=False)).status_code == 422
@@ -1151,4 +1164,5 @@ def test_the_router_serves_the_chord_routes() -> None:
     app.include_router(router)
     paths = set(app.openapi()["paths"])
     assert "/api/v1/song-chords/songs/{song_id}" in paths
+    assert "/api/v1/song-chords/with-chords" in paths
     assert "/api/v1/admin/song-chords" in paths

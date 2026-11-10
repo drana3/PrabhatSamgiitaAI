@@ -13,7 +13,7 @@ const FULL: QueueDraft = { ...EMPTY_DRAFT, kind: "bhajan", language: "bn", credi
 describe("the types of the add form", () => {
   it("are Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's Audio and Others: Devotional song is gone", () => {
     expect(RECORDING_KINDS).toEqual(["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "baba_audio", "other_mantra"])
-    expect(RECORDING_KINDS.map((k) => kindLabel(k))).toEqual(["Kiirtan", "Bhajan", "Prabhat Samgiita", "Spiritual song", "Dance music", "Baba's Audio Discourses", "Others"])
+    expect(RECORDING_KINDS.map((k) => kindLabel(k))).toEqual(["Kiirtan", "Bhajan", "Prabhat Samgiita", "Spiritual song", "Dance music", "Baba's Discourses", "Others"])
     expect(isRecordingKind("devotional_song")).toBe(false)
     expect(KIRTAN_TAB_CHIPS.some((c) => c.id === ("devotional_song" as string))).toBe(false)
   })

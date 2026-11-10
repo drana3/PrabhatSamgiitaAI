@@ -1,7 +1,8 @@
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { catalogEntries, ensureCatalog, useCatalogStore } from "@/lib/catalogStore"
+import { useSongsWithChords } from "@/hooks/useSongsWithChords"
 import { usePreviewCatalog } from "@/lib/previewCatalog"
 import { ensurePreviewCatalog } from "@/lib/previewCatalogLoader"
 
@@ -23,7 +24,10 @@ export function useSongsV2Catalog() {
   }, [])
 
   const source = MOCKUP_DATA ? preview.rows : real.rows
-  const { entries, byNumber } = catalogEntries(source)
+  const { entries: plain, byNumber } = catalogEntries(source)
+  // which songs have chords (null while unknown: the rows stay unmarked and "With chords first" is not offered)
+  const chordSongs = useSongsWithChords()
+  const entries = useMemo(() => (chordSongs ? plain.map((e) => ({ ...e, hasChords: chordSongs.has(e.number) })) : plain), [plain, chordSongs])
 
   return {
     entries,

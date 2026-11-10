@@ -196,6 +196,18 @@ async def list_for_song(
     return [(p, a) for p, a in rows]
 
 
+async def songs_with_chords(session: AsyncSession) -> list[int]:
+    """The numbers of the songs that have at least one published (and not archived) chart, any
+    instrument, ascending. One cheap read for the song lists ("With chords first", Search)."""
+    rows = await session.execute(
+        select(SongChordProposal.song_id)
+        .where(SongChordProposal.status == "published", SongChordProposal.archived_at.is_(None))
+        .distinct()
+        .order_by(SongChordProposal.song_id.asc())
+    )
+    return [int(number) for number in rows.scalars().all()]
+
+
 async def list_mine(
     session: AsyncSession, member_id: UUID
 ) -> list[tuple[SongChordProposal, UserAccount | None]]:

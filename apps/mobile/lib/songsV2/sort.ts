@@ -1,8 +1,8 @@
 import { groupLetter, plainTitle, formatDuration, type CatalogEntry } from "./entry"
 import { t } from "@/lib/i18n"
 
-/** The nine sort orders of Songs (spec SCR-30). */
-export type SortKey = "num" | "numd" | "az" | "za" | "cat" | "short" | "long" | "new" | "most"
+/** The ten sort orders of Songs (spec SCR-30, and "With chords first", Dada 10 Nov 2026). */
+export type SortKey = "num" | "numd" | "az" | "za" | "cat" | "chords" | "short" | "long" | "new" | "most"
 
 export const DEFAULT_SORT: SortKey = "num"
 
@@ -20,6 +20,7 @@ export const SORT_OPTIONS: readonly SortOption[] = [
   { key: "az", get title() { return t("songs.sort.az.title") }, get short() { return t("songs.sort.az.short") }, get subtitle() { return t("songs.sort.az.sub") } },
   { key: "za", get title() { return t("songs.sort.za.title") }, get short() { return t("songs.sort.za.short") }, get subtitle() { return t("songs.sort.za.sub") } },
   { key: "cat", get title() { return t("songs.sort.cat.title") }, get short() { return t("songs.sort.cat.short") }, get subtitle() { return t("songs.sort.cat.sub") } },
+  { key: "chords", get title() { return t("songs.sort.chords.title") }, get short() { return t("songs.sort.chords.short") }, get subtitle() { return t("songs.sort.chords.sub") } },
   { key: "short", get title() { return t("songs.sort.short.title") }, get short() { return t("songs.sort.short.short") }, get subtitle() { return t("songs.sort.short.sub") } },
   { key: "long", get title() { return t("songs.sort.long.title") }, get short() { return t("songs.sort.long.short") }, get subtitle() { return t("songs.sort.long.sub") } },
   { key: "new", get title() { return t("songs.sort.new.title") }, get short() { return t("songs.sort.new.short") }, get subtitle() { return t("songs.sort.new.sub") } },
@@ -42,10 +43,13 @@ export function availableSortOptions(entries: readonly CatalogEntry[]): SortOpti
   const hasDuration = entries.some((e) => e.durationSeconds != null)
   const hasAdded = entries.some((e) => e.addedRank != null)
   const hasPlays = entries.some((e) => e.plays != null)
+  // offered once the app knows which songs have chords (the answer may be "none yet"), never before
+  const knowsChords = entries.some((e) => e.hasChords != null)
   return SORT_OPTIONS.filter((option) => {
     if (option.key === "short" || option.key === "long") return hasDuration
     if (option.key === "new") return hasAdded
     if (option.key === "most") return hasPlays
+    if (option.key === "chords") return knowsChords
     return true
   })
 }
@@ -79,6 +83,8 @@ const COMPARATORS: Record<SortKey, (a: CatalogEntry, b: CatalogEntry) => number>
   az: byTitle,
   za: (a, b) => byTitle(b, a),
   cat: (a, b) => a.category.localeCompare(b.category) || byTitle(a, b),
+  // songs with chords first, then the rest; each half in the order of the book (see lib/songsV2/chordsFirst.ts)
+  chords: (a, b) => Number(Boolean(b.hasChords)) - Number(Boolean(a.hasChords)) || a.number - b.number,
   short: byNullable((e) => e.durationSeconds, 1),
   long: byNullable((e) => e.durationSeconds, -1),
   new: byNullable((e) => e.addedRank, -1),

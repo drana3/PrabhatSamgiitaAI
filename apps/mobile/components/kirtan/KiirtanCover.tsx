@@ -5,7 +5,8 @@ import { LinearGradient } from "expo-linear-gradient"
 import Svg, { Path } from "react-native-svg"
 
 import { BHAJAN_OTHER_TONE, KIIRTAN_TYPE_TONES, kiirtanTone, kindTone } from "@/lib/kirtan/tone"
-import { moodForText, photoForSeed, type PhotoMood } from "@/lib/photos/catalog"
+import { photoForSeed, type PhotoMood } from "@/lib/photos/catalog"
+import { recordingMood } from "@/lib/photos/recordingPhoto"
 
 // The gradients per type and kind live in lib/kirtan/tone.ts (pure, tested); re-exported so callers keep their import.
 export { BHAJAN_OTHER_TONE, KIIRTAN_TYPE_TONES, kiirtanTone, kindTone }
@@ -56,7 +57,8 @@ export function KiirtanCover({ type, kind, coverUrl, width, height, aspectRatio,
   const basis = typeof width === "number" ? Math.min(width, height ?? width) : 120
   const size = glyph ?? Math.max(16, Math.round(basis * 0.42))
   const showImage = Boolean(coverUrl) && !failed
-  const photo = photoSeed && !showImage ? photoForSeed(photoSeed, photoMood ?? (title ? moodForText(title, durationSec) : undefined)) : null
+  // the system gives every recording a photo: by its id, and by the mood its title, its length or its kind tell (lib/photos/recordingPhoto.ts)
+  const photo = photoSeed && !showImage ? photoForSeed(photoSeed, photoMood ?? recordingMood(kind, title, durationSec)) : null
   const photoSource = photo ? (basis <= 240 ? photo.thumb : photo.cover) : null
   // nothing to wait for when only the gradient shows
   useEffect(() => {

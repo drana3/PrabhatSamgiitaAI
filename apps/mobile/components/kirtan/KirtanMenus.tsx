@@ -166,7 +166,7 @@ export function KirtanShareSheet({ open, theme, kirtan, onShare, onClose }: { op
       <ShareCardSheet
         subject={{
           kind: "kiirtan",
-          id: cardFor.id,
+          id: cardFor.serverId ?? cardFor.id,
           title: cardFor.title,
           author: cardFor.author,
           recordingKind: cardFor.kind,

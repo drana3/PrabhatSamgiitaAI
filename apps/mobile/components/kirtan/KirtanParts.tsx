@@ -14,6 +14,7 @@ import { kindTag } from "@/lib/kirtan/kind"
 import { kirtanRowLabel, kirtanSubline } from "@/lib/kirtan/list"
 import { STATUS_LABEL, type Kirtan, type KirtanStatus, type RecordingKind } from "@/lib/kirtan/types"
 import { useT } from "@/lib/i18n"
+import { recordingSeed } from "@/lib/photos/recordingPhoto"
 
 /* ------------------------------------------------------------------ glyphs */
 
@@ -84,7 +85,7 @@ export function KirtanThumb({
   aspectRatio,
   radius,
 }: {
-  kirtan: Pick<Kirtan, "id" | "type" | "thumbnailUrl" | "title" | "durationSec"> & { kind?: RecordingKind }
+  kirtan: Pick<Kirtan, "id" | "type" | "thumbnailUrl" | "title" | "durationSec"> & { kind?: RecordingKind; serverId?: string }
   width: DimensionValue
   /** give a height or an aspect ratio */
   height?: number
@@ -100,7 +101,7 @@ export function KirtanThumb({
       height={height}
       aspectRatio={aspectRatio}
       radius={radius}
-      photoSeed={kirtan.id}
+      photoSeed={recordingSeed(kirtan)}
       title={kirtan.title}
       durationSec={kirtan.durationSec}
     />

@@ -14,11 +14,11 @@ import { BABA_AUTHOR, DISCOURSE_KINDS, KIND_LANGUAGE_RULE, RECORDING_KINDS } fro
 import { draftWithPatch, missingKindFields, moreDetailsFor } from "@/lib/kirtan/uploadForm"
 import { kiirtanListSourceName } from "@/lib/kirtan/queueBuild"
 
-/** Baba's Audio Discourses (`baba_audio`): language required, no performer, optional place and discourse name or number. */
+/** Baba's Discourses (`baba_audio`): language required, no performer, optional place and discourse name or number. */
 
 const base = { kind: "baba_audio" as const, fileName: "talk.mp3", fileUri: "blob:x", title: "Neohumanism", author: "", byAuthor: true, addedBy: "You", termsAccepted: true }
 
-describe("Baba's Audio Discourses on the phone", () => {
+describe("Baba's Discourses on the phone", () => {
   it("is a kind of its own, with its language REQUIRED and no performer", () => {
     expect(RECORDING_KINDS).toContain("baba_audio")
     expect(KIND_LANGUAGE_RULE.baba_audio).toBe("required")
@@ -36,16 +36,16 @@ describe("Baba's Audio Discourses on the phone", () => {
 
   it("has the same words as Dada wrote in every language", () => {
     setActiveLanguage("en")
-    expect(kindLabel("baba_audio")).toBe("Baba's Audio Discourses")
+    expect(kindLabel("baba_audio")).toBe("Baba's Discourses")
     expect(kindCountLabel("baba_audio", 1)).toBe("1 audio discourse")
     expect(kindCountLabel("baba_audio", 3)).toBe("3 audio discourses")
     setActiveLanguage("ru")
-    expect(kindLabel("baba_audio")).toBe("Аудиобеседы Бабы")
+    expect(kindLabel("baba_audio")).toBe("Беседы Бабы")
     expect(kindCountLabel("baba_audio", 2)).toBe("2 аудиобеседы")
     expect(kindCountLabel("baba_audio", 5)).toBe("5 аудиобесед")
     expect(kindTag("baba_audio")).not.toMatch(/[A-Za-z]/)
     setActiveLanguage("es")
-    expect(kindLabel("baba_audio")).toBe("Charlas de audio de Baba")
+    expect(kindLabel("baba_audio")).toBe("Discursos de Baba")
     setActiveLanguage("en")
   })
 
@@ -54,7 +54,7 @@ describe("Baba's Audio Discourses on the phone", () => {
     expect(kindOfTabChip("baba_audio")).toBe("baba_audio")
     expect(hasSubFilters("baba_audio")).toBe(true)
     expect(kiirtanTone("other", "baba_audio")).not.toEqual(kiirtanTone("other", "spiritual_song"))
-    expect(kiirtanListSourceName(null, "baba_audio")).toBe("All Baba's Audio Discourses")
+    expect(kiirtanListSourceName(null, "baba_audio")).toBe("All Baba's Discourses")
   })
 
   it("needs a title and a language, never a performer", () => {

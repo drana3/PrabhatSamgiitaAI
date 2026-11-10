@@ -1,3 +1,4 @@
+import { recordingSeed } from "@/lib/photos/recordingPhoto"
 import type { MockSong } from "@/data/mock"
 import { kindLabel, kindTag, normalizeKind } from "@/lib/kirtan/kind"
 import { addedByName } from "@/lib/kirtan/list"
@@ -118,7 +119,7 @@ function buildKiirtanSong(k: KiirtanSource, number: number): MockSong {
     // The uploaded file is the only recording; a missing file stays missing (the engine reports it).
     mediaHydrated: true,
     kind: "kiirtan",
-    kiirtan: { id: k.id, type: k.type, addedBy: k.addedBy, recording: normalizeKind(k.kind) },
+    kiirtan: { id: k.id, photoSeed: recordingSeed(k), type: k.type, addedBy: k.addedBy, recording: normalizeKind(k.kind) },
   }
 }
 

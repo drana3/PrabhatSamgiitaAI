@@ -35,6 +35,7 @@ from app.schemas.song_chords import (
     Instrument,
     RejectRequest,
     ReviewRequest,
+    SongsWithChords,
 )
 from app.services import song_chords as service
 from app.services.members import require_member_identity, sync_member, try_member_identity
@@ -93,6 +94,14 @@ async def _admin_chart(session: AsyncSession, proposal: SongChordProposal) -> Ad
 
 
 # --------------------------------------------------------------------------- reading
+
+
+@router.get("/with-chords", response_model=SongsWithChords)
+async def songs_with_chords(response: Response, session: DatabaseSession) -> SongsWithChords:
+    """Which songs have a published chart (their numbers). Public: the same for every viewer, so the
+    list screens can offer "With chords first" without asking song by song."""
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return SongsWithChords(songs=await service.songs_with_chords(session))
 
 
 @router.get("/songs/{song_id}", response_model=ChordProposalList)

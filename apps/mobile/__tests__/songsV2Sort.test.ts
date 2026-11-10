@@ -79,8 +79,8 @@ describe("sorting", () => {
     entry(20, "Bandhu", { category: "Devotion", durationSeconds: 300, plays: null, addedRank: null }),
   ]
 
-  it("has nine options and a number default", () => {
-    expect(SORT_OPTIONS).toHaveLength(9)
+  it("has ten options and a number default", () => {
+    expect(SORT_OPTIONS).toHaveLength(10)
     expect(DEFAULT_SORT).toBe("num")
   })
 
@@ -109,6 +109,11 @@ describe("sorting", () => {
     expect(sortEntries(list, "most").map((e) => e.number)).toEqual([10, 30, 20])
   })
 
+  it("puts the songs with chords first, each half in the order of the book", () => {
+    const songs = [entry(30, "c", { hasChords: true }), entry(10, "a", { hasChords: false }), entry(20, "b", { hasChords: true }), entry(5, "z")]
+    expect(sortEntries(songs, "chords").map((e) => e.number)).toEqual([20, 30, 5, 10])
+  })
+
   it("does not mutate the input", () => {
     const copy = [...list]
     sortEntries(list, "za")
@@ -121,9 +126,14 @@ describe("sort availability", () => {
     const keys = availableSortOptions([entry(1, "a")]).map((o) => o.key)
     expect(keys).toEqual(["num", "numd", "az", "za", "cat"])
   })
-  it("offers all nine when data exists", () => {
-    const rich = entry(1, "a", { durationSeconds: 100, addedRank: 1, plays: 1 })
-    expect(availableSortOptions([rich])).toHaveLength(9)
+  it("offers all ten when data exists", () => {
+    const rich = entry(1, "a", { durationSeconds: 100, addedRank: 1, plays: 1, hasChords: false })
+    expect(availableSortOptions([rich])).toHaveLength(10)
+  })
+  it("offers With chords first only once it is known which songs have chords", () => {
+    expect(availableSortOptions([entry(1, "a")]).map((o) => o.key)).not.toContain("chords")
+    expect(availableSortOptions([entry(1, "a", { hasChords: null })]).map((o) => o.key)).not.toContain("chords")
+    expect(availableSortOptions([entry(1, "a", { hasChords: false })]).map((o) => o.key)).toContain("chords")
   })
   it("falls back to the default for a remembered sort that is gone", () => {
     const options = availableSortOptions([entry(1, "a")])

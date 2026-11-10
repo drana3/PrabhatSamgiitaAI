@@ -27,7 +27,8 @@ const index = JSON.parse(
 ) as Array<{ n: number; t: string; o: string }>
 const summaries: SongSummary[] = index.map((r) => ({ number: r.n, title: r.t, first_line: r.o, is_verified: true }) as SongSummary)
 // the sample stats (demo preview only) give every sort order something to sort by, so the scale test uses them
-const entries: CatalogEntry[] = summaries.map((row) => withFixtureStats(summaryToEntry(row, { hasAudio: hasPlayableAudio }), true))
+// every seventh song has chords, so the "With chords first" sort has something to sort by
+const entries: CatalogEntry[] = summaries.map((row) => ({ ...withFixtureStats(summaryToEntry(row, { hasAudio: hasPlayableAudio }), true), hasChords: row.number % 7 === 0 }))
 
 const stamp = () => performance.now()
 const timings: Record<string, number> = {}

@@ -67,7 +67,7 @@ export type CardSubject =
       photoUrl?: string | null
     }
 
-const RECORDING_KIND_NAMES: Record<string, string> = { bhajan: "Bhajan", devotional_song: "Bhajan", prabhat_samgiita: "Prabhat Samgiita", spiritual_song: "Spiritual song", dance_song: "Dance music", baba_audio: "Baba's Audio Discourses", other_mantra: "Others" }
+const RECORDING_KIND_NAMES: Record<string, string> = { bhajan: "Bhajan", devotional_song: "Bhajan", prabhat_samgiita: "Prabhat Samgiita", spiritual_song: "Spiritual song", dance_song: "Dance music", baba_audio: "Baba's Discourses", other_mantra: "Others" }
 
 function recordingKindName(kind: string | null | undefined): string {
   return RECORDING_KIND_NAMES[kind ?? ""] ?? "Kiirtan"

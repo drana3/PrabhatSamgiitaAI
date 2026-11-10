@@ -85,17 +85,25 @@ export function HomeTopRow({
       <TodayPress accessibilityRole="search" accessibilityLabel={t("home.search")} onPress={onSearch} pressedScale={PRESS} style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
         <Search size={20} color={p.ink800} strokeWidth={1.9} />
       </TodayPress>
-      <TodayPress
-        accessibilityRole="button"
-        accessibilityLabel={unread ? t("home.notificationsUnread") : t("home.notifications")}
-        onPress={onBell}
-        pressedScale={PRESS}
-        style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}
-      >
-        <Bell size={20} color={p.ink800} strokeWidth={1.9} />
-        {unread ? <View style={[s.dot, { backgroundColor: p.orange500, borderColor: p.white }]} /> : null}
-      </TodayPress>
+      <NotificationBell p={p} unread={unread} onPress={onBell} />
     </View>
+  )
+}
+
+/** The round bell of a top row, with the small orange dot while something is unread. Today and the Kiirtan tab share it. */
+export function NotificationBell({ p, unread, onPress }: P & { unread: boolean; onPress: () => void }) {
+  const t = useT()
+  return (
+    <TodayPress
+      accessibilityRole="button"
+      accessibilityLabel={unread ? t("home.notificationsUnread") : t("home.notifications")}
+      onPress={onPress}
+      pressedScale={PRESS}
+      style={[s.round, { backgroundColor: p.white, borderColor: p.sand300 }]}
+    >
+      <Bell size={20} color={p.ink800} strokeWidth={1.9} />
+      {unread ? <View style={[s.dot, { backgroundColor: p.orange500, borderColor: p.white }]} /> : null}
+    </TodayPress>
   )
 }
 

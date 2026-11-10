@@ -20,6 +20,11 @@ export type CatalogEntry = {
   addedRank: number | null
   /** anonymous aggregate play count; null until the API sends it */
   plays: number | null
+  /**
+   * Does the song have a published chart (any instrument)? Filled by hooks/useSongsV2Catalog.ts from the API's list of
+   * songs with chords; absent or null = not known (offline, or not loaded yet), which is never read as "no chords".
+   */
+  hasChords?: boolean | null
 }
 
 export const CATEGORY_FALLBACK = "Other"

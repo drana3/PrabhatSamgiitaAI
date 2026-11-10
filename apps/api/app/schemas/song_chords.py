@@ -165,6 +165,12 @@ class ChordProposalList(BaseModel):
     total: int
 
 
+class SongsWithChords(BaseModel):
+    """The numbers of the songs that have a published chart (any instrument)."""
+
+    songs: list[int]
+
+
 class ChordReportCreate(BaseModel):
     reason: ChordReportReason
     note: str | None = Field(default=None, max_length=1000)

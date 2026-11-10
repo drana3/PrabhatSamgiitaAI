@@ -64,7 +64,7 @@ export type MockSong = {
    * Set when kind is "kiirtan" (a recording of the Kiirtan system): its catalog id, type id and who added it.
    * `recording` says which kind it is (Kiirtan, Bhajan, Prabhat Samgiita); absent means a Kiirtan.
    */
-  kiirtan?: { id: string; type: string; addedBy: string; recording?: "kiirtan" | "bhajan" | "prabhat_samgiita" | "spiritual_song" | "dance_song" | "baba_audio" | "other_mantra" }
+  kiirtan?: { id: string; /** the seed of its stock photo: the server id once the recording is up, else `id` (lib/photos/recordingPhoto.ts) */ photoSeed?: string; type: string; addedBy: string; recording?: "kiirtan" | "bhajan" | "prabhat_samgiita" | "spiritual_song" | "dance_song" | "baba_audio" | "other_mantra" }
 }
 
 export {

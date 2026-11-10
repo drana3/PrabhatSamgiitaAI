@@ -16,6 +16,7 @@ import {
   type LyricSearchHit,
 } from "@/lib/lyricSearch"
 import { songSummaryToMockSong } from "@/lib/songMap"
+import { rankForQuery, withoutChordWords } from "@/lib/songsV2/chordsFirst"
 import {
   classifyQuery,
   outOfRangeMessage,
@@ -137,7 +138,28 @@ function sortGroups(groups: SearchGroup[]): SearchGroup[] {
   return [...groups].sort((a, b) => GROUP_ORDER.indexOf(a.id) - GROUP_ORDER.indexOf(b.id))
 }
 
+/**
+ * The local search. A guitar-ish word in the query ("bandhu guitar") asks for chords and is not part of the song's words,
+ * so the lyric search runs without it; the result still carries the query as typed. The ranking itself is
+ * `rankSearchByChords`, applied by the screen once it knows which songs have chords.
+ */
 export function searchLocal(query: string): UnifiedResult {
+  const typed = query.trim()
+  const words = withoutChordWords(typed)
+  const result = searchWords(words)
+  return words === typed ? result : { ...result, query: typed }
+}
+
+/** Songs with chords first inside every group, when the query asks for chords; the groups keep their order. */
+export function rankSearchByChords(result: UnifiedResult, hasChords: ReadonlySet<number> | null): UnifiedResult {
+  if (!hasChords || !result.total) return result
+  const has = (item: SearchResultItem) => hasChords.has(item.song.number)
+  const groups = result.groups.map((group) => ({ ...group, items: rankForQuery(group.items, result.query, has) }))
+  const answer = result.answer ? { ...result.answer, sources: rankForQuery(result.answer.sources, result.query, has) } : result.answer
+  return { ...result, groups, answer }
+}
+
+function searchWords(query: string): UnifiedResult {
   const trimmed = query.trim()
   const cls = classifyQuery(trimmed)
   if (cls.kind === "empty") return emptyResult(trimmed, cls)

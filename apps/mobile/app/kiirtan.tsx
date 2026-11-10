@@ -6,7 +6,7 @@ import { Plus, Search } from "lucide-react-native"
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
-import { HOME_INSET, HomeEmpty, HomeSectionHead } from "@/components/home/HomeBlocks"
+import { HOME_INSET, HomeEmpty, HomeSectionHead, NotificationBell } from "@/components/home/HomeBlocks"
 import { LiveCard } from "@/components/kirtan/LiveCard"
 import { AuthorsShelf } from "@/components/authors/AuthorsShelf"
 import { BroadcastsShelf } from "@/components/broadcasts/BroadcastsShelf"
@@ -29,6 +29,7 @@ import { useDownloadedKirtans } from "@/hooks/useDownloadedKirtans"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useBroadcasts } from "@/hooks/useBroadcasts"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
+import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useKirtans } from "@/hooks/useKirtans"
 import { usePianoRecordingIds } from "@/hooks/usePianoRecordingIds"
 import { useProfileInitial } from "@/hooks/useProfileInitial"
@@ -54,15 +55,16 @@ import { shareToast, type ShareTargetId } from "@/lib/playerV2/playerShare"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { href } from "@/utils/href"
 import { useLanguage, useT } from "@/lib/i18n"
+import { recordingSeed } from "@/lib/photos/recordingPhoto"
 
-/** Row 1 (avatar, search, add): height of the icon row inside the pinned block. */
+/** Row 1 (avatar, search, bell): height of the icon row inside the pinned block. */
 const TOP_ROW = 60
 const SECTION_GAP = 36
 const TYPE_CARD = { w: 152, h: 112 }
 
 /**
  * The Kiirtan tab (three kinds of one recordings list: Kiirtan, Bhajan, Prabhat Samgiita). Row 1
- * (avatar, search, "+" for Add) and the chips row (All, the four kinds, Saved, Downloaded, My uploads) are ONE
+ * (avatar, search, the notifications bell; Add lives in the Upload button of the tab bar) and the chips row (All, the four kinds, Saved, Downloaded, My uploads) are ONE
  * pinned header block; the big heading scrolls away. The first five chips are the KIND filter and narrow every
  * shelf below: the heading, the recording of the day, Jump back in, By type (Kiirtan and Bhajan only: the other
  * kinds have no sub-types), Bhajans for every hour, By length, Artists, New recordings and Long kiirtans. Every row plays in the one player (the pill appears by itself).
@@ -82,6 +84,7 @@ export default function KiirtanTabScreen() {
   const { playable: allPlayable, byId, submissions } = useKirtans()
   const savedIds = useKirtanStore((s) => s.savedIds)
   const live = useKirtanLive()
+  const { unread: unreadNotes } = useNotificationItems()
 
   const [chip, setChipRaw] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
   // Spiritual song and Dance music can be narrowed by dance and by language; a new chip starts without it
@@ -509,9 +512,7 @@ export default function KiirtanTabScreen() {
           <TodayPress accessibilityRole="search" accessibilityLabel={t("home.search")} onPress={() => router.push(href("/search-v2?focus=1&scope=kiirtan"))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.white, borderColor: p.sand300 }]}>
             <Search size={20} color={p.ink800} strokeWidth={1.9} />
           </TodayPress>
-          <TodayPress accessibilityRole="button" accessibilityLabel={t("kt.add.title")} onPress={() => router.push(href(addHref))} pressedScale={0.97} style={[styles.round, { backgroundColor: p.action, borderColor: p.action }]}>
-            <Plus size={22} color={p.onAction} strokeWidth={2.2} />
-          </TodayPress>
+          <NotificationBell p={p} unread={unreadNotes > 0} onPress={() => router.push(href("/notifications"))} />
         </View>
         <StickyChipsRow items={KIRTAN_TAB_CHIPS} value={chip} onChange={setChip} colors={chipColors} scrollY={scrollY} stickAt={0} />
         </StickyTopBlock>
@@ -545,7 +546,7 @@ export default function KiirtanTabScreen() {
         outerStyle={styles.dayOuter}
         style={styles.day}
       >
-        <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={kirtan.thumbnailUrl} width="100%" height={220} radius={30} glyph={96} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
+        <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={kirtan.thumbnailUrl} width="100%" height={220} radius={30} glyph={96} photoSeed={recordingSeed(kirtan)} title={kirtan.title} durationSec={kirtan.durationSec} />
         <LinearGradient pointerEvents="none" colors={["rgba(10,14,8,0)", "rgba(10,14,8,0.62)"]} style={[StyleSheet.absoluteFill, styles.dayShade]} />
         <View style={styles.dayText} pointerEvents="none">
           <Text style={styles.dayEyebrow}>{kindDayLabel(kirtan.kind)}</Text>
@@ -599,7 +600,7 @@ function LongCard({ kirtan, onPress, caption }: { kirtan: Kirtan; onPress: () =>
   return (
     <KPress accessibilityRole="button" accessibilityLabel={t("kt.card.a11y", { title: kirtan.title, length: formatKirtanLength(kirtan.durationSec ?? 0) })} onPress={onPress} pressedScale={0.97} style={styles.longCard}>
       <View>
-        <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={kirtan.thumbnailUrl} width={200} height={120} radius={22} photoSeed={kirtan.id} title={kirtan.title} durationSec={kirtan.durationSec} />
+        <KiirtanCover type={kirtan.type} kind={kirtan.kind} coverUrl={kirtan.thumbnailUrl} width={200} height={120} radius={22} photoSeed={recordingSeed(kirtan)} title={kirtan.title} durationSec={kirtan.durationSec} />
         <View style={styles.longLength}>
           <Text style={styles.longLengthText}>{formatKirtanLength(kirtan.durationSec ?? 0)}</Text>
         </View>
