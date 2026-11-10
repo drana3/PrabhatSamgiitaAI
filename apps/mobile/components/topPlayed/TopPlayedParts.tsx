@@ -14,7 +14,7 @@ import { TOP_PERIODS, type TopItem, type TopPeriod } from "@/lib/topPlayed/types
 const SIDE = 16
 
 /** A round chip: on = filled with the accent line. Feedback on touch-down (Press springs from the screen value). */
-function Chip({ theme, label, on, onPress, a11y }: { theme: SongsTheme; label: string; on: boolean; onPress: () => void; a11y: string }) {
+export function Chip({ theme, label, on, onPress, a11y }: { theme: SongsTheme; label: string; on: boolean; onPress: () => void; a11y: string }) {
   return (
     <Press
       accessibilityRole="button"

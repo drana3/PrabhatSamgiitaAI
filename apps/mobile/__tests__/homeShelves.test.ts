@@ -16,7 +16,7 @@ import {
 
 describe("home shelves", () => {
   it("All shows every shelf and each chip has its own", () => {
-    expect(shelvesFor("all")).toEqual(["festcard", "today", "start", "mixes", "kiirtan", "because", "spiritual", "trending", "spiritualNew", "stories", "festivals", "learn"])
+    expect(shelvesFor("all")).toEqual(["festcard", "today", "start", "mixes", "mostPlayed", "kiirtan", "because", "spiritual", "trending", "spiritualNew", "stories", "festivals", "learn"])
     expect(shelvesFor("kiirtan")).toEqual(["kiirtan", "mixes", "spiritual", "spiritualNew"])
     expect(shelvesFor("festivals")).toEqual(["festcard", "festivals"])
     expect(shelvesFor("stories")).toEqual(["stories"])
@@ -41,13 +41,13 @@ describe("home shelves", () => {
     expect(shelvesFor("kiirtan")).toContain("spiritual")
   })
 
-  it("has one shelf of mixes, never the old two, and no top lists", () => {
+  it("has one shelf of mixes, never the old two, and the Most played shelf only under All", () => {
     for (const filter of HOME_FILTERS.map((f) => f.id)) {
       const shelves = shelvesFor(filter) as readonly string[]
       expect(shelves.filter((id) => id === "mixes").length).toBeLessThanOrEqual(1)
       expect(shelves).not.toContain("kmixes")
       expect(shelves).not.toContain("downloaded")
-      expect(shelves.some((id) => id.startsWith("top"))).toBe(false)
+      expect(shelves.includes("mostPlayed")).toBe(filter === "all")
     }
   })
 

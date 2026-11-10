@@ -28,6 +28,8 @@ import { KirtanRow } from "@/components/kirtan/KirtanParts"
 import { chipColorsOf, StickyChipsRow, StickyTopBlock } from "@/components/nav-v2/StickyChips"
 import { RowMenuSheet } from "@/components/songs-v2/CatalogSheets"
 import { Toast } from "@/components/songs-v2/Toast"
+import { useTopShelf } from "@/hooks/useTopShelf"
+import { TodayMostPlayed } from "@/components/today/TodayMostPlayed"
 import { TodayListeningExtras } from "@/components/today/TodayListeningExtras"
 import { Reveal } from "@/components/today/motion"
 import { fixtureDay } from "@/components/today/TodayPrototypeScreen"
@@ -286,6 +288,12 @@ export function HomeScreen() {
   /* --- spiritual songs: Today shows them next to Prabhat Samgiita and Kiirtan (lib/spiritualToday.ts) --- */
   const spiritualPool = useMemo(() => [...kirtans, ...sampleSpiritualSongs()], [kirtans])
   const spiritualToday = useMemo(() => spiritualForToday(spiritualPool, dayNumberOf(now.getTime())), [spiritualPool, now])
+  const topShelf = useTopShelf()
+  const [topMessage, setTopMessage] = useState<string | null>(null)
+  const showTopMessage = (text: string) => {
+    setTopMessage(text)
+    setTimeout(() => setTopMessage((cur) => (cur === text ? null : cur)), 2200)
+  }
   const spiritualNew = useMemo(() => spiritualNewlyAdded(spiritualPool, spiritualToday), [spiritualPool, spiritualToday])
   const openSpiritual = (k: Kirtan, context: readonly Kirtan[]) => kActions.open(k, context, t("home.spiritual.today.first"))
 
@@ -352,6 +360,7 @@ export function HomeScreen() {
     start: startRows.length > 0,
     kiirtan: kiirtanToday.length > 0,
     mixes: mixShelf.length > 0,
+    mostPlayed: topShelf.visible,
     spiritual: spiritualToday.length > 0,
     spiritualNew: spiritualNew.length > 0,
     because: MOCKUP_DATA,
@@ -453,6 +462,12 @@ export function HomeScreen() {
         return (
           <Reveal key={id} index={next()} style={styles.section}>
             <SpiritualNewlyAdded p={p} theme={songsTheme} items={spiritualNew} onOpen={openSpiritual} onAll={() => router.push(href("/browse-shelf?id=spiritual"))} />
+          </Reveal>
+        )
+      case "mostPlayed":
+        return (
+          <Reveal key={id} index={next()} style={styles.section}>
+            <TodayMostPlayed p={p} theme={songsTheme} shelf={topShelf} onMessage={showTopMessage} />
           </Reveal>
         )
       case "because":
@@ -573,7 +588,7 @@ export function HomeScreen() {
         onShare={(k) => void onKirtanShare(k, "copy")}
         onClose={() => setKMenu(null)}
       />
-      <Toast message={kActions.toast ?? actions.toast} theme={songsTheme} />
+      <Toast message={kActions.toast ?? actions.toast ?? topMessage} theme={songsTheme} />
     </View>
   )
 }

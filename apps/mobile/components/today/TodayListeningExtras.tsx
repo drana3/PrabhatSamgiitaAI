@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { ChevronRight, History, Trophy } from "lucide-react-native"
+import { ChevronRight, History } from "lucide-react-native"
 
 import { HOME_INSET, HomeSectionHead, HomeShelf } from "@/components/home/HomeBlocks"
 import { CARD_W, ShelfCard } from "@/components/search-v2/MenuShelves"
@@ -22,8 +22,8 @@ const SHOWN = 10
 
 /**
  * Two additions to Today (the shelf Home): a shelf of Baba's Audio Discourses (hidden while there are none; the head's button
- * opens the whole list) and two quiet rows: "My listening history" and "Top played". The shelf shows under "All" and "Kiirtan", the
- * link under "All".
+ * opens the whole list) and one quiet row: "My listening history". The shelf shows under "All" and "Kiirtan", the
+ * link under "All". The old "Top played" row is gone: the "Most played" shelf (TodayMostPlayed) opens the same screen with its "Top 100" button.
  */
 export function TodayListeningExtras({ p, filter }: { p: AmProto; filter: string }) {
   const t = useT()
@@ -67,16 +67,6 @@ export function TodayListeningExtras({ p, filter }: { p: AmProto; filter: string
             </View>
             <ChevronRight size={20} color={p.ink500} strokeWidth={1.9} />
           </TodayPress>
-          <TodayPress accessibilityRole="button" accessibilityLabel={t("top.link")} onPress={() => router.push(href("/top-played"))} pressedScale={0.98} style={[s.link, s.linkNext, { backgroundColor: p.white, borderColor: p.sand300 }]}>
-            <View style={[s.mark, { backgroundColor: p.orange100 }]}>
-              <Trophy size={20} color={p.orange700} strokeWidth={1.9} />
-            </View>
-            <View style={s.linkText}>
-              <Text style={[s.linkTitle, { color: p.ink800 }]}>{t("top.link")}</Text>
-              <Text style={[s.linkSub, { color: p.ink500 }]} numberOfLines={1}>{t("top.link.sub")}</Text>
-            </View>
-            <ChevronRight size={20} color={p.ink500} strokeWidth={1.9} />
-          </TodayPress>
         </View>
       ) : null}
     </>
@@ -86,7 +76,6 @@ export function TodayListeningExtras({ p, filter }: { p: AmProto; filter: string
 const s = StyleSheet.create({
   sect: { gap: 16 },
   linkWrap: { paddingHorizontal: HOME_INSET },
-  linkNext: { marginTop: 10 },
   link: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 72, borderRadius: 22, borderWidth: 1, paddingHorizontal: 16 },
   mark: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   linkText: { flex: 1, gap: 2 },

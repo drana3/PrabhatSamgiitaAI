@@ -19,13 +19,14 @@ export type HomeFilterId = (typeof HOME_FILTERS)[number]["id"]
 /**
  * `festcard` is the festival card (first block, only near a festival with songs), `mixes` the ONE shelf of mixes
  * (Prabhat Samgiita mixes and Kiirtan mixes together), `spiritual` and `spiritualNew` the two spiritual-song shelves.
+ * `mostPlayed` is the "Most played this week" shelf (the top of the last 7 days, under All only, hidden until it has five rows).
  * There is no "Downloaded" chip and no downloaded shelf (Dada, 10 Nov 2026): downloaded is a state of a saved song, seen in Saved on Songs.
  */
-export type HomeShelfId = "festcard" | "today" | "start" | "mixes" | "kiirtan" | "spiritual" | "spiritualNew" | "because" | "trending" | "stories" | "learn" | "festivals"
+export type HomeShelfId = "festcard" | "today" | "start" | "mixes" | "mostPlayed" | "kiirtan" | "spiritual" | "spiritualNew" | "because" | "trending" | "stories" | "learn" | "festivals"
 
 const SHELVES: Record<HomeFilterId, readonly HomeShelfId[]> = {
   // everything mixed: Prabhat Samgiita, Kiirtan and spiritual songs side by side, not on separate tabs
-  all: ["festcard", "today", "start", "mixes", "kiirtan", "because", "spiritual", "trending", "spiritualNew", "stories", "festivals", "learn"],
+  all: ["festcard", "today", "start", "mixes", "mostPlayed", "kiirtan", "because", "spiritual", "trending", "spiritualNew", "stories", "festivals", "learn"],
   songs: ["festcard", "today", "start", "mixes", "because", "trending", "festivals"],
   kiirtan: ["kiirtan", "mixes", "spiritual", "spiritualNew"],
   festivals: ["festcard", "festivals"],
