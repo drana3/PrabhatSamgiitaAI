@@ -289,6 +289,7 @@ def test_migration_0027_no_longer_creates_a_groups_table(
 ) -> None:
     first = load("0027_recordings")
     assert [table.__tablename__ for table in first.TABLES] == [
+        "recording_collections",  # first: `recordings` points at it (empty-database rehearsal)
         "recordings",
         "recording_reports",
         "recording_author_blocks",
