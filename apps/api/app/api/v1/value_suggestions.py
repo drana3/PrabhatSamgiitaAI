@@ -19,6 +19,7 @@ from app.models.recordings import ValueSuggestion
 from app.schemas.value_suggestions import (
     AcceptedWord,
     Decision,
+    MergeTarget,
     SuggestionList,
     SuggestionOut,
     ValueOptions,
@@ -29,7 +30,9 @@ router = APIRouter(tags=["recordings"])
 DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
 
 
-def suggestion_out(row: ValueSuggestion) -> SuggestionOut:
+def suggestion_out(
+    row: ValueSuggestion, *, first_by: str | None = None, with_targets: bool = False
+) -> SuggestionOut:
     return SuggestionOut(
         id=str(row.id),
         field=row.field,  # type: ignore[arg-type]
@@ -43,6 +46,12 @@ def suggestion_out(row: ValueSuggestion) -> SuggestionOut:
         created_at=row.created_at,
         decided_by=row.decided_by,
         decided_at=row.decided_at,
+        first_by=first_by,
+        merge_targets=(
+            [MergeTarget(code=c, label=n) for c, n in words.merge_targets(row.field)]
+            if with_targets
+            else []
+        ),
     )
 
 
@@ -70,7 +79,11 @@ async def list_value_suggestions(
     field: Annotated[str | None, Query(pattern="^(instrument|style|mood|language|mantra)$")] = None,
 ) -> SuggestionList:
     rows = await words.list_suggestions(session, status=status, field=field)
-    return SuggestionList(items=[suggestion_out(r) for r in rows], total=len(rows))
+    by = await words.first_authors(session, rows)
+    return SuggestionList(
+        items=[suggestion_out(r, first_by=by.get(r.id), with_targets=True) for r in rows],
+        total=len(rows),
+    )
 
 
 @router.post("/value-suggestions/{suggestion_id}/decision", response_model=SuggestionOut)

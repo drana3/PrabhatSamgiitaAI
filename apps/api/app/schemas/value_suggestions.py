@@ -28,6 +28,13 @@ class ValueOptions(BaseModel):
     new_words_per_week: int
 
 
+class MergeTarget(BaseModel):
+    """A listed value a word can be merged into (the code the API takes, a name to show)."""
+
+    code: str
+    label: str
+
+
 class SuggestionOut(BaseModel):
     id: str
     field: Field_
@@ -41,6 +48,9 @@ class SuggestionOut(BaseModel):
     created_at: datetime | None = None
     decided_by: str | None = None
     decided_at: datetime | None = None
+    # The team's screen (additive): who wrote the word first, and the listed values to merge into.
+    first_by: str | None = None
+    merge_targets: list[MergeTarget] = Field(default_factory=list)
 
 
 class SuggestionList(BaseModel):

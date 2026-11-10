@@ -43,6 +43,7 @@ import { chordProposalsEn } from "./chordProposals"
 import { pronunciationEn } from "./pronunciation"
 import { authorsEn } from "./authors"
 import { claimsDeskEn } from "./claimsDesk"
+import { teamDesksEn } from "./teamDesks"
 import { moodSearchEn } from "./moodSearch"
 import { notificationCentreEn } from "./notificationCentre"
 import { listeningEn } from "./listening"
@@ -1333,6 +1334,7 @@ export const en = {
   ...pronunciationEn,
   ...authorsEn,
   ...claimsDeskEn,
+  ...teamDesksEn,
   ...moodSearchEn,
   ...notificationCentreEn,
   ...searchMenuEn,

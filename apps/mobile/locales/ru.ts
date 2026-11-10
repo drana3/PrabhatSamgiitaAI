@@ -44,6 +44,7 @@ import { chordProposalsRu } from "./chordProposals"
 import { pronunciationRu } from "./pronunciation"
 import { authorsRu } from "./authors"
 import { claimsDeskRu } from "./claimsDesk"
+import { teamDesksRu } from "./teamDesks"
 import { moodSearchRu } from "./moodSearch"
 import { notificationCentreRu } from "./notificationCentre"
 import { listeningRu } from "./listening"
@@ -1413,6 +1414,7 @@ export const ru: Dictionary = {
   ...pronunciationRu,
   ...authorsRu,
   ...claimsDeskRu,
+  ...teamDesksRu,
   ...moodSearchRu,
   ...notificationCentreRu,
   ...searchMenuRu,

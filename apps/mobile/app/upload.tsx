@@ -146,6 +146,15 @@ export default function UploadScreen() {
             />
           ) : null}
           {team ? (
+            <Choice icon={null} title={t("teamDesk.words.hub.title")} body={t("teamDesk.words.hub.body")} onPress={() => router.push(href("/team-words"))} theme={theme} quiet />
+          ) : null}
+          {team ? (
+            <Choice icon={null} title={t("teamDesk.takedown.hub.title")} body={t("teamDesk.takedown.hub.body")} onPress={() => router.push(href("/team-takedowns"))} theme={theme} quiet />
+          ) : null}
+          {team ? (
+            <Choice icon={null} title={t("teamDesk.flags.hub.title")} body={t("teamDesk.flags.hub.body")} onPress={() => router.push(href("/team-play-flags"))} theme={theme} quiet />
+          ) : null}
+          {team ? (
             <Choice
               icon={null}
               title={t("bc.rv.hub.title")}

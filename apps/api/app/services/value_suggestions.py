@@ -34,6 +34,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import UserAccount
 from app.models.recordings import (
     MANTRA_TYPES,
     MemberNotice,
@@ -122,6 +123,18 @@ def valid_codes(field: str) -> tuple[str, ...]:
     if field == MANTRA:
         return LISTED_MANTRAS
     return tuple(STYLES)
+
+
+def merge_targets(field: str) -> list[tuple[str, str]]:
+    """The listed values of a field with an English name to show: the team's merge picker."""
+    if field == LANGUAGE:
+        return [(code, name) for code, name in LANGUAGES]
+    names = listed_names(field)
+    out: list[tuple[str, str]] = []
+    for code in valid_codes(field):
+        first = (names.get(code) or (code,))[0]
+        out.append((code, first.replace("_", " ").capitalize()))
+    return out
 
 
 def listed_names(field: str) -> dict[str, tuple[str, ...]]:
@@ -290,6 +303,18 @@ async def list_suggestions(
         query = query.where(ValueSuggestion.field == field)
     query = query.order_by(ValueSuggestion.people_count.desc(), ValueSuggestion.created_at)
     return list((await session.scalars(query)).all())
+
+
+async def first_authors(session: AsyncSession, rows: list[ValueSuggestion]) -> dict[UUID, str]:
+    """The name (or e-mail) of the person who wrote each word first, for the team's screen."""
+    ids = {r.first_user_id for r in rows if r.first_user_id is not None}
+    if not ids:
+        return {}
+    people = {
+        u.id: (u.display_name or u.email or "")
+        for u in (await session.scalars(select(UserAccount).where(UserAccount.id.in_(ids)))).all()
+    }
+    return {r.id: people[r.first_user_id] for r in rows if people.get(r.first_user_id)}
 
 
 def _recording_field_names(field: str) -> tuple[str, str]:
