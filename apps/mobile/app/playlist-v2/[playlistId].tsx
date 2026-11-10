@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native"
+import { Camera } from "lucide-react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
+import { PlaylistCover } from "@/components/playlists/PlaylistCover"
 import { PlayGlyph } from "@/components/songs-v2/Glyphs"
 import { ListDownloadRow } from "@/components/offline/ListDownloadRow"
 import { SongMenuSheet } from "@/components/songs-v2/ListSheets"
@@ -35,7 +37,8 @@ import { displayTitle, placeholderEntry, type CatalogEntry } from "@/lib/songsV2
 import { withFixtureStats } from "@/lib/fixtures/songs"
 import { playlistListId } from "@/lib/songsV2/rowMenu"
 import { useAuthStore } from "@/stores/authStore"
-import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
+import { openPlaylistDelete, openPlaylistPhoto, openPlaylistRename } from "@/stores/playlistSheetsStore"
+import { usePlaylistStore } from "@/stores/playlistStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
@@ -44,7 +47,9 @@ import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
  * One playlist. The prototype has no page for it (a playlist row in Mine just plays), so this page
  * borrows the prototype pieces: round back button, `.over` meta, 45px page heading, `.pill`
  * buttons and `.card.song` rows. Name, Play, Rename, Remove and Delete (behind a confirmation)
- * are the working logic of the first build. Reorder is not offered: the API has no reorder call.
+ * are the working logic of the first build. The playlist has a photo (tap it to change it: a grid of 12 and "Shuffle another");
+ * Rename and Delete open the shared playlist sheets (components/playlists/PlaylistSheetsHost.tsx).
+ * Reorder is not offered: the API has no reorder call.
  */
 export default function PlaylistV2Screen() {
   const bottomInset = useScrollBottomInset()
@@ -71,13 +76,8 @@ export default function PlaylistV2Screen() {
   const syncing = usePlaylistStore((s) => s.syncing)
   const syncError = usePlaylistStore((s) => s.error)
   const refresh = usePlaylistStore((s) => s.refresh)
-  const renamePlaylist = usePlaylistStore((s) => s.renamePlaylist)
-  const deletePlaylist = usePlaylistStore((s) => s.deletePlaylist)
   const flushSync = usePlaylistStore((s) => s.flushSync)
   const offlineFiles = useOfflineAudioStore((s) => s.files)
-
-  const [renaming, setRenaming] = useState(false)
-  const [name, setName] = useState(playlist?.name ?? "")
 
   // "looked": the list was asked for and answered, so a missing playlist is "not found", not "still loading"
   const [looked, setLooked] = useState(false)
@@ -92,10 +92,6 @@ export default function PlaylistV2Screen() {
       alive = false
     }
   }, [playlist, refresh, lookAttempt])
-
-  useEffect(() => {
-    if (playlist?.name && !renaming) setName(playlist.name)
-  }, [playlist?.name, renaming])
 
   const numbers = useMemo(
     () =>
@@ -132,39 +128,12 @@ export default function PlaylistV2Screen() {
     error: syncError,
   })
 
-  const commitRename = async () => {
-    const trimmed = name.trim()
-    setRenaming(false)
-    if (!playlistId || !trimmed || trimmed === playlist?.name) {
-      setName(playlist?.name ?? "")
-      return
-    }
-    const result = await renamePlaylist(playlistId, trimmed)
-    if (!isPlaylist(result)) {
-      Alert.alert(t("player.playlist"), "error" in result ? result.error : t("playlist.signInRename"))
-    }
+  const goBack = () => {
+    if (router.canGoBack()) router.back()
+    else router.replace(href(NAV_V2_HOME_ROUTE))
   }
-
   const confirmDelete = () => {
-    if (!playlistId) return
-    Alert.alert(t("playlist.delete"), t("playlist.delete.body"), [
-      { text: t("common.cancel"), style: "cancel" },
-      {
-        text: t("playlist.delete.confirm"),
-        style: "destructive",
-        onPress: () => {
-          void deletePlaylist(playlistId).then((result) => {
-            // the screen closes only when the playlist is really gone
-            if ("ok" in result) {
-              if (router.canGoBack()) router.back()
-              else router.replace(href(NAV_V2_HOME_ROUTE))
-              return
-            }
-            Alert.alert(t("playlist.delete"), "error" in result ? result.error : t("playlist.signInDelete"))
-          })
-        },
-      },
-    ])
+    if (playlistId) openPlaylistDelete(playlistId, goBack)
   }
 
   const play = () => {
@@ -212,23 +181,23 @@ export default function PlaylistV2Screen() {
           ) : (
             <>
               <SongsReveal index={next()} style={styles.head}>
+                <Press
+                  accessibilityRole="button"
+                  accessibilityLabel={t("pl.photo.change")}
+                  onPress={() => playlistId && openPlaylistPhoto(playlistId)}
+                  pressedScale={0.97}
+                  outerStyle={styles.coverOuter}
+                  style={styles.cover}
+                >
+                  <PlaylistCover id={playlist.id} size={COVER} radius={20} />
+                  <View style={[styles.coverBadge, { backgroundColor: theme.ink900 }]} accessible={false}>
+                    <Camera size={16} color={theme.onInk} />
+                  </View>
+                </Press>
                 <Text style={[overStyle, { color: theme.accent }]}>{playlistMeta(numbers.length)}</Text>
-                {renaming ? (
-                  <TextInput
-                    autoFocus
-                    value={name}
-                    onChangeText={setName}
-                    onSubmitEditing={() => void commitRename()}
-                    onBlur={() => void commitRename()}
-                    returnKeyType="done"
-                    accessibilityLabel={t("playlist.name.a11y")}
-                    style={[styles.nameInput, { backgroundColor: theme.card, borderColor: theme.line, color: theme.textHeading }]}
-                  />
-                ) : (
-                  <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
-                    {playlist.name}
-                  </Text>
-                )}
+                <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
+                  {playlist.name}
+                </Text>
               </SongsReveal>
 
               <SongsReveal index={next()}>
@@ -245,8 +214,8 @@ export default function PlaylistV2Screen() {
                     theme={theme}
                     fill
                     tone="sand"
-                    label={renaming ? t("playlist.saveName") : t("playlist.rename")}
-                    onPress={() => (renaming ? void commitRename() : setRenaming(true))}
+                    label={t("playlist.rename")}
+                    onPress={() => playlistId && openPlaylistRename(playlistId)}
                   />
                 </View>
                 <ListDownloadRow theme={theme} numbers={numbers} name={playlist.name} style={styles.download} />
@@ -334,6 +303,9 @@ export default function PlaylistV2Screen() {
   )
 }
 
+/** side of the playlist photo at the top of the page */
+const COVER = 132
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
   body: { paddingHorizontal: 10, paddingBottom: 140, gap: 20 },
@@ -345,14 +317,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.9,
     textTransform: "uppercase",
   },
-  nameInput: {
-    height: 56,
-    borderRadius: 70,
-    borderWidth: 1,
-    paddingHorizontal: 20,
-    fontFamily: amFonts.semi,
-    fontSize: 19,
-  },
+  coverOuter: { alignSelf: "flex-start", marginBottom: 4 },
+  cover: { width: COVER, height: COVER },
+  coverBadge: { position: "absolute", right: 6, bottom: 6, width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   actions: { flexDirection: "row", gap: 8 },
   download: { marginTop: 12 },
   sync: { marginTop: 12, gap: 10, paddingHorizontal: 10 },

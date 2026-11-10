@@ -25,6 +25,8 @@ type SyncListeners = {
   onPlaylists: (playlists: MemberPlaylist[]) => void
   onError: (message: string) => void
   readPlaylists: () => MemberPlaylist[]
+  /** the server answered a create: the temporary id is now `id` (the cover photo kept by id follows) */
+  onIdAssigned?: (tempId: string, id: string) => void
 }
 
 let listeners: SyncListeners | null = null
@@ -96,6 +98,7 @@ async function runOp(op: PlaylistSyncOp, startedIn: number) {
     // The account changed while the server answered: the answer belongs to the old account.
     if (epoch !== startedIn) return
     idMap.set(op.tempId, created.id)
+    listeners.onIdAssigned?.(op.tempId, created.id)
     playlists = listeners.readPlaylists().map((item) => (item.id === op.tempId ? created : item))
     listeners.onPlaylists(playlists)
     await writePlaylistCache(playlists)

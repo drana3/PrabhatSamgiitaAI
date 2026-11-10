@@ -73,7 +73,7 @@ type Props = {
   catalog: CatalogPart
   /** the Collections shelf under the chips (the "All" chip) */
   shelf: ReactNode
-  /** Saved, Downloaded and Playlists content */
+  /** Saved, Playlists, Learning and Learned content */
   body: ReactNode
 }
 
@@ -81,7 +81,7 @@ type Props = {
  * The Songs scroll surface (prototype `section.scr[aria-label="Songs"]`). One navigation layer: the chips
  * row. Under "All": the Collections shelf, then "All songs" with the sort bar and the list. Above it, driven by the scroll offset and never by a timer:
  *  - the search pill sticks at the top and narrows to leave room for the avatar,
- *  - the chips row (All, Saved, Downloaded, Playlists) sticks 64px below it: opaque page colour, a hairline once content is under it,
+ *  - the chips row (All, Saved, Playlists, Learning, Learned) sticks 64px below it: opaque page colour, a hairline once content is under it,
  *  - the avatar stays put at the top right,
  *  - the A-Z rail fades in while the list scrolls.
  */

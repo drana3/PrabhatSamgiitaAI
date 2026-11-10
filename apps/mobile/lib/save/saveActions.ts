@@ -60,3 +60,12 @@ export async function createPlaylistWith(item: SaveItem): Promise<SaveOutcome> {
   void usePlaylistStore.getState().flushSync()
   return { ok: true, toast: createdToast(name), playlistId: created.id }
 }
+
+/** After the name sheet made a playlist (stores/playlistSheetsStore askNewPlaylist): put the item in it. */
+export async function addToCreated(item: SaveItem, created: { id: string; name: string }): Promise<SaveOutcome> {
+  if (item.kind !== "song") return { ok: false, error: t("save.err.kiirtan") }
+  const added = await usePlaylistStore.getState().addSong(created.id, item.number)
+  if (!isPlaylist(added)) return failure(added)
+  void usePlaylistStore.getState().flushSync()
+  return { ok: true, toast: createdToast(created.name), playlistId: created.id }
+}

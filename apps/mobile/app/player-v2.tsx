@@ -31,6 +31,7 @@ import { DownloadButton } from "@/components/offline/DownloadButton"
 import { SaveButton } from "@/components/save/SaveButton"
 import { SaveHost } from "@/components/save/SaveHost"
 import { PlaylistSheet, type PlaylistSheetRow } from "@/components/player-v2/PlaylistSheet"
+import { askNewPlaylist } from "@/stores/playlistSheetsStore"
 import { playerColors, playerSize } from "@/components/player-v2/playerTokens"
 import { QueueSheet, splitQueue, type QueueRow } from "@/components/player-v2/QueueSheet"
 import { ResumeNotice } from "@/components/player-v2/ResumeNotice"
@@ -72,6 +73,7 @@ import {
 import { gapText, playerGlossRows, playerSampleKey } from "@/lib/songPage/honest"
 import { artistForAuthor } from "@/lib/kirtan/artists"
 import { moodForText, photoWithoutPeople } from "@/lib/photos/catalog"
+import { recordingMood } from "@/lib/photos/recordingPhoto"
 import { ensureKirtansRegistered, kirtanById, kiirtanSongByNumber } from "@/lib/kirtan/catalog"
 import { openReportSheet } from "@/stores/safetySheetStore"
 import { playEverything } from "@/lib/kirtan/mixPlayback"
@@ -210,7 +212,6 @@ export default function PlayerV2Screen() {
   const v2 = usePlayerV2Store()
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
   const playlists = usePlaylistStore((s) => s.playlists)
-  const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
   const addSong = usePlaylistStore((s) => s.addSong)
   const removeSong = usePlaylistStore((s) => s.removeSong)
   const flushPlaylists = usePlaylistStore((s) => s.flushSync)
@@ -597,17 +598,23 @@ export default function PlayerV2Screen() {
       void flushPlaylists()
     })
   }
+  // New playlist: the name sheet (default name typed and selected); the song goes into the playlist once it exists.
+  // The sheet comes up when the "Add to playlist" sheet has left, so two native modals never swap at once.
   const onNewPlaylist = () => {
     if (!song) return
-    const name = `Playlist ${playlists.length + 1}`
-    void createPlaylist(name).then((created) => {
-      if (!isPlaylist(created)) return reportPlaylistFailure(created)
-      void addSong(created.id, song.number).then((result) => {
-        if (!isPlaylist(result)) return reportPlaylistFailure(result)
-        toast.show(`Created ${name}`)
-        void flushPlaylists()
-      })
-    })
+    const songNumber = song.number
+    setSheet(null)
+    setTimeout(
+      () =>
+        askNewPlaylist((created) =>
+          addSong(created.id, songNumber).then((result) => {
+            if (!isPlaylist(result)) return reportPlaylistFailure(result)
+            toast.show(`Created ${created.name}`)
+            void flushPlaylists()
+          }),
+        ),
+      280,
+    )
   }
 
   const sleepValue = v2.sleep.kind === "off" ? t("common.off") : sleepLabel(v2.sleep, now)
@@ -762,7 +769,7 @@ export default function PlayerV2Screen() {
         recordingKind: isK ? recKind : null,
         coverUrl: song.thumbnailUrl || null,
         authorPhotoUrl: artist?.photoUrl ?? null,
-        seed: isK ? (song.kiirtan?.id ?? String(song.id)) : `ps-${song.number}`,
+        seed: isK ? (song.kiirtan?.photoSeed ?? song.kiirtan?.id ?? String(song.id)) : `ps-${song.number}`,
       })
     : null
   // the picture ends where the text starts: header (status bar, title row, channels) + a gap that is 0 on a short screen
@@ -919,7 +926,7 @@ export default function PlayerV2Screen() {
                 <View collapsable={false} style={styles.coverArea}>
                   <Reveal index={1}>
                     <View style={[styles.coverShadow, { width: coverSize, height: coverSize }]}>
-                      <KiirtanCover type={song.kiirtan?.type} kind={recKind} coverUrl={song.thumbnailUrl || null} width={coverSize} height={coverSize} radius={28} photoSeed={song.kiirtan?.id ?? String(song.id)} title={song.title} durationSec={song.durationSeconds || null} />
+                      <KiirtanCover type={song.kiirtan?.type} kind={recKind} coverUrl={song.thumbnailUrl || null} width={coverSize} height={coverSize} radius={28} photoSeed={song.kiirtan?.photoSeed ?? song.kiirtan?.id ?? String(song.id)} title={song.title} durationSec={song.durationSeconds || null} />
                     </View>
                   </Reveal>
                 </View>
@@ -1256,8 +1263,8 @@ export default function PlayerV2Screen() {
             performer={performer}
             kiirtan={isK}
             tint={coverTint}
-            photoSeed={isK ? (song.kiirtan?.id ?? String(song.id)) : undefined}
-            photoMood={isK ? moodForText(song.title, song.durationSeconds || null) : undefined}
+            photoSeed={isK ? (song.kiirtan?.photoSeed ?? song.kiirtan?.id ?? String(song.id)) : undefined}
+            photoMood={isK ? recordingMood(recKind, song.title, song.durationSeconds || null) : undefined}
             lyrics={song.lyrics}
             lyricsDevanagari={song.lyricsDevanagari}
             onShare={onShareTarget}

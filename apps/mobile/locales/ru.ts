@@ -7,6 +7,7 @@ import { recordingInfoRu } from "./recordingInfo"
 import { recordingChartsRu } from "./recordingCharts"
 import { chordInstrumentsRu } from "./chordInstruments"
 import { choiceFieldRu } from "./choiceField"
+import { playlistsLibraryRu } from "./playlistsLibrary"
 import { onboardingRu } from "./onboarding"
 import { keyPickerRu } from "./keyPicker"
 import { recordingCycleRu } from "./recordingCycle"
@@ -1425,3 +1426,4 @@ export const ru: Dictionary = {
   ...choiceFieldRu,
   ...onboardingRu,
 }
+  ...playlistsLibraryRu,

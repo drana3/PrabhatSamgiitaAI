@@ -7,6 +7,7 @@ import { recordingInfoEs } from "./recordingInfo"
 import { recordingChartsEs } from "./recordingCharts"
 import { chordInstrumentsEs } from "./chordInstruments"
 import { choiceFieldEs } from "./choiceField"
+import { playlistsLibraryEs } from "./playlistsLibrary"
 import { onboardingEs } from "./onboarding"
 import { keyPickerEs } from "./keyPicker"
 import { recordingCycleEs } from "./recordingCycle"
@@ -1339,3 +1340,4 @@ export const es: Dictionary = {
   ...choiceFieldEs,
   ...onboardingEs,
 }
+  ...playlistsLibraryEs,

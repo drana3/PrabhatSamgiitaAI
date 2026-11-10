@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native"
 import { GuestSignInHost } from "@/components/guest/GuestSignInHost"
 import { KirtanSafetyHost } from "@/components/kirtan/KirtanSafetyHost"
 import { DownloadHost } from "@/components/offline/DownloadHost"
+import { PlaylistSheetsHost } from "@/components/playlists/PlaylistSheetsHost"
 import { SaveToast } from "@/components/save/SaveToast"
 import { SaveToSheet } from "@/components/save/SaveToSheet"
 import { useSaveSheetStore } from "@/stores/saveSheetStore"
@@ -32,6 +33,8 @@ export function SaveHost() {
       <DownloadHost />
       {/* Report and Block this author of a Kiirtan or Bhajan */}
       <KirtanSafetyHost />
+      {/* New playlist (name), Rename, Change photo, Delete: one set for every screen */}
+      <PlaylistSheetsHost />
     </View>
   )
 }

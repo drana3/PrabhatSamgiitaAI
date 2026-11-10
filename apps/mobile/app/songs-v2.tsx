@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Alert, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text, View } from "react-native"
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { useScreenTop } from "@/hooks/useScreenTop"
 
 import { FilterSheet, RowMenuSheet, SortSheet } from "@/components/songs-v2/CatalogSheets"
 import { CollectionsShelf } from "@/components/songs-v2/CollectionsShelf"
+import { LearnListSegment } from "@/components/songs-v2/LearnListSegment"
 import { MineSegment, type MinePlaylist } from "@/components/songs-v2/MineSegment"
 import { Press } from "@/components/songs-v2/Press"
 import { SongCardRow } from "@/components/songs-v2/SongCardRow"
 import { SongsScroller } from "@/components/songs-v2/SongsScroller"
 import { Toast } from "@/components/songs-v2/Toast"
-import type { CatalogEntry } from "@/lib/songsV2/entry"
+import { placeholderEntry, type CatalogEntry } from "@/lib/songsV2/entry"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { collectionCount } from "@/data/collections"
 import { songNumbersForCategory } from "@/lib/categorySongs"
@@ -29,11 +30,17 @@ import { buildQuickStartPlan } from "@/lib/songsV2/quickStart"
 import { starterSongForNumber } from "@/lib/playPlaylist"
 import { usePlayerStore } from "@/stores/playerStore"
 import { NAV_V2_PLAYER_ROUTE } from "@/lib/navV2"
-import { legacySourceRedirect, parseSongChip, type SongChipId } from "@/lib/songsV2/segments"
+import { isLegacyDownloadedChip, legacySourceRedirect, parseSongChip, type SongChipId } from "@/lib/songsV2/segments"
 import { sortOption, type ListRow } from "@/lib/songsV2/sort"
 import { useAuthStore } from "@/stores/authStore"
-import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
+import { classifyLearnSongs } from "@/lib/learn/learnChips"
+import { buildMyUploads, MY_UPLOADS_ROUTE } from "@/lib/playlists/myUploads"
+import { useKirtanStore } from "@/stores/kirtanStore"
+import { useLearnStore } from "@/stores/learnStore"
+import { askNewPlaylist, openPlaylistMenu } from "@/stores/playlistSheetsStore"
+import { usePlaylistStore } from "@/stores/playlistStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { useSaveSheetStore } from "@/stores/saveSheetStore"
 import { MOCK_OFFLINE, MOCK_PLAYLISTS } from "@/lib/fixtures/songsMock"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { href } from "@/utils/href"
@@ -44,7 +51,7 @@ const CATALOG_SIZE = 5018
 
 /**
  * Songs: Prabhat Samgiita only, with ONE navigation layer. A pinned search pill, a chips row (All,
- * Saved, Downloaded, Playlists), and under All the Collections shelf, then "All songs" with the
+ * Saved, Playlists, Learning, Learned), and under All the Collections shelf, then "All songs" with the
  * sort bar, the list and the A-Z rail. Kiirtans have their own tab.
  */
 function PsSongs() {
@@ -55,6 +62,8 @@ function PsSongs() {
   const inset = useScreenTop()
   const params = useLocalSearchParams<{ chip?: string; segment?: string }>()
   const [chipId, setChipId] = useState<SongChipId>(parseSongChip(params.chip ?? params.segment))
+  // "Downloaded only" inside Saved (an old ?chip=downloaded link opens Saved with it on)
+  const [downloadedOnly, setDownloadedOnly] = useState(isLegacyDownloadedChip(params.chip ?? params.segment))
 
   const catalog = useSongsV2Catalog()
   const controller = useCatalogController(catalog.entries)
@@ -68,12 +77,17 @@ function PsSongs() {
   const playlistsLoading = usePlaylistStore((s) => s.loading)
   const hydratePlaylists = usePlaylistStore((s) => s.hydrateFromCache)
   const refreshPlaylists = usePlaylistStore((s) => s.refresh)
-  const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
+  const submissions = useKirtanStore((s) => s.submissions)
+  const learnSongs = useLearnStore((s) => s.songs)
+  const learnPaths = useLearnStore((s) => s.paths)
   const offlineFiles = useOfflineAudioStore((s) => s.files)
   const { items: downloadItems, scanned: downloadsScanned } = useOfflineStorageItems()
 
   useEffect(() => {
-    if (params.chip || params.segment) setChipId(parseSongChip(params.chip ?? params.segment))
+    if (params.chip || params.segment) {
+      setChipId(parseSongChip(params.chip ?? params.segment))
+      setDownloadedOnly(isLegacyDownloadedChip(params.chip ?? params.segment))
+    }
   }, [params.chip, params.segment])
 
   useFocusEffect(
@@ -111,6 +125,17 @@ function PsSongs() {
         : playlists.map((p) => ({ id: p.id, name: p.name, songCount: p.songs.length })),
     [playlists],
   )
+  /** the automatic "My uploads" playlist: only while the person has a live upload */
+  const uploads = useMemo(() => {
+    const list = buildMyUploads(submissions)
+    return list ? { count: list.count, cover: list.cover } : null
+  }, [submissions])
+  /** Learning and Learned: the songs of the Learn progress, as catalog rows */
+  const learn = useMemo(() => {
+    const { learning, learned } = classifyLearnSongs(learnSongs, learnPaths)
+    const rows = (numbers: number[]) => numbers.map((n) => catalog.byNumber.get(n) ?? placeholderEntry(n))
+    return { learning: rows(learning), learned: rows(learned) }
+  }, [learnSongs, learnPaths, catalog.byNumber])
   const downloadsTotal = MOCKUP_DATA
     ? "16.9 MB"
     : downloadsScanned && downloadItems.length ? formatBytes(totalBytes(downloadItems)) : downloadsSummary(Object.keys(offlineFiles).length)
@@ -126,20 +151,6 @@ function PsSongs() {
 
   const openCollection = (id: string, title: string) =>
     router.push(href(`/songs-v2-collection?id=${encodeURIComponent(id)}&title=${encodeURIComponent(title)}`))
-
-  const createNewPlaylist = async (name: string): Promise<string | null> => {
-    if (mode !== "signed_in") {
-      Alert.alert(t("account.signIn.title"), t("songs.alert.needsAccount"), [
-        { text: t("common.notNow"), style: "cancel" },
-        { text: t("account.signIn.title"), onPress: () => router.push(href("/signin")) },
-      ])
-      return t("songs.alert.signInToMake")
-    }
-    const result = await createPlaylist(name)
-    if (isPlaylist(result)) return null
-    if ("needsAuth" in result) return t("songs.alert.signInToMake")
-    return result.error || t("songs.alert.makeFailed")
-  }
 
   const { rows, filtered, sort, chip, filterCount } = controller
   const loadingList = catalog.loading && !catalog.entries.length
@@ -223,24 +234,43 @@ function PsSongs() {
         }}
         shelf={<CollectionsShelf theme={theme} collections={shelfCollections} onOpen={openCollection} onOpenAll={() => router.push(href("/collections-v2"))} />}
         body={
-          <MineSegment
-            theme={theme}
-            only={chipId === "saved" ? "saved" : chipId === "downloaded" ? "downloaded" : "playlists"}
-            savedRows={savedRows}
-            savedLoading={syncingFavorites}
-            playlists={minePlaylists}
-            playlistsLoading={playlistsLoading && mode === "signed_in"}
-            downloadCount={Object.keys(offlineFiles).length}
-            downloadsTotal={downloadsTotal}
-            onOpen={actions.open}
-            onToggleSave={toggleSave}
-            onQueue={actions.queue}
-            onMenu={controller.setMenuEntry}
-            onOpenPlaylist={(id) => router.push(href(`/playlist-v2/${id}`))}
-            onCreatePlaylist={createNewPlaylist}
-            onQuickStart={quickStart}
-            onOpenDownloads={() => router.push(href("/storage"))}
-          />
+          chipId === "learning" || chipId === "learned" ? (
+            <LearnListSegment
+              theme={theme}
+              which={chipId}
+              entries={learn[chipId]}
+              savedSet={savedSet}
+              offlineNumbers={offlineNumbers}
+              onOpen={actions.open}
+              onToggleSave={toggleSave}
+              onQueue={actions.queue}
+              onMenu={controller.setMenuEntry}
+            />
+          ) : (
+            <MineSegment
+              theme={theme}
+              only={chipId === "saved" ? "saved" : "playlists"}
+              savedRows={savedRows}
+              savedLoading={syncingFavorites}
+              playlists={minePlaylists}
+              playlistsLoading={playlistsLoading && mode === "signed_in"}
+              uploads={uploads}
+              downloadCount={Object.keys(offlineFiles).length}
+              downloadsTotal={downloadsTotal}
+              downloadedOnly={downloadedOnly}
+              onDownloadedOnly={setDownloadedOnly}
+              onOpen={actions.open}
+              onToggleSave={toggleSave}
+              onQueue={actions.queue}
+              onMenu={controller.setMenuEntry}
+              onOpenPlaylist={(id) => router.push(href(`/playlist-v2/${id}`))}
+              onPlaylistMenu={(id) => openPlaylistMenu(id)}
+              onOpenUploads={() => router.push(href(MY_UPLOADS_ROUTE))}
+              onNewPlaylist={() => (MOCKUP_DATA ? useSaveSheetStore.getState().showToast(t("library.toast.preview")) : askNewPlaylist())}
+              onQuickStart={quickStart}
+              onOpenDownloads={() => router.push(href("/storage"))}
+            />
+          )
         }
       />
 

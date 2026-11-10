@@ -171,7 +171,10 @@ export function SongMenuSheet(props: SongMenuProps) {
             theme={theme}
             label={t("songs.mine.newPlaylist")}
             icon={<Plus size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
-            onPress={() => shown && props.onNewPlaylist(shown)}
+            onPress={() => {
+              if (shown) props.onNewPlaylist(shown)
+              props.onClose()
+            }}
           />
         </View>
       )}

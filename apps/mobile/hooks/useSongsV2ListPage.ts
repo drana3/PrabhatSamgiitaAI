@@ -35,6 +35,7 @@ import {
 import { useSongsListState } from "@/lib/songsV2/listState"
 import { queueToast } from "@/lib/songsV2/playAll"
 import { UNDO_MS, hiddenToast, removedToast, rowRemoval } from "@/lib/songsV2/rowMenu"
+import { askNewPlaylist } from "@/stores/playlistSheetsStore"
 import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
@@ -245,19 +246,25 @@ export function useSongsV2ListPage({ listId, listName, entries }: { listId: stri
     [playlists, flash, reportPlaylistFailure, t],
   )
 
+  // "New playlist" in a song's menu: the name sheet (default name selected), then the song goes in.
+  // The menu sheet that asked is a native modal too, so the name sheet waits a moment for it to leave.
   const newPlaylist = useCallback(
     (entry: CatalogEntry) => {
       if (MOCKUP_DATA) return flash(t("songs.toast.noPreviewPlaylists"))
-      const store = usePlaylistStore.getState()
-      const name = t("songs.playlistDefault", { n: store.playlists.length + 1 })
-      void store.createPlaylist(name).then((created) => {
-        if (!isPlaylist(created)) return reportPlaylistFailure(created)
-        void store.addSong(created.id, entry.number).then((result) => {
-          if (!isPlaylist(result)) return reportPlaylistFailure(result)
-          flash(t("songs.toast.created", { name }))
-          void store.flushSync()
-        })
-      })
+      setTimeout(
+        () =>
+          askNewPlaylist((created) =>
+            usePlaylistStore
+              .getState()
+              .addSong(created.id, entry.number)
+              .then((result) => {
+                if (!isPlaylist(result)) return reportPlaylistFailure(result)
+                flash(t("songs.toast.created", { name: created.name }))
+                void usePlaylistStore.getState().flushSync()
+              }),
+          ),
+        280,
+      )
     },
     [flash, reportPlaylistFailure, t],
   )

@@ -6,6 +6,7 @@ import { ListPlus } from "lucide-react-native"
 
 import { SaveButton } from "@/components/save/SaveButton"
 import { SaveMark } from "@/components/save/SaveMark"
+import { DownloadMark } from "@/components/offline/DownloadMark"
 
 import { overStyle } from "@/components/songs-v2/primitives"
 import { Press } from "@/components/songs-v2/Press"
@@ -130,9 +131,12 @@ export const SongCardRow = memo(function SongCardRow({
             outerStyle={styles.mainOuter}
             style={styles.main}
           >
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[overStyle, { color: theme.accent }]} numberOfLines={1}>
-              {eyebrow}
-            </Text>
+            <View style={styles.eyebrowLine}>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[overStyle, styles.eyebrowText, { color: theme.accent }]} numberOfLines={1}>
+                {eyebrow}
+              </Text>
+              {offline ? <DownloadedMark label={t("dl.badge")} /> : null}
+            </View>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.title, { color: theme.textHeading }]} numberOfLines={1}>
               {entry.title}
             </Text>
@@ -165,15 +169,19 @@ export const SongCardRow = memo(function SongCardRow({
               )}
             </View>
             <View style={styles.text}>
-              <Text maxFontSizeMultiplier={MAX_FONT_SCALE}
-                style={[
-                  look === "compact" ? styles.titleCompact : styles.titleTrack,
-                  { color: theme.textHeading, fontFamily: current ? amFonts.bold : look === "compact" ? amFonts.medium : amFonts.regular },
-                ]}
-                numberOfLines={1}
-              >
-                {entry.title}
-              </Text>
+              <View style={styles.eyebrowLine}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE}
+                  style={[
+                    look === "compact" ? styles.titleCompact : styles.titleTrack,
+                    styles.eyebrowText,
+                    { color: theme.textHeading, fontFamily: current ? amFonts.bold : look === "compact" ? amFonts.medium : amFonts.regular },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {entry.title}
+                </Text>
+                {offline ? <DownloadedMark label={t("dl.badge")} /> : null}
+              </View>
               {meta ? (
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.meta, { color: theme.textMuted }]} numberOfLines={1}>
                   {meta}
@@ -193,6 +201,15 @@ export const SongCardRow = memo(function SongCardRow({
     </ReanimatedSwipeable>
   )
 })
+
+/** The small green "Downloaded" square of a row whose song is on the phone (a downloaded song is a saved song with this mark). */
+function DownloadedMark({ label }: { label: string }) {
+  return (
+    <View accessible accessibilityLabel={label} style={styles.dlMark}>
+      <DownloadMark status="done" size={14} />
+    </View>
+  )
+}
 
 /**
  * Touch area of a slim row. Feedback starts on touch-down: a tint fades in (opacity) and a tile
@@ -280,5 +297,8 @@ const styles = StyleSheet.create({
   titleTrack: { fontSize: 16, lineHeight: 21 },
   titleCompact: { fontSize: 15, lineHeight: 20 },
   meta: { fontFamily: amFonts.regular, fontSize: 13, lineHeight: 16 },
+  eyebrowLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  eyebrowText: { flexShrink: 1 },
+  dlMark: { alignItems: "center", justifyContent: "center" },
   hairline: { position: "absolute", left: HAIRLINE_INSET, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
 })

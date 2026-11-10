@@ -16,7 +16,7 @@ import {
   tilesWithCounts,
 } from "@/lib/songsV2/collections"
 import { buildSavedRows, downloadsSummary, MINE_COPY, playlistEyebrow, sectionState } from "@/lib/songsV2/mine"
-import { isSongChip, legacySourceRedirect, parseSongChip, SONG_CHIPS } from "@/lib/songsV2/segments"
+import { isLegacyDownloadedChip, isSongChip, legacySourceRedirect, parseSongChip, SONG_CHIPS } from "@/lib/songsV2/segments"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 
 function item(label: string, category: string, count: number): CollectionItem {
@@ -107,13 +107,18 @@ describe("Mine", () => {
 })
 
 describe("song chips (one navigation layer)", () => {
-  it("has All, Saved, Downloaded, Playlists", () => {
-    expect(SONG_CHIPS.map((c) => c.label)).toEqual(["All", "Saved", "Downloaded", "Playlists"])
+  it("has All, Saved, Playlists, Learning, Learned (no Downloaded chip: it is a state of a saved item)", () => {
+    expect(SONG_CHIPS.map((c) => c.label)).toEqual(["All", "Saved", "Playlists", "Learning", "Learned"])
     expect(isSongChip("saved")).toBe(true)
     expect(isSongChip("kirtan")).toBe(false)
   })
   it("parses the query parameter and keeps old links working", () => {
-    expect(parseSongChip("downloaded")).toBe("downloaded")
+    expect(parseSongChip("downloaded")).toBe("saved")
+    expect(isLegacyDownloadedChip("downloaded")).toBe(true)
+    expect(isLegacyDownloadedChip(["downloaded"])).toBe(true)
+    expect(isLegacyDownloadedChip("saved")).toBe(false)
+    expect(parseSongChip("learning")).toBe("learning")
+    expect(parseSongChip(["learned"])).toBe("learned")
     expect(parseSongChip(["playlists"])).toBe("playlists")
     expect(parseSongChip("mine")).toBe("saved")
     expect(parseSongChip("collections")).toBe("all")

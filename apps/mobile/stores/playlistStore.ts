@@ -18,6 +18,7 @@ import {
   resetPlaylistSyncQueue,
 } from "@/lib/playlistSyncQueue"
 import { useAuthStore } from "@/stores/authStore"
+import { usePlaylistCoverStore } from "@/stores/playlistCoverStore"
 
 type PlaylistResult = MemberPlaylist | { needsAuth: true } | { error: string }
 
@@ -144,6 +145,8 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const playlists = [...get().playlists, optimistic]
     set({ playlists, error: null })
     persistSoon(playlists)
+    // every new playlist gets its own random cover photo, kept on the phone (stores/playlistCoverStore.ts)
+    usePlaylistCoverStore.getState().assignRandom(tempId)
     enqueuePlaylistSync({ type: "create", tempId, name: trimmed })
     return optimistic
   },
@@ -169,6 +172,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const playlists = get().playlists.filter((item) => item.id !== id)
     set({ playlists, error: null })
     persistSoon(playlists)
+    usePlaylistCoverStore.getState().remove(id)
     enqueuePlaylistSync({ type: "delete", id })
     return { ok: true }
   },
@@ -205,12 +209,14 @@ bindPlaylistSyncHandlers({
   onPlaylists: (playlists) => usePlaylistStore.setState({ playlists }),
   onError: (message) => usePlaylistStore.setState({ error: message, syncing: false }),
   readPlaylists: () => usePlaylistStore.getState().playlists,
+  onIdAssigned: (tempId, id) => usePlaylistCoverStore.getState().move(tempId, id),
 })
 
 /** Everything about playlists that the phone holds: the list, the cache on disk and the waiting changes. */
 export async function clearPlaylistsOnDevice(): Promise<void> {
   resetPlaylistSyncQueue()
   usePlaylistStore.setState({ playlists: [], error: null, loading: false, syncing: false })
+  usePlaylistCoverStore.getState().clear()
   await clearPlaylistCache()
 }
 

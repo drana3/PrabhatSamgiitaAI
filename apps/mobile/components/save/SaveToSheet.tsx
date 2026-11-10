@@ -15,7 +15,8 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSaveState } from "@/hooks/useSaveState"
 import { isDarkTheme } from "@/lib/navV2"
-import { createPlaylistWith, togglePlaylist, toggleMine, type SaveOutcome } from "@/lib/save/saveActions"
+import { addToCreated, togglePlaylist, toggleMine, type SaveOutcome } from "@/lib/save/saveActions"
+import { askNewPlaylist } from "@/stores/playlistSheetsStore"
 import { buildSaveRows, type SaveItem, type SaveRow } from "@/lib/save/saveToSheet"
 import { usePlaylistStore } from "@/stores/playlistStore"
 import { useSaveSheetStore } from "@/stores/saveSheetStore"
@@ -94,9 +95,20 @@ export function SaveToSheet({ visible, item, onClose }: Props) {
     if (row.kind === "mine") void run("mine", () => toggleMine(shown), row.on ? t("save.toast.removed", { target: t("songs.mine") }) : t("save.toast.added", { target: t("songs.mine") }))
     else void run(row.id, () => togglePlaylist(shown, row.id), row.on ? t("save.toast.removed", { target: row.name }) : t("save.toast.added", { target: row.name }))
   }
+  // New playlist: this sheet leaves, then the name sheet comes up (default name selected); the song goes in once the list exists.
   const onNew = () => {
     if (!shown) return
-    void run("new", () => createPlaylistWith(shown), null)
+    const target = shown
+    onClose()
+    setTimeout(
+      () =>
+        askNewPlaylist(async (created) => {
+          const outcome = await addToCreated(target, created)
+          if (outcome.ok) showToast(outcome.toast)
+          else settle(outcome)
+        }),
+      280,
+    )
   }
 
   const dark = isDarkTheme(theme)

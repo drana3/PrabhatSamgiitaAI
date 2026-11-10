@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react"
-import { StyleSheet, Text, TextInput, View } from "react-native"
+import { useMemo } from "react"
+import { StyleSheet, Text, View } from "react-native"
 import { PlusGlyph } from "@/components/songs-v2/Glyphs"
 
-import { ListDownloadRow } from "@/components/offline/ListDownloadRow"
+import { ListDownloadRow, Switch } from "@/components/offline/ListDownloadRow"
 import { PillButton } from "@/components/songs-v2/Pill"
+import { PlaylistRow, SystemPlaylistRow } from "@/components/songs-v2/PlaylistRow"
 import { Press } from "@/components/songs-v2/Press"
 import { CardButton, EmptyNote, overStyle, SectionHeading } from "@/components/songs-v2/primitives"
 import { SongCardRow } from "@/components/songs-v2/SongCardRow"
@@ -25,26 +26,37 @@ type Props = {
   savedLoading: boolean
   playlists: MinePlaylist[]
   playlistsLoading: boolean
+  /** the automatic "My uploads" list: shown only when the person has uploads */
+  uploads: { count: number; cover: number } | null
   downloadCount: number
   /** `148 MB` style total shown over "Downloads"; falls back to the recording count */
   downloadsTotal?: string
+  /** Saved shows only the songs that are on this phone (the old Downloaded chip, now a state of a saved song) */
+  downloadedOnly: boolean
+  onDownloadedOnly: (on: boolean) => void
   onOpen: (entry: CatalogEntry) => void
   onToggleSave: (entry: CatalogEntry) => void
   onQueue: (entry: CatalogEntry) => void
   onMenu: (entry: CatalogEntry) => void
   onOpenPlaylist: (id: string) => void
-  /** Returns an error message to show, or null when the playlist was made. */
-  onCreatePlaylist: (name: string) => Promise<string | null>
+  /** the "..." of a playlist: Rename, Change photo, Delete */
+  onPlaylistMenu: (id: string) => void
+  onOpenUploads: () => void
+  /** opens the name sheet (stores/playlistSheetsStore askNewPlaylist) */
+  onNewPlaylist: () => void
   onQuickStart: () => void
   onOpenDownloads: () => void
-  /** show one block only (a chip of the Songs screen); omit for all of them (/saved-v2) */
-  only?: "saved" | "playlists" | "downloaded"
+  /** show one block only (a chip of the Songs screen); omit for all of them */
+  only?: "saved" | "playlists"
 }
 
 /**
  * Mine (prototype lines 1216-1250): Saved, Your playlists, Quick start, On this phone.
  * Each section is `loading`, `empty` or `ready`, never loading and empty together.
- * Used by the Songs tab and by /saved-v2.
+ * Saved and downloaded are ONE thing (Dada, 10 Nov 2026): a downloaded song is a saved song that is also on the phone. Rows
+ * carry the Downloaded mark, the list has its Download switch and a "Downloaded only" switch, and "On this phone" (Storage)
+ * sits under the saved songs. "Your playlists" lists the automatic "My uploads" first (when there are uploads), then the
+ * person's own, each with a "..." menu. Used by the Songs tab.
  */
 export function MineSegment(props: Props) {
   const t = useT()
@@ -52,28 +64,12 @@ export function MineSegment(props: Props) {
   const rowStyle = useListViewStore((s) => s.rowStyle)
   const saved = sectionState({ loading: props.savedLoading, count: props.savedRows.length })
   const lists = sectionState({ loading: props.playlistsLoading, count: props.playlists.length })
-  const [naming, setNaming] = useState(false)
-  const [name, setName] = useState("")
-  const [formError, setFormError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-
   const savedNumbers = useMemo(() => props.savedRows.map((row) => row.number), [props.savedRows])
 
   const show = (block: NonNullable<Props["only"]>) => !props.only || props.only === block
 
-  const create = async () => {
-    if (!name.trim() || busy) return
-    setBusy(true)
-    const error = await props.onCreatePlaylist(name.trim())
-    setBusy(false)
-    if (error) {
-      setFormError(error)
-      return
-    }
-    setName("")
-    setFormError(null)
-    setNaming(false)
-  }
+  const offlineRows = useMemo(() => props.savedRows.filter((row) => row.offline), [props.savedRows])
+  const shownRows = props.downloadedOnly ? offlineRows : props.savedRows
 
   return (
     <View>
@@ -85,8 +81,25 @@ export function MineSegment(props: Props) {
         {saved === "ready" ? (
           <SongsReveal index={4} style={styles.list}>
             <ListDownloadRow theme={theme} numbers={savedNumbers} name={t("songs.menu.saved")} />
+            {offlineRows.length > 0 || props.downloadedOnly ? (
+              <Press
+                accessibilityRole="switch"
+                accessibilityLabel={t("songs.saved.downloadedOnly")}
+                accessibilityState={{ checked: props.downloadedOnly }}
+                onPress={() => props.onDownloadedOnly(!props.downloadedOnly)}
+                pressedScale={0.98}
+                style={[styles.onlyRow, { backgroundColor: theme.card, borderColor: theme.line }]}
+              >
+                <View style={styles.onlyText}>
+                  <Text style={[styles.onlyTitle, { color: theme.textHeading }]}>{t("songs.saved.downloadedOnly")}</Text>
+                  <Text style={[styles.onlyHint, { color: theme.textBody }]}>{t("songs.saved.downloadedOnlyHint")}</Text>
+                </View>
+                <Switch on={props.downloadedOnly} theme={theme} />
+              </Press>
+            ) : null}
+            {props.downloadedOnly && offlineRows.length === 0 ? <EmptyNote theme={theme}>{t("songs.saved.downloadedNone")}</EmptyNote> : null}
             <View style={{ gap: stackGap(rowStyle) }}>
-              {props.savedRows.map((row) => (
+              {shownRows.map((row) => (
                 <SongCardRow
                   key={row.number}
                   theme={theme}
@@ -116,52 +129,39 @@ export function MineSegment(props: Props) {
           <EmptyNote theme={theme}>{MINE_COPY.playlistCaption}</EmptyNote>
         </SongsReveal>
         <SongsReveal index={7} style={styles.list}>
+          {props.uploads ? (
+            <SystemPlaylistRow
+              theme={theme}
+              photo={props.uploads.cover}
+              title={t("pl.uploads.title")}
+              eyebrow={t("pl.uploads.count", { count: props.uploads.count })}
+              onOpen={props.onOpenUploads}
+            />
+          ) : null}
           {lists === "ready"
             ? props.playlists.map((playlist) => (
-                <CardButton
+                <PlaylistRow
                   key={playlist.id}
                   theme={theme}
+                  id={playlist.id}
                   eyebrow={playlistEyebrow(playlist.songCount)}
                   title={playlist.name}
-                  onPress={() => props.onOpenPlaylist(playlist.id)}
+                  onOpen={() => props.onOpenPlaylist(playlist.id)}
+                  onMenu={() => props.onPlaylistMenu(playlist.id)}
                 />
               ))
-            : (
+            : !props.uploads ? (
                 <EmptyNote theme={theme} style={{ paddingHorizontal: 10 }}>
                   {lists === "loading" ? t("songs.mine.loadingLists") : MINE_COPY.playlistsEmpty}
                 </EmptyNote>
-              )}
-          {naming ? (
-            <View style={[styles.form, { backgroundColor: theme.card, borderColor: theme.line }]}>
-              <TextInput
-                value={name}
-                onChangeText={(value) => {
-                  setName(value)
-                  setFormError(null)
-                }}
-                placeholder={t("songs.mine.listName")}
-                placeholderTextColor={theme.textBody}
-                accessibilityLabel={t("songs.mine.listName")}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={() => void create()}
-                style={[styles.input, { color: theme.textHeading, borderColor: theme.line }]}
-              />
-              {formError ? <Text style={[styles.error, { color: theme.dangerText }]}>{formError}</Text> : null}
-              <View style={styles.formActions}>
-                <PillButton theme={theme} tone="sand" label={t("common.cancel")} onPress={() => setNaming(false)} fill />
-                <PillButton theme={theme} label={t("songs.mine.create")} disabled={!name.trim() || busy} onPress={() => void create()} fill />
-              </View>
-            </View>
-          ) : (
-            <PillButton
-              theme={theme}
-              label={MINE_COPY.newPlaylist}
-              icon={<PlusGlyph color="#FFFFFF" />}
-              onPress={() => setNaming(true)}
-              style={styles.start}
-            />
-          )}
+              ) : null}
+          <PillButton
+            theme={theme}
+            label={MINE_COPY.newPlaylist}
+            icon={<PlusGlyph color="#FFFFFF" />}
+            onPress={props.onNewPlaylist}
+            style={styles.start}
+          />
         </SongsReveal>
       </View>
 
@@ -189,7 +189,7 @@ export function MineSegment(props: Props) {
 
       ) : null}
 
-      {show("downloaded") ? (
+      {show("saved") ? (
       <View style={[styles.sect, props.only ? { paddingTop: 28 } : null]}>
         <SongsReveal index={10} style={styles.pad10}>
           <SectionHeading theme={theme} first={t("songs.mine.onThis")} second={t("songs.mine.phone")} />
@@ -214,10 +214,10 @@ const styles = StyleSheet.create({
   pad10: { paddingHorizontal: 10 },
   list: { paddingHorizontal: 10, gap: 10 },
   start: { alignSelf: "flex-start", marginTop: 4 },
-  form: { borderRadius: 20, borderWidth: 1, padding: 16, gap: 12 },
-  input: { height: 48, borderRadius: 70, borderWidth: 1, paddingHorizontal: 20, fontFamily: amFonts.medium, fontSize: 16 },
-  error: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19 },
-  formActions: { flexDirection: "row", gap: 10 },
+  onlyRow: { minHeight: 64, borderRadius: 20, borderWidth: 1, paddingVertical: 12, paddingLeft: 20, paddingRight: 16, flexDirection: "row", alignItems: "center", gap: 12 },
+  onlyText: { flex: 1, minWidth: 0, gap: 2 },
+  onlyTitle: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 20 },
+  onlyHint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   lcard: { borderRadius: 30, paddingTop: 20, paddingBottom: 22, paddingHorizontal: 20, gap: 12, overflow: "hidden" },
   quickTitle: { fontFamily: amFonts.display, fontSize: 22, lineHeight: 22, letterSpacing: -0.44, textTransform: "uppercase", color: "#FFFFFF" },
   quickBody: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 19, color: "rgba(255,255,255,0.82)" },

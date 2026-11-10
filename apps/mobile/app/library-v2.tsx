@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react"
-import { Alert, FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native"
+import { FlatList, Platform, StyleSheet, Text, TextInput, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { LibraryListRow, NewPlaylistRow, SignInInvite } from "@/components/library-v2/LibraryParts"
@@ -24,9 +24,8 @@ import {
   type LibraryRow,
 } from "@/lib/library/yourLibrary"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { nextPlaylistName } from "@/lib/save/saveToSheet"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
-import { isPlaylist, usePlaylistStore } from "@/stores/playlistStore"
+import { askNewPlaylist } from "@/stores/playlistSheetsStore"
 import { useSaveSheetStore } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
@@ -64,30 +63,15 @@ export default function LibraryV2Screen() {
   const signIn = useCallback(() => router.push(href("/signin")), [router])
   const open = useCallback((row: LibraryRow) => router.push(href(row.target)), [router])
 
-  const askSignIn = useCallback(() => {
-    if (Platform.OS === "web") return useSaveSheetStore.getState().showToast(t("library.toast.signIn"))
-    Alert.alert(t("library.signIn"), t("library.alert.body"), [
-      { text: t("library.alert.notNow"), style: "cancel" },
-      { text: t("library.signIn"), onPress: signIn },
-    ])
-  }, [signIn, t])
-
-  /** The Save sheet's "New playlist": next free name, then open the empty list to fill it. */
-  const newPlaylist = useCallback(async () => {
+  /** "New playlist": the name sheet (default name typed and selected), then the empty list opens to fill it. */
+  const newPlaylist = useCallback(() => {
     const toast = useSaveSheetStore.getState().showToast
     if (MOCKUP_DATA) return toast(t("library.toast.preview"))
-    const store = usePlaylistStore.getState()
-    const name = nextPlaylistName(store.playlists)
-    const created = await store.createPlaylist(name)
-    if (isPlaylist(created)) {
-      toast(t("library.toast.created", { name }))
-      void usePlaylistStore.getState().flushSync()
+    askNewPlaylist((created) => {
+      toast(t("library.toast.created", { name: created.name }))
       router.push(href(`/playlist-v2/${created.id}`))
-      return
-    }
-    if ("needsAuth" in created) return askSignIn()
-    Alert.alert(t("player.playlist"), created.error)
-  }, [askSignIn, router, t])
+    })
+  }, [router, t])
 
   const clear = useCallback(() => {
     setQuery("")
@@ -103,7 +87,7 @@ export default function LibraryV2Screen() {
       ) : null}
       {withNew ? (
         <SongsReveal index={invite ? 4 : 3}>
-          <NewPlaylistRow theme={theme} onPress={() => void newPlaylist()} />
+          <NewPlaylistRow theme={theme} onPress={newPlaylist} />
         </SongsReveal>
       ) : null}
     </View>
