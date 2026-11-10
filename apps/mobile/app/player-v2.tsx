@@ -17,7 +17,7 @@ import { scheduleOnRN } from "react-native-worklets"
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { AboutCard, AboutSheet } from "@/components/player-v2/AboutSong"
+import { AboutButton, AboutSheet } from "@/components/player-v2/AboutSong"
 import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
 import { CrossfadeGradient } from "@/components/player-v2/CrossfadeGradient"
 import { DriveControls } from "@/components/player-v2/DriveControls"
@@ -682,7 +682,7 @@ export default function PlayerV2Screen() {
         }}
       />
     ) : null
-  const showAbout = about != null && !isK && !drive && windowHeight >= 740
+  const showAbout = about != null && !isK && !drive
   const openSongPage = () => {
     if (!song) return
     setSheet(null)
@@ -1066,15 +1066,9 @@ export default function PlayerV2Screen() {
                     <UtilButton label={t("songs.menu.share")} onPress={() => setSheet("share")}>
                       <PlayerIcon name="share" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
+                    {showAbout ? <AboutButton onOpen={() => setSheet("about")} /> : null}
                   </View>
                 </Reveal>
-                {showAbout && about ? (
-                  <Reveal index={6}>
-                    <View style={styles.aboutWrap}>
-                      <AboutCard preview={about.preview} onOpen={() => setSheet("about")} />
-                    </View>
-                  </Reveal>
-                ) : null}
               </>
             )}
           </Animated.View>
@@ -1273,7 +1267,6 @@ export default function PlayerV2Screen() {
           {!isK ? (
           <AboutSheet
             visible={sheet === "about"}
-            theme={theme}
             songTitle={songTitle}
             about={about}
             onOpenSong={openSongPage}
@@ -1329,7 +1322,6 @@ const styles = StyleSheet.create({
   sourceHit: { flex: 1, minWidth: 0 },
   sourceChip: { height: playerSize.topButton, alignItems: "center", justifyContent: "center" },
   sourceText: { ...amType.label, color: amColors.white, textAlign: "center" },
-  aboutWrap: { marginTop: 10 },
   titleBlock: { paddingHorizontal: 20, gap: 12, marginTop: playerSize.titleLift },
   // A Kiirtan has a square cover above the title (a song has the photograph): keep a clear gap under it.
   titleBlockUnderCover: { marginTop: 20 },

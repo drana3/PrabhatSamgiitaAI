@@ -15,7 +15,7 @@ function dateText(date: { year: number; month: number; day: number }): string {
 }
 
 /** The explanation of the song in plain words: drawn only when a reviewed one exists, never an empty slot (see songContent.explanationIsUsable). */
-function Explanation({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
+export function Explanation({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
   const e = model.explanation
   if (!e) return null
   return (
@@ -36,7 +36,7 @@ function Explanation({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageM
 }
 
 /** The central idea of the song, when the data has one (the official English text's, or a machine-assisted one in another language, and it says so). */
-function CentralIdea({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
+export function CentralIdea({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
   const central = model.meaning.central
   if (!central) return null
   return (
@@ -69,7 +69,18 @@ export function AboutSection({ t, model }: { t: SpTheme; model: SongPageModel })
   )
 }
 
-export function AboutBody({ t, model }: { t: SpTheme; model: SongPageModel }) {
+/** The small photo credit line; the song page puts it at the very end of the Info tab. */
+export function PhotoCredit({ t, model }: { t: SpTheme; model: SongPageModel }) {
+  const tr = usePageT()
+  if (!model.photo) return null
+  return (
+    <Text style={[styles.photo, { color: t.ink500 }]}>
+      {`${tr("songPage.about.photo")}: ${tr("songPage.about.photo.note", { credit: model.photo.credit.replace(/^Photo:\s*/i, "") })}`}
+    </Text>
+  )
+}
+
+export function AboutBody({ t, model, withPhoto = true }: { t: SpTheme; model: SongPageModel; withPhoto?: boolean }) {
   const tr = usePageT()
   useLanguage()
   const rows: Array<{ label: string; value: string }> = model.about.map((row: AboutRow) => {
@@ -96,11 +107,7 @@ export function AboutBody({ t, model }: { t: SpTheme; model: SongPageModel }) {
           <Text style={[styles.value, { color: t.ink900 }]}>{row.value}</Text>
         </View>
       ))}
-      {model.photo ? (
-        <Text style={[styles.photo, { color: t.ink500 }]}>
-          {`${tr("songPage.about.photo")}: ${tr("songPage.about.photo.note", { credit: model.photo.credit.replace(/^Photo:\s*/i, "") })}`}
-        </Text>
-      ) : null}
+      {withPhoto ? <PhotoCredit t={t} model={model} /> : null}
     </View>
   )
 }

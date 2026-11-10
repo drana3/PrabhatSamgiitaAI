@@ -440,7 +440,7 @@ describe("song page strings", () => {
 
   it("fills variables", () => {
     expect(translatePage("en", "songPage.learn.added", { number: 2 })).toBe("PS 2 added to Learn")
-    expect(translatePage("ru", "songPage.learn.added", { number: 2 })).toBe("PS 2 добавлена")
+    expect(translatePage("ru", "songPage.learn.added", { number: 2 })).toBe("PS 2 добавлена в Learn")
   })
 
   it("never writes Kiirtan with one i", () => {

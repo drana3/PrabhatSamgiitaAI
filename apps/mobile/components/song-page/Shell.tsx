@@ -50,8 +50,8 @@ export type ShellProps = {
   strip?: ReactNode
   stripHeight?: number
   onMore: () => void
-  /** opens the sections menu */
-  onMenu: () => void
+  /** opens the sections menu; a page that has no such menu (the tabbed song page) leaves it out and no button is drawn */
+  onMenu?: () => void
   onBack?: () => void
   scrollRef?: RefObject<Animated.ScrollView | null> | AnimatedRef<Animated.ScrollView>
   /**
@@ -165,7 +165,7 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
         <View style={[styles.floating, { paddingTop: topPad + 4 }]} pointerEvents="box-none">
           <PhotoButton t={t} icon="back" label={tr("songPage.back")} onPress={back} />
           <View style={styles.right}>
-            <PhotoButton t={t} icon="menu" label={tr("songPage.menu.a11y")} onPress={onMenu} />
+            {onMenu ? <PhotoButton t={t} icon="menu" label={tr("songPage.menu.a11y")} onPress={onMenu} /> : null}
             <PhotoButton t={t} icon="more" label={tr("songPage.more")} onPress={onMore} />
           </View>
         </View>
@@ -179,7 +179,7 @@ export function Shell({ t, model, title, heroHeight, top, hero, strip, stripHeig
         <Animated.Text style={[styles.barTitle, { color: t.ink900 }, titleStyle]} numberOfLines={1}>
           {title}
         </Animated.Text>
-        <BarButton t={t} icon="menu" label={tr("songPage.menu.a11y")} onPress={onMenu} />
+        {onMenu ? <BarButton t={t} icon="menu" label={tr("songPage.menu.a11y")} onPress={onMenu} /> : null}
         <BarButton t={t} icon="more" label={tr("songPage.more")} onPress={onMore} />
       </Animated.View>
 

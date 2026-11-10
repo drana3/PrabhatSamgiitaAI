@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react"
 
 import type { BlockTab } from "@/lib/songPage/blockTabs"
+import { DEFAULT_WORDS_MODE, type WordsMode } from "@/lib/songPage/songTabs"
 import type { TextSize } from "@/lib/songPage/settings"
 import { useSongPageStore } from "@/stores/songPageStore"
 
@@ -9,6 +10,9 @@ export const TEXT_SCALES = [0.9, 1, 1.2] as const
 export type TextScaleIndex = TextSize
 
 export type PageSheet = null | "menu" | "pronounce"
+
+/** The sheets of the Chords tab: the capo (or the harmonium key) with its arrows, and the charts members offered. */
+export type ChordSheet = null | "capo" | "members"
 
 /** The chords: diagrams of the shapes, or the chord letters set over the lyrics. */
 export type ChordView = "diagrams" | "lyrics"
@@ -30,6 +34,9 @@ export function usePageUi() {
   const [options, setOptions] = useState<null | { top: number }>(null)
   const [translationOpen, setTranslationOpen] = useState(false)
   const [chordView, setChordView] = useState<ChordView>("diagrams")
+  const [chordSheet, setChordSheet] = useState<ChordSheet>(null)
+  /** the two pages inside the Words tab: the translation, or the word by word grid */
+  const [wordsMode, setWordsMode] = useState<WordsMode>(DEFAULT_WORDS_MODE)
   /** the tapped word of the word-by-word grid, by its key (the same word is lit everywhere in the song) */
   const [selected, setSelected] = useState<string | null>(null)
   const [sheet, setSheet] = useState<PageSheet>(null)
@@ -55,6 +62,10 @@ export function usePageUi() {
     setTranslationOpen,
     chordView,
     setChordView,
+    chordSheet,
+    setChordSheet,
+    wordsMode,
+    setWordsMode,
     selected,
     setSelected,
     sheet,
