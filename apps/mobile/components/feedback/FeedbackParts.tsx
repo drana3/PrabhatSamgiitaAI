@@ -9,6 +9,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { FEEDBACK_KINDS, songLabel, type FeedbackKind, type PickedSong } from "@/lib/feedback/model"
+import { controlBorder } from "@/lib/controlColors"
 import { useT } from "@/lib/i18n"
 import { catalogSongByNumber, isCatalogNumberQuery, searchCatalogLyrics } from "@/lib/lyricSearch"
 import { songTitleFromHit } from "@/lib/mineView"
@@ -155,7 +156,7 @@ export function SongPicker({
 
   return (
     <View style={styles.pickerWrap}>
-      <View style={[styles.search, { backgroundColor: theme.card, borderColor: theme.line }]}>
+      <View style={[styles.search, { backgroundColor: theme.card, borderColor: controlBorder(theme) }]}>
         <SearchGlyph color={theme.textBody} />
         <TextInput
           value={query}

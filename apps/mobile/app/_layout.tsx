@@ -28,6 +28,7 @@ import {
 } from "@expo-google-fonts/noto-sans-devanagari"
 import * as SplashScreen from "expo-splash-screen"
 
+import { useAmTheme } from "@/hooks/useAmTheme"
 import { startPlaylistBackgroundSync } from "@/lib/playlistBackgroundSync"
 import { prefetchScenicArt } from "@/lib/scenicPrefetch"
 import { hydrateOfflineAudio } from "@/lib/offlineAudio"
@@ -56,6 +57,7 @@ import { usePlaylistStore } from "@/stores/playlistStore"
 SplashScreen.preventAutoHideAsync().catch(() => undefined)
 
 export default function RootLayout() {
+  const pageTheme = useAmTheme()
   const [authHydrated, setAuthHydrated] = useState(() => useAuthStore.persist.hasHydrated())
   // The saved Light / Dark choice is read before the first frame so redesign screens never flash the wrong theme.
   const [appearanceHydrated, setAppearanceHydrated] = useState(() => useAppearanceStore.persist.hasHydrated())
@@ -167,7 +169,7 @@ export default function RootLayout() {
 
   if (!shellReady) {
     return (
-      <View style={styles.boot}>
+      <View style={[styles.boot, { backgroundColor: pageTheme.page }]}>
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
     )
@@ -186,7 +188,7 @@ export default function RootLayout() {
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
+              contentStyle: { backgroundColor: pageTheme.page },
               animation: "slide_from_right",
               animationDuration: 220,
             }}

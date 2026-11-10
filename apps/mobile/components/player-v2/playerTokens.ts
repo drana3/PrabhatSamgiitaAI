@@ -105,16 +105,16 @@ export const playerColors = {
 /** Karaoke word / translation colours by state (.kw, .kw.past, .kl-on, .sung, .now, .ktr). */
 export const karaokeColors = {
   word: {
-    coming: "rgba(255, 255, 255, 0.4)",
+    coming: "rgba(255, 255, 255, 0.62)",
     past: "rgba(255, 255, 255, 0.7)",
-    onLine: "rgba(255, 255, 255, 0.66)",
+    onLine: "rgba(255, 255, 255, 0.8)",
     sung: "#FFFFFF",
     now: amColors.gold300,
   },
   translation: {
-    coming: "rgba(255, 255, 255, 0.46)",
-    past: "rgba(255, 255, 255, 0.5)",
-    onLine: "rgba(255, 255, 255, 0.86)",
+    coming: "rgba(255, 255, 255, 0.68)",
+    past: "rgba(255, 255, 255, 0.68)",
+    onLine: "rgba(255, 255, 255, 0.92)",
   },
 } as const
 

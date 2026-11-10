@@ -6,6 +6,7 @@ import { AccountField } from "@/components/account/AccountUi"
 import { KPress } from "@/components/kirtan/KPress"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { switchTrackOff } from "@/lib/controlColors"
 import { authorShareUrl } from "@/lib/authors/constants"
 import { ABOUT_MAX, BIO_MAX, LINK_KINDS, MAX_LINKS, NAME_MAX, PLACE_MAX, PROFILE_LANGUAGES, SHOW_PAGE_LINK, SLUG_MAX } from "@/lib/authors/constants"
 import { type Draft, type DraftErrors, settleSlug, withName, withSlug } from "@/lib/authors/draft"
@@ -366,7 +367,7 @@ export function UploadChoices({ theme, draft, onChange }: { theme: SongsTheme; d
           accessibilityLabel={t("authors.form.showStats")}
           value={draft.showStats}
           onValueChange={(v) => onChange({ ...draft, showStats: v })}
-          trackColor={{ true: theme.brand, false: theme.line }}
+          trackColor={{ true: theme.brand, false: switchTrackOff(theme) }}
           thumbColor="#FFFFFF"
           {...WEB_THUMB}
         />

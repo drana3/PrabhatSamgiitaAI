@@ -17,7 +17,8 @@ import { PressScale } from "@/components/today/motion"
 import { amSpring } from "@/constants/tokens/amMotion"
 import { amRadius, amTouchTarget } from "@/constants/tokens/amSpacing"
 import { amType, amFonts } from "@/constants/tokens/amTypography"
-import type { AmTheme } from "@/constants/tokens/amColors"
+import { amSheetScrim, type AmTheme } from "@/constants/tokens/amColors"
+import { useResolvedAppearance } from "@/hooks/useAmTheme"
 import { useCoverWhile } from "@/lib/sheetCover"
 import { backdropOpacity, settleSheet, sheetOffset } from "@/lib/assistantSheetPhysics"
 import { useT } from "@/lib/i18n"
@@ -133,8 +134,9 @@ export function SpringSheet({ visible, onClose, title, theme, surface, edge, hea
     opacity: reduce ? fade.value : 1,
     transform: [{ translateY: translateY.value }],
   }))
+  const scrimMax = useResolvedAppearance() === "dark" ? amSheetScrim.dark : amSheetScrim.light
   const backdropStyle = useAnimatedStyle(() => ({
-    opacity: reduce ? fade.value * 0.4 : backdropOpacity(translateY.value, height.value),
+    opacity: reduce ? fade.value * scrimMax : backdropOpacity(translateY.value, height.value, scrimMax),
   }))
 
   const onLayout = (event: LayoutChangeEvent) => {
@@ -146,7 +148,7 @@ export function SpringSheet({ visible, onClose, title, theme, surface, edge, hea
   return (
     <Modal transparent visible animationType="none" onRequestClose={dismiss} statusBarTranslucent navigationBarTranslucent>
       <GestureHandlerRootView style={styles.fill}>
-        <Animated.View style={[styles.backdrop, { backgroundColor: theme.textHeading }, backdropStyle]} />
+        <Animated.View style={[styles.backdrop, { backgroundColor: amSheetScrim.color }, backdropStyle]} />
         <Pressable
           style={styles.fill}
           onPress={dismiss}

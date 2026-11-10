@@ -9,6 +9,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { controlBorder } from "@/lib/controlColors"
 import { useT } from "@/lib/i18n"
 import { WORD_MAX } from "@/lib/kirtan/instruments"
 import { addOwnTag, canAddOwn, chipsOf, filterOptions, fitRailChips, removeOwnTag, tagCount, TAGS_MAX, toggleTag, type TagProblem, type TagValue } from "@/lib/kirtan/tags"
@@ -126,7 +127,7 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
         disabled={disabled}
         onPress={() => setOpen(true)}
         pressedScale={0.98}
-        style={[s.rail, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : theme.line }]}
+        style={[s.rail, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : controlBorder(theme) }]}
       >
         {single ? (
           <>
@@ -169,7 +170,7 @@ export function TagPicker({ theme, label, hint, required, invalid, errorText, di
 
       <SpringSheet visible={open} onClose={close} title={label} theme={am}>
         <View style={[s.sheetBody, { paddingBottom: keyboard }]}>
-          <View style={[s.search, { backgroundColor: theme.card, borderColor: theme.line }]}>
+          <View style={[s.search, { backgroundColor: theme.card, borderColor: controlBorder(theme) }]}>
             <Search size={18} color={theme.textMuted} />
             <TextInput
               value={query}
@@ -238,13 +239,13 @@ export function Row({ theme, label, on, note, plus, disabled, onPress, a11yLabel
       disabled={disabled}
       onPress={onPress}
       pressedScale={0.98}
-      style={[s.row, { borderColor: on ? theme.brand : theme.line, backgroundColor: theme.card, opacity: disabled ? 0.45 : 1 }]}
+      style={[s.row, { borderColor: on ? theme.brand : controlBorder(theme), backgroundColor: theme.card, opacity: disabled ? 0.45 : 1 }]}
     >
       <View style={s.rowText}>
         <Text style={[s.rowLabel, { color: theme.textHeading, fontFamily: on ? amFonts.bold : amFonts.semi }]}>{label}</Text>
         {note ? <Text style={[s.rowNote, { color: theme.textBody }]}>{note}</Text> : null}
       </View>
-      <View style={[s.tick, on ? { backgroundColor: theme.brand, borderColor: theme.brand } : { borderColor: theme.line }]}>{on ? <Check size={16} color={theme.onBrand} /> : plus ? <Plus size={16} color={theme.textHeading} /> : null}</View>
+      <View style={[s.tick, on ? { backgroundColor: theme.brand, borderColor: theme.brand } : { borderColor: controlBorder(theme) }]}>{on ? <Check size={16} color={theme.onBrand} /> : plus ? <Plus size={16} color={theme.textHeading} /> : null}</View>
     </Press>
   )
 }

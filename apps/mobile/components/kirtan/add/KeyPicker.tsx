@@ -7,6 +7,7 @@ import { Row, pickerStyles as s, useKeyboardHeight } from "@/components/kirtan/a
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { controlBorder } from "@/lib/controlColors"
 import { useT } from "@/lib/i18n"
 import { keyRailText, keyRows, type KeyOption } from "@/lib/kirtan/keyPicker"
 
@@ -70,7 +71,7 @@ export function KeyPicker({ theme, label, explain, options, value, onChange, non
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(true)}
         pressedScale={0.98}
-        style={[s.rail, { backgroundColor: theme.card, borderColor: theme.line }]}
+        style={[s.rail, { backgroundColor: theme.card, borderColor: controlBorder(theme) }]}
       >
         <View style={s.railChips}>
           {value ? (
@@ -93,7 +94,7 @@ export function KeyPicker({ theme, label, explain, options, value, onChange, non
       <SpringSheet visible={open} onClose={close} title={label} theme={am}>
         <View style={[s.sheetBody, { paddingBottom: keyboard }]}>
           <Text style={[s.hint, { color: theme.textBody }]}>{explain}</Text>
-          <View style={[s.search, { backgroundColor: theme.card, borderColor: theme.line }]}>
+          <View style={[s.search, { backgroundColor: theme.card, borderColor: controlBorder(theme) }]}>
             <Search size={18} color={theme.textMuted} />
             <TextInput
               value={query}

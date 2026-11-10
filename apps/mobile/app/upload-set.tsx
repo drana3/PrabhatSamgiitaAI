@@ -9,6 +9,7 @@ import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { KindField } from "@/components/kirtan/add/KindField"
 import { PracticeField } from "@/components/kirtan/add/PracticeField"
 import { DanceField, PerformanceField, TempoField } from "@/components/kirtan/add/SoundFields"
+import { controlBorder } from "@/lib/controlColors"
 import { kindHasInstrument } from "@/lib/kirtan/instruments"
 import { kindHasByAuthor, kindHasPerformance, kindHasRecordingType } from "@/lib/kirtan/recordingInfo"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
@@ -354,7 +355,7 @@ export default function UploadSetScreen() {
             <Text style={[styles.hint, { color: theme.textBody }]}>{t("set.draft.row", { title: t(`set.status.${setState(d)}`), count: c.total })}</Text>
             <View style={styles.cardActions}>
               <Primary theme={theme} label={t("set.draft.continue")} onPress={() => setActiveId(d.id)} grow />
-              <KPress accessibilityRole="button" accessibilityLabel={t("set.draft.discard")} onPress={() => confirmDiscard(d.id)} pressedScale={0.97} style={[styles.secondary, { borderColor: theme.line, backgroundColor: theme.card }]}>
+              <KPress accessibilityRole="button" accessibilityLabel={t("set.draft.discard")} onPress={() => confirmDiscard(d.id)} pressedScale={0.97} style={[styles.secondary, { borderColor: controlBorder(theme), backgroundColor: theme.card }]}>
                 <Text style={[styles.secondaryText, { color: theme.dangerText }]}>{t("set.draft.discard")}</Text>
               </KPress>
             </View>
@@ -368,7 +369,7 @@ export default function UploadSetScreen() {
           setActiveId(store().begin())
         }}
         pressedScale={0.98}
-        style={[styles.secondary, { borderColor: theme.line, backgroundColor: theme.card }]}
+        style={[styles.secondary, { borderColor: controlBorder(theme), backgroundColor: theme.card }]}
       >
         <Text style={[styles.secondaryText, { color: theme.textHeading }]}>{t("set.draft.new")}</Text>
       </KPress>
@@ -645,7 +646,7 @@ export default function UploadSetScreen() {
                 setTried(false)
               }}
               pressedScale={0.98}
-              style={[styles.secondary, { borderColor: theme.line, backgroundColor: theme.card }]}
+              style={[styles.secondary, { borderColor: controlBorder(theme), backgroundColor: theme.card }]}
             >
               <Text style={[styles.secondaryText, { color: theme.textHeading }]}>{t("set.up.another")}</Text>
             </KPress>
@@ -677,7 +678,7 @@ export default function UploadSetScreen() {
               </Text>
             ) : null}
             {retryable > 0 && !running ? (
-              <KPress accessibilityRole="button" accessibilityLabel={t("set.up.retryAll")} onPress={() => void store().retryAll(d.id)} pressedScale={0.98} style={[styles.secondary, { borderColor: theme.line, backgroundColor: theme.card }]}>
+              <KPress accessibilityRole="button" accessibilityLabel={t("set.up.retryAll")} onPress={() => void store().retryAll(d.id)} pressedScale={0.98} style={[styles.secondary, { borderColor: controlBorder(theme), backgroundColor: theme.card }]}>
                 <Text style={[styles.secondaryText, { color: theme.textHeading }]}>{t("set.up.retryAll")}</Text>
               </KPress>
             ) : null}

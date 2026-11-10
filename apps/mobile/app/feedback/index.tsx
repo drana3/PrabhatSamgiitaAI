@@ -12,6 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { switchTrackOff } from "@/lib/controlColors"
 import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { FieldLabel, KindPicker, SongPicker, TextBox } from "@/components/feedback/FeedbackParts"
 import { SpIcon } from "@/components/song-v2/SpIcon"
@@ -221,7 +222,7 @@ export default function FeedbackScreen() {
               onValueChange={setIncludeApp}
               disabled={busy}
               accessibilityLabel={t("feedback.includeApp")}
-              trackColor={{ false: theme.line, true: theme.brand }}
+              trackColor={{ false: switchTrackOff(theme), true: theme.brand }}
               thumbColor={amColors.white}
               // react-native-web draws the thumb with activeThumbColor (teal by default)
               {...({ activeThumbColor: amColors.white } as object)}

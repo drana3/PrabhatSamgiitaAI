@@ -5,6 +5,7 @@ import { KindMark } from "@/components/listening/KindMark"
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { switchTrackOff } from "@/lib/controlColors"
 import type { HistoryEntry } from "@/lib/listening/history"
 import { historySubline, historyTime } from "@/lib/listening/labels"
 import { useT } from "@/lib/i18n"
@@ -64,7 +65,7 @@ export function PauseRow({ theme, paused, onChange }: { theme: SongsTheme; pause
         accessibilityLabel={t("history.pause")}
         value={paused}
         onValueChange={onChange}
-        trackColor={{ false: theme.line, true: theme.brand }}
+        trackColor={{ false: switchTrackOff(theme), true: theme.brand }}
         thumbColor={theme.onBrand}
       />
     </View>

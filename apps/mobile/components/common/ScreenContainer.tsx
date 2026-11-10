@@ -7,6 +7,7 @@ import { IconButton } from "@/components/common/IconButton"
 import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { useAmTheme } from "@/hooks/useAmTheme"
 
 type Props = ViewProps & {
   edges?: ("top" | "right" | "bottom" | "left")[]
@@ -16,6 +17,11 @@ type Props = ViewProps & {
   showBack?: boolean
   /** @deprecated Guru chrome removed — kept for call-site compatibility. */
   showGuru?: boolean
+  /**
+   * Take the page, header and text colours from the app theme (Light / Dark / Auto, `useAmTheme`)
+   * instead of the old fixed light palette. Off by default so the other screens look as before.
+   */
+  themed?: boolean
 }
 
 export function ScreenContainer({
@@ -27,26 +33,35 @@ export function ScreenContainer({
   subtitle,
   showBack = Boolean(title),
   showGuru: _showGuru = false,
+  themed = false,
   ...rest
 }: Props) {
   const router = useRouter()
+  const theme = useAmTheme()
 
   return (
-    <SafeAreaView edges={edges} style={[styles.safe, style]} {...rest}>
+    <SafeAreaView edges={edges} style={[styles.safe, themed && { backgroundColor: theme.page }, style]} {...rest}>
       {title ? (
         <View style={[styles.header, !padded && styles.headerGutter]}>
           {showBack ? (
-            <IconButton soft accessibilityLabel="Go back" onPress={() => router.back()}>
-              <ChevronLeft size={22} color={colors.textPrimary} />
+            <IconButton
+              soft
+              accessibilityLabel="Go back"
+              onPress={() => router.back()}
+              style={themed ? { backgroundColor: theme.inner } : undefined}
+            >
+              <ChevronLeft size={22} color={themed ? theme.textHeading : colors.textPrimary} />
             </IconButton>
           ) : (
             <View style={styles.headerSpacer} />
           )}
           <View style={styles.headerCopy}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <Text style={[styles.headerTitle, themed && { color: theme.textHeading }]} numberOfLines={1}>
               {title}
             </Text>
-            {subtitle ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : null}
+            {subtitle ? (
+              <Text style={[styles.headerSubtitle, themed && { color: theme.textBody }]}>{subtitle}</Text>
+            ) : null}
           </View>
           <View style={styles.headerSpacer} />
         </View>

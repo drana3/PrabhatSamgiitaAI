@@ -14,6 +14,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useAuthorRequest } from "@/hooks/useAuthorRequest"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { switchTrackOff } from "@/lib/controlColors"
 import { authorsApi } from "@/lib/authors/api"
 import { isSignedIn } from "@/lib/authors/session"
 import { ADD_PLAYLIST_HREF, ADD_RECORDING_HREF, AUTHORS_HREF, AUTHOR_EDIT_HREF, BECOME_AUTHOR_HREF, SHOW_PAGE_LINK, authorHref, authorShareUrl } from "@/lib/authors/constants"
@@ -222,7 +223,7 @@ function RecordingsSection({ profile, flash }: { profile: AuthorProfileOwner; fl
               accessibilityLabel={t("authors.mine.recordings.switchA11y", { title: row.recording.title })}
               value={row.shown}
               onValueChange={(v) => void toggle(row, v)}
-              trackColor={{ true: theme.brand, false: theme.line }}
+              trackColor={{ true: theme.brand, false: switchTrackOff(theme) }}
               thumbColor="#FFFFFF"
               {...WEB_THUMB}
             />

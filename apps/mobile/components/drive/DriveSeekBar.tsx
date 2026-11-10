@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native"
 
-import { colors } from "@/constants/colors"
+import { amColors } from "@/constants/tokens/amColors"
 
 type Props = {
   position: number
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: colors.primaryLight,
+    backgroundColor: amColors.orange100,
     borderRadius: 3,
   },
   thumb: {
@@ -74,8 +74,8 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.white,
+    backgroundColor: amColors.white,
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: amColors.orange500,
   },
 })

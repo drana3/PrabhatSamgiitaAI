@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   abOuter: { flex: 1 },
   ab: { height: 68, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center", gap: 2 },
   abLabel: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 18 },
-  abTime: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 14, opacity: 0.75 },
+  abTime: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 14 },
   done: { padding: 25, borderRadius: 30, gap: 12, backgroundColor: amColors.sage900, overflow: "hidden", width: "100%" },
   doneText: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 21.6, color: "rgba(255,255,255,0.82)", maxWidth: 252 },
 })

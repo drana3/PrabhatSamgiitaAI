@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useFocusEffect } from "expo-router"
 import {
   ActivityIndicator,
@@ -22,10 +22,11 @@ import { DriveReorderableQueue } from "@/components/drive/DriveReorderableQueue"
 import { RadioCategoryStrip } from "@/components/radio/RadioCategoryStrip"
 import { useRadioPools } from "@/hooks/useRadioPools"
 import { PlaylistSyncBar } from "@/components/playlists/PlaylistSyncBar"
-import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { amColors, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
+import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { useT } from "@/lib/i18n"
 import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
 import { playPlaylist } from "@/lib/playPlaylist"
@@ -40,6 +41,9 @@ import { useAuthStore } from "@/stores/authStore"
 
 export default function DriveScreen() {
   const t = useT()
+  const theme = useAmTheme()
+  const dark = useResolvedAppearance() === "dark"
+  const styles = useMemo(() => makeStyles(theme), [theme])
   useExitDriveOnBlur()
   const mode = useAuthStore((s) => s.mode)
   const playlists = usePlaylistStore((s) => s.playlists)
@@ -191,7 +195,7 @@ export default function DriveScreen() {
   )
 
   return (
-    <ScreenContainer edges={["top"]} title={t("radio.title")} subtitle={t("radio.subtitle")}>
+    <ScreenContainer themed edges={["top"]} title={t("radio.title")} subtitle={t("radio.subtitle")}>
       <PlaylistSyncBar />
       <NestableScrollContainer
         style={styles.scroll}
@@ -211,13 +215,13 @@ export default function DriveScreen() {
           ]}
         >
           <LinearGradient
-            colors={[colors.primaryLight, colors.surface]}
+            colors={[dark ? amDarkSurface.peach : amColors.orange100, theme.card]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.modeIcon}>
-            <Shuffle size={22} color={colors.primaryDark} />
+            <Shuffle size={22} color={theme.accentText} />
           </View>
           <Text style={styles.modeTitle}>{radioChosen.length === 1 && radioChosen[0] === "prabhat_samgiita" ? t("radio.random.title") : t("radio.mix.title")}</Text>
           <Text style={styles.modeBody}>
@@ -226,7 +230,7 @@ export default function DriveScreen() {
               : t("radio.random.idle")}
           </Text>
           {startingRandom ? (
-            <ActivityIndicator style={styles.modeSpinner} color={colors.primary} />
+            <ActivityIndicator style={styles.modeSpinner} color={theme.accentBright} />
           ) : null}
         </Pressable>
 
@@ -243,7 +247,7 @@ export default function DriveScreen() {
           ]}
         >
           <View style={styles.modeIcon}>
-            <ListMusic size={22} color={colors.primaryDark} />
+            <ListMusic size={22} color={theme.accentText} />
           </View>
           <Text style={styles.modeTitle}>{t("radio.list.title")}</Text>
           <Text style={styles.modeBody}>
@@ -285,7 +289,7 @@ export default function DriveScreen() {
           </>
         ) : (
           <View style={styles.hint}>
-            <Car size={18} color={colors.textMuted} />
+            <Car size={18} color={theme.textMuted} />
             <Text style={styles.hintText}>{t("radio.starting")}</Text>
           </View>
         )}
@@ -294,35 +298,35 @@ export default function DriveScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AmTheme) => StyleSheet.create({
   scroll: { flex: 1 },
   content: { gap: spacing.md, paddingBottom: 160 },
   modeCard: {
     minHeight: 120,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.line,
     padding: spacing.lg,
     overflow: "hidden",
-    backgroundColor: colors.surface,
+    backgroundColor: theme.card,
     ...(Platform.OS === "android" ? { elevation: 0 } : softShadow(1)),
   },
   pressed: { opacity: 0.94 },
   modeCardActive: {
-    borderColor: colors.primary,
+    borderColor: theme.controlOn,
     borderWidth: 2,
   },
   modeIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.card,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.sm,
   },
-  modeTitle: { fontFamily: "Lora_700Bold", fontSize: 22, lineHeight: 28, color: colors.textPrimary },
-  modeBody: { ...typography.bodySmall, color: colors.textSecondary, marginTop: spacing.xs },
+  modeTitle: { fontFamily: "Lora_700Bold", fontSize: 22, lineHeight: 28, color: theme.textHeading },
+  modeBody: { ...typography.bodySmall, color: theme.textBody, marginTop: spacing.xs },
   modeSpinner: { marginTop: spacing.sm, alignSelf: "flex-start" },
   hint: {
     flexDirection: "row",
@@ -331,7 +335,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: theme.inner,
   },
-  hintText: { ...typography.bodySmall, color: colors.textSecondary, flex: 1 },
+  hintText: { ...typography.bodySmall, color: theme.textBody, flex: 1 },
 })

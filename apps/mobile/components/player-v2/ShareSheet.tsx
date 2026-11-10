@@ -360,7 +360,7 @@ function ColourDot({
       style={styles.dotHitInner}
     >
       <View style={[styles.dotRing, { borderColor: selected ? ring : "transparent" }]}>
-        <View style={[styles.dot, { borderColor: selected ? amColors.white : "rgba(128,128,128,0.35)", borderWidth: selected ? 2 : 1 }]}>
+        <View style={[styles.dot, { borderColor: selected ? amColors.white : amColors.stone500, borderWidth: selected ? 2 : 1 }]}>
           {id === "photo" && thumb != null ? (
             <Image source={thumb} contentFit="cover" style={StyleSheet.absoluteFill} />
           ) : (

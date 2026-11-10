@@ -212,6 +212,8 @@ export const amDark: AmTheme = {
  * title block, `top` behind top-left labels. Chips on photos are neutral only (`amPhotoChip`).
  */
 export const amScrimPhoto = ["rgba(0,0,0,0)", "rgba(0,0,0,0.72)"] as const
+/** Dim behind a bottom sheet: black, so a sheet darkens the page in Dark too (the heading colour is cream there and lightened it). */
+export const amSheetScrim = { color: "#000000", light: 0.4, dark: 0.6 } as const
 export const amScrimPhotoTop = ["rgba(0,0,0,0.45)", "rgba(0,0,0,0)"] as const
 
 /**

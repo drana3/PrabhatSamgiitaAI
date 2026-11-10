@@ -41,6 +41,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useFormFocus } from "@/lib/forms/useFormFocus"
+import { controlBorder } from "@/lib/controlColors"
 import { formatDate, useT } from "@/lib/i18n"
 import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage, normalizeKind, typesOfKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
@@ -764,7 +765,7 @@ function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMe
       {has.place ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.place.label")}</Text>
-          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
+          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: controlBorder(theme) }]}>
             <TextInput value={draft.place} onChangeText={(text) => setDraft({ place: fixKiirtanSpelling(text) })} onBlur={() => setDraft({ place: fixKiirtanSpelling(draft.place) })} editable={!locked} placeholder={t("rec.place.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.place.label")} maxLength={200} style={[styles.input, { color: theme.textHeading }]} />
           </View>
         </>
@@ -772,7 +773,7 @@ function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMe
       {has.discourse ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.discourse.label")}</Text>
-          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
+          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: controlBorder(theme) }]}>
             <TextInput value={draft.discourse} onChangeText={(text) => setDraft({ discourse: text })} editable={!locked} placeholder={t("rec.discourse.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.discourse.label")} maxLength={200} style={[styles.input, { color: theme.textHeading }]} />
           </View>
         </>
@@ -780,7 +781,7 @@ function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMe
       {has.credits ? (
         <>
           <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.credits.label")}</Text>
-          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line }]}>
+          <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: controlBorder(theme) }]}>
             <TextInput value={draft.credits} onChangeText={(text) => setDraft({ credits: text })} editable={!locked} placeholder={t("rec.credits.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.credits.label")} maxLength={300} style={[styles.input, { color: theme.textHeading }]} />
           </View>
         </>
@@ -793,7 +794,7 @@ function MoreDetails({ theme, kind, locked, yearInvalid, yearMessage, languageMe
         <FieldError theme={theme} text={yearMessage} />
       </View>
       <Text style={[styles.label, { color: theme.textHeading }]}>{t("rec.notes.label")}</Text>
-      <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: theme.line, alignItems: "flex-start" }]}>
+      <View style={[styles.inputBox, { backgroundColor: theme.card, borderColor: controlBorder(theme), alignItems: "flex-start" }]}>
         <TextInput value={draft.notes} onChangeText={(text) => setDraft({ notes: text })} editable={!locked} placeholder={t("rec.notes.placeholder")} placeholderTextColor={theme.textMuted} accessibilityLabel={t("rec.notes.label")} maxLength={200} multiline style={[styles.input, styles.notes, { color: theme.textHeading }]} />
       </View>
     </View>

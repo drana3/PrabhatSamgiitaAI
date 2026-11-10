@@ -1,12 +1,14 @@
+import { useMemo } from "react"
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 
 import { collectionCount } from "@/data/collections"
 import { BabaPhoto } from "@/components/common/BabaPhoto"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { guruCaption } from "@/constants/brand"
-import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import type { AmTheme } from "@/constants/tokens/amColors"
+import { useAmTheme } from "@/hooks/useAmTheme"
 import { useT } from "@/lib/i18n"
 import { copyrightEmail } from "@/lib/contactEmail"
 import { takedownUrl } from "@/lib/webLinks"
@@ -16,8 +18,10 @@ import { takedownUrl } from "@/lib/webLinks"
  */
 export default function AboutScreen() {
   const t = useT()
+  const theme = useAmTheme()
+  const styles = useMemo(() => makeStyles(theme), [theme])
   return (
-    <ScreenContainer edges={["top"]} padded={false} title={t("about.title")} showGuru={false}>
+    <ScreenContainer themed edges={["top"]} padded={false} title={t("about.title")} showGuru={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <BabaPhoto
           id="quote"
@@ -65,7 +69,7 @@ export default function AboutScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AmTheme) => StyleSheet.create({
   content: {
     paddingBottom: spacing.section,
     paddingTop: spacing.sm,
@@ -78,12 +82,12 @@ const styles = StyleSheet.create({
     fontFamily: "Lora_700Bold",
     fontSize: 22,
     lineHeight: 28,
-    color: colors.textPrimary,
+    color: theme.textHeading,
     paddingHorizontal: spacing.lg,
   },
   role: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: theme.textBody,
     marginTop: 4,
     marginBottom: spacing.xl,
     paddingHorizontal: spacing.lg,
@@ -91,36 +95,36 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: "Lora_700Bold",
     fontSize: 28,
-    color: colors.textPrimary,
+    color: theme.textHeading,
     paddingHorizontal: spacing.lg,
   },
   body: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: theme.textBody,
     marginTop: spacing.md,
     paddingHorizontal: spacing.lg,
   },
   card: {
     marginTop: spacing.xxl,
     marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.card,
     borderRadius: radius.xl,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.line,
   },
   cardTitle: {
     ...typography.h3,
-    color: colors.textPrimary,
+    color: theme.textHeading,
     marginBottom: spacing.md,
   },
   link: {
-    color: colors.textPrimary,
+    color: theme.textHeading,
     textDecorationLine: "underline",
   },
   bullet: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.textBody,
     marginBottom: spacing.sm,
   },
 })

@@ -10,6 +10,7 @@ import { amColors } from "@/constants/tokens/amColors"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { controlBorder } from "@/lib/controlColors"
 import { useT } from "@/lib/i18n"
 import { choiceLabel, choiceRailText, choiceRowA11y, choiceRows, pickChoice, rowIsOn, type ChoiceOption } from "@/lib/kirtan/choiceField"
 
@@ -93,7 +94,7 @@ export function ChoiceField({ theme, label, hint, options, value, onChange, requ
           disabled={disabled}
           onPress={() => setOpen(true)}
           pressedScale={0.96}
-          style={[s.pill, { backgroundColor: chosen ? theme.peach : theme.card, borderColor: invalid ? amColors.danger : chosen ? theme.peach : theme.line }]}
+          style={[s.pill, { backgroundColor: chosen ? theme.peach : theme.card, borderColor: invalid ? amColors.danger : chosen ? theme.peach : controlBorder(theme) }]}
         >
           <Text numberOfLines={1} style={[s.pillText, { color: chosen ? theme.accent : theme.textHeading }]}>
             {chosen ?? t("picker.choose")}
@@ -115,7 +116,7 @@ export function ChoiceField({ theme, label, hint, options, value, onChange, requ
         disabled={disabled}
         onPress={() => setOpen(true)}
         pressedScale={0.98}
-        style={[s.rail, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : theme.line }]}
+        style={[s.rail, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : controlBorder(theme) }]}
       >
         <View style={s.text}>
           <View style={s.head}>

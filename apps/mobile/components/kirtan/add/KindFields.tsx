@@ -13,6 +13,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { protoFor, type AmProto } from "@/constants/tokens/amToday"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { controlBorder } from "@/lib/controlColors"
 import { useT } from "@/lib/i18n"
 import { kindHasLanguage, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import { NEW_WORDS_PER_WEEK } from "@/lib/kirtan/instruments"
@@ -31,7 +32,7 @@ export function RequiredMark({ theme, required, invalid }: { theme: SongsTheme; 
   const t = useT()
   if (!required) return <Text style={[styles.optional, { color: theme.textMuted }]}>{t("rec.optional")}</Text>
   return (
-    <View style={[styles.requiredPill, { backgroundColor: invalid ? amColors.danger : theme.peach }]}>
+    <View style={[styles.requiredPill, { backgroundColor: invalid ? amColors.dangerText : theme.peach }]}>
       <Text style={[styles.requiredText, { color: invalid ? "#FFFFFF" : theme.accent }]}>{t("rec.required")}</Text>
     </View>
   )
@@ -69,7 +70,7 @@ export function LanguageField({ theme, kind, value, onOpen, invalid, errorText, 
         accessibilityState={{ disabled: !!disabled }}
         onPress={() => !disabled && onOpen()}
         pressedScale={0.99}
-        style={[styles.box, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : theme.line }]}
+        style={[styles.box, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : controlBorder(theme) }]}
       >
         <Text style={[styles.boxText, { color: label ? theme.textHeading : theme.textBody }]} numberOfLines={1}>
           {label || t("rec.lang.none")}

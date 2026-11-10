@@ -169,7 +169,7 @@ export function HomeTodayCard({
   return (
     <View style={[s.today, { backgroundColor: p.sage900 }]}>
       <Image source={photo.cover} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="center" accessibilityIgnoresInvertColors />
-      <LinearGradient pointerEvents="none" colors={[amScrimPhotoTop[0], amScrimPhotoTop[1], amScrimPhoto[1]]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+      <LinearGradient pointerEvents="none" colors={[amScrimPhoto[1], amScrimPhotoTop[1], amScrimPhoto[1]]} locations={[0, 0.35, 1]} style={StyleSheet.absoluteFill} />
       <View style={s.todayTop}>
         {/* the date gives way to the chip: one line, shrinking a little before it would wrap ("ВОСКРЕСЕНЬЕ · 1 / НОЯБРЯ") */}
         <Text style={[overStyle, s.todayDate, { color: "#FFFFFF" }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>

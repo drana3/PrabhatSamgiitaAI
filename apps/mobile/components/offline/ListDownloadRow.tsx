@@ -10,6 +10,7 @@ import { amSpring } from "@/constants/tokens/amMotion"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useListDownload } from "@/hooks/useListDownload"
+import { controlBorder } from "@/lib/controlColors"
 import { listDownloadLabel, listDownloadSub, listDownloadTitle } from "@/lib/offline/downloadModel"
 import { useLanguage } from "@/lib/i18n"
 
@@ -33,7 +34,7 @@ export function Switch({ on, theme }: { on: boolean; theme: SongsTheme }) {
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * (TRACK_W - THUMB - 6) }] }))
   const trackOn = useAnimatedStyle(() => ({ opacity: x.value }))
   return (
-    <View aria-hidden style={[styles.track, { backgroundColor: theme.inner, borderColor: theme.line }]}>
+    <View aria-hidden style={[styles.track, { backgroundColor: theme.inner, borderColor: controlBorder(theme) }]}>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: theme.brand, borderRadius: TRACK_H / 2 }, trackOn]} />
       <Animated.View style={[styles.thumb, { backgroundColor: on ? amColors.white : theme.textBody }, thumb]} />
     </View>
