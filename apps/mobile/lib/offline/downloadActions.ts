@@ -2,6 +2,7 @@ import { AppState } from "react-native"
 import { create } from "zustand"
 
 import { kiirtanSongForNumber, isKiirtanNumber } from "@/lib/kirtan/track"
+import { saveKiirtanOnDownload } from "@/lib/kirtan/downloadSaves"
 import {
   activeDownloadUrlForSong,
   ensureOfflineAudioReady,
@@ -193,6 +194,7 @@ function pump() {
 export function startDownload(item: DownloadItem): void {
   if (!requireSignIn()) return
   if (!itemHasAudio(item)) return
+  saveKiirtanOnDownload(item) // a download is a save: Saved and Downloaded are one list
   void runOne(item).then((ok) => {
     if (ok) return
     const reason = reasonOf([item])
@@ -296,6 +298,7 @@ export function startMany(items: readonly DownloadItem[]): void {
   if (!requireSignIn()) return
   const audible = items.filter(itemHasAudio)
   if (!audible.length) return
+  audible.forEach(saveKiirtanOnDownload)
   if (MOCKUP_DATA) {
     // the preview runs them all at once, like its single downloads
     void Promise.all(audible.map(runOne)).then((results) => {

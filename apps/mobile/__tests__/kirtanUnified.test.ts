@@ -296,10 +296,12 @@ describe("jump back in and Kiirtan of the day", () => {
 })
 
 describe("Kiirtan tab", () => {
-  it("has the eleven sticky chips (All, the seven kinds, then the lists) and falls back to All", () => {
-    expect(KIRTAN_TAB_CHIPS.map((c) => c.label)).toEqual(["All", "Kiirtan", "Bhajan", "Prabhat Samgiita", "Spiritual song", "Dance music", "Others", "Baba's Discourses", "Saved", "Downloaded", "My uploads"])
-    expect(parseKirtanTabChip("mine")).toBe("mine")
-    expect(parseKirtanTabChip(["saved"])).toBe("saved")
+  it("has the seven sticky chips (All and the six kinds, no Prabhat Samgiita, no list chips) and falls back to All", () => {
+    expect(KIRTAN_TAB_CHIPS.map((c) => c.label)).toEqual(["All", "Kiirtan", "Bhajan", "Spiritual song", "Dance music", "Baba's Discourses", "Others"])
+    // the old list chips are links now, not chips: they open the list screen (see kiirtanHub.test.ts)
+    expect(parseKirtanTabChip("mine")).toBe("all")
+    expect(parseKirtanTabChip(["saved"])).toBe("all")
+    expect(parseKirtanTabChip("bhajan")).toBe("bhajan")
     expect(parseKirtanTabChip("zzz")).toBe("all")
     expect(parseKirtanTabChip(undefined)).toBe("all")
   })

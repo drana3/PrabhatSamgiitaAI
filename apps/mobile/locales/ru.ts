@@ -8,6 +8,7 @@ import { recordingChartsRu } from "./recordingCharts"
 import { chordInstrumentsRu } from "./chordInstruments"
 import { choiceFieldRu } from "./choiceField"
 import { playlistsLibraryRu } from "./playlistsLibrary"
+import { kiirtanHubRu } from "./kiirtanHub"
 import { onboardingRu } from "./onboarding"
 import { keyPickerRu } from "./keyPicker"
 import { recordingCycleRu } from "./recordingCycle"
@@ -1427,6 +1428,7 @@ export const ru: Dictionary = {
   ...chordInstrumentsRu,
   ...keyPickerRu,
   ...choiceFieldRu,
+  ...kiirtanHubRu,
   ...onboardingRu,
 }
   ...playlistsLibraryRu,

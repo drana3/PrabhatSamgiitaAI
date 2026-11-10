@@ -158,9 +158,10 @@ describe("filtering by kind", () => {
     expect(kindOfTabChip("all")).toBe("all")
     expect(kindOfTabChip("kiirtan")).toBe("kiirtan")
     expect(kindOfTabChip("bhajan")).toBe("bhajan")
-    for (const chip of ["saved", "downloaded", "mine"] as const) {
-      expect(kindOfTabChip(chip)).toBe("all")
+    // Saved, Downloaded and My uploads left the row (Dada, 10 Nov 2026): the old words are no chip, and an old link falls back to All
+    for (const chip of ["saved", "downloaded", "mine", "prabhat_samgiita"]) {
       expect(isShelfChip(chip)).toBe(false)
+      expect(parseKirtanTabChip(chip)).toBe("all")
     }
     expect(isShelfChip("bhajan")).toBe(true)
     expect(parseKirtanTabChip("bhajan")).toBe("bhajan")

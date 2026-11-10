@@ -7,6 +7,7 @@ import { recordingChartsEn } from "./recordingCharts"
 import { chordInstrumentsEn } from "./chordInstruments"
 import { choiceFieldEn } from "./choiceField"
 import { playlistsLibraryEn } from "./playlistsLibrary"
+import { kiirtanHubEn } from "./kiirtanHub"
 import { onboardingEn } from "./onboarding"
 import { keyPickerEn } from "./keyPicker"
 import { recordingCycleEn } from "./recordingCycle"
@@ -1347,6 +1348,7 @@ export const en = {
   ...chordInstrumentsEn,
   ...keyPickerEn,
   ...choiceFieldEn,
+  ...kiirtanHubEn,
   ...onboardingEn,
 } as const
   ...playlistsLibraryEn,
