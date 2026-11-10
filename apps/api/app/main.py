@@ -60,7 +60,10 @@ async def _ensure_member_schema() -> None:
             )
         )
         await conn.execute(
-            text("CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin ON user_accounts (is_admin)")
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_user_accounts_is_admin "
+                "ON user_accounts (is_admin)"
+            )
         )
         await conn.execute(
             text(
@@ -75,13 +78,22 @@ async def _ensure_member_schema() -> None:
             )
         )
         await conn.execute(
-            text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS phone_e164 VARCHAR(20)")
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS phone_e164 VARCHAR(20)"
+            )
         )
         await conn.execute(
-            text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS phone_country_code VARCHAR(2)")
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS phone_country_code VARCHAR(2)"
+            )
         )
         await conn.execute(
-            text("ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ")
+            text(
+                "ALTER TABLE user_accounts "
+                "ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ"
+            )
         )
         await conn.execute(
             text(
