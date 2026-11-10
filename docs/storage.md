@@ -75,10 +75,31 @@ I may not create accounts or handle keys, so these steps are yours:
 4. Put the values in the API's environment (Azure Container App secrets): `RECORDING_STORAGE_BACKEND=s3`,
    `RECORDING_S3_ENDPOINT` (the `https://<account id>.r2.cloudflarestorage.com` address Cloudflare shows),
    `RECORDING_S3_BUCKET`, `RECORDING_S3_REGION=auto`, the two keys. Never in the repository, never in chat.
-5. For a fast public address (the CDN part) connect a custom domain to the bucket, for example
-   `audio.prabhatasamgiita.org`, and set `RECORDING_PUBLIC_BASE_URL` to it. Cloudflare then serves files
-   from its edge servers near the listener, free of egress charge. Without this the app signs a temporary
-   download link per play, which also works, only slower to start.
+5. Give the bucket a **public address** and set `RECORDING_PUBLIC_BASE_URL` to it. This one is required: the
+   address of every published recording is stored in the database as `<RECORDING_PUBLIC_BASE_URL>/<key>`,
+   and the API refuses to start the S3 backend without it (the error names the missing setting). Two ways:
+   connect a custom domain to the bucket, for example `audio.prabhatasamgiita.org` (fast: Cloudflare serves
+   files from its edge servers near the listener, free of egress charge), or switch on the bucket's
+   `r2.dev` public address in the Cloudflare dashboard (works at once, slower, rate-limited by Cloudflare; fine
+   for a first test). Uploads and server-side reads still use signed, short-lived links; only listening uses
+   the public address, so every file in this bucket is readable by anyone who knows its address.
+
+## Environment variable names (all of them)
+
+| Name | Meaning | Secret? |
+| --- | --- | --- |
+| `RECORDING_STORAGE_BACKEND` | `local` (default, a folder on the server) or `s3` | no |
+| `RECORDING_S3_ENDPOINT` | `https://<account id>.r2.cloudflarestorage.com` | no |
+| `RECORDING_S3_BUCKET` | bucket name | no |
+| `RECORDING_S3_REGION` | `auto` for R2 (default) | no |
+| `RECORDING_S3_ACCESS_KEY_ID` | R2 token, access key id | yes |
+| `RECORDING_S3_SECRET_ACCESS_KEY` | R2 token, secret | yes |
+| `RECORDING_PUBLIC_BASE_URL` | public address of the bucket, no trailing slash needed | no |
+| `RECORDING_LOCAL_DIR` | folder for the `local` backend | no |
+| `RECORDING_SIGNING_SECRET` | signs upload links for the `local` backend (not used with `s3`) | yes |
+
+Tests with a stand-in bucket that checks signatures like the real one (wrong key, expired link, changed
+address, wrong content type are all refused): `apps/api/tests/test_s3_fake_server.py`.
 
 ## How the existing files move (the migration)
 

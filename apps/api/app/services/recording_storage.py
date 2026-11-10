@@ -439,6 +439,9 @@ def get_recording_storage(settings: Settings | None = None) -> RecordingStorage:
                 ("RECORDING_S3_BUCKET", settings.recording_s3_bucket),
                 ("RECORDING_S3_ACCESS_KEY_ID", settings.recording_s3_access_key_id),
                 ("RECORDING_S3_SECRET_ACCESS_KEY", settings.recording_s3_secret_access_key),
+                # Stored in the database as the recording's address, so publishing cannot work
+                # without it. Better to stop at start than after the file is already uploaded.
+                ("RECORDING_PUBLIC_BASE_URL", settings.recording_public_base_url),
             )
             if not value
         ]
