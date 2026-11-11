@@ -19,7 +19,7 @@ const song: PdfSongInput = {
 
 describe("the song PDF", () => {
   it("has four layouts, and each one builds a page with the number, the title and the brand fonts", () => {
-    expect([...PDF_VARIANTS]).toEqual(["sheet", "study", "reader", "singing"])
+    expect([...PDF_VARIANTS]).toEqual(["sheet", "study", "reader", "singing", "projector"])
     for (const variant of PDF_VARIANTS) {
       const { html } = buildSongPdfHtml(song, { ...DEFAULT_PDF_OPTIONS, variant })
       expect(html, variant).toContain("№ 1")
@@ -127,5 +127,17 @@ describe("a language the app does not list", () => {
     const g = groupLanguages(["en", "fr", "xx"], [], "")
     expect(g.inSong.find((l) => l.code === "fr")).toMatchObject({ name: "French", native: "Français" })
     expect(g.inSong.find((l) => l.code === "xx")).toMatchObject({ name: "xx", native: "xx" })
+  })
+
+  it("makes projector slides: a cover, a slide per stanza, 16:9, type sized to the line", () => {
+    for (const theme of PDF_THEMES) {
+      const out = buildSongPdfHtml({ ...song, photo: "data:image/jpeg;base64,AAAA" }, { ...DEFAULT_PDF_OPTIONS, variant: "projector", theme })
+      expect(out.page, theme).toBe("stage")
+      expect(out.html, theme).toContain("@page{size:297mm 167mm;margin:0}")
+      expect((out.html.match(/<section class="s/g) ?? []).length, theme).toBeGreaterThanOrEqual(3)
+      const sizes = [...out.html.matchAll(/--fs:(\d+)pt/g)].map((m) => Number(m[1]))
+      expect(sizes.length, theme).toBeGreaterThan(0)
+      for (const size of sizes) expect(size, theme).toBeGreaterThanOrEqual(24)
+    }
   })
 })

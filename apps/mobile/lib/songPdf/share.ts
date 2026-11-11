@@ -15,14 +15,14 @@ export function pdfFileName(song: Pick<PdfSongInput, "number" | "title">): strin
  * the song does not have, so the sheet can say it after the file is made.
  */
 export async function shareSongPdf(song: PdfSongInput, options: PdfOptions): Promise<{ plan: PdfPlan; shared: boolean }> {
-  const photo = song.photo ?? (await (await import("./photo")).pdfPhotoFor(song.number, options.theme))
+  const photo = song.photo ?? (await (await import("./photo")).pdfPhotoFor(song.number, options.theme, options.variant === "projector" ? "thumb" : "cover"))
   const { html, plan, page } = buildSongPdfHtml({ ...song, photo }, options)
   const Print = await import("expo-print")
   if (Platform.OS === "web") {
     await Print.printAsync({ html })
     return { plan, shared: true }
   }
-  const size = page === "landscape" ? { width: 842, height: 595 } : { width: 595, height: 842 }
+  const size = page === "stage" ? { width: 842, height: 474 } : page === "landscape" ? { width: 842, height: 595 } : { width: 595, height: 842 }
   const { uri } = await Print.printToFileAsync({ html, ...size })
   const Sharing = await import("expo-sharing")
   if (!(await Sharing.isAvailableAsync())) return { plan, shared: false }

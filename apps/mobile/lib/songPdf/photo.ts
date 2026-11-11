@@ -11,10 +11,10 @@ const MOOD: Record<PdfThemeId, PhotoMood> = { dawn: "morning", night: "night", h
  * (the app's own photo system, no people, no Babá). A printed page cannot reach the app bundle, so on the phone the
  * file is read and inlined as a data URI. Returns null when it cannot be read: the PDF is then made without a photo.
  */
-export async function pdfPhotoFor(number: number | string, theme: PdfThemeId): Promise<string | null> {
+export async function pdfPhotoFor(number: number | string, theme: PdfThemeId, size: "cover" | "thumb" = "cover"): Promise<string | null> {
   try {
     const { Asset } = await import("expo-asset")
-    const asset = Asset.fromModule(photoWithoutPeople(`ps-${number}`, MOOD[theme]).cover)
+    const asset = Asset.fromModule(photoWithoutPeople(`ps-${number}`, MOOD[theme])[size])
     if (Platform.OS === "web") {
       const uri = asset.uri
       return uri.startsWith("http") || uri.startsWith("data:") ? uri : `${globalThis.location?.origin ?? ""}${uri}`

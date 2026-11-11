@@ -79,6 +79,7 @@ function Miniature({ t, id, on }: { t: SpTheme; id: PdfVariantId; on: boolean })
         {id === "study" ? <>{col("34%", 4)}{col("26%", 4, true)}{col("30%", 4)}</> : null}
         {id === "reader" ? <>{col("90%", 3)}{col("90%", 2)}</> : null}
         {id === "singing" ? col("90%", 3) : null}
+        {id === "projector" ? <View style={styles.stageMini}><View style={[styles.stageLine, { backgroundColor: t.orange500 }]} />{col("86%", 3)}</View> : null}
       </View>
     </View>
   )
@@ -99,7 +100,7 @@ function LayoutCards({ t, tr }: { t: SpTheme; tr: PageT }) {
             accessibilityLabel={`${tr(`pdf.v.${id}`)}. ${tr(`pdf.v.${id}.d`)}`}
             accessibilityState={{ selected: on }}
             pressedScale={0.97}
-            style={[styles.card, { borderColor: on ? (t.dark ? t.action : t.ink900) : t.sand400, borderWidth: on ? 2 : 1, backgroundColor: t.dark ? t.sand100 : t.white }]}
+            style={[styles.card, id === "projector" && styles.cardWide, { borderColor: on ? (t.dark ? t.action : t.ink900) : t.sand400, borderWidth: on ? 2 : 1, backgroundColor: t.dark ? t.sand100 : t.white }]}
           >
             <Miniature t={t} id={id} on={on} />
             <Text style={[styles.cardName, { color: t.ink900 }]}>{tr(`pdf.v.${id}`)}</Text>
@@ -251,6 +252,8 @@ export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; u
 }
 
 const styles = StyleSheet.create({
+  stageMini: { flex: 1, gap: 4, justifyContent: "center" },
+  stageLine: { width: 14, height: 2 },
   looks: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
   look: { flex: 1, alignItems: "center", gap: 6 },
   swatch: { width: "100%", height: 38, borderRadius: 6, overflow: "hidden" },
@@ -263,6 +266,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: amFonts.bold, fontSize: 22, lineHeight: 28 },
   label: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96, textTransform: "uppercase" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  cardWide: { width: "100%" },
   card: { width: "47.5%", borderRadius: 16, padding: 10, gap: 4 },
   cardName: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20, marginTop: 4 },
   cardText: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },

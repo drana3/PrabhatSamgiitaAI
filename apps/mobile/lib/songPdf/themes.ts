@@ -94,3 +94,62 @@ body{font-size:12.5pt}
       `<div class="hd"><div class="no">${number}</div><div><h1>${esc(title)}</h1><div class="meta eb">${metaLine(meta)}</div></div><div class="ph" ${photoStyle(photo)}></div></div>`,
   },
 }
+
+/**
+ * THE STAGE, the projector layout (16:9, one stanza a slide, the song in very large type). Each look has its own scene on
+ * top of the shared slide frame in html.ts: the photo blurred to a soft field, a scrim for contrast, one accent, the stanza
+ * number as a big mark. `cw` is the width of a letter in em and `wmm` the width the lyric may use, so the builder can fit the
+ * type to the longest line. Dark rooms need light type on dark: four looks are dark, Ink-saving is the one for a bright room.
+ */
+export const STAGES: Record<PdfThemeId, { css: string; cw: number; wmm: number }> = {
+  dawn: {
+    cw: 0.49,
+    wmm: 205,
+    css: `.s{--stext:#fff;--sdim:oklch(0.9 0.025 235);--blur:30px}
+.sc{background:linear-gradient(105deg,oklch(0.19 0.05 245 / .9),oklch(0.19 0.05 245 / .5) 70%,oklch(0.19 0.05 245 / .72))}
+.gl{background:radial-gradient(55% 75% at 12% 62%,oklch(0.55 0.165 45 / .42),transparent 70%)}
+.c{padding:14mm 20mm 20mm 28mm}.c:before{content:"";position:absolute;left:18mm;top:22mm;bottom:28mm;width:2.4mm;background:var(--accent)}
+.p{background:oklch(1 0 0 / .08);border:1px solid oklch(1 0 0 / .24);padding:9mm 11mm}
+.ly .l{font-weight:800;letter-spacing:-.018em}.no{position:absolute;right:20mm;top:12mm;color:var(--accent);font:800 44pt/1 var(--display);letter-spacing:-.04em}.tr p{font-weight:400}`,
+  },
+  night: {
+    cw: 0.5,
+    wmm: 250,
+    css: `.s{--stext:oklch(0.95 0.012 85);--sdim:oklch(0.83 0.1 80);--blur:16px;background:oklch(0.12 0.03 265)}
+.bg{opacity:.8}
+.sc{background:radial-gradient(90% 100% at 50% 55%,oklch(0.14 0.03 265 / .35),oklch(0.1 0.03 265 / .92))}
+.gl{background:radial-gradient(40% 55% at 80% 20%,oklch(0.83 0.14 80 / .22),transparent 70%),radial-gradient(45% 60% at 10% 90%,oklch(0.5 0.14 265 / .35),transparent 70%)}
+.c:before{content:"";display:block;width:26mm;height:1.6mm;background:var(--accent);margin-bottom:9mm}
+.ly .l{font-weight:200;letter-spacing:.005em}.no{color:var(--accent);font:700 40pt/1 var(--display);position:absolute;right:20mm;top:12mm}.tr p{font-weight:200}`,
+  },
+  hymnal: {
+    cw: 0.38,
+    wmm: 240,
+    css: `.s{--stext:oklch(0.97 0.012 80);--sdim:oklch(0.82 0.05 60);--blur:34px;background:oklch(0.14 0.02 40)}
+.sc{background:linear-gradient(to bottom,oklch(0.13 0.02 40 / .8),oklch(0.12 0.03 35 / .66) 55%,oklch(0.1 0.02 40 / .9))}
+.gl{background:radial-gradient(50% 65% at 50% 100%,oklch(0.68 0.16 55 / .38),transparent 70%)}
+.ly .l{font-style:italic;font-weight:500;letter-spacing:.002em}.no{position:absolute;left:20mm;top:12mm;font:700 54pt/1 var(--display);color:oklch(0.72 0.17 35 / .9)}
+.c{align-items:center;text-align:center}.tr{border-top:1px solid oklch(1 0 0 / .25);padding-top:6mm;margin-top:9mm}`,
+  },
+  poster: {
+    cw: 0.47,
+    wmm: 195,
+    css: `.s{--stext:oklch(0.975 0.012 95);--sdim:oklch(0.88 0.04 255);background:var(--cobalt)}
+.bg{inset:0 0 0 auto;width:54mm;filter:none}
+.sc{background:linear-gradient(to right,transparent calc(100% - 54mm),oklch(0.2 0.03 255 / .15) 100%)}
+.gl{background:radial-gradient(60% 90% at 0% 0%,oklch(0.66 0.17 50 / .28),transparent 65%)}
+.c{padding:12mm 76mm 20mm 20mm}
+.no{position:absolute;left:20mm;top:9mm;font:800 70pt/1 var(--display);letter-spacing:-.05em;color:var(--accent)}.c .ly{margin-top:14mm}
+.ly .l{font-weight:700;letter-spacing:-.01em}.bar{right:76mm}`,
+  },
+  mono: {
+    cw: 0.53,
+    wmm: 250,
+    css: `.s{--stext:oklch(0.15 0 0);--sdim:oklch(0.38 0 0)}
+.bg{filter:grayscale(1) blur(22px);opacity:.14}
+.sc{background:linear-gradient(to bottom,#fff,oklch(1 0 0 / .55))}
+.gl{border-top:3pt solid var(--ink)}
+.no{position:absolute;right:20mm;top:11mm;font:800 58pt/1 var(--display);letter-spacing:-.04em;color:var(--accent)}
+.ly .l{font-weight:800;letter-spacing:-.015em}.c{padding-top:22mm}`,
+  },
+}

@@ -1,8 +1,11 @@
 import type { ScriptId } from "@/lib/songPage/scripts"
 import type { WordGlosses } from "@/lib/songPage/songContent"
 
-/** The four printed layouts of a song. One template each, all driven by the same options. */
-export const PDF_VARIANTS = ["sheet", "study", "reader", "singing"] as const
+/**
+ * The printed layouts of a song. One template each, all driven by the same options. `projector` is the odd one: 16:9 slides,
+ * one stanza each, very large type, for a screen or a projector.
+ */
+export const PDF_VARIANTS = ["sheet", "study", "reader", "singing", "projector"] as const
 export type PdfVariantId = (typeof PDF_VARIANTS)[number]
 
 /** The five looks of a printed song. A look sets the colours, the type and the head of the page; a layout sets the body. */

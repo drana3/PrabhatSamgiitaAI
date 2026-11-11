@@ -1,7 +1,7 @@
 import { lyricLanguage } from "@/lib/songPage/lyricLanguages"
 import { glossKey } from "@/lib/songPage/songContent"
 
-import { THEMES } from "./themes"
+import { STAGES, THEMES } from "./themes"
 import type { PdfOptions, PdfSongInput, PdfVariantId } from "./types"
 
 /**
@@ -174,14 +174,80 @@ function singing(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): Frame 
   }
 }
 
-const BUILDERS: Record<PdfVariantId, (s: PdfSongInput, o: PdfOptions, p: PdfPlan) => Frame> = { sheet, study, reader, singing }
+const CHUNK_CHARS = 230
 
-export function buildSongPdfHtml(song: PdfSongInput, options: PdfOptions): { html: string; plan: PdfPlan; page: "landscape" | "portrait" } {
+/** Greedy: translation parts packed into slides of at most CHUNK_CHARS letters. */
+function chunks(blocks: string[]): string[][] {
+  const out: string[][] = [[]]
+  let size = 0
+  for (const b of blocks) {
+    if (size > 0 && size + b.length > CHUNK_CHARS) {
+      out.push([])
+      size = 0
+    }
+    out[out.length - 1].push(b)
+    size += b.length
+  }
+  return out
+}
+
+/** Type size in pt so the longest line fits the width and all the lines fit the height; as big as that allows. */
+function fitSize(lineCount: number, longest: number, cw: number, wmm: number, heightMm: number, cap: number): number {
+  const byWidth = (wmm / 25.4 * 72) / (Math.max(longest, 8) * cw)
+  const byHeight = (heightMm / 25.4 * 72) / (lineCount * 1.22)
+  return Math.round(Math.max(24, Math.min(cap, byWidth, byHeight)))
+}
+
+function stage(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): Frame {
+  const spec = STAGES[options.theme]
+  const { lines } = linesOf(song, options)
+  const parts = stanzas(lines)
+  const first = plan.translations[0]
+  const paired = !!first && first.blocks.length === parts.length
+  const slides: string[] = []
+  const bar = (n: number, total: number) => `<div class="bar eb"><span>№ ${song.number} · ${esc(song.title)}</span><span>${n} / ${total}</span></div>`
+  const wrap = (inner: string, n: number, total: number, cls = "") => `<section class="s ${cls}"><div class="bg"></div><div class="sc"></div><div class="gl"></div><div class="c">${inner}</div>${bar(n, total)}</section>`
+  const stanzaSlides = parts.map((st, i) => {
+    const longest = Math.max(...st.map((x) => x.line.length))
+    const room = paired ? 82 : 118
+    const size = fitSize(st.length, longest, spec.cw, spec.wmm, room, paired ? 60 : 84)
+    const ts = Math.max(18, Math.min(30, Math.round(size * 0.52)))
+    const tr = paired ? plan.translations.slice(0, st.length <= 4 ? 2 : 1).map((t) => `<p>${esc(t.blocks[i] ?? "").replace(/\n/g, "<br>")}</p>`).join("") : ""
+    return { size, ts, html: `<div class="no">${i + 1}</div><div class="p"><div class="ly" style="--fs:${size}pt">${st.map((x) => `<div class="l">${esc(x.line)}</div>`).join("")}</div>${tr ? `<div class="tr" style="--ts:${ts}pt">${tr}</div>` : ""}</div>` }
+  })
+  const trSlides = paired ? [] : plan.translations.flatMap((t) => chunks(t.blocks).map((c) => ({ code: t.code, blocks: c })))
+  const total = 1 + stanzaSlides.length + trSlides.length
+  const titleSize = song.title.length <= 16 ? 92 : song.title.length <= 26 ? 70 : 52
+  const meta = [song.composed ? `Composed ${song.composed}` : "", song.raga ? `Raga ${song.raga}` : "", song.tala ? `Tala ${song.tala}` : ""].filter(Boolean).join("  ·  ")
+  slides.push(wrap(`<div class="cv"><div class="eb">Prabhat Samgiita · № ${song.number}</div><h1 style="font-size:${titleSize}pt">${esc(song.title)}</h1>${meta ? `<div class="eb mt">${esc(meta)}</div>` : ""}</div>`, 1, total, "cover"))
+  stanzaSlides.forEach((s, i) => slides.push(wrap(s.html, i + 2, total)))
+  trSlides.forEach((t, i) => {
+    const text = t.blocks.map((b) => `<p>${esc(b).replace(/\n/g, "<br>")}</p>`).join("")
+    const size = Math.max(22, Math.min(34, Math.round(34 - t.blocks.join("").length / 22)))
+    slides.push(wrap(`<div class="p"><div class="eb lang">${esc(languageName(t.code))}</div><div class="tr big" style="--ts:${size}pt">${text}</div></div>`, 2 + stanzaSlides.length + i, total))
+  })
+  const css =
+    "@page{size:297mm 167mm;margin:0}" +
+    ".s{position:relative;width:297mm;height:167mm;overflow:hidden;break-after:page;page-break-after:always;background:var(--paper);color:var(--stext)}.s:last-child{break-after:auto;page-break-after:auto}" +
+    `.bg{position:absolute;inset:-8%;background:var(--ink) url('${song.photo ?? ""}') center/cover;filter:blur(var(--blur,24px))}` +
+    ".sc,.gl{position:absolute;inset:0}.c{position:absolute;inset:0;padding:14mm 20mm 20mm;display:flex;flex-direction:column;justify-content:center}" +
+    ".p{position:relative}.ly .l{font:var(--lw) var(--fs)/1.2 var(--lyric);color:var(--stext)}" +
+    ".tr{margin-top:7mm}.tr p{font:400 var(--ts)/1.3 var(--body);color:var(--sdim);margin-bottom:3mm}.tr.big{margin-top:5mm}.tr.big p{color:var(--stext);margin-bottom:5mm}.lang{color:var(--sdim);margin-bottom:5mm}" +
+    ".bar{position:absolute;left:20mm;right:20mm;bottom:9mm;display:flex;justify-content:space-between;color:var(--sdim)}" +
+    ".cv h1{font:var(--hw) 80pt/1 var(--display);letter-spacing:-.02em;color:var(--stext);margin:6mm 0}.cv .eb{color:var(--sdim)}.cv .mt{margin-top:6mm}" +
+    ".cover .no{display:none}.s .eb{font-size:11pt}.bar.eb{font-size:10pt}" +
+    spec.css
+  return { css, page: "stage", body: slides.join("") }
+}
+
+const BUILDERS: Record<PdfVariantId, (s: PdfSongInput, o: PdfOptions, p: PdfPlan) => Frame> = { sheet, study, reader, singing, projector: stage }
+
+export function buildSongPdfHtml(song: PdfSongInput, options: PdfOptions): { html: string; plan: PdfPlan; page: "landscape" | "portrait" | "stage" } {
   const plan = planFor(song, options)
   const frame = BUILDERS[options.variant](song, options, plan)
   // The page margin is painted white by print engines, so the sheet is full-bleed (margin 0) and the margin becomes body padding.
   const m = /@page\{size:([^;}]+);margin:([^}]+)\}/.exec(frame.css)
   if (m) frame.css = frame.css.replace(m[0], `@page{size:${m[1]};margin:0}body{padding:${m[2]};box-decoration-break:clone;-webkit-box-decoration-break:clone}`)
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PS ${song.number} ${esc(song.title)}</title><link rel="stylesheet" href="${THEMES[options.theme].fonts}"><style>${THEMES[options.theme].css}${CSS}${frame.css}</style></head><body>${frame.body}</body></html>`
-  return { html, plan, page: frame.page as "landscape" | "portrait" }
+  return { html, plan, page: frame.page as "landscape" | "portrait" | "stage" }
 }
