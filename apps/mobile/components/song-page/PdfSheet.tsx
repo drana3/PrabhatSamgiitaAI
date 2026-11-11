@@ -8,7 +8,7 @@ import { amFonts } from "@/constants/tokens/amTypography"
 import { planFor } from "@/lib/songPdf/html"
 import { summaryOf, toggleCode } from "@/lib/songPdf/languages"
 import { shareSongPdf } from "@/lib/songPdf/share"
-import { PDF_VARIANTS, type PdfSongInput, type PdfVariantId } from "@/lib/songPdf/types"
+import { PDF_THEMES, PDF_VARIANTS, type PdfSongInput, type PdfThemeId, type PdfVariantId } from "@/lib/songPdf/types"
 import { lyricLanguageName } from "@/lib/songPage/lyricLanguages"
 import { scriptName, usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import type { ScriptId } from "@/lib/songPage/scripts"
@@ -44,6 +44,7 @@ export function pdfInputOf(model: SongPageModel): PdfSongInput | null {
     linesByScript: { roman: model.sources.roman, devanagari: model.sources.devanagari, bengali: model.sources.bengali },
     glosses: model.glosses,
     translations,
+    photo: null,
   }
 }
 
@@ -110,6 +111,37 @@ function LayoutCards({ t, tr }: { t: SpTheme; tr: PageT }) {
   )
 }
 
+/** Paper, the strong block and the accent of each look, only for the little swatches (the real colours are in lib/songPdf/themes.ts). */
+const SWATCH: Record<PdfThemeId, { paper: string; block: string; accent: string }> = {
+  dawn: { paper: "#F8FBFC", block: "#081F31", accent: "#BB4800" },
+  night: { paper: "#090F1C", block: "#090F1C", accent: "#F7BC50" },
+  hymnal: { paper: "#FEFDFC", block: "#FEFDFC", accent: "#B71A18" },
+  poster: { paper: "#F9F7EE", block: "#0048A6", accent: "#E16C10" },
+  mono: { paper: "#FFFFFF", block: "#0B0B0B", accent: "#D64D00" },
+}
+
+function LookRow({ t, tr }: { t: SpTheme; tr: PageT }) {
+  const theme = useSongPdfStore((s) => s.theme)
+  const setTheme = useSongPdfStore((s) => s.setTheme)
+  return (
+    <View style={styles.looks} accessibilityRole="radiogroup" accessibilityLabel={tr("pdf.look")}>
+      {PDF_THEMES.map((id) => {
+        const on = id === theme
+        const c = SWATCH[id]
+        return (
+          <SpPress key={id} onPress={() => setTheme(id)} accessibilityRole="radio" accessibilityLabel={tr(`pdf.t.${id}`)} accessibilityState={{ selected: on }} pressedScale={0.95} style={styles.look}>
+            <View style={[styles.swatch, { backgroundColor: c.paper, borderColor: on ? (t.dark ? t.action : t.ink900) : t.sand400, borderWidth: on ? 2 : 1 }]}>
+              <View style={[styles.swatchBlock, { backgroundColor: c.block }]} />
+              <View style={[styles.swatchDot, { backgroundColor: c.accent }]} />
+            </View>
+            <Text style={[styles.lookName, { color: on ? t.ink900 : t.ink500 }]} numberOfLines={1}>{tr(`pdf.t.${id}`)}</Text>
+          </SpPress>
+        )
+      })}
+    </View>
+  )
+}
+
 function ChoiceRow({ t, tr, label, codes, onPress }: { t: SpTheme; tr: PageT; label: string; codes: readonly string[]; onPress: () => void }) {
   const { names, more } = summaryOf(codes)
   return (
@@ -134,6 +166,7 @@ export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; u
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const variant = useSongPdfStore((s) => s.variant)
+  const theme = useSongPdfStore((s) => s.theme)
   const wordChoice = useSongPdfStore((s) => s.wordLanguages)
   const translationLanguages = useSongPdfStore((s) => s.translationLanguages)
   const toggleTranslation = useSongPdfStore((s) => s.toggleTranslationLanguage)
@@ -146,7 +179,7 @@ export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; u
     setNote(null)
     ui.setSheet(null)
   }
-  const options = { variant, script, wordLanguages, translationLanguages }
+  const options = { variant, theme, script, wordLanguages, translationLanguages }
   const plan = input ? planFor(input, options) : null
   const scriptItems: Array<SegItem<ScriptId>> = SCRIPTS.filter((id) => id !== "bengali" || model.scripts.includes(id)).map((id) => ({ id, label: scriptName(tr, id), disabled: !model.scripts.includes(id) }))
 
@@ -172,8 +205,10 @@ export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; u
         {view === "main" ? (
           <>
             <Text style={[styles.title, { color: t.ink900 }]} accessibilityRole="header">{tr("pdf.title")}</Text>
-            <Text style={[styles.label, { color: t.ink800, marginTop: 16, marginBottom: 8 }]}>{tr("pdf.layout")}</Text>
+            <Text style={[styles.label, { color: t.ink800, marginTop: 12, marginBottom: 8 }]}>{tr("pdf.layout")}</Text>
             <LayoutCards t={t} tr={tr} />
+            <Text style={[styles.label, { color: t.ink800, marginTop: 14, marginBottom: 8 }]}>{tr("pdf.look")}</Text>
+            <LookRow t={t} tr={tr} />
             <View style={styles.stack}>
               <Text style={[styles.label, { color: t.ink800 }]}>{tr("pdf.script")}</Text>
               <Segmented t={t} items={scriptItems} value={script} onChange={setScript} label={tr("pdf.script")} role="radio" fit />
@@ -216,6 +251,12 @@ export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; u
 }
 
 const styles = StyleSheet.create({
+  looks: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  look: { flex: 1, alignItems: "center", gap: 6 },
+  swatch: { width: "100%", height: 38, borderRadius: 6, overflow: "hidden" },
+  swatchBlock: { position: "absolute", left: 0, right: 0, top: 0, height: 16 },
+  swatchDot: { position: "absolute", left: 6, bottom: 6, width: 10, height: 10, borderRadius: 5 },
+  lookName: { fontFamily: amFonts.medium, fontSize: 11, lineHeight: 14 },
   body: { paddingHorizontal: 20, paddingBottom: 24 },
   head: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
   back: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: "center", justifyContent: "center" },
@@ -226,8 +267,8 @@ const styles = StyleSheet.create({
   cardName: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 20, marginTop: 4 },
   cardText: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
   page: { borderWidth: 1, padding: 6, gap: 5, alignSelf: "center", width: "100%" },
-  landscape: { height: 68 },
-  portrait: { height: 68, width: 52 },
+  landscape: { height: 46 },
+  portrait: { height: 46, width: 36 },
   rule: { height: 1 },
   cols: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   ln: { height: 3, opacity: 0.75 },

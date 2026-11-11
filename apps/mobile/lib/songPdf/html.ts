@@ -1,20 +1,18 @@
 import { lyricLanguage } from "@/lib/songPage/lyricLanguages"
 import { glossKey } from "@/lib/songPage/songContent"
 
+import { THEMES } from "./themes"
 import type { PdfOptions, PdfSongInput, PdfVariantId } from "./types"
 
 /**
- * The song as a printable page: one HTML text per layout, in the look of the app (Fraunces, Newsreader, JetBrains Mono,
- * ink on lime-wash paper, one ochre accent, a hairline above the title, no shadows, no rounded corners). The phone prints it
- * to a PDF (lib/songPdf/share.ts); a browser prints it the same way. Fonts come from Google Fonts and fall back to the serif
- * of the device when the phone is offline, so the page is always complete and only the type changes.
+ * The song as a printable page: one HTML text per layout (the body) wearing one of five looks (lib/songPdf/themes.ts: colours,
+ * type, the head of the page with its photo). The phone prints it to a PDF (lib/songPdf/share.ts); a browser prints it the
+ * same way. Fonts come from Google Fonts and fall back to the device's own when the phone is offline, so the page is always
+ * complete and only the type changes.
  *
  * Nothing is invented: a word with no meaning in the data prints with an empty line, and a language the song has no
  * translation in is left out of the page (and `missing` says so, so the sheet can tell the person).
  */
-
-const FONTS =
-  "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,800;1,9..144,300&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=JetBrains+Mono:wght@500&display=swap"
 
 export const esc = (text: string): string => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 
@@ -59,27 +57,24 @@ function linesOf(song: PdfSongInput, options: PdfOptions): { lines: string[]; gl
 }
 
 const CSS = `
-:root{--ink:oklch(0.19 0.014 60);--paper:oklch(0.97 0.01 85);--deep:oklch(0.92 0.016 82);--ochre:oklch(0.60 0.145 52);--clay:oklch(0.42 0.095 45);--stone:oklch(0.50 0.018 130);--line:oklch(0.50 0.018 130 / .35)}
 *{box-sizing:border-box;margin:0}
-body{background:var(--paper);color:var(--ink);font:400 11pt/1.5 Newsreader,Georgia,serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.eb{font:500 7.5pt/1 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--stone)}
-header{border-top:1px solid var(--line);padding-top:4.5mm;margin-bottom:7mm;display:flex;justify-content:space-between;align-items:flex-end;gap:8mm}
-header .eb.top{margin-bottom:3mm;display:block}
-h1{font:300 26pt/1.02 Fraunces,Georgia,serif;letter-spacing:-.01em}
-h1 b{font-weight:800;color:var(--clay);margin-right:4mm}
+html,body{background:var(--paper)}
+body{color:var(--ink);font:400 11pt/1.5 var(--body);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.eb{font:500 7.5pt/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{font:var(--hw) 26pt/1.02 var(--display);letter-spacing:-.01em}
 .meta{display:flex;gap:5mm;white-space:nowrap}
-.meta span+span{border-left:1px solid var(--line);padding-left:5mm}
+.meta span+span{border-left:1px solid var(--rule);padding-left:5mm}
 .col-h{margin-bottom:4mm}
 .stanza{margin-bottom:5mm;break-inside:avoid}
 .line{display:flex;flex-wrap:wrap;gap:0 4mm;margin-bottom:3.6mm;break-inside:avoid}
 .w{display:flex;flex-direction:column}
-.w .r{font:300 14.5pt/1.15 Fraunces,Georgia,serif}
-.w .g{font:italic 400 7.6pt/1.2 Newsreader,Georgia,serif;color:var(--clay);border-top:1px dotted var(--line);margin-top:.9mm;padding-top:.5mm;min-height:3mm}
-.w .g+.g{border-top:0;margin-top:0;padding-top:0;color:var(--stone)}
-.tl p{font:400 11.5pt/1.55 Newsreader,Georgia,serif;margin-bottom:4mm;break-inside:avoid}
+.w .r{font:var(--lw) 14.5pt/1.15 var(--lyric)}
+.w .g{font:italic 400 7.6pt/1.2 var(--body);color:var(--gloss);border-top:1px dotted var(--rule);margin-top:.9mm;padding-top:.5mm;min-height:3mm}
+.w .g+.g{border-top:0;margin-top:0;padding-top:0;color:var(--muted)}
+.tl p{font:400 11.5pt/1.5 var(--body);margin-bottom:3.2mm;break-inside:avoid}
 .tl .lang{margin:6mm 0 3mm}.tl .lang:first-child{margin-top:0}
-footer{margin-top:7mm;border-top:1px solid var(--line);padding-top:3mm;display:flex;justify-content:space-between}
-footer .ok{color:var(--clay)}
+footer{margin-top:6mm;border-top:1px solid var(--rule);padding-top:3mm;display:flex;justify-content:space-between}
+footer .ok{color:var(--gloss)}
 table{width:100%;border-collapse:collapse}td{vertical-align:top}
 `
 
@@ -89,7 +84,7 @@ function head(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): string {
   const meta = [song.composed ? `Composed ${song.composed}` : "", song.raga ? `Raga ${song.raga}` : "", song.tala ? `Tala ${song.tala}` : ""].filter(Boolean)
   const langs = [options.script === "roman" ? "Roman" : options.script === "devanagari" ? "Devanagari" : "Bengali", ...plan.translations.map((t) => languageName(t.code))]
   meta.push(langs.join(" · "))
-  return `<header><div><span class="eb top">Prabhat Samgiita</span><h1><b>№ ${song.number}</b>${esc(song.title)}</h1></div><div class="meta eb">${meta.map((m) => `<span>${esc(m)}</span>`).join("")}</div></header>`
+  return THEMES[options.theme].head({ number: song.number, title: song.title, meta, photo: song.photo })
 }
 
 function foot(song: PdfSongInput, note: string): string {
@@ -137,7 +132,7 @@ function sheet(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): Frame {
   const withWords = plan.wordLanguages.length > 0
   const note = withWords ? "" : "Word meanings are not in the catalogue for this song yet"
   return {
-    css: "@page{size:297mm 210mm;margin:12mm 15mm}.col-l{width:60%;padding-right:9mm;border-right:1px solid var(--line)}.col-r{padding-left:9mm}",
+    css: "@page{size:297mm 210mm;margin:12mm 15mm}.col-l{width:60%;padding-right:9mm;border-right:1px solid var(--rule)}.col-r{padding-left:9mm}",
     page: "landscape",
     note,
     body: `${head(song, options, plan)}<table><tr><td class="col-l"><div class="eb col-h">Song${withWords ? " · word by word" : ""}</div>${songColumn(song, options, plan, true)}</td><td class="col-r tl"><div class="eb col-h">Translation</div>${translationColumn(plan, false)}</td></tr></table>${foot(song, note)}`,
@@ -156,16 +151,16 @@ function study(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): Frame {
     ? `<table class="vocab">${list.map((r) => `<tr><td class="vw">${esc(r.w)}</td><td>${r.g.filter(Boolean).map(esc).join(" · ")}</td></tr>`).join("")}</table>`
     : '<p class="empty">No word list yet.</p>'
   return {
-    css: "@page{size:297mm 210mm;margin:12mm 15mm}.c1{width:34%;padding-right:7mm}.c2{width:27%;padding:0 7mm;border-left:1px solid var(--line);border-right:1px solid var(--line)}.c3{padding-left:7mm}.vocab td{padding:1.3mm 0;border-bottom:1px dotted var(--line);font:italic 400 9pt/1.3 Newsreader,Georgia,serif;color:var(--clay)}.vocab .vw{font:300 11pt/1.2 Fraunces,Georgia,serif;font-style:normal;color:var(--ink);width:42%;padding-right:3mm}.empty{color:var(--stone);font-style:italic}.notes{margin-top:8mm}.notes i{display:block;height:8mm;border-bottom:1px solid var(--line)}.w .g{display:none}.line{margin-bottom:2.4mm}",
+    css: "@page{size:297mm 210mm;margin:12mm 15mm}.c1{width:34%;padding-right:7mm}.c2{width:27%;padding:0 7mm;border-left:1px solid var(--rule);border-right:1px solid var(--rule)}.c3{padding-left:7mm}.vocab td{padding:1.3mm 0;border-bottom:1px dotted var(--rule);font:italic 400 9pt/1.3 var(--body);color:var(--gloss)}.vocab .vw{font:300 11pt/1.2 var(--lyric);font-style:normal;color:var(--ink);width:42%;padding-right:3mm}.empty{color:var(--muted);font-style:italic}.notes{margin-top:6mm}.notes i{display:block;height:7mm;border-bottom:1px solid var(--rule)}.w .g{display:none}.line{margin-bottom:2.4mm}",
     page: "landscape",
     note,
-    body: `${head(song, options, plan)}<table><tr><td class="c1"><div class="eb col-h">Song</div>${songColumn(song, options, plan, false)}</td><td class="c2"><div class="eb col-h">Words</div>${table}</td><td class="c3 tl"><div class="eb col-h">Translation</div>${translationColumn(plan, false)}<div class="notes"><div class="eb col-h">Notes</div><i></i><i></i><i></i><i></i></div></td></tr></table>${foot(song, note)}`,
+    body: `${head(song, options, plan)}<table><tr><td class="c1"><div class="eb col-h">Song</div>${songColumn(song, options, plan, false)}</td><td class="c2"><div class="eb col-h">Words</div>${table}</td><td class="c3 tl"><div class="eb col-h">Translation</div>${translationColumn(plan, false)}<div class="notes"><div class="eb col-h">Notes</div><i></i><i></i></div></td></tr></table>${foot(song, note)}`,
   }
 }
 
 function reader(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): Frame {
   return {
-    css: "@page{size:210mm 297mm;margin:16mm 18mm}h1{font-size:30pt}.w .r{font-size:16pt}.w .g{display:none}.line{display:block;margin-bottom:1.8mm}.w{display:inline;margin-right:2.2mm}.tl{margin-top:9mm;border-top:1px solid var(--line);padding-top:6mm;column-count:" + Math.min(2, Math.max(1, plan.translations.length)) + ";column-gap:10mm}",
+    css: "@page{size:210mm 297mm;margin:16mm 18mm}h1{font-size:30pt}.w .r{font-size:16pt}.w .g{display:none}.line{display:block;margin-bottom:1.8mm}.w{display:inline;margin-right:2.2mm}.tl{margin-top:9mm;border-top:1px solid var(--rule);padding-top:6mm;column-count:" + Math.min(2, Math.max(1, plan.translations.length)) + ";column-gap:10mm}",
     page: "portrait",
     body: `${head(song, options, plan)}<div class="eb col-h">Song</div>${songColumn(song, options, plan, false)}<div class="tl">${translationColumn(plan, true)}</div>${foot(song, "")}`,
   }
@@ -184,6 +179,9 @@ const BUILDERS: Record<PdfVariantId, (s: PdfSongInput, o: PdfOptions, p: PdfPlan
 export function buildSongPdfHtml(song: PdfSongInput, options: PdfOptions): { html: string; plan: PdfPlan; page: "landscape" | "portrait" } {
   const plan = planFor(song, options)
   const frame = BUILDERS[options.variant](song, options, plan)
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PS ${song.number} ${esc(song.title)}</title><link rel="stylesheet" href="${FONTS}"><style>${CSS}${frame.css}</style></head><body>${frame.body}</body></html>`
+  // The page margin is painted white by print engines, so the sheet is full-bleed (margin 0) and the margin becomes body padding.
+  const m = /@page\{size:([^;}]+);margin:([^}]+)\}/.exec(frame.css)
+  if (m) frame.css = frame.css.replace(m[0], `@page{size:${m[1]};margin:0}body{padding:${m[2]};box-decoration-break:clone;-webkit-box-decoration-break:clone}`)
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PS ${song.number} ${esc(song.title)}</title><link rel="stylesheet" href="${THEMES[options.theme].fonts}"><style>${THEMES[options.theme].css}${CSS}${frame.css}</style></head><body>${frame.body}</body></html>`
   return { html, plan, page: frame.page as "landscape" | "portrait" }
 }

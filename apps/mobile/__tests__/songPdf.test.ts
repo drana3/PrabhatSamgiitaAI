@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { buildSongPdfHtml, planFor } from "@/lib/songPdf/html"
 import { pdfFileName } from "@/lib/songPdf/share"
-import { DEFAULT_PDF_OPTIONS, PDF_VARIANTS, type PdfSongInput } from "@/lib/songPdf/types"
+import { DEFAULT_PDF_OPTIONS, PDF_THEMES, PDF_VARIANTS, type PdfSongInput } from "@/lib/songPdf/types"
 
 const song: PdfSongInput = {
   number: 1,
@@ -10,6 +10,7 @@ const song: PdfSongInput = {
   composed: "14 Sep 1982",
   raga: null,
   tala: null,
+  photo: null,
   romanLines: ["Bandhu he niye calo", "Álor oi jharańá"],
   linesByScript: { roman: ["Bandhu he niye calo", "Álor oi jharańá"], devanagari: ["बंधु हे निये चलो", "आलोर ओइ झरणा"] },
   glosses: { byLanguage: { en: { "0:0": "friend", "0:1": "O", "0:2": "take", "0:3": "lead on" }, ru: { "0:0": "друг" } } },
@@ -23,7 +24,28 @@ describe("the song PDF", () => {
       const { html } = buildSongPdfHtml(song, { ...DEFAULT_PDF_OPTIONS, variant })
       expect(html, variant).toContain("№ 1")
       expect(html, variant).toContain("Bandhu")
-      expect(html, variant).toContain("Fraunces")
+    }
+  })
+
+  it("has five looks, and each one wears every layout with its own fonts, and puts the photo in the head when it has one", () => {
+    expect([...PDF_THEMES]).toEqual(["dawn", "night", "hymnal", "poster", "mono"])
+    const fonts = new Set<string>()
+    for (const theme of PDF_THEMES) {
+      for (const variant of PDF_VARIANTS) {
+        const { html } = buildSongPdfHtml({ ...song, photo: "data:image/jpeg;base64,AAAA" }, { ...DEFAULT_PDF_OPTIONS, variant, theme })
+        expect(html, `${theme}/${variant}`).toContain("data:image/jpeg;base64,AAAA")
+        expect(html, `${theme}/${variant}`).toContain("№ 1".replace("№ ", theme === "dawn" || theme === "night" ? "№ " : ""))
+        fonts.add(/href="([^"]+)"/.exec(html)?.[1] ?? "")
+      }
+    }
+    expect(fonts.size).toBe(5)
+    expect(buildSongPdfHtml(song, { ...DEFAULT_PDF_OPTIONS, theme: "poster" }).html).not.toContain("url('null')")
+  })
+
+  it("uses none of the banned fonts and never a cream paper", () => {
+    for (const theme of PDF_THEMES) {
+      const { html } = buildSongPdfHtml(song, { ...DEFAULT_PDF_OPTIONS, theme })
+      expect(html, theme).not.toMatch(/Inter\b|Roboto|Open Sans|Lato|Arial,|Space Grotesk|Fraunces/)
     }
   })
 

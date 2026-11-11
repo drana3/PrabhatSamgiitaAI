@@ -5,6 +5,10 @@ import type { WordGlosses } from "@/lib/songPage/songContent"
 export const PDF_VARIANTS = ["sheet", "study", "reader", "singing"] as const
 export type PdfVariantId = (typeof PDF_VARIANTS)[number]
 
+/** The five looks of a printed song. A look sets the colours, the type and the head of the page; a layout sets the body. */
+export const PDF_THEMES = ["dawn", "night", "hymnal", "poster", "mono"] as const
+export type PdfThemeId = (typeof PDF_THEMES)[number]
+
 /** What a layout needs from the song page. Plain data: the builder never reads a store. */
 export type PdfSongInput = {
   number: number
@@ -17,6 +21,8 @@ export type PdfSongInput = {
   romanLines: string[]
   /** the lines of each script the song has (the Roman ones included) */
   linesByScript: Partial<Record<ScriptId, string[]>>
+  /** a photo for the head of the page (a data or file address; nobody in it), or null: the look then prints without one */
+  photo: string | null
   glosses: WordGlosses | null
   /** the translation of the song by language code: one text, a blank line between the parts */
   translations: Record<string, string>
@@ -24,6 +30,7 @@ export type PdfSongInput = {
 
 export type PdfOptions = {
   variant: PdfVariantId
+  theme: PdfThemeId
   script: ScriptId
   /** languages of the word meanings, in the order they stack under a word; a language the song has none in is skipped */
   wordLanguages: string[]
@@ -31,4 +38,4 @@ export type PdfOptions = {
   translationLanguages: string[]
 }
 
-export const DEFAULT_PDF_OPTIONS: PdfOptions = { variant: "sheet", script: "roman", wordLanguages: ["en"], translationLanguages: ["en"] }
+export const DEFAULT_PDF_OPTIONS: PdfOptions = { variant: "sheet", theme: "dawn", script: "roman", wordLanguages: ["en"], translationLanguages: ["en"] }
