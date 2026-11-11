@@ -1,0 +1,674 @@
+[
+  {
+    "number": 1,
+    "title": "Bandhu he",
+    "tal": "kaharba",
+    "pages": [
+      1
+    ],
+    "capo": 3,
+    "saSounding": "D#",
+    "rows": 7,
+    "steps": 85,
+    "doubts": 0
+  },
+  {
+    "number": 2,
+    "title": "E gan amar",
+    "tal": "Kaharba",
+    "pages": [
+      2
+    ],
+    "capo": 0,
+    "saSounding": "E",
+    "rows": 6,
+    "steps": 100,
+    "doubts": 0
+  },
+  {
+    "number": 5,
+    "title": "Elo anek juger",
+    "tal": "kaharva",
+    "pages": [
+      3
+    ],
+    "capo": 4,
+    "saSounding": "D#",
+    "rows": 11,
+    "steps": 161,
+    "doubts": 4
+  },
+  {
+    "number": 6,
+    "title": "Bandhu amar",
+    "tal": "kaharba",
+    "pages": [
+      4
+    ],
+    "capo": 3,
+    "saSounding": "D#",
+    "rows": 5,
+    "steps": 99,
+    "doubts": 2
+  },
+  {
+    "number": 10,
+    "title": "Mayamukure ke kii bhave",
+    "tal": null,
+    "pages": [
+      5
+    ],
+    "capo": 3,
+    "saSounding": "D#",
+    "rows": 4,
+    "steps": 109,
+    "doubts": 1
+  },
+  {
+    "number": 29,
+    "title": "Amay chotta ekti man diyecha",
+    "tal": "dadra",
+    "pages": [
+      6,
+      7
+    ],
+    "capo": 2,
+    "saSounding": "D",
+    "rows": 11,
+    "steps": 227,
+    "doubts": 1
+  },
+  {
+    "number": 50,
+    "title": "Raktim kishalay",
+    "tal": "Kaharba",
+    "pages": [
+      8
+    ],
+    "capo": 1,
+    "saSounding": "C#",
+    "rows": 4,
+    "steps": 86,
+    "doubts": 0
+  },
+  {
+    "number": 63,
+    "title": "Diipabalii sajayechi prabhu",
+    "tal": "kaharba",
+    "pages": [
+      9
+    ],
+    "capo": 5,
+    "saSounding": "D",
+    "rows": 4,
+    "steps": 90,
+    "doubts": 13
+  },
+  {
+    "number": 68,
+    "title": "I love this tiny green island",
+    "tal": "kaharba",
+    "pages": [
+      10
+    ],
+    "capo": 4,
+    "saSounding": "C#",
+    "rows": 7,
+    "steps": 80,
+    "doubts": 9
+  },
+  {
+    "number": 80,
+    "title": "Svapane esecha",
+    "tal": "kaharba",
+    "pages": [
+      11
+    ],
+    "capo": 4,
+    "saSounding": "C#",
+    "rows": 8,
+    "steps": 137,
+    "doubts": 2
+  },
+  {
+    "number": 127,
+    "title": "Ek nutaner",
+    "tal": "Kaharba",
+    "pages": [
+      12,
+      13
+    ],
+    "capo": 4,
+    "saSounding": "C#",
+    "rows": 12,
+    "steps": 254,
+    "doubts": 2
+  },
+  {
+    "number": 152,
+    "title": "Campaka vane",
+    "tal": "Dadra",
+    "pages": [
+      14
+    ],
+    "capo": 6,
+    "saSounding": "D#",
+    "rows": 6,
+    "steps": 144,
+    "doubts": 0
+  },
+  {
+    "number": 154,
+    "title": "Prabhu eso eso",
+    "tal": null,
+    "pages": [
+      15,
+      16
+    ],
+    "capo": 0,
+    "saSounding": "D",
+    "rows": 12,
+    "steps": 184,
+    "doubts": 1
+  },
+  {
+    "number": 158,
+    "title": "Tumi sabar",
+    "tal": "Kaharba",
+    "pages": [
+      17,
+      18
+    ],
+    "capo": 2,
+    "saSounding": "D",
+    "rows": 13,
+    "steps": 186,
+    "doubts": 1
+  },
+  {
+    "number": 159,
+    "title": "Tomay bhalobasi",
+    "tal": "dadra",
+    "pages": [
+      19,
+      20
+    ],
+    "capo": 2,
+    "saSounding": "D",
+    "rows": 10,
+    "steps": 190,
+    "doubts": 0
+  },
+  {
+    "number": 162,
+    "title": "Kichu kaye jao",
+    "tal": "Dadra",
+    "pages": [
+      21
+    ],
+    "capo": 2,
+    "saSounding": "D",
+    "rows": 6,
+    "steps": 134,
+    "doubts": 0
+  },
+  {
+    "number": 163,
+    "title": "Manke kona",
+    "tal": "dadra",
+    "pages": [
+      22,
+      23
+    ],
+    "capo": 0,
+    "saSounding": "D",
+    "rows": 7,
+    "steps": 148,
+    "doubts": 0
+  },
+  {
+    "number": 193,
+    "title": "Andhar sagare",
+    "tal": "kaharba",
+    "pages": [
+      24
+    ],
+    "capo": 0,
+    "saSounding": "D",
+    "rows": 5,
+    "steps": 143,
+    "doubts": 0
+  },
+  {
+    "number": 212,
+    "title": "Niirava rate",
+    "tal": "kaharva",
+    "pages": [
+      25
+    ],
+    "capo": 0,
+    "saSounding": "C",
+    "rows": 7,
+    "steps": 199,
+    "doubts": 2
+  },
+  {
+    "number": 342,
+    "title": "Sumukher pane (rus)",
+    "tal": "Dadra",
+    "pages": [
+      26
+    ],
+    "capo": 5,
+    "saSounding": "D",
+    "rows": 6,
+    "steps": 136,
+    "doubts": 0
+  },
+  {
+    "number": 419,
+    "title": "Kende kende kata daki",
+    "tal": "kaharba",
+    "pages": [
+      27
+    ],
+    "capo": 5,
+    "saSounding": "D",
+    "rows": 6,
+    "steps": 119,
+    "doubts": 3
+  },
+  {
+    "number": 647,
+    "title": "Tumi je esecho aj",
+    "tal": "kaharba",
+    "pages": [
+      28,
+      29
+    ],
+    "capo": 5,
+    "saSounding": "D",
+    "rows": 6,
+    "steps": 160,
+    "doubts": 0
+  },
+  {
+    "number": 737,
+    "title": "Tumi eso eso",
+    "tal": "Kaharba",
+    "pages": [
+      30
+    ],
+    "capo": 2,
+    "saSounding": "D",
+    "rows": 6,
+    "steps": 159,
+    "doubts": 1
+  },
+  {
+    "number": 763,
+    "title": "",
+    "tal": null,
+    "pages": [
+      31,
+      32
+    ],
+    "capo": 2,
+    "saSounding": "B",
+    "rows": 11,
+    "steps": 205,
+    "doubts": 7
+  },
+  {
+    "number": 809,
+    "title": "Hiyara viinay",
+    "tal": "Kaharba",
+    "pages": [
+      33
+    ],
+    "capo": 3,
+    "saSounding": "G",
+    "rows": 6,
+    "steps": 166,
+    "doubts": 0
+  },
+  {
+    "number": 867,
+    "title": "Tandra dao katiye",
+    "tal": "Kaharba",
+    "pages": [
+      34
+    ],
+    "capo": 3,
+    "saSounding": "G",
+    "rows": 6,
+    "steps": 117,
+    "doubts": 6
+  },
+  {
+    "number": 903,
+    "title": "Tumi jakhan esechile",
+    "tal": "Kaharba",
+    "pages": [
+      35,
+      36
+    ],
+    "capo": 0,
+    "saSounding": "D",
+    "rows": 16,
+    "steps": 226,
+    "doubts": 1
+  },
+  {
+    "number": 960,
+    "title": "Tumi dhara dile",
+    "tal": "Kaharba",
+    "pages": [
+      37
+    ],
+    "capo": 3,
+    "saSounding": "D#",
+    "rows": 8,
+    "steps": 159,
+    "doubts": 1
+  },
+  {
+    "number": 1025,
+    "title": "Amar jiivane tumi ke",
+    "tal": "kaharva",
+    "pages": [
+      38,
+      39
+    ],
+    "capo": 3,
+    "saSounding": "C",
+    "rows": 8,
+    "steps": 196,
+    "doubts": 2
+  },
+  {
+    "number": 1027,
+    "title": "Tomare cai je ekante",
+    "tal": "Kaharba",
+    "pages": [
+      40,
+      41
+    ],
+    "capo": 3,
+    "saSounding": "C",
+    "rows": 9,
+    "steps": 195,
+    "doubts": 0
+  },
+  {
+    "number": 1440,
+    "title": "Cand tumi amara pane",
+    "tal": "Kaharba",
+    "pages": [
+      42
+    ],
+    "capo": 2,
+    "saSounding": "F#",
+    "rows": 6,
+    "steps": 169,
+    "doubts": 0
+  },
+  {
+    "number": 1550,
+    "title": "Ankhi mele ceye dekho",
+    "tal": "Kaharba",
+    "pages": [
+      43
+    ],
+    "capo": 5,
+    "saSounding": "G",
+    "rows": 7,
+    "steps": 147,
+    "doubts": 1
+  },
+  {
+    "number": 1682,
+    "title": "Vasanteri agamane",
+    "tal": "kaharva",
+    "pages": [
+      44
+    ],
+    "capo": 5,
+    "saSounding": "D",
+    "rows": 6,
+    "steps": 129,
+    "doubts": 2
+  },
+  {
+    "number": 2036,
+    "title": "Ek phali chand",
+    "tal": "kaharva",
+    "pages": [
+      45,
+      46
+    ],
+    "capo": 3,
+    "saSounding": "D#",
+    "rows": 8,
+    "steps": 163,
+    "doubts": 8
+  },
+  {
+    "number": 2777,
+    "title": "Vishva dolay",
+    "tal": "rupak",
+    "pages": [
+      47
+    ],
+    "capo": 2,
+    "saSounding": "B",
+    "rows": 6,
+    "steps": 117,
+    "doubts": 9
+  },
+  {
+    "number": 2976,
+    "title": "Tomay ami pelum",
+    "tal": "kaharva",
+    "pages": [
+      48,
+      49
+    ],
+    "capo": 1,
+    "saSounding": "C#",
+    "rows": 9,
+    "steps": 154,
+    "doubts": 0
+  },
+  {
+    "number": 3069,
+    "title": "Jyotsna dile",
+    "tal": "kaharva",
+    "pages": [
+      50
+    ],
+    "capo": 2,
+    "saSounding": "D",
+    "rows": 14,
+    "steps": 181,
+    "doubts": 0
+  },
+  {
+    "number": 3207,
+    "title": "Tomay ami nahi jani",
+    "tal": "kaharva",
+    "pages": [
+      51,
+      52
+    ],
+    "capo": 3,
+    "saSounding": "C",
+    "rows": 7,
+    "steps": 147,
+    "doubts": 0
+  },
+  {
+    "number": 3261,
+    "title": "Priya amar",
+    "tal": "kaharva",
+    "pages": [
+      53,
+      54
+    ],
+    "capo": 3,
+    "saSounding": "A#",
+    "rows": 6,
+    "steps": 152,
+    "doubts": 1
+  },
+  {
+    "number": 3274,
+    "title": "Tumi kothay",
+    "tal": "dadra",
+    "pages": [
+      55,
+      56
+    ],
+    "capo": 4,
+    "saSounding": "F#",
+    "rows": 8,
+    "steps": 154,
+    "doubts": 7
+  },
+  {
+    "number": 3570,
+    "title": "Jiivane marane",
+    "tal": "kaharva",
+    "pages": [
+      57,
+      58
+    ],
+    "capo": 3,
+    "saSounding": "C",
+    "rows": 9,
+    "steps": 174,
+    "doubts": 0
+  },
+  {
+    "number": 3806,
+    "title": "Nirguna ambare",
+    "tal": "Kaharva",
+    "pages": [
+      59,
+      60
+    ],
+    "capo": 2,
+    "saSounding": "F#",
+    "rows": 8,
+    "steps": 215,
+    "doubts": 0
+  },
+  {
+    "number": 4070,
+    "title": "Tum ho mere Krsna",
+    "tal": "kaharva",
+    "pages": [
+      61,
+      62
+    ],
+    "capo": 1,
+    "saSounding": "C#",
+    "rows": 9,
+    "steps": 242,
+    "doubts": 1
+  },
+  {
+    "number": 4168,
+    "title": "Iah fariyad malik",
+    "tal": "Kaharba",
+    "pages": [
+      63
+    ],
+    "capo": 5,
+    "saSounding": "F",
+    "rows": 5,
+    "steps": 106,
+    "doubts": 6
+  },
+  {
+    "number": 4335,
+    "title": "Jamin asaman tumhara",
+    "tal": "Kaharba",
+    "pages": [
+      64
+    ],
+    "capo": 0,
+    "saSounding": "C",
+    "rows": 6,
+    "steps": 122,
+    "doubts": 0
+  },
+  {
+    "number": 4579,
+    "title": "Tumi kache thekeo",
+    "tal": "kaharva",
+    "pages": [
+      65,
+      66
+    ],
+    "capo": 4,
+    "saSounding": "C#",
+    "rows": 11,
+    "steps": 241,
+    "doubts": 0
+  },
+  {
+    "number": 4682,
+    "title": "Baba e bar",
+    "tal": "dadra",
+    "pages": [
+      67
+    ],
+    "capo": 1,
+    "saSounding": "C#",
+    "rows": 6,
+    "steps": 120,
+    "doubts": 6
+  },
+  {
+    "number": 4954,
+    "title": "Shravanii purnimar",
+    "tal": "kaharva",
+    "pages": [
+      68,
+      69
+    ],
+    "capo": 2,
+    "saSounding": "D",
+    "rows": 8,
+    "steps": 184,
+    "doubts": 4
+  },
+  {
+    "number": 5009,
+    "title": "This life is for him",
+    "tal": "kaharva",
+    "pages": [
+      70
+    ],
+    "capo": 4,
+    "saSounding": "C#",
+    "rows": 5,
+    "steps": 81,
+    "doubts": 2
+  },
+  {
+    "number": 5018,
+    "title": "Amra gare nobo gurukul",
+    "tal": "kaharva",
+    "pages": [
+      71,
+      72
+    ],
+    "capo": 1,
+    "saSounding": "C#",
+    "rows": 7,
+    "steps": 127,
+    "doubts": 0
+  }
+]

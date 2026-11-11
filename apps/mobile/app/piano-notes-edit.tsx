@@ -13,7 +13,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useT } from "@/lib/i18n"
 import { authHeadersFromStore } from "@/lib/memberAuth"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
-import { bookletPianoSheet } from "@/lib/pianoNotes/booklet"
+import { isLocalSheetId, localPianoSheet } from "@/lib/pianoNotes/local"
 import { pianoBackend, pianoFailure } from "@/lib/pianoNotes/backend"
 import { keyOptions } from "@/lib/kirtan/keyPicker"
 import { BEAT_CHOICES, appendToken, draftFromEditor, dropLastToken, editorRowsOf, newEditorRow, rowsFromEditor, type EditorRow } from "@/lib/pianoNotes/editor"
@@ -75,7 +75,7 @@ export default function PianoNotesEditScreen() {
     if (!startId || !target || access !== "ok") return
     let active0 = true
     const find = async (): Promise<PianoSheet | undefined> => {
-      if (fromId && fromId.startsWith("booklet-") && target.kind === "song") return bookletPianoSheet(target.number) ?? undefined
+      if (fromId && isLocalSheetId(fromId) && target.kind === "song") return localPianoSheet(target.number) ?? undefined
       const list = editId || copyId ? await pianoBackend().mine() : await pianoBackend().list(target)
       return list.find((s) => s.id === startId)
     }
@@ -103,7 +103,7 @@ export default function PianoNotesEditScreen() {
 
   const built = useMemo(() => rowsFromEditor(rows), [rows])
   const draft = useMemo(
-    () => draftFromEditor({ saKey, rows: built.rows, linkUrl, note, isAnonymous: anonymous, replacesId: copyId || null, basedOnId: fromId && !fromId.startsWith("booklet-") ? fromId : null }),
+    () => draftFromEditor({ saKey, rows: built.rows, linkUrl, note, isAnonymous: anonymous, replacesId: copyId || null, basedOnId: fromId && !isLocalSheetId(fromId) ? fromId : null }),
     [saKey, built.rows, linkUrl, note, anonymous, copyId, fromId],
   )
   const problem: PianoFailure | "words" | null = built.problems.length > 0 ? "words" : built.rows.length === 0 ? null : validateDraft(draft)

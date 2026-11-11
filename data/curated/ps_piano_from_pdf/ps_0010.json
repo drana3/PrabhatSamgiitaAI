@@ -1,0 +1,4192 @@
+{
+  "number": 10,
+  "title": "Mayamukure ke kii bhave",
+  "tal": null,
+  "heading": "PS №10",
+  "pages": [
+    5
+  ],
+  "capo": 3,
+  "capoText": "каподастр на 3 ладу С G C",
+  "keySignature": {
+    "accidentals": -3,
+    "majorTonic": "D#",
+    "relativeMinor": "C"
+  },
+  "timeSignature": [
+    "4/4"
+  ],
+  "clef": "G",
+  "sa": {
+    "sounding": "D#",
+    "uncertain": false,
+    "foundBy": "key signature 1.5, first chord 1, last chord 1, last note 1: D# 3.5, C 1.5, G# 1",
+    "basis": [
+      "key signature -3 (flats): major tonic D#, relative minor C",
+      "first chord C and last chord C with capo 3: sounding roots D# and D#",
+      "last note G#"
+    ],
+    "octaveRule": "the lowest note lies within 6 semitones of Sa (-6 .. +5)",
+    "saMidiInWrittenPitch": 63
+  },
+  "chords": [
+    "C",
+    "G",
+    "F"
+  ],
+  "bars": [
+    {
+      "page": 5,
+      "line": 1,
+      "bar": 1,
+      "number": null,
+      "letter": "A1",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "МА́",
+          "chord": "C",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 88.9,
+          "y": 142.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ЙЯ́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 118.0,
+          "y": 145.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "МУ-КУ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 133.4,
+          "y": 142.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 148.7,
+          "y": 140.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-РЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 164.0,
+          "y": 142.6
+        },
+        {
+          "pitch": null,
+          "k": null,
+          "swara": null,
+          "b": 0.5,
+          "rest": true,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 179.3,
+          "y": 137.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 1,
+      "bar": 2,
+      "number": null,
+      "letter": "B",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 200.6,
+          "y": 142.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КИ́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 215.9,
+          "y": 140.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 231.2,
+          "y": 137.6
+        },
+        {
+          "pitch": "C5",
+          "k": 9,
+          "swara": "Dha",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "БХА́БЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 246.5,
+          "y": 135.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КИ́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 261.9,
+          "y": 137.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 277.2,
+          "y": 140.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-РЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 292.5,
+          "y": 142.6
+        },
+        {
+          "pitch": null,
+          "k": null,
+          "swara": null,
+          "b": 0.5,
+          "rest": true,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": "G",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 307.9,
+          "y": 137.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 1,
+      "bar": 3,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 0.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": true,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 328.3,
+          "y": 147.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ШО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 338.1,
+          "y": 145.1
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-БИ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 361.1,
+          "y": 145.1
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ДЖА",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 376.4,
+          "y": 145.1
+        },
+        {
+          "pitch": "E4",
+          "k": 1,
+          "swara": "re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 391.7,
+          "y": 145.1
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-НО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 407.0,
+          "y": 145.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 422.4,
+          "y": 142.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 437.7,
+          "y": 140.1
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 1,
+      "bar": 4,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "О",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 458.9,
+          "y": 142.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ГО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 474.2,
+          "y": 145.1
+        },
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ДЕ-БО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 489.6,
+          "y": 147.6
+        },
+        {
+          "pitch": "D4",
+          "k": -1,
+          "swara": ".Ni",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": "C",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 504.9,
+          "y": 150.1
+        },
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ТА́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 520.2,
+          "y": 147.6
+        },
+        {
+          "pitch": null,
+          "k": null,
+          "swara": null,
+          "b": 1.0,
+          "rest": true,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 543.2,
+          "y": 137.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 2,
+      "bar": 1,
+      "number": null,
+      "letter": "C",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ПРА́Н́Е",
+          "chord": "C",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 77.8,
+          "y": 237.6
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 94.1,
+          "y": 237.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-РО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 118.4,
+          "y": 240.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 134.6,
+          "y": 237.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ШПОН-ДОН",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 150.9,
+          "y": 235.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 167.1,
+          "y": 237.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 2,
+      "bar": 2,
+      "number": null,
+      "letter": "D",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 197.3,
+          "y": 237.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ДЖУГО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 213.6,
+          "y": 235.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 229.8,
+          "y": 232.6
+        },
+        {
+          "pitch": "C5",
+          "k": 9,
+          "swara": "Dha",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "БИ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 246.0,
+          "y": 230.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 262.3,
+          "y": 232.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-БОРТ-ТОН",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 278.5,
+          "y": 235.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 294.7,
+          "y": 237.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 2,
+      "bar": 3,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ШО",
+          "chord": "G",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 325.0,
+          "y": 240.1
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-БИ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 349.3,
+          "y": 240.1
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ШО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 365.5,
+          "y": 240.1
+        },
+        {
+          "pitch": "E4",
+          "k": 1,
+          "swara": "re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": "-Н́О",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 381.8,
+          "y": 240.1
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 398.0,
+          "y": 240.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 414.2,
+          "y": 237.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 430.5,
+          "y": 235.1
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 2,
+      "bar": 4,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ГО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 452.6,
+          "y": 237.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 468.8,
+          "y": 240.1
+        },
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ПО-НО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 485.0,
+          "y": 242.6
+        },
+        {
+          "pitch": "D4",
+          "k": -1,
+          "swara": ".Ni",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": "C",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 501.3,
+          "y": 245.1
+        },
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КО-ТХА́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 517.5,
+          "y": 242.6
+        },
+        {
+          "pitch": null,
+          "k": null,
+          "swara": null,
+          "b": 1.0,
+          "rest": true,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 541.8,
+          "y": 232.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 3,
+      "bar": 1,
+      "number": null,
+      "letter": "E",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": "C",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 77.8,
+          "y": 332.6
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ТО-МА́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 93.5,
+          "y": 332.6
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": "-РЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 109.2,
+          "y": 332.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 124.9,
+          "y": 335.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ЛУ-КА",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 140.6,
+          "y": 332.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 156.3,
+          "y": 330.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ЙЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 172.0,
+          "y": 332.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 3,
+      "bar": 2,
+      "number": null,
+      "letter": "F",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КИ́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 201.4,
+          "y": 332.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 217.1,
+          "y": 330.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-РИ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 232.8,
+          "y": 327.6
+        },
+        {
+          "pitch": "C5",
+          "k": 9,
+          "swara": "Dha",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ТЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 248.5,
+          "y": 325.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 264.2,
+          "y": 327.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ПА́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 279.8,
+          "y": 330.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-РИ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 295.5,
+          "y": 332.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 3,
+      "bar": 3,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 325.0,
+          "y": 332.6
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ТО-МА́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 340.7,
+          "y": 332.6
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": "-РЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 356.3,
+          "y": 332.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 372.0,
+          "y": 335.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "БХУЛА́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 387.7,
+          "y": 332.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 403.4,
+          "y": 330.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ЙЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 419.1,
+          "y": 332.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 3,
+      "bar": 4,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КИ́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 448.5,
+          "y": 332.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 464.2,
+          "y": 330.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "БХА́БИ-ТЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 479.9,
+          "y": 327.6
+        },
+        {
+          "pitch": "C5",
+          "k": 9,
+          "swara": "Dha",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 495.6,
+          "y": 325.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": "ПА",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 511.3,
+          "y": 327.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 527.0,
+          "y": 330.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-РИ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 542.7,
+          "y": 332.6
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 4,
+      "bar": 1,
+      "number": null,
+      "letter": "G",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": "C",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 77.8,
+          "y": 427.6
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ШОКОЛ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 93.4,
+          "y": 427.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 116.7,
+          "y": 430.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "БИ-КА́-Ш",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 132.2,
+          "y": 427.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 147.7,
+          "y": 425.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 163.3,
+          "y": 427.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "МА́ДЖХЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 178.8,
+          "y": 430.1
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 4,
+      "bar": 2,
+      "number": null,
+      "letter": "H",
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 200.2,
+          "y": 427.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ТУМИ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 215.8,
+          "y": 425.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 231.3,
+          "y": 422.6
+        },
+        {
+          "pitch": "C5",
+          "k": 9,
+          "swara": "Dha",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "А́-ЧХО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 246.9,
+          "y": 420.1
+        },
+        {
+          "pitch": "A#4",
+          "k": 7,
+          "swara": "Pa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "ШО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 262.4,
+          "y": 422.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-Б",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 277.9,
+          "y": 425.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 293.5,
+          "y": 427.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "КА́ДЖЕ",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 309.0,
+          "y": 430.1
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 4,
+      "bar": 3,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "single",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "НИ́",
+          "chord": "F",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 330.4,
+          "y": 427.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-РО-БО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 353.7,
+          "y": 430.1
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 369.3,
+          "y": 430.1
+        },
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": "МО",
+          "chord": "G",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 384.8,
+          "y": 432.6
+        },
+        {
+          "pitch": "D4",
+          "k": -1,
+          "swara": ".Ni",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 400.3,
+          "y": 435.1
+        },
+        {
+          "pitch": "C4",
+          "k": -3,
+          "swara": ".Dha",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ДХУ-РО",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 415.9,
+          "y": 437.6
+        },
+        {
+          "pitch": "D4",
+          "k": -1,
+          "swara": ".Ni",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": "C",
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 431.4,
+          "y": 435.1
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "line": 4,
+      "bar": 4,
+      "number": null,
+      "letter": null,
+      "volta": null,
+      "ends": "final",
+      "time": "4/4",
+      "quarters": 4.0,
+      "notes": [
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-ТА",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 452.8,
+          "y": 432.6
+        },
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 1.0,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": "-А",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 476.1,
+          "y": 432.6
+        },
+        {
+          "pitch": "D#4",
+          "k": 0,
+          "swara": "Sa",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": true,
+          "syllable": "-А́",
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 499.5,
+          "y": 432.6
+        },
+        {
+          "pitch": "F4",
+          "k": 2,
+          "swara": "Re",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 515.0,
+          "y": 430.1
+        },
+        {
+          "pitch": "G4",
+          "k": 4,
+          "swara": "Ga",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 530.5,
+          "y": 427.6
+        },
+        {
+          "pitch": "G#4",
+          "k": 5,
+          "swara": "Ma",
+          "b": 0.5,
+          "rest": false,
+          "tieNext": false,
+          "slurNext": false,
+          "syllable": null,
+          "chord": null,
+          "grace": false,
+          "ornament": false,
+          "tuplet": 0,
+          "x": 546.1,
+          "y": 425.1
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "label": "A1",
+      "repeat": 1,
+      "hand": "right",
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 1.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            1
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [],
+          "b": 1.0
+        }
+      ]
+    },
+    {
+      "label": "C",
+      "repeat": 1,
+      "hand": "right",
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            1
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [],
+          "b": 1.0
+        }
+      ]
+    },
+    {
+      "label": "E",
+      "repeat": 1,
+      "hand": "right",
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        }
+      ]
+    },
+    {
+      "label": "G",
+      "repeat": 1,
+      "hand": "right",
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            -3
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5
+        }
+      ]
+    }
+  ],
+  "rowsDetail": [
+    {
+      "label": "A1",
+      "bars": [
+        {
+          "page": 5,
+          "line": 1,
+          "bar": 1
+        },
+        {
+          "page": 5,
+          "line": 1,
+          "bar": 2
+        },
+        {
+          "page": 5,
+          "line": 1,
+          "bar": 3
+        },
+        {
+          "page": 5,
+          "line": 1,
+          "bar": 4
+        }
+      ],
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 1.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "МА́",
+          "chord": "C",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "-ЙЯ́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "МУ-КУ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-РЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [],
+          "b": 0.5,
+          "rest": true,
+          "chord": null
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "КЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "КИ́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5,
+          "pitch": "C5",
+          "swara": "Dha",
+          "syllable": "БХА́БЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": "КИ́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "КО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-РЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [],
+          "b": 0.5,
+          "rest": true,
+          "chord": "G"
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 1.0,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "ШО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "-БИ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "ДЖА",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            1
+          ],
+          "b": 0.5,
+          "pitch": "E4",
+          "swara": "re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "-НО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "О",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "-ГО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "ДЕ-БО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5,
+          "pitch": "D4",
+          "swara": ".Ni",
+          "syllable": null,
+          "chord": "C",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "-ТА́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [],
+          "b": 1.0,
+          "rest": true,
+          "chord": null
+        }
+      ]
+    },
+    {
+      "label": "C",
+      "bars": [
+        {
+          "page": 5,
+          "line": 2,
+          "bar": 1
+        },
+        {
+          "page": 5,
+          "line": 2,
+          "bar": 2
+        },
+        {
+          "page": 5,
+          "line": 2,
+          "bar": 3
+        },
+        {
+          "page": 5,
+          "line": 2,
+          "bar": 4
+        }
+      ],
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "ПРА́Н́Е",
+          "chord": "C",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "-РО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "ШПОН-ДОН",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "ДЖУГО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5,
+          "pitch": "C5",
+          "swara": "Dha",
+          "syllable": "БИ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "-БОРТ-ТОН",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 1.0,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "ШО",
+          "chord": "G",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "-БИ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "ШО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            1
+          ],
+          "b": 0.5,
+          "pitch": "E4",
+          "swara": "re",
+          "syllable": "-Н́О",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "ГО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "-ПО-НО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5,
+          "pitch": "D4",
+          "swara": ".Ni",
+          "syllable": null,
+          "chord": "C",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "КО-ТХА́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [],
+          "b": 1.0,
+          "rest": true,
+          "chord": null
+        }
+      ]
+    },
+    {
+      "label": "E",
+      "bars": [
+        {
+          "page": 5,
+          "line": 3,
+          "bar": 1
+        },
+        {
+          "page": 5,
+          "line": 3,
+          "bar": 2
+        },
+        {
+          "page": 5,
+          "line": 3,
+          "bar": 3
+        },
+        {
+          "page": 5,
+          "line": 3,
+          "bar": 4
+        }
+      ],
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": "C",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "ТО-МА́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-РЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "ЛУ-КА",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-ЙЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "КИ́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "КО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": "-РИ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5,
+          "pitch": "C5",
+          "swara": "Dha",
+          "syllable": "-ТЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "ПА́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-РИ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "ТО-МА́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-РЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "БХУЛА́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-ЙЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "КИ́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": "БХА́БИ-ТЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5,
+          "pitch": "C5",
+          "swara": "Dha",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": "ПА",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "-РИ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        }
+      ]
+    },
+    {
+      "label": "G",
+      "bars": [
+        {
+          "page": 5,
+          "line": 4,
+          "bar": 1
+        },
+        {
+          "page": 5,
+          "line": 4,
+          "bar": 2
+        },
+        {
+          "page": 5,
+          "line": 4,
+          "bar": 3
+        },
+        {
+          "page": 5,
+          "line": 4,
+          "bar": 4
+        }
+      ],
+      "steps": [
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": "C",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "ШОКОЛ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "БИ-КА́-Ш",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "МА́ДЖХЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "ТУМИ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            9
+          ],
+          "b": 0.5,
+          "pitch": "C5",
+          "swara": "Dha",
+          "syllable": "А́-ЧХО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            7
+          ],
+          "b": 0.5,
+          "pitch": "A#4",
+          "swara": "Pa",
+          "syllable": "ШО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": "-Б",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "КА́ДЖЕ",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 1.0,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": "НИ́",
+          "chord": "F",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": "-РО-БО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "МО",
+          "chord": "G",
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5,
+          "pitch": "D4",
+          "swara": ".Ni",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            -3
+          ],
+          "b": 0.5,
+          "pitch": "C4",
+          "swara": ".Dha",
+          "syllable": "-ДХУ-РО",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            -1
+          ],
+          "b": 0.5,
+          "pitch": "D4",
+          "swara": ".Ni",
+          "syllable": null,
+          "chord": "C",
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "-ТА",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 1.0,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "-А",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            0
+          ],
+          "b": 0.5,
+          "pitch": "D#4",
+          "swara": "Sa",
+          "syllable": "-А́",
+          "chord": null,
+          "tieNext": false,
+          "slurNext": true,
+          "ornament": false
+        },
+        {
+          "k": [
+            2
+          ],
+          "b": 0.5,
+          "pitch": "F4",
+          "swara": "Re",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            4
+          ],
+          "b": 0.5,
+          "pitch": "G4",
+          "swara": "Ga",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        },
+        {
+          "k": [
+            5
+          ],
+          "b": 0.5,
+          "pitch": "G#4",
+          "swara": "Ma",
+          "syllable": null,
+          "chord": null,
+          "tieNext": false,
+          "slurNext": false,
+          "ornament": false
+        }
+      ]
+    }
+  ],
+  "stepsCount": 109,
+  "structure": [],
+  "repeatInstructions": [
+    "(повторить А1)",
+    "(повторить 1-й куплет, 2-й куплет, 1-й куплет, 1 раз А1)"
+  ],
+  "annotations": [],
+  "doubts": [
+    "p5 line 1: 1 grace note(s) in the PDF are not in the steps"
+  ]
+}

@@ -24,7 +24,8 @@ const REPORT_REASONS: readonly PianoReportReason[] = ["wrong_notes", "offensive"
  * The piano notes of a recording or a Prabhat Samgiita song (docs/piano-notation.md). Reading: pick a sheet, pick Sa
  * (easy keys, Sa on C, are on), light the keys step by step or play them. Writing: "Add your notes" opens the editor;
  * your own waiting or turned-down notes can be changed, live ones are offered again as a changed copy, other people's
- * notes can be a starting point. Stage 0 songs (1, 2, 27) carry the booklet's notes with no server at all.
+ * notes can be a starting point. Stage 0 songs (1, 2, 27) carry the booklet's notes, and the songs of the collection
+ * "50 PS" the notes read from its PDF (lib/pianoNotes/collection.ts), with no server at all.
  */
 export default function PianoNotesScreen() {
   const t = useT()
@@ -69,11 +70,17 @@ export default function PianoNotesScreen() {
 
   const byLine = (s: PianoSheet): string => {
     if (s.fromBooklet) return t("piano.by.booklet")
+    if (s.fromCollection) return t("piano.by.collection")
     if (s.mine) return t(s.status === "published" ? "piano.by.you" : s.status === "pending" ? "piano.by.youWaiting" : "piano.by.youRejected")
     if (s.author) return t(s.byRecordingAuthor ? "piano.by.recordingAuthor" : "piano.by.name", { name: s.author.name })
     return t("piano.by.anonymous")
   }
-  const label = (s: PianoSheet, index: number): string => (s.fromBooklet ? t("piano.version.booklet") : t("piano.version", { n: index + (items[0]?.fromBooklet ? 0 : 1) }))
+  const local = (s: PianoSheet | undefined): boolean => Boolean(s?.fromBooklet || s?.fromCollection)
+  const label = (s: PianoSheet, index: number): string => {
+    if (s.fromBooklet) return t("piano.version.booklet")
+    if (s.fromCollection) return t("piano.version.collection")
+    return t("piano.version", { n: index + (local(items[0]) ? 0 : 1) })
+  }
 
   return (
     <View style={[s0.root, { backgroundColor: theme.page }]}>
@@ -118,7 +125,9 @@ export default function PianoNotesScreen() {
             <PianoReader theme={theme} sheet={sheet} />
 
             {sheet.linkUrl ? <ActionButton theme={theme} tone="quiet" label={t("piano.link")} onPress={() => void Linking.openURL(sheet.linkUrl!)} /> : null}
-            {sheet.fromBooklet ? <Hint theme={theme}>{t("piano.booklet.note")}</Hint> : <Hint theme={theme}>{t("piano.honest")}</Hint>}
+            {sheet.fromBooklet ? <Hint theme={theme}>{t("piano.booklet.note")}</Hint> : sheet.fromCollection ? <Hint theme={theme}>{t("piano.collection.note")}</Hint> : <Hint theme={theme}>{t("piano.honest")}</Hint>}
+            {sheet.fromCollection?.saUncertain ? <Hint theme={theme}>{t("piano.collection.sa")}</Hint> : null}
+            {sheet.fromCollection && sheet.fromCollection.doubts > 0 ? <Hint theme={theme}>{t("piano.collection.doubts", { count: sheet.fromCollection.doubts })}</Hint> : null}
 
             <View style={s0.stack}>
               {sheet.mine && sheet.status !== "published" ? (
@@ -133,13 +142,14 @@ export default function PianoNotesScreen() {
                   <ActionButton theme={theme} tone="quiet" label={t("piano.delete")} onPress={() => void remove(sheet.id)} style={s0.flex} />
                 </View>
               ) : null}
-              {!sheet.mine && !sheet.fromBooklet && sheet.status === "published" ? (
+              {!sheet.mine && !local(sheet) && sheet.status === "published" ? (
                 <View style={s0.row}>
                   <ActionButton theme={theme} tone="quiet" label={t("piano.from")} onPress={() => edit("from", sheet.id)} style={s0.flex} />
                   <ActionButton theme={theme} tone="quiet" label={t("piano.report")} onPress={() => setReporting((v) => !v)} style={s0.flex} />
                 </View>
               ) : null}
               {sheet.fromBooklet ? <ActionButton theme={theme} tone="quiet" label={t("piano.from.booklet")} onPress={() => edit("from", sheet.id)} /> : null}
+              {sheet.fromCollection ? <ActionButton theme={theme} tone="quiet" label={t("piano.from.collection")} onPress={() => edit("from", sheet.id)} /> : null}
               {reporting ? (
                 <View style={s0.chips} accessibilityRole="tablist">
                   {REPORT_REASONS.map((reason) => (

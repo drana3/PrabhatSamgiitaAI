@@ -43,6 +43,11 @@ export type PianoSheet = {
   recordingTitle: string | null
   /** The notes that ship in the app (the booklet of Prabhat Samgiita): not from a member, never reviewed. */
   fromBooklet?: boolean
+  /**
+   * The notes read from the printed collection "50 PS" by a program: not from a member, not checked by the team yet.
+   * `doubts` counts the places the program marked as uncertain; `saUncertain` says the Sa itself is a guess.
+   */
+  fromCollection?: { doubts: number; saUncertain: boolean }
 }
 
 /** What the member types, before it becomes a request. */

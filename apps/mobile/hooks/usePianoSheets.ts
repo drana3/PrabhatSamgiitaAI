@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { bookletPianoSheet } from "@/lib/pianoNotes/booklet"
+import { localPianoSheet } from "@/lib/pianoNotes/local"
 import { pianoBackend, pianoFailure } from "@/lib/pianoNotes/backend"
 import { visibleSheets } from "@/lib/pianoNotes/rules"
 import type { PianoDraft, PianoFailure, PianoReportReason, PianoSheet, PianoTarget } from "@/lib/pianoNotes/types"
@@ -18,15 +18,16 @@ export type PianoSheetsController = {
 const keyOf = (target: PianoTarget) => (target.kind === "recording" ? `r:${target.id}` : `s:${target.number}`)
 
 /**
- * The piano sheets of one recording or song: the live ones plus the member's own waiting ones (the booklet's own notes
- * come first for songs 1, 2 and 27, whatever the server says). A reply that comes after the target changed or the page
- * closed is dropped. The backend is read when called, never captured.
+ * The piano sheets of one recording or song: the live ones plus the member's own waiting ones. The notes that ship in
+ * the app come first, whatever the server says: the booklet's for songs 1, 2 and 27, the collection "50 PS" for its
+ * other songs. A reply that comes after the target changed or the page closed is dropped. The backend is read when
+ * called, never captured.
  */
 export function usePianoSheets(target: PianoTarget | null): PianoSheetsController {
   const key = target ? keyOf(target) : ""
-  const booklet = target?.kind === "song" ? bookletPianoSheet(target.number) : null
-  const bookletItems = booklet ? [booklet] : []
-  const [state, setState] = useState<PianoSheetsState>({ status: "loading", items: bookletItems })
+  const local = target?.kind === "song" ? localPianoSheet(target.number) : null
+  const localItems = local ? [local] : []
+  const [state, setState] = useState<PianoSheetsState>({ status: "loading", items: localItems })
   const current = useRef(key)
   current.current = key
   const alive = useRef(true)
@@ -37,7 +38,7 @@ export function usePianoSheets(target: PianoTarget | null): PianoSheetsControlle
     }
   }, [])
   const fresh = (k: string) => alive.current && current.current === k
-  const merge = (items: PianoSheet[]) => [...(booklet ? [booklet] : []), ...visibleSheets(items)]
+  const merge = (items: PianoSheet[]) => [...(local ? [local] : []), ...visibleSheets(items)]
 
   const reload = useCallback(async () => {
     if (!target) return

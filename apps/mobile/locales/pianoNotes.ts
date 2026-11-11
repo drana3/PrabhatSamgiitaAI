@@ -3,6 +3,8 @@
  * and the sound credit in About. English is the source; ru and es mirror it key for key and start unreviewed by a native
  * speaker (locales/review.json). Design: docs/piano-notation.md.
  */
+import { pianoCollectionEn, pianoCollectionEs, pianoCollectionRu } from "./pianoCollection"
+
 export const pianoEn = {
   "piano.title": "Piano notes",
   "piano.easy": "Easy keys",
@@ -146,6 +148,7 @@ export const pianoEn = {
   "about.credits.title": "Credits",
   "about.credits.piano": "Piano sound: Salamander Grand Piano by Alexander Holm, licence CC BY 3.0.",
   "about.credits.piano.link": "Open the licence",
+  ...pianoCollectionEn,
 } as const
 
 export const pianoRu: Record<keyof typeof pianoEn, string> = {
@@ -291,6 +294,7 @@ export const pianoRu: Record<keyof typeof pianoEn, string> = {
   "about.credits.title": "Благодарности",
   "about.credits.piano": "Звук пианино: Salamander Grand Piano, автор Alexander Holm, лицензия CC BY 3.0.",
   "about.credits.piano.link": "Открыть лицензию",
+  ...pianoCollectionRu,
 }
 
 export const pianoEs: Record<keyof typeof pianoEn, string> = {
@@ -436,4 +440,5 @@ export const pianoEs: Record<keyof typeof pianoEn, string> = {
   "about.credits.title": "Créditos",
   "about.credits.piano": "Sonido de piano: Salamander Grand Piano, de Alexander Holm, licencia CC BY 3.0.",
   "about.credits.piano.link": "Abrir la licencia",
+  ...pianoCollectionEs,
 }
