@@ -3,12 +3,13 @@ import { StyleSheet, Text, View } from "react-native"
 import { SpIcon } from "@/components/song-v2/SpIcon"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { pickKind, versionsOf } from "@/lib/songTranslations/derive"
+import { meaningKind } from "@/lib/songPage/songTabs"
+import { versionsOf } from "@/lib/songTranslations/derive"
 import type { SongTranslation, TranslationKind } from "@/lib/songTranslations/types"
 import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
 
 import type { PageUi } from "./state"
-import { Eyebrow, QuietNote, Segmented, type SegItem } from "./ui"
+import { Eyebrow, QuietNote } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
 const KIND_LABEL: Record<TranslationKind, "songPage.translation.official" | "songPage.translation.poetic" | "songPage.translation.literal"> = {
@@ -53,28 +54,25 @@ function Version({ t, tr, item, scale, heading }: { t: SpTheme; tr: PageT; item:
 }
 
 /**
- * THE TRANSLATION PAGE. The full translation of the song in one kind at a time, Official, Poetic or Literal, only the
- * kinds this song has. The reader's last choice is remembered on the device (and used again when the song has it).
- * Under the text come the explanation of and comments on the translation, drawn only when there are some. A second
- * official version (91 songs have one) is the "Other version" under the first. Everything comes from the translations
- * the server serves; nothing is made up here (see lib/songTranslations).
+ * THE TRANSLATION. One text, no choice of kind (decision of 11 November 2026): the Official translation when the song has
+ * one, else the only kind it has. When the text is not the official one, a small line names its kind. Under the text come
+ * the credit and the commentary of the translation, drawn only when there are some. A second official version (91 songs
+ * have one) is the "Other version" under the first. Everything comes from the translations the server serves; nothing is
+ * made up here (see lib/songTranslations).
  */
 export function TranslationBody({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
   const tr = usePageT()
   const { kinds, items } = model.translations
-  const kind = pickKind(ui.translationKind, kinds)
+  const kind = meaningKind(kinds)
   if (!kind) return <QuietNote t={t}>{model.translationsLoading ? tr("songPage.translation.loading") : tr("songPage.lyrics.expand.none")}</QuietNote>
   const versions = versionsOf(items, kind)
-  const segments: Array<SegItem<TranslationKind>> = kinds.map((id) => ({ id, label: tr(KIND_LABEL[id]) }))
   return (
     <View>
-      <View style={styles.switch}>
-        {kinds.length > 1 ? (
-          <Segmented t={t} items={segments} value={kind} onChange={ui.setTranslationKind} label={tr("songPage.translation.kind")} role="radio" fit />
-        ) : (
+      {kind !== "official" ? (
+        <View style={styles.switch}>
           <Eyebrow t={t}>{tr(KIND_LABEL[kind])}</Eyebrow>
-        )}
-      </View>
+        </View>
+      ) : null}
       {versions.map((item, i) => (
         <Version key={item.id} t={t} tr={tr} item={item} scale={ui.scale} heading={i > 0 ? tr("songPage.translation.otherVersion") : null} />
       ))}

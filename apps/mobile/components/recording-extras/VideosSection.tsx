@@ -4,6 +4,7 @@ import { useRouter } from "expo-router"
 
 import { Button } from "@/components/comments/CommentsView"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
+import { OpenOutGlyph } from "@/components/song-page/Glyphs"
 import { SectionTitle } from "@/components/song-page/ui"
 import { SpIcon } from "@/components/song-v2/SpIcon"
 import { SpPress } from "@/components/song-v2/SpUi"
@@ -44,6 +45,7 @@ export function VideosSection({
   watch,
   title,
   skipId,
+  cards,
 }: {
   t: SpTheme
   videos: VideosController
@@ -55,6 +57,8 @@ export function VideosSection({
   title?: string
   /** a video that is already shown above (the headline video of the page) and is left out of the list */
   skipId?: string | null
+  /** the song page's Video tab: each video a card with a big picture, the site as a small label, icon buttons; "Add a video" a plain row, one short note at the end */
+  cards?: boolean
 }) {
   const tr = useT()
   const own = useVideoWatch()
@@ -67,11 +71,13 @@ export function VideosSection({
   return (
     <View testID="recording-videos">
       <SectionTitle t={t}>{title ?? tr("recVideos.title")}</SectionTitle>
-      <View style={styles.pad}>
-        <Note t={t} tone="body">{tr("recVideos.intro.watch")}</Note>
-        <Note t={t}>{tr("recVideos.note.watch")}</Note>
-        {MOCKUP_DATA ? <Note t={t}>{tr("recVideos.preview")}</Note> : null}
-      </View>
+      {cards ? null : (
+        <View style={styles.pad}>
+          <Note t={t} tone="body">{tr("recVideos.intro.watch")}</Note>
+          <Note t={t}>{tr("recVideos.note.watch")}</Note>
+          {MOCKUP_DATA ? <Note t={t}>{tr("recVideos.preview")}</Note> : null}
+        </View>
+      )}
 
       <View style={styles.list}>
         {state.status === "loading" && state.items.length === 0 ? (
@@ -90,15 +96,24 @@ export function VideosSection({
         {state.items
           .filter((video) => video.id !== skipId)
           .map((video) => (
-            <VideoRow key={video.id} t={t} video={video} videos={videos} onFlash={onFlash} watch={player} />
+            <VideoRow key={video.id} t={t} video={video} videos={videos} onFlash={onFlash} watch={player} cards={cards} />
           ))}
       </View>
 
       <View style={styles.pad}>
         {access === "ok" ? (
           <>
-            {state.status === "ready" ? <Note t={t}>{full ? tr("recVideos.full") : tr("recVideos.room", { count: state.room })}</Note> : null}
-            {!full ? <View style={styles.addRow}><Button t={t} label={tr("recVideos.add")} onPress={onAdd} /></View> : null}
+            {state.status === "ready" && !cards ? <Note t={t}>{full ? tr("recVideos.full") : tr("recVideos.room", { count: state.room })}</Note> : null}
+            {!full ? (
+              cards ? (
+                <SpPress onPress={onAdd} accessibilityLabel={tr("recVideos.add")} pressedScale={0.98} style={[styles.addCard, { borderColor: t.sand400 }]}>
+                  <SpIcon name="plusThin" size={22} color={t.ink800} strokeWidth={2} />
+                  <Text style={[styles.addText, { color: t.ink900 }]}>{tr("recVideos.add")}</Text>
+                </SpPress>
+              ) : (
+                <View style={styles.addRow}><Button t={t} label={tr("recVideos.add")} onPress={onAdd} /></View>
+              )
+            ) : null}
           </>
         ) : (
           <View style={[styles.gate, { borderColor: t.sand400, backgroundColor: t.white }]}>
@@ -127,7 +142,7 @@ function whenText(tr: ReturnType<typeof useT>, createdAt: string): string {
   }
 }
 
-function VideoRow({ t, video, videos, onFlash, watch }: { t: SpTheme; video: VideoLink; videos: VideosController; onFlash: (text: string) => void; watch: VideoWatch }) {
+function VideoRow({ t, video, videos, onFlash, watch, cards }: { t: SpTheme; video: VideoLink; videos: VideosController; onFlash: (text: string) => void; watch: VideoWatch; cards?: boolean }) {
   const tr = useT()
   const [panel, setPanel] = useState<Panel>(null)
   const site = providerHost(video.provider)
@@ -145,6 +160,45 @@ function VideoRow({ t, video, videos, onFlash, watch }: { t: SpTheme; video: Vid
   const mineOrTeam = video.mine || video.canRemove
   return (
     <View style={[styles.card, { backgroundColor: t.white, borderColor: t.sand400 }]}>
+      {cards ? (
+        <>
+          {playing && embed ? (
+            <WatchPlayer t={t} embed={embed} title={title} onClose={watch.close} />
+          ) : (
+            <SpPress onPress={press} disabled={!openable} accessibilityRole={embed ? "button" : "link"} accessibilityLabel={embed ? tr("recVideos.watch.a11y", { title }) : tr("recVideos.open.a11y", { title, site })} pressedScale={0.99}>
+              <VideoThumb video={video} title={title} width="100%" radius={16} overlay scrim testID={`video-thumb-${video.id}`}>
+                <View style={styles.thumbOver}>
+                  <View style={[styles.playBig, { backgroundColor: t.action }]}>
+                    <SpIcon name="play" size={22} color={t.onAction} />
+                  </View>
+                </View>
+              </VideoThumb>
+            </SpPress>
+          )}
+          <View style={styles.bigMeta}>
+            <View style={styles.text}>
+              <Text style={[styles.title, { color: t.ink900 }]} numberOfLines={2}>
+                {title}
+              </Text>
+              <Text style={[styles.source, { color: t.accentText }]} numberOfLines={1}>
+                {site}
+              </Text>
+              <Text style={[styles.by, { color: t.ink500 }]} numberOfLines={1}>
+                {`${by}  ·  ${whenText(tr, video.createdAt)}`}
+              </Text>
+            </View>
+            <SpPress onPress={() => void openOnSite()} disabled={!openable} accessibilityLabel={tr("songVideo.open.a11y", { site })} pressedScale={0.92} hitSlop={4} style={[styles.iconBtn, { borderColor: t.sand400 }]}>
+              <OpenOutGlyph size={18} color={t.ink800} />
+            </SpPress>
+            <SpPress onPress={() => setPanel(panel ? null : "menu")} accessibilityLabel={panel ? tr("recVideos.menu.close") : tr("recVideos.menu.a11y")} accessibilityState={{ selected: panel !== null }} pressedScale={0.92} hitSlop={4} style={[styles.iconBtn, { borderColor: t.sand400 }]}>
+              {panel ? <SpIcon name="close" size={18} color={t.ink800} strokeWidth={2} /> : <PlayerIcon name="more" size={20} color={t.ink800} />}
+            </SpPress>
+          </View>
+          {video.linkStatus === "no_embed" ? <Note t={t} tone="body">{tr("recVideos.status.noEmbed", { site })}</Note> : null}
+          {video.linkStatus === "unavailable" ? <Note t={t} tone="body">{tr("recVideos.status.unavailable")}</Note> : null}
+        </>
+      ) : (
+        <>
       <View style={styles.head}>
         <SpPress onPress={press} disabled={!openable} accessibilityRole={embed ? "button" : "link"} accessibilityLabel={embed ? tr("recVideos.watch.a11y", { title }) : tr("recVideos.open.a11y", { title, site })} style={styles.main}>
           <VideoThumb video={video} title={title} width={96} radius={10} compact overlay scrim testID={`video-thumb-${video.id}`}>
@@ -176,6 +230,9 @@ function VideoRow({ t, video, videos, onFlash, watch }: { t: SpTheme; video: Vid
           <Button t={t} variant="quiet" label={tr("recVideos.openSite", { site })} onPress={() => void openOnSite()} />
         </View>
       ) : null}
+
+        </>
+      )}
 
       {panel === "menu" ? (
         <View style={styles.actions}>
@@ -236,5 +293,12 @@ const styles = StyleSheet.create({
   title: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
   sub: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 20 },
   more: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  addCard: { minHeight: 56, borderWidth: 1.5, borderStyle: "dashed", borderRadius: R_FIELD, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 8 },
+  addText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
+  playBig: { width: 52, height: 52, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
+  bigMeta: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10, paddingHorizontal: 2 },
+  source: { fontFamily: amFonts.bold, fontSize: 11, lineHeight: 16, letterSpacing: 0.88, textTransform: "uppercase" },
+  by: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
+  iconBtn: { width: 40, height: 40, borderRadius: 9999, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 8 },
 })

@@ -147,10 +147,11 @@ describe("song page strings", () => {
     for (const lang of ["en", "ru", "es"] as const) for (const key of keys) expect(translatePage(lang, key as never), `${lang}:${key}`).not.toBe(key)
   })
 
-  it("leaves no visible \"Meaning\" (or Смысл, Significado) in the song page strings", () => {
-    expect(visible(songPageEn).filter((v) => /\bmeaning\b(?! of)/i.test(v) && !/word meanings?/i.test(v))).toEqual([])
-    expect(visible(songPageRu).filter((v) => /смысл/i.test(v))).toEqual([])
-    expect(visible(songPageEs).filter((v) => /significado/i.test(v) && !/significados? de (las )?palabras/i.test(v))).toEqual([])
+  it("shows \"Meaning\" (Смысл, Significado) only as the tab name and the hints that point to it", () => {
+    // Since the 10-11 Nov decisions the tab is called Meaning; the old "no Meaning" rule is gone.
+    expect(visible(songPageEn).filter((v) => /\bmeaning\b(?! of)/i.test(v) && !/word meanings?/i.test(v) && !/^Meaning$|in the Meaning tab|^Open Meaning$|^Meanings in /.test(v))).toEqual([])
+    expect(visible(songPageRu).filter((v) => /смысл/i.test(v) && !/^Смысл$|во вкладке «Смысл»|^Открыть «Смысл»$|^Значения на /.test(v))).toEqual([])
+    expect(visible(songPageEs).filter((v) => /significado/i.test(v) && !/significados? de (las )?palabras/i.test(v) && !/^Significado$|pestaña Significado|^Abrir Significado$|^Significados en /.test(v))).toEqual([])
   })
 
   it("has the empty states and the word-grid lines in all three languages", () => {

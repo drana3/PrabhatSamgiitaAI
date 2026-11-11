@@ -10,8 +10,25 @@ export const songTabsEn = {
   "player.about.hint": "Tap the i to read about this song",
 
   // the five tabs; Lyrics, Chords and Video keep the page's older words
-  "songTabs.words": "Words",
+  "songTabs.meaning": "Meaning",
   "songTabs.info": "Info",
+
+  // Meaning tab: the word by word language (its choice lives behind the Aa button), the small line that names it
+  "songWords.language.title": "Word by word language",
+  "songWords.language.now": "Meanings in {language}",
+
+  // Video tab
+  "songVideo.add": "Add a video",
+  "songVideo.open.a11y": "Open on {site}",
+  "songVideo.report.a11y": "Report this video",
+  "songVideo.note": "Videos open on their own sites. The team does not host or check them.",
+
+  // the window "Chords by members": one card for each chart
+  "songMembers.you": "You",
+  "songMembers.anonymous": "Anonymous",
+  "songMembers.pending": "Waiting for review",
+  "songMembers.show.a11y": "{name}, {meta}. Show this chart",
+  "songMembers.hide.a11y": "{name}, {meta}. Hide this chart",
 
   // the row of icons under the title: the word under each icon, what a tap does, the spoken label
   "songAct.save.caption": "Save",
@@ -49,8 +66,8 @@ export const songTabsEn = {
   "songPage.learn.open": "Open",
 
   // Lyrics tab: where the translation is
-  "songLyr.where": "The translation of the song is in the Words tab.",
-  "songLyr.where.open": "Open Words",
+  "songLyr.where": "The translation of the song is in the Meaning tab.",
+  "songLyr.where.open": "Open Meaning",
 
   // Words tab
   "songWords.mode.a11y": "What to show",
@@ -88,8 +105,25 @@ export const songTabsRu: Readonly<Record<string, string>> = {
   "player.about.button": "Об этой песне",
   "player.about.hint": "Нажмите на i, чтобы прочитать об этой песне",
 
-  "songTabs.words": "Слова",
+  "songTabs.meaning": "Смысл",
   "songTabs.info": "Инфо",
+
+  // Вкладка «Смысл»: язык «слово за словом» (выбор за кнопкой Aa) и мелкая строка с его названием
+  "songWords.language.title": "Язык «слово за словом»",
+  "songWords.language.now": "Значения на языке: {language}",
+
+  // Вкладка «Видео»
+  "songVideo.add": "Добавить видео",
+  "songVideo.open.a11y": "Открыть на {site}",
+  "songVideo.report.a11y": "Сообщить о проблеме с видео",
+  "songVideo.note": "Видео открываются на своих сайтах. Команда их не хранит и не проверяет.",
+
+  // окно «Аккорды от участников»: одна карточка на каждый разбор
+  "songMembers.you": "Вы",
+  "songMembers.anonymous": "Аноним",
+  "songMembers.pending": "Ждёт проверки",
+  "songMembers.show.a11y": "{name}, {meta}. Показать разбор",
+  "songMembers.hide.a11y": "{name}, {meta}. Скрыть разбор",
 
   "songAct.save.caption": "Сохранить",
   "songAct.saved.caption": "Сохранено",
@@ -125,8 +159,8 @@ export const songTabsRu: Readonly<Record<string, string>> = {
   "songPage.learn.in.a11y": "PS {number} в вашем списке Learn. Открыть путь изучения",
   "songPage.learn.open": "Открыть",
 
-  "songLyr.where": "Перевод песни лежит во вкладке «Слова».",
-  "songLyr.where.open": "Открыть «Слова»",
+  "songLyr.where": "Перевод песни лежит во вкладке «Смысл».",
+  "songLyr.where.open": "Открыть «Смысл»",
 
   "songWords.mode.a11y": "Что показать",
   "songWords.mode.translation": "Перевод",
@@ -165,8 +199,25 @@ export const songTabsEs: Record<keyof typeof songTabsEn, string> = {
   "player.about.button": "Sobre esta canción",
   "player.about.hint": "Toca la i para leer sobre esta canción",
 
-  "songTabs.words": "Palabras",
+  "songTabs.meaning": "Significado",
   "songTabs.info": "Info",
+
+  // Pestaña Significado: el idioma de palabra por palabra (se elige tras el botón Aa) y la línea pequeña que lo nombra
+  "songWords.language.title": "Idioma de palabra por palabra",
+  "songWords.language.now": "Significados en {language}",
+
+  // Pestaña Vídeo
+  "songVideo.add": "Añadir un vídeo",
+  "songVideo.open.a11y": "Abrir en {site}",
+  "songVideo.report.a11y": "Avisar de un problema con el vídeo",
+  "songVideo.note": "Los vídeos se abren en sus propios sitios. El equipo no los aloja ni los revisa.",
+
+  // la ventana «Acordes de miembros»: una tarjeta por cada cifrado
+  "songMembers.you": "Tú",
+  "songMembers.anonymous": "Anónimo",
+  "songMembers.pending": "Esperando revisión",
+  "songMembers.show.a11y": "{name}, {meta}. Mostrar este cifrado",
+  "songMembers.hide.a11y": "{name}, {meta}. Ocultar este cifrado",
 
   "songAct.save.caption": "Guardar",
   "songAct.saved.caption": "Guardado",
@@ -200,8 +251,8 @@ export const songTabsEs: Record<keyof typeof songTabsEn, string> = {
   "songPage.learn.in.a11y": "PS {number} está en tu lista de Learn. Abrir su ruta de aprendizaje",
   "songPage.learn.open": "Abrir",
 
-  "songLyr.where": "La traducción de la canción está en la pestaña Palabras.",
-  "songLyr.where.open": "Abrir Palabras",
+  "songLyr.where": "La traducción de la canción está en la pestaña Significado.",
+  "songLyr.where.open": "Abrir Significado",
 
   "songWords.mode.a11y": "Qué mostrar",
   "songWords.mode.translation": "Traducción",

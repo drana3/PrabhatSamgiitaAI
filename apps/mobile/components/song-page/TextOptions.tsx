@@ -11,6 +11,8 @@ import { activeLineKind, lineKinds, type LineKind } from "@/lib/songTranslations
 import { scriptName, usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import type { ScriptId } from "@/lib/songPage/scripts"
 
+import { lyricLanguage } from "@/lib/songPage/lyricLanguages"
+
 import { PronunciationRow } from "./Pronunciation"
 import type { PageUi, TextScaleIndex } from "./state"
 import { Segmented, type SegItem } from "./ui"
@@ -28,15 +30,15 @@ const POPOVER_WIDTH = 318
 const SCRIPT_ORDER: ScriptId[] = ["roman", "devanagari", "bengali"]
 
 /** The round "Aa" button. It measures itself on press so the popover opens right under it. */
-export function TextOptionsButton({ t, ui }: { t: SpTheme; ui: PageUi }) {
+export function TextOptionsButton({ t, ui, wordLanguage = false }: { t: SpTheme; ui: PageUi; wordLanguage?: boolean }) {
   const tr = usePageT()
   const ref = useRef<View | null>(null)
   const open = ui.options !== null
   const press = () => {
     if (open) return ui.closeOptions()
     const node = ref.current
-    if (!node) return ui.openOptions(120)
-    node.measureInWindow((_x, y, _w, h) => ui.openOptions(Math.round(y + h)))
+    if (!node) return ui.openOptions(120, wordLanguage)
+    node.measureInWindow((_x, y, _w, h) => ui.openOptions(Math.round(y + h), wordLanguage))
   }
   return (
     <View ref={ref} collapsable={false}>
@@ -112,7 +114,24 @@ function LineTranslationRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model
   )
 }
 
-function Card({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi }) {
+/** The language of the word by word meanings: only the languages this song really has; with fewer than two there is nothing to choose. */
+function WordLanguageRow({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
+  const codes = model.wordLanguages
+  if (codes.length < 2) return null
+  const items: Array<SegItem<string>> = codes.map((code) => ({ id: code, label: lyricLanguage(code)?.native ?? code.toUpperCase() }))
+  const value = codes.includes(model.wordLanguage) ? model.wordLanguage : (codes[0] as string)
+  return (
+    <>
+      <View style={styles.stack}>
+        <Text style={[styles.label, { color: t.ink800 }]}>{tr("songWords.language.title")}</Text>
+        <Segmented t={t} items={items} value={value} onChange={model.setWordLanguage} label={tr("songWords.language.title")} role="radio" fit />
+      </View>
+      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
+    </>
+  )
+}
+
+function Card({ t, tr, model, ui, withWordLanguage }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi; withWordLanguage: boolean }) {
   return (
     <>
       <SizeRow t={t} tr={tr} ui={ui} />
@@ -121,6 +140,7 @@ function Card({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageMode
       <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
       <LineTranslationRow t={t} tr={tr} model={model} ui={ui} />
       <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
+      {withWordLanguage ? <WordLanguageRow t={t} tr={tr} model={model} /> : null}
       <PronunciationRow t={t} ui={ui} onOpen={ui.closeOptions} last />
     </>
   )
@@ -137,7 +157,7 @@ export function TextOptionsPopover({ t, model, ui }: { t: SpTheme; model: SongPa
   const open = ui.options !== null
   const [mounted, setMounted] = useState(open)
   const progress = useSharedValue(0)
-  const last = useRef<{ top: number } | null>(ui.options)
+  const last = useRef<{ top: number; wordLanguage: boolean } | null>(ui.options)
   if (ui.options) last.current = ui.options
   const close = ui.closeOptions
   const closeRef = useRef(close)
@@ -196,7 +216,7 @@ export function TextOptionsPopover({ t, model, ui }: { t: SpTheme; model: SongPa
         style={[styles.pop, { top, width: w, maxHeight: Math.max(240, height - top - 24), backgroundColor: t.dark ? t.sand100 : t.white, borderColor: t.sand400 }, style]}
       >
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} keyboardShouldPersistTaps="handled">
-          <Card t={t} tr={tr} model={model} ui={ui} />
+          <Card t={t} tr={tr} model={model} ui={ui} withWordLanguage={last.current?.wordLanguage ?? false} />
         </ScrollView>
       </Animated.View>
     </View>

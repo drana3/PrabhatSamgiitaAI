@@ -84,7 +84,7 @@ function MembersSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: 
       <Text accessibilityRole="header" style={[styles.title, { color: t.ink900 }]}>
         {tr("songChords.members.title")}
       </Text>
-      {open && song ? <CommunityChords t={t} songNumber={song.number} romanLines={model.sources.roman} /> : null}
+      {open && song ? <CommunityChords t={t} songNumber={song.number} romanLines={model.sources.roman} cards /> : null}
       <View style={{ height: 24 }} />
     </SpSheet>
   )

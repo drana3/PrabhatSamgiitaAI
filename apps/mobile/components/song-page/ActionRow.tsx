@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native"
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated"
 
@@ -44,6 +44,17 @@ function Tool({
 }) {
   const scale = useSharedValue(1)
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
+  // a long press tells the word of the icon even after the first-showing captions are gone
+  const [tip, setTip] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current)
+  }, [])
+  const showTip = () => {
+    setTip(true)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => setTip(false), 1600)
+  }
   return (
     <Pressable
       accessibilityRole="button"
@@ -56,9 +67,17 @@ function Tool({
         scale.value = withSpring(1, amSpring.default)
       }}
       onPress={onPress}
+      onLongPress={showTip}
       style={styles.tool}
     >
       <Animated.View style={[styles.iconBox, animated]}>{children}</Animated.View>
+      {tip && !showCaption ? (
+        <View style={[styles.tip, { backgroundColor: t.ink900 }]} pointerEvents="none">
+          <Text style={[styles.tipText, { color: t.onInk }]} numberOfLines={1}>
+            {caption}
+          </Text>
+        </View>
+      ) : null}
       {showCaption ? (
         <Text style={[styles.caption, { color: t.ink800 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} aria-hidden>
           {caption}
@@ -164,5 +183,7 @@ const styles = StyleSheet.create({
   tool: { width: TOOL_W, alignItems: "center" },
   iconBox: { width: ICON_BOX, height: ICON_BOX, alignItems: "center", justifyContent: "center" },
   caption: { fontFamily: amFonts.semi, fontSize: 11, lineHeight: 16, textAlign: "center", marginTop: 0 },
+  tip: { position: "absolute", top: -26, alignSelf: "center", borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 3, zIndex: 5 },
+  tipText: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16 },
   play: { width: 56, height: 56, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
 })

@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
 
 import { SpEmptyNote } from "@/components/song-v2/SpHonest"
-import { SpIcon } from "@/components/song-v2/SpIcon"
 import { ChordBox, SpChordTokens, type SpChordToken } from "@/components/song-v2/SpSections"
 import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
@@ -19,6 +18,7 @@ import { pianoEditHref, pianoHref } from "@/lib/pianoNotes/links"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
+import { TuneGlyph } from "./Glyphs"
 import { SheetRow } from "./Rows"
 import type { PageUi } from "./state"
 import { DemoTag, Eyebrow, Segmented } from "./ui"
@@ -48,27 +48,23 @@ function useChordTokens(model: SongPageModel): SpChordToken[] {
   }, [chart, sources.roman, lines, instrument, capo, harmoniumKey])
 }
 
-/** A small rounded badge that opens the capo sheet ("Sounds in D", "Capo 2"). */
-function Badge({ t, text, a11y, onPress, filled }: { t: SpTheme; text: string; a11y: string; onPress: () => void; filled?: boolean }) {
+/** One small pill that opens the capo sheet: "C · No capo", "D · Capo 2", or "Sa on C" for the harmonium. It sits at the right of "Shapes to play". */
+function TunePill({ t, text, a11y, onPress }: { t: SpTheme; text: string; a11y: string; onPress: () => void }) {
   return (
-    <SpPress
-      onPress={onPress}
-      accessibilityLabel={a11y}
-      pressedScale={0.96}
-      style={[styles.badge, { backgroundColor: filled ? (t.dark ? t.action : t.ink900) : t.sand100, borderColor: filled ? "transparent" : t.sand400 }]}
-    >
-      <Text style={[styles.badgeText, { color: filled ? (t.dark ? t.onAction : t.onInk) : t.ink900 }]} numberOfLines={1}>
+    <SpPress onPress={onPress} accessibilityLabel={a11y} pressedScale={0.96} hitSlop={4} style={[styles.pill, { backgroundColor: t.sand100, borderColor: t.sand400 }]}>
+      <TuneGlyph size={16} color={t.ink800} />
+      <Text style={[styles.pillText, { color: t.ink900 }]} numberOfLines={1}>
         {text}
       </Text>
-      <SpIcon name="chevDown" size={16} color={filled ? (t.dark ? t.onAction : t.onInk) : t.ink500} strokeWidth={2.2} />
     </SpPress>
   )
 }
 
 /**
- * THE CHORDS CARD: everything about playing the song in one white card. Guitar or Harmonium on top; two badges that say
- * what the song sounds in and where the capo sits (a tap on either opens the sheet with the arrows); "Easier: capo 5"
- * when another fret gives easier shapes; the row of shapes to play; the chord letters over the words.
+ * THE CHORDS CARD: everything about playing the song in one white card. Guitar or Harmonium on top; then the heading
+ * "Shapes to play" with ONE small pill at its right that says what the song sounds in and where the capo sits ("C · No
+ * capo": a tap opens the sheet with the arrows; it was two big badges on a row of their own until 11 November 2026);
+ * "Easier: capo 5" when another fret gives easier shapes; the row of shapes; the chord letters over the words.
  */
 function ChordsCard({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi }) {
   const chart = model.chart
@@ -87,6 +83,8 @@ function ChordsCard({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPa
   const capoText = tr(capoBadgeKey(capo), { capo })
   const soundsText = key ? tr("songChords.sounds", { key }) : null
   const saText = tr("songChords.sa", { key: keyLabel(harmoniumKey) })
+  const pillText = guitar ? `${key ?? "?"} · ${capoText}` : saText
+  const pillSpoken = guitar ? [soundsText, capoText].filter(Boolean).join(", ") : saText
   const wordFont = model.lines.primaryScript === "devanagari" ? amFonts.devanagari : model.lines.primaryScript === "bengali" ? amFonts.bengali : amFonts.medium
   return (
     <View style={[styles.card, { backgroundColor: t.white, borderColor: t.sand300 }]}>
@@ -101,29 +99,21 @@ function ChordsCard({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPa
           { id: "harmonium", label: tr("songPage.chords.instrument.harmonium") },
         ]}
       />
-      <View style={styles.badges}>
-        {guitar ? (
-          <>
-            {soundsText ? <Badge t={t} text={soundsText} a11y={tr("songChords.badge.a11y", { text: soundsText })} onPress={open} /> : null}
-            <Badge t={t} filled text={capoText} a11y={tr("songChords.badge.a11y", { text: capoText })} onPress={open} />
-          </>
-        ) : (
-          <Badge t={t} filled text={saText} a11y={tr("songChords.badge.a11y", { text: saText })} onPress={open} />
-        )}
-      </View>
-      {easier !== null ? (
-        <SpPress
-          onPress={() => setCapo(easier)}
-          accessibilityLabel={tr("songChords.easier.a11y", { capo: easier })}
-          pressedScale={0.98}
-          style={[styles.hint, { backgroundColor: t.dark ? t.sand100 : t.sage200 }]}
-        >
-          <Text style={[styles.hintText, { color: t.dark ? t.ink900 : t.sage900 }]}>{tr("songChords.easier", { capo: easier })}</Text>
-        </SpPress>
-      ) : null}
-
       <View style={styles.block}>
-        <Eyebrow t={t}>{tr("songChords.shapes")}</Eyebrow>
+        <View style={styles.shapesHead}>
+          <Eyebrow t={t}>{tr("songChords.shapes")}</Eyebrow>
+          <TunePill t={t} text={pillText} a11y={tr("songChords.badge.a11y", { text: pillSpoken })} onPress={open} />
+        </View>
+        {easier !== null ? (
+          <SpPress
+            onPress={() => setCapo(easier)}
+            accessibilityLabel={tr("songChords.easier.a11y", { capo: easier })}
+            pressedScale={0.98}
+            style={[styles.hint, { backgroundColor: t.dark ? t.sand100 : t.sage200 }]}
+          >
+            <Text style={[styles.hintText, { color: t.dark ? t.ink900 : t.sage900 }]}>{tr("songChords.easier", { capo: easier })}</Text>
+          </SpPress>
+        ) : null}
         {guitar ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shapes} style={styles.shapesScroll}>
             {shapeCards(sounding, capo).map((card, i) => (
@@ -225,11 +215,11 @@ const styles = StyleSheet.create({
   tab: { gap: 16, paddingTop: 8 },
   pad: { paddingHorizontal: 20 },
   card: { borderRadius: 28, borderWidth: 1, padding: 16, gap: 16 },
-  badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  badge: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 1 },
-  badgeText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20, flexShrink: 1 },
-  hint: { minHeight: 44, borderRadius: 20, paddingHorizontal: 16, justifyContent: "center" },
-  hintText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
+  shapesHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  pill: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, borderRadius: 9999, borderWidth: 1 },
+  pillText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18, flexShrink: 1 },
+  hint: { minHeight: 36, alignSelf: "flex-start", borderRadius: 18, paddingHorizontal: 14, justifyContent: "center" },
+  hintText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18 },
   block: { gap: 8 },
   shapesScroll: { marginHorizontal: -16 },
   shapes: { paddingHorizontal: 16, gap: 8 },

@@ -30,8 +30,8 @@ export function usePageUi() {
   const translationKind = useSongPageStore((s) => s.translationKind)
   const setTranslationKind = useSongPageStore((s) => s.setTranslationKind)
   const [blockTab, setBlockTab] = useState<BlockTab>("lyrics")
-  /** the text options popover: closed, or open under the "Aa" button whose bottom edge is at `top` (window y) */
-  const [options, setOptions] = useState<null | { top: number }>(null)
+  /** the text options popover: closed, or open under the "Aa" button whose bottom edge is at `top` (window y); `wordLanguage` adds the choice of the word by word language (the button of that page asked for it) */
+  const [options, setOptions] = useState<null | { top: number; wordLanguage: boolean }>(null)
   const [translationOpen, setTranslationOpen] = useState(false)
   const [chordView, setChordView] = useState<ChordView>("diagrams")
   const [chordSheet, setChordSheet] = useState<ChordSheet>(null)
@@ -42,7 +42,7 @@ export function usePageUi() {
   const [sheet, setSheet] = useState<PageSheet>(null)
   // TODO(api): send the request to the catalogue; for now it is remembered on this screen only
   const [requested, setRequested] = useState<string[]>([])
-  const openOptions = useCallback((top: number) => setOptions({ top }), [])
+  const openOptions = useCallback((top: number, wordLanguage = false) => setOptions({ top, wordLanguage }), [])
   const closeOptions = useCallback(() => setOptions(null), [])
   const request = useCallback((key: string) => setRequested((list) => (list.includes(key) ? list : [...list, key])), [])
   return {

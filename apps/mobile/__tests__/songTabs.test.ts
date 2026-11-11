@@ -4,11 +4,11 @@ import { songPageEn, songPageEs, songPageRu } from "@/locales/songPage"
 import { ACTION_IDS, ACTION_LEGEND_KEYS, downloadCaptionKey, saveTapPlan, savedCaptionKey } from "@/lib/songPage/actionLegend"
 import { capoBadgeKey, easierCapo, membersRowKey, pianoRowKey, soundsInKey } from "@/lib/songPage/chordsTab"
 import { translatePage } from "@/lib/songPage/pageCopy"
-import { DEFAULT_TAB, DEFAULT_WORDS_MODE, SONG_TABS, TAB_LABEL_KEY, TAB_STRIP_HEIGHT, WORDS_MODES, isSongTab, isWordsMode, scrollOnSelect } from "@/lib/songPage/songTabs"
+import { DEFAULT_TAB, DEFAULT_WORDS_MODE, SONG_TABS, TAB_LABEL_KEY, TAB_STRIP_HEIGHT, WORDS_MODES, isSongTab, isWordsMode, meaningKind, scrollOnSelect, songTabFromParam } from "@/lib/songPage/songTabs"
 
 describe("the five tabs of the song page", () => {
-  it("are always Lyrics, Words, Chords, Video, Info in this order, Lyrics first", () => {
-    expect([...SONG_TABS]).toEqual(["lyrics", "words", "chords", "video", "info"])
+  it("are always Lyrics, Meaning, Chords, Video, Info in this order, Lyrics first", () => {
+    expect([...SONG_TABS]).toEqual(["lyrics", "meaning", "chords", "video", "info"])
     expect(DEFAULT_TAB).toBe("lyrics")
   })
 
@@ -22,14 +22,37 @@ describe("the five tabs of the song page", () => {
   })
 
   it("know a tab from any other word", () => {
-    expect(isSongTab("words")).toBe(true)
+    expect(isSongTab("meaning")).toBe(true)
+    expect(isSongTab("words")).toBe(false)
     expect(isSongTab("recordings")).toBe(false)
     expect(isSongTab(undefined)).toBe(false)
     expect(isWordsMode("translation")).toBe(true)
     expect(isWordsMode("lyrics")).toBe(false)
   })
 
-  it("Words holds two pages, the translation first", () => {
+  it("a link made with the old name of the tab (words) still lands on Meaning", () => {
+    expect(songTabFromParam("words")).toBe("meaning")
+    expect(songTabFromParam("meaning")).toBe("meaning")
+    expect(songTabFromParam("chords")).toBe("chords")
+    expect(songTabFromParam("nonsense")).toBe(null)
+    expect(songTabFromParam(["chords"])).toBe(null)
+    expect(songTabFromParam(undefined)).toBe(null)
+  })
+
+  it("the tab is called Meaning, Смысл, Significado", () => {
+    expect(translatePage("en", TAB_LABEL_KEY.meaning)).toBe("Meaning")
+    expect(translatePage("ru", TAB_LABEL_KEY.meaning)).toBe("Смысл")
+    expect(translatePage("es", TAB_LABEL_KEY.meaning)).toBe("Significado")
+  })
+
+  it("Meaning shows one translation: the official one, else Poetic, else whatever the song has", () => {
+    expect(meaningKind(["poetic", "official", "literal"])).toBe("official")
+    expect(meaningKind(["literal", "poetic"])).toBe("poetic")
+    expect(meaningKind(["literal"])).toBe("literal")
+    expect(meaningKind([])).toBe(null)
+  })
+
+  it("Meaning holds two pages, the translation first", () => {
     expect([...WORDS_MODES]).toEqual(["translation", "words"])
     expect(DEFAULT_WORDS_MODE).toBe("translation")
   })

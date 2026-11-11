@@ -6,14 +6,17 @@ import { WatchVideoCard } from "@/components/player/WatchVideoCard"
 import { DownloadButton } from "@/components/offline/DownloadButton"
 import { SpIcon } from "@/components/song-v2/SpIcon"
 import { SpEqualizer } from "@/components/song-v2/SpVersions"
-import { SpPill, SpPress } from "@/components/song-v2/SpUi"
+import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { providerHost } from "@/lib/recordingVideos/rules"
+import { subjectFromUrl } from "@/lib/recordingVideos/thumbnail"
 import { songDownloadItem } from "@/lib/offline/downloadItems"
 import { usePageT } from "@/lib/songPage/pageCopy"
 import { toSentenceCase } from "@/lib/songPage/scripts"
 import { href } from "@/utils/href"
 
+import { FlagGlyph, OpenOutGlyph } from "./Glyphs"
 import { DemoTag, SectionTitle } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
@@ -68,30 +71,40 @@ export function RecordingsSection({ t, model }: { t: SpTheme; model: SongPageMod
   )
 }
 
-/** Section 5: real YouTube videos of this song, each with Open in YouTube and Report. Drawn only when there are some. */
-export function VideoSection({ t, model }: { t: SpTheme; model: SongPageModel }) {
+/**
+ * The curated videos of the song (the Video tab, first block): each one the card with its picture and play button, and under
+ * it two small icon buttons without words (open on the site, report). Then the "Add a video" row. Drawn only when there are some.
+ */
+export function VideoSection({ t, model, heading = true, add = true }: { t: SpTheme; model: SongPageModel; heading?: boolean; add?: boolean }) {
   const tr = usePageT()
   const song = model.song
   if (!song || !model.videos.length) return null
   return (
     <View>
-      <SectionTitle t={t}>{tr("songPage.tab.video")}</SectionTitle>
+      {heading ? <SectionTitle t={t}>{tr("songPage.tab.video")}</SectionTitle> : null}
       <View style={styles.list}>
-        {model.videos.map((video) => (
-          <View key={video.id} style={[styles.card, { backgroundColor: t.white, borderColor: t.sand300 }]}>
-            <WatchVideoCard video={video} songNumber={song.number} />
-            <View style={styles.actions}>
-              <SpPill t={t} variant="sand" label={tr("songPage.video.open")} onPress={() => void openExternal(video.url)} style={styles.small} textStyle={styles.smallText} />
-              <SpPill t={t} variant="sand" label={tr("songPage.video.report")} onPress={model.sendNote} style={styles.small} textStyle={styles.smallText} />
+        {model.videos.map((video) => {
+          const site = providerHost(subjectFromUrl(video.url)?.provider ?? "youtube")
+          return (
+            <View key={video.id}>
+              <WatchVideoCard video={video} songNumber={song.number} />
+              <View style={styles.iconRow}>
+                <SpPress onPress={() => void openExternal(video.url)} accessibilityLabel={tr("songVideo.open.a11y", { site })} pressedScale={0.92} hitSlop={4} style={[styles.iconBtn, { borderColor: t.sand400 }]}>
+                  <OpenOutGlyph size={18} color={t.ink800} />
+                </SpPress>
+                <SpPress onPress={model.sendNote} accessibilityLabel={tr("songVideo.report.a11y")} pressedScale={0.92} hitSlop={4} style={[styles.iconBtn, { borderColor: t.sand400 }]}>
+                  <FlagGlyph size={18} color={t.ink800} />
+                </SpPress>
+              </View>
             </View>
-          </View>
-        ))}
-        <SpPress onPress={model.sendNote} accessibilityLabel={tr("songPage.video.suggestAnother")} style={styles.more}>
-          <SpIcon name="plusThin" size={22} color={t.ink800} strokeWidth={2} />
-          <Text style={[styles.moreText, { color: t.ink900 }]}>{tr("songPage.video.suggestAnother")}</Text>
-          <SpIcon name="chevRight" size={20} color={t.ink500} strokeWidth={2} />
-        </SpPress>
-        <Text style={[styles.note, { color: t.ink500 }]}>{tr("songPage.video.note")}</Text>
+          )
+        })}
+        {add ? (
+          <SpPress onPress={model.sendNote} accessibilityLabel={tr("songVideo.add")} pressedScale={0.98} style={[styles.add, { borderColor: t.sand400 }]}>
+            <SpIcon name="plusThin" size={22} color={t.ink800} strokeWidth={2} />
+            <Text style={[styles.addText, { color: t.ink900 }]}>{tr("songVideo.add")}</Text>
+          </SpPress>
+        ) : null}
       </View>
     </View>
   )
@@ -134,12 +147,10 @@ const styles = StyleSheet.create({
   recSub: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
   list: { gap: 12, paddingHorizontal: 20 },
   card: { borderRadius: 28, borderWidth: 1, padding: 12, gap: 12 },
-  actions: { flexDirection: "row", gap: 8, paddingHorizontal: 4, paddingBottom: 4 },
-  small: { height: 40, paddingHorizontal: 16 },
-  smallText: { fontSize: 14 },
-  more: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 4 },
-  moreText: { flex: 1, fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
-  note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: 4 },
+  iconRow: { flexDirection: "row", justifyContent: "flex-end", gap: 8, paddingTop: 10 },
+  iconBtn: { width: 40, height: 40, borderRadius: 9999, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  add: { minHeight: 56, borderWidth: 1.5, borderStyle: "dashed", borderRadius: 20, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  addText: { fontFamily: amFonts.bold, fontSize: 16, lineHeight: 22 },
   story: { marginHorizontal: 20, borderRadius: 28, borderWidth: 1, padding: 20, gap: 8 },
   storyEyebrow: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96, textTransform: "uppercase" },
   storyTitle: { fontFamily: amFonts.bold, fontSize: 22, lineHeight: 28 },

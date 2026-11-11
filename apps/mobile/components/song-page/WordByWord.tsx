@@ -14,7 +14,7 @@ import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
 
 import { lineFont } from "./lineFont"
 import type { PageUi } from "./state"
-import { DemoTag, Segmented, type SegItem } from "./ui"
+import { DemoTag } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
 /**
@@ -121,15 +121,15 @@ function GridRow({ t, tr, row, model, ui, lit }: { t: SpTheme; tr: PageT; row: G
   )
 }
 
-/** The language of the word meanings: only the languages this song really has, English, Russian and Spanish first. One language needs no choice. */
-function LanguageChoice({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
+/** The small line under the switch that names the language of the meanings; the choice itself is behind the round "Aa" button. */
+function LanguageNote({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
   const codes = model.wordLanguages
-  if (codes.length < 2) return null
-  const items: Array<SegItem<string>> = codes.map((code) => ({ id: code, label: lyricLanguage(code)?.native ?? code.toUpperCase() }))
-  const value = codes.includes(model.wordLanguage) ? model.wordLanguage : (codes[0] as string)
+  if (!codes.length) return null
+  const code = codes.includes(model.wordLanguage) ? model.wordLanguage : (codes[0] as string)
+  const language = lyricLanguage(code)?.native ?? code.toUpperCase()
   return (
     <View style={styles.language}>
-      <Segmented t={t} items={items} value={value} onChange={model.setWordLanguage} label={tr("songPage.words.language")} role="radio" fit />
+      <Text style={[styles.languageText, { color: t.ink500 }]}>{tr("songWords.language.now", { language })}</Text>
     </View>
   )
 }
@@ -140,7 +140,7 @@ export function WordByWordBody({ t, model, ui }: { t: SpTheme; model: SongPageMo
   if (!grid.lines.length) return null
   return (
     <View>
-      <LanguageChoice t={t} tr={tr} model={model} />
+      <LanguageNote t={t} tr={tr} model={model} />
       {model.glosses ? (model.demo ? <DemoTag t={t} /> : null) : <EmptyBar t={t} tr={tr} model={model} ui={ui} />}
       <InfoCard t={t} tr={tr} model={model} ui={ui} grid={grid} />
       <View>
@@ -153,7 +153,8 @@ export function WordByWordBody({ t, model, ui }: { t: SpTheme; model: SongPageMo
 }
 
 const styles = StyleSheet.create({
-  language: { paddingHorizontal: 20, paddingBottom: 14, alignItems: "flex-start" },
+  language: { paddingHorizontal: 20, paddingBottom: 12 },
+  languageText: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
   empty: { marginHorizontal: 20, marginBottom: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderWidth: 1.5, borderStyle: "dashed", borderRadius: 18, paddingLeft: 16, paddingRight: 4, minHeight: 52 },
   emptyText: { flex: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22, paddingVertical: 12 },
   requestHit: { minHeight: 44, minWidth: 44, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
