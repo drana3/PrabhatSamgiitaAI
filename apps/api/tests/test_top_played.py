@@ -291,6 +291,27 @@ async def test_a_kind_filter_keeps_only_those_kinds(tw: World) -> None:
     assert ignored["kinds"] == [] and ignored["total"] == 4
 
 
+async def test_the_kiirtan_page_charts_ask_for_its_six_kinds_and_a_period(tw: World) -> None:
+    """The phone's "Charts" cards: every kind of the Kiirtan page (no Prabhat Samgiita), one period, the first three places."""
+    kiirtan = await tw.recording(None, title="K", kind="kiirtan")
+    bhajan = await tw.recording(None, title="B", kind="bhajan", language="en")
+    spiritual = await tw.recording(None, title="S", kind="spiritual_song", language="en")
+    old = await tw.recording(None, title="Old", kind="kiirtan")
+    ps_rec = await tw.recording(None, title="P", kind="prabhat_samgiita", ps_song_number=3)
+    for plays, rid in ((30, kiirtan), (20, bhajan), (10, spiritual), (99, ps_rec)):
+        await put_rec_plays(tw, rid, plays)
+    await put_rec_plays(tw, old, 500, day=TODAY - timedelta(days=20))  # all-time only, outside 7 days
+    await put_song_plays(tw, 1, 400)
+    hub = ["kiirtan", "bhajan", "spiritual_song", "dance_song", "baba_audio", "other_mantra"]
+    week = await top_list(tw, period="7d", kind=hub, limit=3)
+    assert [i["id"] for i in week["items"]] == [str(kiirtan), str(bhajan), str(spiritual)]
+    assert week["total"] == 3 and week["period"] == "7d"
+    assert all(i["kind"] != "prabhat_samgiita" for i in week["items"])
+    everything = await top_list(tw, period="all", kind=hub, limit=3)
+    assert [i["id"] for i in everything["items"]] == [str(old), str(kiirtan), str(bhajan)]
+    assert everything["total"] == 4 and everything["has_more"] is True
+
+
 async def test_a_legacy_devotional_song_counts_as_a_bhajan(tw: World) -> None:
     legacy = await tw.recording(None, title="Old", kind="devotional_song")
     await put_rec_plays(tw, legacy, 10)

@@ -9,8 +9,8 @@ import { useKirtanStore } from "@/stores/kirtanStore"
  * Drives the Top Played screen: asks the server for the first page whenever a chip changes (older answers are dropped by
  * the reducer), and for the next page when the list is scrolled to its end.
  */
-export function useTopPlayed(api: TopPlayedApi = topPlayedApi(), start?: { period?: TopPeriod; kind?: TopKind }) {
-  const [state, dispatch] = useReducer(topReducer, initialTopState(start?.period, start?.kind))
+export function useTopPlayed(api: TopPlayedApi = topPlayedApi(), start?: { period?: TopPeriod; kind?: TopKind; scope?: readonly string[] }) {
+  const [state, dispatch] = useReducer(topReducer, initialTopState(start?.period, start?.kind, start?.scope))
   const stateRef = useRef(state)
   stateRef.current = state
 

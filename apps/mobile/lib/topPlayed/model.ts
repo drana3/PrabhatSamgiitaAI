@@ -28,6 +28,8 @@ export type TopState = {
   moreFailed: boolean
   /** bumped with every choice; answers carry the number they were asked under */
   seq: number
+  /** a fixed set of kinds a link asked for (the Kiirtan page's charts): used while `kind` is "all"; empty = no scope */
+  scope: readonly string[]
 }
 
 export type TopAction =
@@ -37,12 +39,12 @@ export type TopAction =
   | { type: "failed"; seq: number; append: boolean }
   | { type: "more" }
 
-export function initialTopState(period: TopPeriod = "all", kind: TopKind = "all"): TopState {
-  return { period, kind, status: "loading", items: [], total: 0, hasMore: false, since: null, minPlays: 0, loadingMore: false, moreFailed: false, seq: 1 }
+export function initialTopState(period: TopPeriod = "all", kind: TopKind = "all", scope: readonly string[] = []): TopState {
+  return { period, kind, status: "loading", items: [], total: 0, hasMore: false, since: null, minPlays: 0, loadingMore: false, moreFailed: false, seq: 1, scope }
 }
 
-export function queryFor(state: Pick<TopState, "period" | "kind">, offset = 0): TopQuery {
-  return { period: state.period, kinds: state.kind === "all" ? [] : [state.kind], limit: PAGE_SIZE, offset }
+export function queryFor(state: Pick<TopState, "period" | "kind"> & { scope?: readonly string[] }, offset = 0): TopQuery {
+  return { period: state.period, kinds: state.kind === "all" ? [...(state.scope ?? [])] : [state.kind], limit: PAGE_SIZE, offset }
 }
 
 export function topReducer(state: TopState, action: TopAction): TopState {
@@ -51,10 +53,10 @@ export function topReducer(state: TopState, action: TopAction): TopState {
       const period = action.period ?? state.period
       const kind = action.kind ?? state.kind
       if (period === state.period && kind === state.kind) return state
-      return { ...initialTopState(period, kind), seq: state.seq + 1 }
+      return { ...initialTopState(period, kind, state.scope), seq: state.seq + 1 }
     }
     case "retry":
-      return { ...initialTopState(state.period, state.kind), seq: state.seq + 1 }
+      return { ...initialTopState(state.period, state.kind, state.scope), seq: state.seq + 1 }
     case "more":
       if (!state.hasMore || state.loadingMore || state.status !== "ready") return state
       return { ...state, loadingMore: true, moreFailed: false }

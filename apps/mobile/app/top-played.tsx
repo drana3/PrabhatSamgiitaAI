@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { FlatList, StyleSheet, Text, View } from "react-native"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { KindChips, PeriodChips, TopFooter, TopMessage, TopRow, TopSkeleton } from "@/components/topPlayed/TopPlayedParts"
 import { SpRound } from "@/components/song-v2/SpUi"
@@ -12,6 +12,7 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useTopPlayed } from "@/hooks/useTopPlayed"
 import { formatDate, useT } from "@/lib/i18n"
+import { parseTopParams } from "@/lib/kirtan/charts"
 import { showSince } from "@/lib/topPlayed/model"
 import { playTopItem } from "@/lib/topPlayed/play"
 import { href } from "@/utils/href"
@@ -19,7 +20,8 @@ import { href } from "@/utils/href"
 /**
  * Top Played: the tracks people played most, counted by the server (docs/radio-mixing.md). Period chips (all time, 30 days,
  * 7 days) and category chips narrow the list; a row plays the list from that track down. States: loading, the chart,
- * nothing yet, could not load (with a retry). Reached from Today and from the Radio.
+ * nothing yet, could not load (with a retry). Reached from Today, from the Radio and from the Charts cards of the Kiirtan tab
+ * (`?period=7d&scope=kiirtan`: that period, counted over the Kiirtan page's kinds, so the category chips give way to a note).
  */
 export default function TopPlayedScreen() {
   const t = useT()
@@ -28,7 +30,10 @@ export default function TopPlayedScreen() {
   const sp = useSpTheme()
   const inset = useScreenTop()
   const bottomInset = useScrollBottomInset()
-  const { state, view, setPeriod, setKind, retry, more } = useTopPlayed()
+  const params = useLocalSearchParams<{ period?: string; scope?: string }>()
+  const preset = parseTopParams(params)
+  const scoped = preset.scope.length > 0
+  const { state, view, setPeriod, setKind, retry, more } = useTopPlayed(undefined, { period: preset.period, scope: preset.scope })
   const [toast, setToast] = useState<string | null>(null)
 
   // every loaded row belonged to a blocked author: nothing to scroll, so ask for the next page ourselves
@@ -51,7 +56,11 @@ export default function TopPlayedScreen() {
   const header = (
     <View style={s.header}>
       <PeriodChips theme={theme} value={state.period} onChange={setPeriod} />
-      <KindChips theme={theme} value={state.kind} onChange={setKind} />
+      {scoped ? (
+        <Text style={[s.rule, { color: theme.textBody }]}>{t("kh.chart.scope")}</Text>
+      ) : (
+        <KindChips theme={theme} value={state.kind} onChange={setKind} />
+      )}
       <Text style={[s.rule, { color: theme.textBody }]}>{t("top.rule")}</Text>
       {showSince(state) && state.since ? (
         <Text style={[s.since, { color: theme.textMuted }]}>{t("top.since", { date: formatDate(Date.parse(state.since), "medium") })}</Text>

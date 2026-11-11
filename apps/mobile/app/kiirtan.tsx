@@ -11,6 +11,7 @@ import { LiveCard } from "@/components/kirtan/LiveCard"
 import { AuthorsShelf } from "@/components/authors/AuthorsShelf"
 import { BroadcastsShelf } from "@/components/broadcasts/BroadcastsShelf"
 import { BroadcastNowStrip } from "@/components/kirtan/hub/BroadcastNowStrip"
+import { ChartCards } from "@/components/kirtan/hub/ChartCards"
 import { KindCards } from "@/components/kirtan/hub/KindCards"
 import { MineTiles } from "@/components/kirtan/hub/MineTiles"
 import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
@@ -29,6 +30,7 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { useDownloadedKirtans } from "@/hooks/useDownloadedKirtans"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useBroadcasts } from "@/hooks/useBroadcasts"
+import { useKiirtanCharts } from "@/hooks/useKiirtanCharts"
 import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useKirtans } from "@/hooks/useKirtans"
@@ -37,6 +39,7 @@ import { useProfileInitial } from "@/hooks/useProfileInitial"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { sampleResume } from "@/lib/fixtures/kirtanGate"
+import { chartHref } from "@/lib/kirtan/charts"
 import { kiirtanListHref, kindCards, listAddressOfFilter, savedWithDownloads } from "@/lib/kirtan/hub"
 import { filterByKind, kindDayA11y, kindDayLabel, kindHeading, kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
 import { phaseNow, shelfOrder } from "@/lib/broadcasts/rules"
@@ -164,6 +167,8 @@ export default function KiirtanTabScreen() {
   }
   // "Live and upcoming": appears only when at least one broadcast is on the air or announced (docs/broadcasts.md)
   const broadcasts = useBroadcasts("shelf")
+  // "Charts": the two top cards, each drawn only while its chart has enough rows (lib/kirtan/charts.ts)
+  const chartCards = useKiirtanCharts()
   const liveBroadcasts = useMemo(() => shelfOrder(broadcasts.items), [broadcasts.items])
   // the slim strip at the top shows only while a broadcast is on the air; the full shelf below stays
   // a minute clock: a broadcast that ends while the page is open drops the strip without a reload
@@ -316,6 +321,13 @@ export default function KiirtanTabScreen() {
               />
             ))}
           </View>
+        </Reveal>
+      ) : null}
+
+      {kind === "all" && chartCards.length ? (
+        <Reveal index={next()} style={styles.section}>
+          <HomeSectionHead p={p} eyebrow={t("kh.chart.eyebrow")} first={t("kh.chart.first")} second={t("kh.chart.second")} />
+          <ChartCards cards={chartCards} onOpen={(c) => router.push(href(chartHref(c.chart.period)))} />
         </Reveal>
       ) : null}
 
