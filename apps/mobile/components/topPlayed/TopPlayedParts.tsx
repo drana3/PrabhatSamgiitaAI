@@ -31,14 +31,33 @@ export function Chip({ theme, label, on, onPress, a11y }: { theme: SongsTheme; l
   )
 }
 
-/** All time / 30 days / 7 days. */
+/**
+ * Week / Month / All time: one round track with three equal parts, the chosen one filled (Dada, 12 Nov 2026). Feedback on touch-down
+ * (Press springs from the screen value). Month is the last 30 days (the server's `30d`).
+ */
 export function PeriodChips({ theme, value, onChange }: { theme: SongsTheme; value: TopPeriod; onChange: (p: TopPeriod) => void }) {
   const t = useT()
   return (
-    <View style={s.row} accessibilityRole="radiogroup" accessibilityLabel={t("top.period.a11y")}>
-      {TOP_PERIODS.map((p) => (
-        <Chip key={p} theme={theme} label={t(`top.period.${p}`)} a11y={t(`top.period.${p}`)} on={p === value} onPress={() => onChange(p)} />
-      ))}
+    <View style={[s.track, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityRole="radiogroup" accessibilityLabel={t("top.period.a11y")}>
+      {TOP_PERIODS.map((p) => {
+        const on = p === value
+        return (
+          <Press
+            key={p}
+            accessibilityRole="radio"
+            accessibilityLabel={t(`top.period.${p}`)}
+            accessibilityState={{ selected: on }}
+            onPress={() => onChange(p)}
+            pressedScale={0.96}
+            outerStyle={s.segmentOuter}
+            style={[s.segment, { backgroundColor: on ? theme.peach : "transparent" }]}
+          >
+            <Text style={[s.segmentText, { color: on ? theme.accent : theme.textHeading }]} numberOfLines={1}>
+              {t(`top.period.${p}`)}
+            </Text>
+          </Press>
+        )
+      })}
     </View>
   )
 }
@@ -174,7 +193,10 @@ export function TopFooter({
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE },
+  track: { flexDirection: "row", gap: 4, marginHorizontal: SIDE, padding: 4, borderRadius: 28, borderWidth: 1 },
+  segmentOuter: { flex: 1 },
+  segment: { minHeight: 44, borderRadius: 24, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  segmentText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18 },
   kindRow: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE },
   chip: { minHeight: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   chipText: { fontFamily: amFonts.semi, fontSize: 14, lineHeight: 18 },

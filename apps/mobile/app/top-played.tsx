@@ -18,8 +18,7 @@ import { playTopItem } from "@/lib/topPlayed/play"
 import { href } from "@/utils/href"
 
 /**
- * Top Played: the tracks people played most, counted by the server (docs/radio-mixing.md). Period chips (all time, 30 days,
- * 7 days) and category chips narrow the list; a row plays the list from that track down. States: loading, the chart,
+ * Top Played: the tracks people played most, counted by the server (docs/radio-mixing.md). Period switch (Week, Month, All time) and category chips narrow the list; a row plays the list from that track down. States: loading, the chart,
  * nothing yet, could not load (with a retry). Reached from Today, from the Radio and from the Charts cards of the Kiirtan tab
  * (`?period=7d&scope=kiirtan`: that period, counted over the Kiirtan page's kinds, so the category chips give way to a note).
  */
@@ -74,7 +73,7 @@ export default function TopPlayedScreen() {
         <View style={s.titleRow}>
           <SpRound t={sp} icon="back" label={t("common.back")} onPress={back} />
           <Text style={[s.title, { color: theme.textHeading }]} numberOfLines={2} accessibilityRole="header">
-            {t("top.title")}
+            {scoped ? t("kh.chart.title") : t("top.title")}
           </Text>
         </View>
       </View>

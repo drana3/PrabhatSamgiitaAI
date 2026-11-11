@@ -124,8 +124,11 @@ describe("the team's desk and the recordings keep the same rule for a posted lin
 describe("the Live and upcoming shelf", () => {
   const kiirtan = read("app/kiirtan.tsx")
   it("is drawn on the Kiirtan screen only when there is at least one broadcast, so an empty shelf takes no room", () => {
-    expect(kiirtan).toMatch(/\{liveBroadcasts\.length \? \(\s*<Reveal index=\{next\(\)\} style=\{styles\.section\}>\s*<BroadcastsShelf p=\{p\} items=\{liveBroadcasts\} \/>/)
+    expect(kiirtan).toMatch(/\{upcoming\.length \? \(\s*<Reveal index=\{next\(\)\} style=\{styles\.section\}>\s*<BroadcastsShelf p=\{p\} items=\{upcoming\} \/>/)
     expect(kiirtan).toContain("shelfOrder(broadcasts.items)")
+  })
+  it("leaves out the broadcast that is on the air: the strip at the top already offers it", () => {
+    expect(kiirtan).toContain("liveBroadcasts.filter((b) => b !== onAir)")
   })
   it("leads to the list and a card leads to the broadcast's page", () => {
     const shelf = read("components/broadcasts/BroadcastsShelf.tsx")

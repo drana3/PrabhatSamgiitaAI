@@ -43,12 +43,12 @@ import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useFormFocus } from "@/lib/forms/useFormFocus"
 import { controlBorder } from "@/lib/controlColors"
 import { formatDate, useT } from "@/lib/i18n"
-import { kindHasDance, kindHasLanguage, kindHasPerformer, kindLabel, kindRequiresLanguage, normalizeKind, typesOfKind } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasLanguage, kindHasPerformer, kindRequiresLanguage, normalizeKind } from "@/lib/kirtan/kind"
 import { playableOriginal, type OriginalRef } from "@/lib/kirtan/original"
 import { effectiveFields, effectivePractice, hasWork, practiceCounts, incompleteRows, isRetryable, leftForTomorrow, missingCounts, queueCounts, queueProgress, queueSummary, rowMissing, type PickedFile, type QueueItem } from "@/lib/kirtan/queue"
 import { fileProblemText, isRulesAccepted, MAX_UPLOAD_BYTES } from "@/lib/kirtan/rules"
 import { validateSubmission, type SubmissionError } from "@/lib/kirtan/submissions"
-import type { DanceId, RecordingKind } from "@/lib/kirtan/types"
+import { RECORDING_KINDS, type DanceId, type RecordingKind } from "@/lib/kirtan/types"
 import { languageErrorKey, missingKindFields, moreDetailsFor, moreDetailsHintKey } from "@/lib/kirtan/uploadForm"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { useAuthStore } from "@/stores/authStore"
@@ -71,8 +71,8 @@ type Problem = { form: SubmissionError; row?: string } | "picker" | "nothing"
 type LangTarget = "form" | "all" | (string & {})
 
 /**
- * Add recordings: the one form for everything people upload (docs/kiirtan-publishing.md). The person picks the TYPE
- * (Kiirtan, Bhajan or Prabhat Samgiita), names the performer, picks one or many audio files and gives
+ * Add Recording: the one form for everything people upload (docs/kiirtan-publishing.md). The person picks the TYPE
+ * (Kiirtan, Bhajan, Prabhat Samgiita, Spiritual song, Dance music, Baba's audio or Others), names the performer, picks one or many audio files and gives
  * each its title; the choices at the top apply to every file. Upload runs the files one after another, shows each one's
  * state and ends with a summary. Nothing waits for a reviewer: a recording is live the moment its upload succeeds, the
  * team looks afterwards and may remove it with a notice that says why. Only a signed-in person can upload.
@@ -86,11 +86,11 @@ export default function AddKirtanScreen() {
 }
 
 /**
- * The form of every recording. `mantra`: the page of Others (app/add-mantra.tsx): its own header and blurb, the kind is fixed
- * to Others and the person must choose what it is (Guru Puja, Pitr Yajina ... Something else; no default); no playlist-of-an-event entry,
- * no kind cards. Everything below the type is the same form with the same queue.
+ * The form of every recording. Others is one more TYPE of it (Dada, 12 Nov 2026: it left the Upload hub as a door of its own): when the
+ * person picks Others a required choice of what it is appears under the type (Guru Puja, Pitr Yajina ... Something else; no default) and
+ * the playlist-of-an-event entry steps aside. Everything else is the same form with the same queue. `?kind=other_mantra` opens it on Others.
  */
-export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
+export function AddRecordingForm() {
   const t = useT()
   const router = useRouter()
   const theme = useSongsTheme()
@@ -112,10 +112,6 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
   if (!opened.current) {
     opened.current = true
     useUploadQueueStore.getState().openFresh()
-    // the two pages never share a kind: this one is Other mantras, the other one is never (a leftover draft is put right)
-    const wanted = useUploadQueueStore.getState().draft.kind
-    if (mantra && wanted !== "other_mantra") useUploadQueueStore.getState().setDraft({ kind: "other_mantra" })
-    else if (!mantra && wanted === "other_mantra") useUploadQueueStore.getState().setDraft({ kind: "kiirtan" })
     // "Add the recording" of an ended live broadcast opens this form with the broadcast named: the files become its recording
     const target = typeof params.broadcast === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(params.broadcast) ? params.broadcast : null
     useUploadQueueStore.getState().setBroadcast(target ? { id: target, title: typeof params.broadcastTitle === "string" ? params.broadcastTitle.slice(0, 300) : "" } : null)
@@ -160,8 +156,7 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
     if (prefilled.current || !signedIn) return
     prefilled.current = true
     const patch: Partial<QueueDraft> = {}
-    if (params.kind && !mantra) patch.kind = normalizeKind(params.kind)
-    if (mantra && params.kind !== undefined) patch.kind = "other_mantra"
+    if (params.kind) patch.kind = normalizeKind(params.kind)
     const song = Number(params.song)
     if (Number.isInteger(song) && song > 0) patch.psSong = { number: song, title: "" }
     const author = typeof params.author === "string" ? params.author.trim() : ""
@@ -425,9 +420,8 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
               <Text style={[styles.h1, { color: theme.textHeading }]} accessibilityRole="header">
                 {t("ugc.add.heading")}
                 {"\n"}
-                <Text style={{ color: theme.ink300 }}>{kindLabel(kind)}</Text>
+                <Text style={{ color: theme.ink300 }}>{t("ugc.add.heading2")}</Text>
               </Text>
-              {mantra ? <Text style={[styles.blurb, { color: theme.textBody }]}>{t("mantra.add.blurb")}</Text> : null}
             </Reveal>
 
             {forBroadcast ? (
@@ -438,8 +432,8 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
               </Reveal>
             ) : null}
 
-            {/* a whole event at once: its own screen (app/upload-set.tsx), docs/kiirtan-sets.md; not for mantras */}
-            {mantra ? null : (
+            {/* a whole event at once: its own screen (app/upload-set.tsx), docs/kiirtan-sets.md; not for Others */}
+            {kind === "other_mantra" ? null : (
             <Reveal index={1} style={styles.setStack}>
               <KPress
                 accessibilityRole="link"
@@ -462,18 +456,13 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
             </Reveal>
             )}
 
-            {mantra ? (
-              <Reveal index={2} style={styles.field}>
-                <View {...form.field("mantra")} style={styles.field}>
-                  <MantraField theme={theme} value={{ type: draft.mantraType, typeOther: draft.mantraOther }} onChange={(next) => { form.clear(); store().setDraft({ mantraType: next.type, mantraOther: next.typeOther }) }} accepted={mantraWords.accepted} newWordsPerWeek={mantraWords.newWordsPerWeek} invalid={formError === "mantra" || formError === "mantraName" || !!form.error("mantra")} errorText={form.error("mantra")} disabled={locked} />
-                </View>
-              </Reveal>
-            ) : (
             <Reveal index={2} style={styles.field}>
               <KindField
                 theme={theme}
                 label={t("rec.type.label")}
                 value={kind}
+                kinds={RECORDING_KINDS}
+                row
                 disabled={locked}
                 testID="kind-field"
                 onChange={(k) => {
@@ -484,7 +473,15 @@ export function AddRecordingForm({ mantra = false }: { mantra?: boolean }) {
                 }}
               />
             </Reveal>
-            )}
+
+            {/* Others: what is it (a required choice, no default) sits right under the type it belongs to */}
+            {kind === "other_mantra" ? (
+              <Reveal index={2} style={styles.field}>
+                <View {...form.field("mantra")} style={styles.field}>
+                  <MantraField theme={theme} value={{ type: draft.mantraType, typeOther: draft.mantraOther }} onChange={(next) => { form.clear(); store().setDraft({ mantraType: next.type, mantraOther: next.typeOther }) }} accepted={mantraWords.accepted} newWordsPerWeek={mantraWords.newWordsPerWeek} invalid={formError === "mantra" || formError === "mantraName" || !!form.error("mantra")} errorText={form.error("mantra")} disabled={locked} />
+                </View>
+              </Reveal>
+            ) : null}
 
             {kind === "prabhat_samgiita" ? (
               <Reveal index={2} style={styles.field}>
@@ -848,7 +845,6 @@ const styles = StyleSheet.create({
   pasteBtn: { height: 40, paddingHorizontal: 16, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   pasteText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 16, letterSpacing: 0.4 },
   hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  blurb: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 21, marginTop: 12 },
   queue: { gap: 12 },
   setEntry: { minHeight: 72, borderRadius: 24, borderWidth: 1, paddingHorizontal: 18, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   setEntryTitle: { fontFamily: amFonts.display, fontSize: 19, lineHeight: 22, letterSpacing: -0.2, textTransform: "uppercase" },

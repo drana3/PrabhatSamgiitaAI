@@ -31,10 +31,11 @@ describe("the top row of the Kiirtan tab", () => {
     expect(blocks).toContain('t("home.notificationsUnread")')
   })
 
-  it("keeps the way to add recordings: the Upload button of the tab bar opens the hub, which holds the recording form and Others", () => {
+  it("keeps the way to add recordings: the Upload button of the tab bar opens the hub, which holds the one recording form (Others is a type inside it, not a door of its own)", () => {
     expect(read("components/nav-v2/FloatingTabBar.tsx")).toContain('href("/upload")')
     const hub = read("app/upload.tsx")
     expect(hub).toContain('href("/add-kirtan")')
-    expect(hub).toContain('href("/add-mantra")')
+    expect(hub).not.toContain("add-mantra")
+    expect(hub).not.toContain("upload.mantra")
   })
 })

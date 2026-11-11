@@ -36,6 +36,11 @@ type Props = {
    * words (or "Choose") and a chevron; the label and the mark are the caller's own line. The sheet is the same.
    */
   inline?: boolean
+  /**
+   * The one-line form (Dada, 12 Nov 2026, the Type row of the add form): the label on the left, the chosen value on the right at the
+   * middle of the row's height with a small chevron, the whole row one 56 pt target inside a thin line. No mark, no second line.
+   */
+  row?: boolean
   invalid?: boolean
   errorText?: string | null
   disabled?: boolean
@@ -53,7 +58,7 @@ type Props = {
  * recorded?", "Tempo" and "Which dance?" (about 100 pt of height each became 60). The explanation moved into the sheet.
  * Holds no value: the caller passes it and takes the change. The rules: lib/kirtan/choiceField.ts.
  */
-export function ChoiceField({ theme, label, hint, options, value, onChange, required, showOptional = true, showMark = true, inline, invalid, errorText, disabled, noteOf, below, testID }: Props) {
+export function ChoiceField({ theme, label, hint, options, value, onChange, required, showOptional = true, showMark = true, inline, row, invalid, errorText, disabled, noteOf, below, testID }: Props) {
   const t = useT()
   const am = useAmTheme()
   const [open, setOpen] = useState(false)
@@ -106,6 +111,33 @@ export function ChoiceField({ theme, label, hint, options, value, onChange, requ
     )
   }
 
+  if (row) {
+    return (
+      <View style={s.root} testID={testID}>
+        <Press
+          accessibilityRole="button"
+          accessibilityLabel={t("picker.open", { field: label })}
+          accessibilityHint={railText}
+          accessibilityState={{ disabled: !!disabled, expanded: open }}
+          disabled={disabled}
+          onPress={() => setOpen(true)}
+          pressedScale={0.99}
+          style={[s.line, { backgroundColor: theme.card, borderColor: invalid ? amColors.danger : controlBorder(theme) }]}
+        >
+          <Text style={[p.label, { color: theme.textHeading }]}>{label}</Text>
+          <View style={s.lineEnd}>
+            <Text numberOfLines={1} style={[chosen ? s.lineValue : s.lineNone, { color: chosen ? theme.accent : theme.textMuted }]}>
+              {railText}
+            </Text>
+            <ChevronDown size={18} color={theme.textBody} />
+          </View>
+        </Press>
+        {errorText ? <FieldError theme={theme} text={errorText} /> : null}
+        {sheet}
+      </View>
+    )
+  }
+
   return (
     <View style={s.root} testID={testID}>
       <Press
@@ -146,6 +178,10 @@ const s = StyleSheet.create({
   head: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 12, rowGap: 4 },
   value: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 22 },
   none: { fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22 },
+  line: { minHeight: 56, borderRadius: 16, borderWidth: 1, paddingLeft: 16, paddingRight: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  lineEnd: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 6 },
+  lineValue: { flexShrink: 1, fontFamily: amFonts.semi, fontSize: 16, lineHeight: 22, textAlign: "right" },
+  lineNone: { flexShrink: 1, fontFamily: amFonts.medium, fontSize: 15, lineHeight: 22, textAlign: "right" },
   list: { maxHeight: 480 },
   pill: { minHeight: 40, alignSelf: "flex-start", paddingHorizontal: 16, borderRadius: 70, borderWidth: 1.5, flexDirection: "row", alignItems: "center", gap: 8 },
   pillText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18, flexShrink: 1 },

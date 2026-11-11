@@ -3,7 +3,8 @@ import type { RemoteRecording } from "@/lib/kirtan/remote"
 /** The Top Played list: what the server counted (apps/api GET /api/v1/top-played, docs/radio-mixing.md). */
 
 export type TopPeriod = "all" | "30d" | "7d"
-export const TOP_PERIODS: readonly TopPeriod[] = ["all", "30d", "7d"]
+/** The order of the switch on the screen: Week, Month (30 days), All time. */
+export const TOP_PERIODS: readonly TopPeriod[] = ["7d", "30d", "all"]
 
 export type TopItem = {
   rank: number

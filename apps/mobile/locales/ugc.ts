@@ -21,6 +21,7 @@ export const ugcEn = {
   // the add form
   "ugc.add.over": "Share a recording",
   "ugc.add.heading": "Add",
+  "ugc.add.heading2": "Recording",
   "ugc.add.close": "Close",
   "ugc.add.blurb.kiirtan": "Group chanting of Baba Nam Kevalam",
   "ugc.add.blurb.bhajan": "A devotional song",
@@ -171,6 +172,7 @@ export const ugcRu: Record<keyof typeof ugcEn, string> = {
 
   "ugc.add.over": "Поделиться записью",
   "ugc.add.heading": "Добавить",
+  "ugc.add.heading2": "Запись",
   "ugc.add.close": "Закрыть",
   "ugc.add.blurb.kiirtan": "Пение группой: Baba Nam Kevalam",
   "ugc.add.blurb.bhajan": "Песня-обращение к Богу",
@@ -309,6 +311,7 @@ export const ugcEs: Record<keyof typeof ugcEn, string> = {
 
   "ugc.add.over": "Comparte una grabación",
   "ugc.add.heading": "Añadir",
+  "ugc.add.heading2": "Grabación",
   "ugc.add.close": "Cerrar",
   "ugc.add.blurb.kiirtan": "Canto en grupo de Baba Nam Kevalam",
   "ugc.add.blurb.bhajan": "Una canción devocional",

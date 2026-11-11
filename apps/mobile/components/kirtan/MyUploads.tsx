@@ -86,7 +86,7 @@ export function RemovedCard({ theme, kirtan: k, onOpenOriginal }: { theme: Songs
   const router = useRouter()
   const withdraw = useKirtanStore((s) => s.withdraw)
   const corrected = () =>
-    router.push(href(`/${k.kind === "other_mantra" ? "add-mantra" : "add-kirtan"}?kind=${k.kind}&title=${encodeURIComponent(k.title)}&author=${encodeURIComponent(k.author)}${k.psSong ? `&song=${k.psSong}` : ""}`))
+    router.push(href(`/add-kirtan?kind=${k.kind}&title=${encodeURIComponent(k.title)}&author=${encodeURIComponent(k.author)}${k.psSong ? `&song=${k.psSong}` : ""}`))
   const reason = k.removedReason?.trim()
   return (
     <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityLabel={`${t("ugc.removed.title")}. ${k.title}`}>

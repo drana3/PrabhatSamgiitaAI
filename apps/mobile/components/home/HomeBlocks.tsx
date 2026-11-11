@@ -110,17 +110,19 @@ export function NotificationBell({ p, unread, onPress }: P & { unread: boolean; 
 /* ---------------------------------------------------------------- section head */
 
 /** Eyebrow, then the two-tone capitals heading. */
-export function HomeSectionHead({ p, eyebrow, first, second, action }: P & { eyebrow: string; first: string; second: string; action?: { label: string; onPress: () => void } }) {
+export function HomeSectionHead({ p, eyebrow, first, second, action }: P & { eyebrow?: string; first: string; second?: string; action?: { label: string; onPress: () => void } }) {
   return (
     <View style={s.headRow}>
       <View style={s.head}>
-        <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
-          {eyebrow}
-        </Text>
+        {eyebrow ? (
+          <Text style={[overStyle, { color: p.orange700 }]} numberOfLines={1}>
+            {eyebrow}
+          </Text>
+        ) : null}
         <Text style={s.h2} accessibilityRole="header">
           <Text style={{ color: p.ink800 }}>{first}</Text>
-          {"\n"}
-          <Text style={{ color: p.ink300 }}>{second}</Text>
+          {second ? "\n" : null}
+          {second ? <Text style={{ color: p.ink300 }}>{second}</Text> : null}
         </Text>
       </View>
       {action ? (

@@ -7,13 +7,12 @@ import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native
 
 import { AvatarFace } from "@/components/profile-v2/AvatarFace"
 import { HOME_INSET, HomeEmpty, HomeSectionHead, NotificationBell } from "@/components/home/HomeBlocks"
-import { LiveCard } from "@/components/kirtan/LiveCard"
 import { AuthorsShelf } from "@/components/authors/AuthorsShelf"
 import { BroadcastsShelf } from "@/components/broadcasts/BroadcastsShelf"
 import { BroadcastNowStrip } from "@/components/kirtan/hub/BroadcastNowStrip"
-import { ChartCards } from "@/components/kirtan/hub/ChartCards"
 import { KindCards } from "@/components/kirtan/hub/KindCards"
 import { MineTiles } from "@/components/kirtan/hub/MineTiles"
+import { MostPlayedCard } from "@/components/kirtan/hub/MostPlayedCard"
 import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
 import { KirtanMenuSheet, KirtanShareSheet } from "@/components/kirtan/KirtanMenus"
 import { KirtanRow, KirtanTag, PlayFilled } from "@/components/kirtan/KirtanParts"
@@ -31,7 +30,6 @@ import { useDownloadedKirtans } from "@/hooks/useDownloadedKirtans"
 import { useKirtanActions } from "@/hooks/useKirtanActions"
 import { useBroadcasts } from "@/hooks/useBroadcasts"
 import { useKiirtanCharts } from "@/hooks/useKiirtanCharts"
-import { useKirtanLive } from "@/hooks/useKirtanLive"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useKirtans } from "@/hooks/useKirtans"
 import { usePianoRecordingIds } from "@/hooks/usePianoRecordingIds"
@@ -40,7 +38,7 @@ import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { sampleResume } from "@/lib/fixtures/kirtanGate"
 import { chartHref } from "@/lib/kirtan/charts"
-import { kiirtanListHref, kindCards, listAddressOfFilter, savedWithDownloads } from "@/lib/kirtan/hub"
+import { addRecordingHref, kiirtanListHref, kindCards, listAddressOfFilter, savedWithDownloads } from "@/lib/kirtan/hub"
 import { filterByKind, kindDayA11y, kindDayLabel, kindHeading, kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
 import { phaseNow, shelfOrder } from "@/lib/broadcasts/rules"
 import { LENGTH_BUCKETS, longKirtans, type LengthBucketId } from "@/lib/kirtan/length"
@@ -89,7 +87,6 @@ export default function KiirtanTabScreen() {
   const actions = useKirtanActions()
   const { playable: allPlayable, byId, submissions } = useKirtans()
   const savedIds = useKirtanStore((s) => s.savedIds)
-  const live = useKirtanLive()
   const { unread: unreadNotes } = useNotificationItems()
 
   const [chip, setChipRaw] = useState<KirtanTabChip>(parseKirtanTabChip(params.filter))
@@ -110,8 +107,8 @@ export default function KiirtanTabScreen() {
 
   /** the kind filter of the first three chips; the list chips (Saved...) show both kinds */
   const kind = kindOfTabChip(chip)
-  // on the Other mantras tab the plus opens the mantra page; everywhere else the recording form
-  const addHref = kind === "other_mantra" ? "/add-mantra" : "/add-kirtan"
+  // the Add Recording form; on the Others tab it opens on Others
+  const addHref = addRecordingHref(kind)
   const showKiirtan = kind === "all" || kind === "kiirtan"
   const subOn = hasSubFilters(kind) && isSubFilterOn(sub)
   const avartaTotal = useMemo(() => avartaCount(allPlayable), [allPlayable])
@@ -126,7 +123,6 @@ export default function KiirtanTabScreen() {
   const dayN = useMemo(() => dayNumberOf(now), [now])
   const kindList = useMemo(() => filterByKind(playable, kind), [playable, kind])
   const day = useMemo(() => kiirtanOfTheDay(filterByKind(playable, kind === "all" ? "kiirtan" : kind), dayN), [playable, kind, dayN])
-  const bhajanDay = useMemo(() => (kind === "all" ? kiirtanOfTheDay(filterByKind(playable, "bhajan"), dayN) : null), [playable, kind, dayN])
   const hourly = useMemo(() => bhajansForEveryHour(playable), [playable])
   // "Kiirtan for piano": accepted piano notes, or a piano lead instrument (same filter as the Search shelf, so the counts agree)
   const pianoIds = usePianoRecordingIds()
@@ -167,8 +163,8 @@ export default function KiirtanTabScreen() {
   }
   // "Live and upcoming": appears only when at least one broadcast is on the air or announced (docs/broadcasts.md)
   const broadcasts = useBroadcasts("shelf")
-  // "Charts": the two top cards, each drawn only while its chart has enough rows (lib/kirtan/charts.ts)
-  const chartCards = useKiirtanCharts()
+  // "Most played": one card, drawn only while this week's chart has enough rows (lib/kirtan/charts.ts)
+  const chartCard = useKiirtanCharts()
   const liveBroadcasts = useMemo(() => shelfOrder(broadcasts.items), [broadcasts.items])
   // the slim strip at the top shows only while a broadcast is on the air; the full shelf below stays
   // a minute clock: a broadcast that ends while the page is open drops the strip without a reload
@@ -178,6 +174,8 @@ export default function KiirtanTabScreen() {
     return () => clearInterval(id)
   }, [])
   const onAir = useMemo(() => liveBroadcasts.find((b) => phaseNow(b) === "now") ?? null, [liveBroadcasts, minute])
+  // the broadcast on the air is the strip at the top; the shelf below lists the others, so one broadcast is not offered twice
+  const upcoming = useMemo(() => liveBroadcasts.filter((b) => b !== onAir), [liveBroadcasts, onAir])
   let reveal = 0
   const next = () => Math.min(reveal++, 8)
 
@@ -324,37 +322,42 @@ export default function KiirtanTabScreen() {
         </Reveal>
       ) : null}
 
-      {kind === "all" && chartCards.length ? (
-        <Reveal index={next()} style={styles.section}>
-          <HomeSectionHead p={p} eyebrow={t("kh.chart.eyebrow")} first={t("kh.chart.first")} second={t("kh.chart.second")} />
-          <ChartCards cards={chartCards} onOpen={(c) => router.push(href(chartHref(c.chart.period)))} />
+      {kind === "all" && chartCard ? (
+        <Reveal index={next()}>
+          <MostPlayedCard p={p} card={chartCard} onOpen={() => router.push(href(chartHref(chartCard.chart.period)))} />
         </Reveal>
       ) : null}
 
       {kind === "all" ? (
         <Reveal index={next()} style={styles.section}>
-          <HomeSectionHead p={p} eyebrow={t("kh.cat.eyebrow")} first={t("kh.cat.first")} second={t("kh.cat.second")} />
+          <HomeSectionHead p={p} first={t("kh.cat.title")} />
           <KindCards p={p} cards={cards} onOpen={(k) => router.push(href(kiirtanListHref({ mode: "category", kind: k })))} />
         </Reveal>
       ) : null}
 
-      {liveBroadcasts.length ? (
+      {upcoming.length ? (
         <Reveal index={next()} style={styles.section}>
-          <BroadcastsShelf p={p} items={liveBroadcasts} />
+          <BroadcastsShelf p={p} items={upcoming} />
         </Reveal>
       ) : null}
 
       {kind === "bhajan" ? hourShelf() : null}
 
       <Reveal index={next()} style={styles.section}>
-        <HomeSectionHead p={p} eyebrow={t("kt.length.eyebrow")} first={t("kt.length.first")} second={t("kt.length.second")} />
-        <View style={styles.lengths}>
+        <HomeSectionHead
+          p={p}
+          eyebrow={t("kt.new.eyebrow")}
+          first={t("kt.new.first")}
+          second={kind === "all" ? t("kt.new.recordings") : kindLabelPlural(kind).toLowerCase()}
+          action={{ label: t("kt.shuffleAll"), onPress: () => actions.flash(playEverything() ?? "") }}
+        />
+        <View style={styles.lengths} accessibilityRole="radiogroup" accessibilityLabel={t("kh.length.a11y")}>
           {LENGTH_BUCKETS.map((b) => {
             const on = length === b.id
             return (
               <KPress
                 key={b.id}
-                accessibilityRole="button"
+                accessibilityRole="radio"
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={b.label}
                 onActivate={() => setLength((cur) => (cur === b.id ? null : b.id))}
@@ -365,6 +368,13 @@ export default function KiirtanTabScreen() {
               </KPress>
             )
           })}
+        </View>
+        <View style={styles.list}>
+          {list.length ? (
+            list.map((k) => <KirtanRow key={k.id} theme={theme} kirtan={k} compact onOpen={(row) => play(row, list)} onMore={setMenu} onOpenArtist={actions.openArtist} />)
+          ) : (
+            <HomeEmpty p={p} text={emptyListText(null, length, kind)} />
+          )}
         </View>
       </Reveal>
 
@@ -389,44 +399,12 @@ export default function KiirtanTabScreen() {
         </Reveal>
       ) : null}
 
-      {kind === "all" && bhajanDay ? (
-        <Reveal index={next()}>
-          <DayCard kirtan={bhajanDay} onPlay={() => play(bhajanDay, filterByKind(playable, "bhajan"))} />
-        </Reveal>
-      ) : null}
-
       {kind === "all" ? hourShelf() : null}
 
-      <Reveal index={next()} style={styles.section}>
-        <HomeSectionHead
-          p={p}
-          eyebrow={(length ? LENGTH_BUCKETS.find((b) => b.id === length)?.label : null) || t("kt.new.eyebrow")}
-          first={t("kt.new.first")}
-          second={kind === "all" ? t("kt.new.recordings") : kindLabelPlural(kind).toLowerCase()}
-          action={{ label: t("kt.shuffleAll"), onPress: () => actions.flash(playEverything() ?? "") }}
-        />
-        <View style={styles.list}>
-          {list.length ? (
-            list.map((k) => <KirtanRow key={k.id} theme={theme} kirtan={k} compact onOpen={(row) => play(row, list)} onMore={setMenu} onOpenArtist={actions.openArtist} />)
-          ) : (
-            <HomeEmpty p={p} text={emptyListText(null, length, kind)} />
-          )}
-        </View>
-      </Reveal>
-
-      {longList.length || (showKiirtan && live.items.length) ? (
+      {longList.length ? (
         <Reveal index={next()} style={styles.section}>
-          <HomeSectionHead p={p} eyebrow={t("kt.long.eyebrow")} first={t("kt.long.first")} second={kindLabelPlural(kind === "all" ? "kiirtan" : kind).toLowerCase()} />
+          <HomeSectionHead p={p} eyebrow={t("kt.long.eyebrow")} first={t("kh.long.first")} second={kindLabelPlural(kind === "all" ? "kiirtan" : kind).toLowerCase()} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shelf}>
-            {(showKiirtan ? live.items : []).map((item) => (
-              <LiveCard
-                key={item.id}
-                item={item}
-                now={live.now}
-                theme={theme}
-                onOpen={(i) => router.push(href(`/kiirtan-live?id=${encodeURIComponent(i.id)}`))}
-              />
-            ))}
             {longList.map((k) => (
               <LongCard key={k.id} kirtan={k} onPress={() => play(k, longList, t("kt.ctx.long"))} />
             ))}

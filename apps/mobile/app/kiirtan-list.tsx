@@ -22,7 +22,7 @@ import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useLanguage, useT } from "@/lib/i18n"
-import { groupByKind, HUB_KINDS, kindsPresent, listOfKind, onlyOnPhone, parseHubListParams, savedWithDownloads, typeChips, type KindGroup } from "@/lib/kirtan/hub"
+import { addRecordingHref, groupByKind, HUB_KINDS, kindsPresent, listOfKind, onlyOnPhone, parseHubListParams, savedWithDownloads, typeChips, type KindGroup } from "@/lib/kirtan/hub"
 import { playListShuffled } from "@/lib/kirtan/hubPlayback"
 import { filterByKind, kindCountLabel, kindLabel, kindLabelPlural, kindWhat } from "@/lib/kirtan/kind"
 import { kirtanSharePayload } from "@/lib/kirtan/share"
@@ -90,7 +90,7 @@ export default function KiirtanListScreen() {
     },
     [actions],
   )
-  const addHref = kind === "other_mantra" ? "/add-mantra" : "/add-kirtan"
+  const addHref = addRecordingHref(kind)
 
   /* ---------------------------------------------------------------- the lists of the three modes */
   const ofKind = useMemo(() => filterByKind(playable, kind), [playable, kind])

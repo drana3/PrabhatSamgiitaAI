@@ -115,6 +115,11 @@ export function kiirtanListHref(target: { mode: "category"; kind: RecordingKind 
   return `${KIIRTAN_LIST_PATH}?mode=mine`
 }
 
+/** The Add Recording form; on a tab of Others it opens with the type already on Others (Others is a type of that one form). */
+export function addRecordingHref(kind: RecordingKind | "all"): string {
+  return kind === "other_mantra" ? "/add-kirtan?kind=other_mantra" : "/add-kirtan"
+}
+
 function first(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? ""
 }

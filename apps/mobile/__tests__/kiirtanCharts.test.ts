@@ -2,11 +2,12 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { CHARTS, CHART_MIN_ROWS, chartHref, chartLines, chartQuery, parseTopParams } from "@/lib/kirtan/charts"
+import { CHART, CHART_MIN_ROWS, chartHref, chartLines, chartQuery, parseTopParams } from "@/lib/kirtan/charts"
 import { HUB_KINDS } from "@/lib/kirtan/hub"
 import { demoTopPage } from "@/lib/topPlayed/demo"
 import { initialTopState, queryFor, topReducer } from "@/lib/topPlayed/model"
 import { topPlayedUrl } from "@/lib/topPlayed/remote"
+import { TOP_PERIODS } from "@/lib/topPlayed/types"
 import type { TopItem } from "@/lib/topPlayed/types"
 import { kiirtanHubEn, kiirtanHubEs, kiirtanHubRu } from "@/locales/kiirtanHub"
 
@@ -15,8 +16,10 @@ const read = (p: string) => readFileSync(join(root, p), "utf8")
 const item = (rank: number, over: Partial<TopItem> = {}): TopItem => ({ rank, ref: "rec", id: String(rank), kind: "kiirtan", title: `Rec ${rank}`, author: "", plays: 50 - rank, songNumber: null, recording: null, ...over })
 
 describe("Kiirtan charts cards", () => {
-  it("two charts: this week (7d) and all time", () => {
-    expect(CHARTS.map((c) => c.period)).toEqual(["7d", "all"])
+  it("one card, one chart: this week (7d); month and all time are the switch of the screen it opens", () => {
+    expect(CHART.period).toBe("7d")
+    expect(TOP_PERIODS).toEqual(["7d", "30d", "all"])
+    expect(topPlayedUrl("https://x", { ...chartQuery("30d") })).toContain("period=30d")
   })
 
   it("ask the server for the page's six kinds (no Prabhat Samgiita) and three places", () => {
@@ -73,16 +76,27 @@ describe("Kiirtan charts cards", () => {
     expect(queryFor(initialTopState()).kinds).toEqual([])
   })
 
-  it("source: the cards sit above the category cards, under All only; no Top chip on Songs", () => {
+  it("source: the one card sits above the category tiles, under All only, with no numbers on it", () => {
     const tab = read("app/kiirtan.tsx")
-    expect(tab.indexOf("<ChartCards")).toBeGreaterThan(0)
-    expect(tab.indexOf("<ChartCards")).toBeLessThan(tab.indexOf("<KindCards"))
-    expect(tab).toContain('kind === "all" && chartCards.length')
-    expect(read("components/kirtan/hub/ChartCards.tsx")).not.toMatch(/\.plays|top\.plays|formatCount/)
+    expect(tab.indexOf("<MostPlayedCard")).toBeGreaterThan(0)
+    expect(tab.indexOf("<MostPlayedCard")).toBeLessThan(tab.indexOf("<KindCards"))
+    expect(tab).toContain('kind === "all" && chartCard ?')
+    expect(tab).not.toContain("<ChartCards")
+    const card = read("components/kirtan/hub/MostPlayedCard.tsx")
+    expect(card).not.toMatch(/\.plays|top\.plays|formatCount/)
+  })
+
+  it("the screen has the switch Week, Month, All time in that order, round, and is titled Most played when opened from the card", () => {
+    const parts = read("components/topPlayed/TopPlayedParts.tsx")
+    expect(parts).toContain('accessibilityRole="radiogroup"')
+    expect(parts).toContain("TOP_PERIODS.map")
+    const screen = read("app/top-played.tsx")
+    expect(screen).toContain('scoped ? t("kh.chart.title") : t("top.title")')
+    expect(kiirtanHubEn["kh.chart.title"]).toBe("Most played")
   })
 
   it("words in en, ru and es", () => {
-    for (const key of ["kh.chart.eyebrow", "kh.chart.week", "kh.chart.all", "kh.chart.a11y", "kh.chart.scope"] as const) {
+    for (const key of ["kh.chart.title", "kh.chart.sub", "kh.chart.a11y", "kh.chart.scope", "kh.cat.title"] as const) {
       expect(kiirtanHubEn[key]).toBeTruthy()
       expect(kiirtanHubRu[key]).toBeTruthy()
       expect(kiirtanHubEs[key]).toBeTruthy()

@@ -3,19 +3,17 @@ import { visibleTop } from "@/lib/topPlayed/model"
 import type { TopPage, TopPeriod, TopQuery } from "@/lib/topPlayed/types"
 
 /**
- * The "Charts" cards of the Kiirtan tab (Dada, 10 Nov 2026, board option B2): a second door into the Top Played screen.
- * Two charts, "Most played this week" (7 days) and "Most played all time", counted over what the Kiirtan page holds (its six
- * kinds; Prabhat Samgiita is not on this page). A card shows places 1, 2 and 3 by name only; the numbers of plays live on the
- * full screen. A chart with fewer than five rows is not drawn at all (one person must not make a top alone). Pure.
+ * The "Most played" card of the Kiirtan tab (Dada, 10 Nov 2026, board option B2; one card since 12 Nov 2026): a second door into the Top
+ * Played screen. It shows this week's chart (7 days), counted over what the Kiirtan page holds (its six kinds; Prabhat Samgiita is not
+ * on this page); the card names places 1, 2 and 3 only, and the screen it opens has the switch Week / Month / All time (the server
+ * already answers 7d, 30d and all). A chart with fewer than five rows is not drawn at all (one person must not make a top alone). Pure.
  */
 
-export type ChartId = "week" | "all"
-export type ChartDef = { id: ChartId; period: TopPeriod; titleKey: "kh.chart.week" | "kh.chart.all" }
+export type ChartId = "week"
+export type ChartDef = { id: ChartId; period: TopPeriod }
 
-export const CHARTS: readonly ChartDef[] = [
-  { id: "week", period: "7d", titleKey: "kh.chart.week" },
-  { id: "all", period: "all", titleKey: "kh.chart.all" },
-]
+/** The one chart of the card. */
+export const CHART: ChartDef = { id: "week", period: "7d" }
 
 /** A chart is drawn only with at least this many rows. */
 export const CHART_MIN_ROWS = 5
