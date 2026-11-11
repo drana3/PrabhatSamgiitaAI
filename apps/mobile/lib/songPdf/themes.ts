@@ -22,11 +22,11 @@ export const THEMES: Record<PdfThemeId, Theme> = {
     fonts: `${G}family=Bricolage+Grotesque:opsz,wght@12..96,200;12..96,400;12..96,800&family=Instrument+Sans:ital,wght@0,400;1,400&family=DM+Mono:wght@500&display=swap`,
     css: `:root{--display:'Bricolage Grotesque','Helvetica Neue',sans-serif;--lyric:'Bricolage Grotesque','Helvetica Neue',sans-serif;--body:'Instrument Sans','Helvetica Neue',sans-serif;--mono:'DM Mono',ui-monospace,monospace;
 --paper:oklch(0.985 0.004 235);--ink:oklch(0.23 0.045 245);--muted:oklch(0.48 0.03 245);--rule:oklch(0.48 0.03 245 / .28);--accent:oklch(0.55 0.165 45);--gloss:oklch(0.5 0.15 45);--lw:300;--hw:800}
-.hd{position:relative;height:50mm;margin-bottom:8mm;background:var(--ink) center/cover;color:#fff;display:flex;align-items:flex-end}
+.hd{position:relative;height:46mm;margin-bottom:7mm;background:var(--ink) center/cover;color:#fff;display:flex;align-items:flex-end}
 .hd:after{content:"";position:absolute;inset:0;background:linear-gradient(to top,oklch(0.18 0.04 245 / .86),oklch(0.18 0.04 245 / 0) 72%)}
 .hd .in{position:relative;z-index:1;padding:0 7mm 6mm;width:100%;display:flex;justify-content:space-between;align-items:flex-end;gap:8mm}
 .hd .no{display:inline-block;background:var(--accent);color:#fff;font:800 11pt/1 var(--display);padding:2mm 3mm;margin-bottom:3mm}
-.hd h1{color:#fff;font-size:30pt;letter-spacing:-.02em}
+.hd h1{color:#fff;font-size:34pt;letter-spacing:-.02em}
 .hd .meta{color:oklch(1 0 0 / .85);flex-direction:column;gap:1.4mm;align-items:flex-end}.hd .meta span+span{border:0;padding:0}`,
     head: ({ number, title, meta, photo }) =>
       `<div class="hd" ${photoStyle(photo)}><div class="in"><div><span class="no">№ ${number}</span><h1>${esc(title)}</h1></div><div class="meta eb">${metaLine(meta)}</div></div></div>`,

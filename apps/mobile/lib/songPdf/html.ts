@@ -88,6 +88,7 @@ function head(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): string {
 }
 
 function foot(song: PdfSongInput, note: string): string {
+  if (!note) return ""
   return `<footer class="eb"><span>Prabhat Samgiita app · song ${song.number}</span><span class="ok">${esc(note)}</span><span></span></footer>`
 }
 
@@ -131,11 +132,28 @@ function translationColumn(plan: PdfPlan, separate: boolean): string {
 function sheet(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): Frame {
   const withWords = plan.wordLanguages.length > 0
   const note = withWords ? "" : "Word meanings are not in the catalogue for this song yet"
+  const { lines, glossable } = linesOf(song, options)
+  const parts = stanzas(lines)
+  const first = plan.translations[0]
+  // When the translation has as many parts as the song has stanzas, each stanza sits beside its own translation (and a page
+  // break never splits a pair). Otherwise the song and the translation are two columns that run on side by side.
+  const aligned = !!first && parts.length > 1 && first.blocks.length === parts.length
+  const label = `<div class="eb col-h">Song${withWords ? " · word by word" : ""}</div>`
+  const body = aligned
+    ? `<div class="srow"><div class="col-l">${label}</div><div class="col-r"><div class="eb col-h">Translation</div></div></div>` +
+      parts
+        .map((st, i) => {
+          const left = st.map(({ line, index }) => lineHtml(song, line, index, glossable[index] ?? false, plan, withWords)).join("")
+          const right = plan.translations.map((t) => `<p>${esc(t.blocks[i] ?? "").replace(/\n/g, "<br>")}</p>`).join("")
+          return `<div class="srow"><div class="col-l"><div class="stanza">${left}</div></div><div class="col-r tl">${right}</div></div>`
+        })
+        .join("")
+    : `<table><tr><td class="col-l">${label}${songColumn(song, options, plan, true)}</td><td class="col-r tl"><div class="eb col-h">Translation</div>${translationColumn(plan, false)}</td></tr></table>`
   return {
-    css: "@page{size:297mm 210mm;margin:12mm 15mm}.col-l{width:60%;padding-right:9mm;border-right:1px solid var(--rule)}.col-r{padding-left:9mm}",
+    css: "@page{size:297mm 210mm;margin:12mm 15mm}.col-l{width:67%;padding-right:7mm;border-right:1px solid var(--rule)}.col-r{padding-left:7mm;flex:1}.srow{display:flex}.srow .stanza{margin-bottom:0;padding-bottom:6mm}.srow .tl{padding-bottom:6mm}.w .r{font-size:25pt;line-height:1.12}.w .g{font-size:14pt;margin-top:1.4mm;padding-top:.9mm;min-height:6.5mm}.line{gap:0 5mm;margin-bottom:6mm}.stanza{margin-bottom:9mm}.tl p{font-size:17pt;line-height:1.35;margin-bottom:5mm}.eb{font-size:9.5pt}",
     page: "landscape",
     note,
-    body: `${head(song, options, plan)}<table><tr><td class="col-l"><div class="eb col-h">Song${withWords ? " · word by word" : ""}</div>${songColumn(song, options, plan, true)}</td><td class="col-r tl"><div class="eb col-h">Translation</div>${translationColumn(plan, false)}</td></tr></table>${foot(song, note)}`,
+    body: `${head(song, options, plan)}${body}${foot(song, note)}`,
   }
 }
 

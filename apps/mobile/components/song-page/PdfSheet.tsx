@@ -5,13 +5,12 @@ import { SpSheet } from "@/components/song-v2/SpSheet"
 import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { planFor } from "@/lib/songPdf/html"
-import { summaryOf, toggleCode } from "@/lib/songPdf/languages"
+import { pdfLanguages, toggleCode } from "@/lib/songPdf/languages"
 import { shareSongPdf } from "@/lib/songPdf/share"
-import { PDF_THEMES, PDF_VARIANTS, type PdfSongInput, type PdfThemeId, type PdfVariantId } from "@/lib/songPdf/types"
+import { PDF_VARIANTS, type PdfSongInput, type PdfVariantId } from "@/lib/songPdf/types"
 import { lyricLanguageName } from "@/lib/songPage/lyricLanguages"
-import { scriptName, usePageT, type PageT } from "@/lib/songPage/pageCopy"
-import type { ScriptId } from "@/lib/songPage/scripts"
+import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
+import { useLanguage } from "@/lib/i18n"
 import { useSongPdfStore } from "@/stores/songPdfStore"
 
 import { songTitle } from "./Hero"
@@ -21,7 +20,6 @@ import { Segmented, type SegItem } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-const SCRIPTS: ScriptId[] = ["roman", "devanagari", "bengali"]
 
 /** What the PDF needs, taken from the song page: the lines of each script, the word meanings, one text per translation language. */
 export function pdfInputOf(model: SongPageModel): PdfSongInput | null {
@@ -112,77 +110,21 @@ function LayoutCards({ t, tr }: { t: SpTheme; tr: PageT }) {
   )
 }
 
-/** Paper, the strong block and the accent of each look, only for the little swatches (the real colours are in lib/songPdf/themes.ts). */
-const SWATCH: Record<PdfThemeId, { paper: string; block: string; accent: string }> = {
-  dawn: { paper: "#F8FBFC", block: "#081F31", accent: "#BB4800" },
-  night: { paper: "#090F1C", block: "#090F1C", accent: "#F7BC50" },
-  hymnal: { paper: "#FEFDFC", block: "#FEFDFC", accent: "#B71A18" },
-  poster: { paper: "#F9F7EE", block: "#0048A6", accent: "#E16C10" },
-  mono: { paper: "#FFFFFF", block: "#0B0B0B", accent: "#D64D00" },
-}
-
-function LookRow({ t, tr }: { t: SpTheme; tr: PageT }) {
-  const theme = useSongPdfStore((s) => s.theme)
-  const setTheme = useSongPdfStore((s) => s.setTheme)
-  return (
-    <View style={styles.looks} accessibilityRole="radiogroup" accessibilityLabel={tr("pdf.look")}>
-      {PDF_THEMES.map((id) => {
-        const on = id === theme
-        const c = SWATCH[id]
-        return (
-          <SpPress key={id} onPress={() => setTheme(id)} accessibilityRole="radio" accessibilityLabel={tr(`pdf.t.${id}`)} accessibilityState={{ selected: on }} pressedScale={0.95} style={styles.look}>
-            <View style={[styles.swatch, { backgroundColor: c.paper, borderColor: on ? (t.dark ? t.action : t.ink900) : t.sand400, borderWidth: on ? 2 : 1 }]}>
-              <View style={[styles.swatchBlock, { backgroundColor: c.block }]} />
-              <View style={[styles.swatchDot, { backgroundColor: c.accent }]} />
-            </View>
-            <Text style={[styles.lookName, { color: on ? t.ink900 : t.ink500 }]} numberOfLines={1}>{tr(`pdf.t.${id}`)}</Text>
-          </SpPress>
-        )
-      })}
-    </View>
-  )
-}
-
-function ChoiceRow({ t, tr, label, codes, onPress }: { t: SpTheme; tr: PageT; label: string; codes: readonly string[]; onPress: () => void }) {
-  const { names, more } = summaryOf(codes)
-  return (
-    <SpPress onPress={onPress} accessibilityLabel={`${label}. ${names || tr("pdf.off")}`} pressedScale={0.985} style={[styles.choice, { borderTopColor: t.sand300 }]}>
-      <Text style={[styles.label, { color: t.ink800 }]}>{label}</Text>
-      <View style={styles.value}>
-        <Text style={[styles.valueText, { color: t.ink900 }]} numberOfLines={1}>{names || tr("pdf.off")}</Text>
-        {more ? <View style={[styles.more, { backgroundColor: t.sand300 }]}><Text style={[styles.moreText, { color: t.ink900 }]}>{tr("lang.more", { count: more })}</Text></View> : null}
-        <Text style={[styles.chev, { color: t.ink500 }]}>›</Text>
-      </View>
-    </SpPress>
-  )
-}
-
-type View_ = "main" | "words" | "translation"
-
-/** THE PDF SHEET: pick a layout, the script and the languages, make the PDF on the phone and hand it to the share sheet. */
+/** THE PDF SHEET: pick a layout and make the PDF. The look is Dawn, the script Roman, and the language the one the app is in (English or Russian). */
 export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
   const tr = usePageT()
+  const appLanguage = useLanguage()
   const open = ui.sheet === "pdf"
-  const [view, setView] = useState<View_>("main")
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const variant = useSongPdfStore((s) => s.variant)
-  const theme = useSongPdfStore((s) => s.theme)
-  const wordChoice = useSongPdfStore((s) => s.wordLanguages)
-  const translationLanguages = useSongPdfStore((s) => s.translationLanguages)
-  const toggleTranslation = useSongPdfStore((s) => s.toggleTranslationLanguage)
-  const toggleWord = useWordLanguageToggle(model)
   const input = useMemo(() => pdfInputOf(model), [model.song, model.sources, model.glosses, model.translations, model.about])
-  const wordLanguages = effectiveWordLanguages(wordChoice, model)
-  const [script, setScript] = useState<ScriptId>("roman")
+  const chosen = pdfLanguages(appLanguage, { words: model.wordLanguages, translations: Object.keys(input?.translations ?? {}) })
+  const options = { variant, theme: "dawn" as const, script: "roman" as const, wordLanguages: chosen.words, translationLanguages: chosen.translations }
   const close = () => {
-    setView("main")
     setNote(null)
     ui.setSheet(null)
   }
-  const options = { variant, theme, script, wordLanguages, translationLanguages }
-  const plan = input ? planFor(input, options) : null
-  const scriptItems: Array<SegItem<ScriptId>> = SCRIPTS.filter((id) => id !== "bengali" || model.scripts.includes(id)).map((id) => ({ id, label: scriptName(tr, id), disabled: !model.scripts.includes(id) }))
 
   const make = async () => {
     if (!input || busy) return
@@ -190,8 +132,8 @@ export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; u
     setNote(null)
     try {
       const done = await shareSongPdf(input, options)
-      const missing = [...done.plan.missing.translations, ...done.plan.missing.wordLanguages].map(lyricLanguageName)
-      setNote(missing.length ? tr("pdf.missing", { names: [...new Set(missing)].join(", ") }) : tr("pdf.done"))
+      const missing = [...done.plan.missing.translations, ...done.plan.missing.wordLanguages].length > 0
+      setNote(chosen.fellBack ? tr("pdf.fallback", { name: lyricLanguageName(chosen.language) }) : missing ? tr("pdf.noWordsHint") : tr("pdf.done"))
     } catch {
       setNote(tr("pdf.failed"))
     } finally {
@@ -199,53 +141,17 @@ export function PdfSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; u
     }
   }
 
-  const translationAvailable = Object.keys(input?.translations ?? {})
   return (
     <SpSheet t={t} visible={open} onClose={close} label={tr("pdf.title")} testID="pdf-sheet">
       <View style={styles.body}>
-        {view === "main" ? (
-          <>
-            <Text style={[styles.title, { color: t.ink900 }]} accessibilityRole="header">{tr("pdf.title")}</Text>
-            <Text style={[styles.label, { color: t.ink800, marginTop: 12, marginBottom: 8 }]}>{tr("pdf.layout")}</Text>
-            <LayoutCards t={t} tr={tr} />
-            <Text style={[styles.label, { color: t.ink800, marginTop: 14, marginBottom: 8 }]}>{tr("pdf.look")}</Text>
-            <LookRow t={t} tr={tr} />
-            <View style={styles.stack}>
-              <Text style={[styles.label, { color: t.ink800 }]}>{tr("pdf.script")}</Text>
-              <Segmented t={t} items={scriptItems} value={script} onChange={setScript} label={tr("pdf.script")} role="radio" fit />
-            </View>
-            {variant === "singing" ? null : (
-              <>
-                {variant === "sheet" || variant === "study" ? <ChoiceRow t={t} tr={tr} label={tr("pdf.words")} codes={wordLanguages} onPress={() => setView("words")} /> : null}
-                <ChoiceRow t={t} tr={tr} label={tr("pdf.translation")} codes={translationLanguages.filter((c) => translationAvailable.includes(c))} onPress={() => setView("translation")} />
-              </>
-            )}
-            {(variant === "sheet" || variant === "study") && model.wordLanguages.length === 0 ? <Text style={[styles.hint, { color: t.ink500 }]}>{tr("pdf.noWordsHint")}</Text> : null}
-            {note ? <Text style={[styles.hint, { color: t.ink800 }]} accessibilityLiveRegion="polite">{note}</Text> : null}
-            <SpPress onPress={make} disabled={busy || !input} accessibilityLabel={busy ? tr("pdf.making") : tr("pdf.make")} pressedScale={0.97} style={[styles.make, { backgroundColor: t.action }, busy && { opacity: 0.6 }]}>
-              <Text style={[styles.makeText, { color: t.onAction }]}>{busy ? tr("pdf.making") : tr("pdf.make")}</Text>
-            </SpPress>
-          </>
-        ) : (
-          <>
-            <View style={styles.head}>
-              <SpPress onPress={() => setView("main")} accessibilityLabel={tr("lang.back")} pressedScale={0.94} style={[styles.back, { borderColor: t.sand400 }]}>
-                <Text style={[styles.chev, { color: t.ink900, transform: [{ scaleX: -1 }] }]}>›</Text>
-              </SpPress>
-              <Text style={[styles.title, { color: t.ink900 }]} accessibilityRole="header">{view === "words" ? tr("lang.layer.words") : tr("lang.layer.translation")}</Text>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
-              {view === "words" ? (
-                <LanguageList t={t} tr={tr} available={model.wordLanguages} chosen={wordLanguages} onToggle={toggleWord} />
-              ) : (
-                <LanguageList t={t} tr={tr} available={translationAvailable} chosen={translationLanguages.filter((c) => translationAvailable.includes(c))} onToggle={toggleTranslation} />
-              )}
-            </ScrollView>
-            <SpPress onPress={() => setView("main")} accessibilityLabel={tr("lang.done")} pressedScale={0.97} style={[styles.make, { backgroundColor: t.action }]}>
-              <Text style={[styles.makeText, { color: t.onAction }]}>{tr("lang.done")}</Text>
-            </SpPress>
-          </>
-        )}
+        <Text style={[styles.title, { color: t.ink900 }]} accessibilityRole="header">{tr("pdf.title")}</Text>
+        <Text style={[styles.label, { color: t.ink800, marginTop: 12, marginBottom: 8 }]}>{tr("pdf.layout")}</Text>
+        <LayoutCards t={t} tr={tr} />
+        {(variant === "sheet" || variant === "study") && model.wordLanguages.length === 0 ? <Text style={[styles.hint, { color: t.ink500 }]}>{tr("pdf.noWordsHint")}</Text> : null}
+        {note ? <Text style={[styles.hint, { color: t.ink800 }]} accessibilityLiveRegion="polite">{note}</Text> : null}
+        <SpPress onPress={make} disabled={busy || !input} accessibilityLabel={busy ? tr("pdf.making") : tr("pdf.make")} pressedScale={0.97} style={[styles.make, { backgroundColor: t.action }, busy && { opacity: 0.6 }]}>
+          <Text style={[styles.makeText, { color: t.onAction }]}>{busy ? tr("pdf.making") : tr("pdf.make")}</Text>
+        </SpPress>
       </View>
     </SpSheet>
   )

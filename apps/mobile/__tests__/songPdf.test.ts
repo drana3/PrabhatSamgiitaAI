@@ -140,4 +140,15 @@ describe("a language the app does not list", () => {
       for (const size of sizes) expect(size, theme).toBeGreaterThanOrEqual(24)
     }
   })
+
+  it("takes the PDF language from the app: Russian in a Russian app, English otherwise, English when the song lacks it", async () => {
+    const { pdfLanguages } = await import("@/lib/songPdf/languages")
+    const have = { words: ["en", "ru"], translations: ["en", "ru"] }
+    expect(pdfLanguages("ru", have)).toMatchObject({ language: "ru", words: ["ru"], translations: ["ru"], fellBack: false })
+    expect(pdfLanguages("en", have)).toMatchObject({ language: "en", words: ["en"], translations: ["en"], fellBack: false })
+    expect(pdfLanguages("es", have).translations).toEqual(["en"])
+    const onlyEn = pdfLanguages("ru", { words: ["en"], translations: ["en"] })
+    expect(onlyEn).toMatchObject({ words: ["en"], translations: ["en"], fellBack: true })
+    expect(pdfLanguages("ru", { words: [], translations: [] })).toMatchObject({ words: [], translations: [], fellBack: false })
+  })
 })
