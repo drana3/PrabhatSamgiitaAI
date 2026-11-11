@@ -3,7 +3,6 @@ import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 
-import { HOME_COVERS, HOME_COVER_FOCUS } from "@/components/home/homeCovers"
 import { BackGlyph, PlayGlyph, SortGlyph } from "@/components/songs-v2/Glyphs"
 import { SaveMark } from "@/components/save/SaveMark"
 import { DownloadMark } from "@/components/offline/DownloadMark"
@@ -12,11 +11,13 @@ import { listDownloadLabel, type ListDownloadView } from "@/lib/offline/download
 import { Press } from "@/components/songs-v2/Press"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { coverFor, stripColors, type HomeCoverId } from "@/lib/homeShelves"
+import { stripColors, type HomeCoverId } from "@/lib/homeShelves"
 import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
 import { accentIndex, splitTitle, type ChipDef, type DownloadAllState } from "@/lib/songsV2/listPage"
 import { useT } from "@/lib/i18n"
 import { MAX_FONT_SCALE } from "@/constants/fontScale"
+import { collectionPhoto, seededPhoto, songPhoto } from "@/lib/psCollections/photo"
+import type { PhotoMood } from "@/lib/photos/catalog"
 
 /** White glyphs and labels on the action fill (orange700): 5.1:1. Never dark text on orange. */
 export const ON_ACTION = "#FFFFFF"
@@ -28,7 +29,7 @@ const COVER_RADIUS = 8
 
 /* ------------------------------------------------------------------ covers */
 
-/** A song's picture: the same photo Home gives it (lib/homeShelves coverFor). */
+/** A song's picture: a photo from the photo system, never a person (lib/psCollections/photo), the same one for the same number. */
 export const SongCover = memo(function SongCover({
   number,
   size,
@@ -40,32 +41,39 @@ export const SongCover = memo(function SongCover({
   radius: number
   tint: string
 }) {
-  const id = coverFor(number)
-  return <Tile id={id} width={size} height={size} radius={radius} tint={tint} />
+  return <PhotoTile photo={songPhoto(number).thumb} width={size} height={size} radius={radius} tint={tint} />
 })
 
-function Tile({ id, width, height, radius, tint }: { id: HomeCoverId; width: number; height: number; radius: number; tint: string }) {
+function PhotoTile({ photo, width, height, radius, tint }: { photo: number; width: number; height: number; radius: number; tint: string }) {
   return (
     <Image
-      source={HOME_COVERS[id]}
+      source={photo}
       contentFit="cover"
-      contentPosition={HOME_COVER_FOCUS[id]}
       accessibilityIgnoresInvertColors
       style={{ width, height, borderRadius: radius, backgroundColor: tint }}
     />
   )
 }
 
-/** All songs: four of the six photos, chosen by the first songs of the list. */
+/** All songs: four photos (nobody in them), chosen by the first songs of the list. */
 export function CollageCover({ ids, tint }: { ids: readonly HomeCoverId[]; tint: string }) {
   const half = COVER / 2
   return (
     <View style={[styles.cover, { backgroundColor: tint }]} accessibilityIgnoresInvertColors>
       {ids.map((id, i) => (
         <View key={i} style={{ width: half, height: half }}>
-          <Tile id={id} width={half} height={half} radius={0} tint={tint} />
+          <PhotoTile photo={seededPhoto(`collage-${i}-${id}`).thumb} width={half} height={half} radius={0} tint={tint} />
         </View>
       ))}
+    </View>
+  )
+}
+
+/** A collection's cover: a photograph (the photo system, nobody in it), picked by the collection's key. */
+export function PhotoCover({ seed, mood, tint }: { seed: string; mood?: PhotoMood; tint: string }) {
+  return (
+    <View style={[styles.cover, { backgroundColor: tint }]} accessibilityIgnoresInvertColors>
+      <PhotoTile photo={collectionPhoto(seed, mood).thumb} width={COVER} height={COVER} radius={0} tint={tint} />
     </View>
   )
 }

@@ -7,6 +7,9 @@ import { withFixtureStats } from "@/lib/fixtures/songs"
 import { songNumbersForCategory } from "@/lib/categorySongs"
 import { placeholderEntry } from "@/lib/songsV2/entry"
 import { useT } from "@/lib/i18n"
+import { psSongNumbers } from "@/lib/psCollections/data"
+import { isPsKey } from "@/lib/psCollections/parse"
+import { moodOf } from "@/lib/psCollections/sections"
 
 /**
  * One collection as a playlist-style page, the same layout as All songs with the collection's own
@@ -20,7 +23,9 @@ export default function SongsV2CollectionScreen() {
   const key = String(id ?? "")
   const heading = String(title ?? id ?? t("songs.coll.fallbackTitle"))
 
-  const numbers = useMemo(() => (!key ? [] : songNumbersForCategory(key)), [key])
+  // "ps:<file>:<id>" is one of the Prabhat Samgiita collections (lib/psCollections); anything else is a category or a site collection
+  const numbers = useMemo(() => (!key ? [] : isPsKey(key) ? (psSongNumbers(key) ?? []) : songNumbersForCategory(key)), [key])
+  const coverSeed = isPsKey(key) ? key : `site:${key}`
   const entries = useMemo(
     () => numbers.map((n) => catalog.byNumber.get(n) ?? withFixtureStats(placeholderEntry(n))),
     [numbers, catalog.byNumber],
@@ -31,6 +36,8 @@ export default function SongsV2CollectionScreen() {
       listId={`collection:${key}`}
       title={heading}
       kind="collection"
+      coverSeed={coverSeed}
+      coverMood={moodOf(heading)}
       entries={entries}
       loading={catalog.loading && !entries.length}
       error={Boolean(catalog.error)}

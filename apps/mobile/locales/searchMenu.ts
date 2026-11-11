@@ -4,6 +4,7 @@
  * come from the app's own dictionaries. English is the source of truth; ru and es mirror it key for key.
  * "Kiirtan" is spelled with two i's in English.
  */
+import { collectionsPsEn, collectionsPsEs, collectionsPsRu } from "./collectionsPs"
 import { searchCardsEn, searchCardsEs, searchCardsRu } from "./searchCards"
 
 export const searchMenuEn = {
@@ -68,6 +69,7 @@ export const searchMenuEn = {
   "mood.devotion": "Devotion",
   "mood.sad": "Sad",
   ...searchCardsEn,
+  ...collectionsPsEn,
 } as const
 
 export const searchMenuRu = {
@@ -134,6 +136,7 @@ export const searchMenuRu = {
   "mood.devotion": "Преданность",
   "mood.sad": "Грустное",
   ...searchCardsRu,
+  ...collectionsPsRu,
 } as const
 
 export const searchMenuEs = {
@@ -198,4 +201,5 @@ export const searchMenuEs = {
   "mood.devotion": "Devoción",
   "mood.sad": "Triste",
   ...searchCardsEs,
+  ...collectionsPsEs,
 } as const

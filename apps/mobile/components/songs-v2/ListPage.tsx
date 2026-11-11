@@ -5,7 +5,7 @@ import { useScreenTop } from "@/hooks/useScreenTop"
 import Animated, { useAnimatedScrollHandler, useSharedValue } from "react-native-reanimated"
 
 import {
-  AccentCover,
+  PhotoCover,
   ActionBar,
   ChipsRow,
   CollageCover,
@@ -33,6 +33,7 @@ import { listPageRowHeight, ROW_GEOMETRY, slotHeight } from "@/lib/songsV2/rowSt
 import { useListViewStore } from "@/stores/listViewStore"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import { useT } from "@/lib/i18n"
+import type { PhotoMood } from "@/lib/photos/catalog"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 import { href } from "@/utils/href"
 
@@ -48,6 +49,8 @@ export function SongsListPage({
   listId,
   title,
   kind,
+  coverSeed,
+  coverMood,
   entries,
   loading = false,
   loadingText,
@@ -58,6 +61,9 @@ export function SongsListPage({
   listId: string
   title: string
   kind: "all" | "collection"
+  /** a collection's cover photo is picked by this seed (the tile on the Collections page uses the same one); default the list id */
+  coverSeed?: string
+  coverMood?: PhotoMood
   entries: readonly CatalogEntry[]
   loading?: boolean
   loadingText?: string
@@ -90,7 +96,7 @@ export function SongsListPage({
 
   const coverIds = useMemo(() => collageCoverIds(list.base.map((e) => e.number)), [list.base])
   const cover =
-    kind === "all" ? <CollageCover ids={coverIds} tint={theme.inner} /> : <AccentCover label={title} dark={theme.dark} />
+    kind === "all" ? <CollageCover ids={coverIds} tint={theme.inner} /> : <PhotoCover seed={coverSeed ?? listId} mood={coverMood} tint={theme.inner} />
   const bottom = bottomInset
 
   // Collapsing top bar (SpStickyBar): back button always, title and a round play-all button fade in as the header leaves.
@@ -184,6 +190,12 @@ export function SongsListPage({
       <SongsReveal index={3}>
         <ChipsRow theme={theme} chips={list.chips} active={list.chip} onPick={list.setChip} />
         {list.showOnlyOnPhone ? <OnlyOnPhoneRow theme={theme} on={list.downloadedOnly} onChange={list.setDownloadedOnly} /> : null}
+        {/* the circle-plus at the end of every row is not self-explaining: one quiet line says what it does */}
+        {kind === "collection" && rowsLive ? (
+          <Text style={[styles.plusHint, { color: theme.textMuted }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {t("songs.coll.plusHint")}
+          </Text>
+        ) : null}
       </SongsReveal>
     </View>
   )
@@ -282,6 +294,7 @@ export function SongsListPage({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  plusHint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: LIST_SIDE, paddingTop: 4, paddingBottom: 8 },
   retry: { alignSelf: "flex-start", marginHorizontal: 20, marginTop: 4 },
   empty: {
     fontFamily: amFonts.medium,

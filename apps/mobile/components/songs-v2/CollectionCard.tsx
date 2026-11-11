@@ -1,8 +1,10 @@
+import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { StyleSheet, Text, View, type DimensionValue } from "react-native"
 import Svg, { Path } from "react-native-svg"
 
 import { Press } from "@/components/songs-v2/Press"
+import { amScrimPhoto } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { CollectionKind } from "@/lib/songsV2/collectionsIndex"
 import { collectionTone } from "@/lib/songsV2/collectionTone"
@@ -30,6 +32,7 @@ export function CollectionCard({
   caption,
   label,
   width = COLLECTION_CARD.w,
+  photo,
   onPress,
 }: {
   kind: CollectionKind
@@ -40,6 +43,8 @@ export function CollectionCard({
   /** spoken name of the card */
   label: string
   width?: DimensionValue
+  /** a photograph (the photo system, nobody in it) instead of the gradient and the stack glyph: the Collections page */
+  photo?: number
   onPress: () => void
 }) {
   const [from, to] = collectionTone(kind, toneIndex)
@@ -49,10 +54,20 @@ export function CollectionCard({
   const huge = title.length > 26
   return (
     <Press accessibilityRole="button" accessibilityLabel={label} onPress={onPress} pressedScale={0.96} outerStyle={{ width }} style={styles.card}>
-      <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <View style={styles.glyph}>
-        <StackGlyph size={huge ? 20 : 28} />
-      </View>
+      {photo !== undefined ? (
+        <>
+          <Image source={photo} contentFit="cover" accessibilityIgnoresInvertColors style={StyleSheet.absoluteFill} />
+          <LinearGradient pointerEvents="none" colors={[amScrimPhoto[0], amScrimPhoto[1]]} locations={[0.15, 1]} style={StyleSheet.absoluteFill} />
+          <View />
+        </>
+      ) : (
+        <>
+          <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+          <View style={styles.glyph}>
+            <StackGlyph size={huge ? 20 : 28} />
+          </View>
+        </>
+      )}
       <View>
         <Text style={[styles.title, long && styles.titleLong, huge && styles.titleHuge]} numberOfLines={huge ? 3 : 2}>
           {title}

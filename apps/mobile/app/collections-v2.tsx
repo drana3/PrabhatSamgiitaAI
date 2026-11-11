@@ -3,13 +3,17 @@ import { FlatList, Platform, StyleSheet, Text, TextInput, View, type LayoutChang
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { SpRound } from "@/components/song-v2/SpUi"
-import { CollectionTile } from "@/components/songs-v2/CollectionTile"
+import { CollectionCard } from "@/components/songs-v2/CollectionCard"
 import { CloseGlyph, ChevronRightGlyph, SearchGlyph } from "@/components/songs-v2/Glyphs"
 import { ChipsRow, CollageCover, LIST_SIDE } from "@/components/songs-v2/ListParts"
 import { Press } from "@/components/songs-v2/Press"
 import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { allCollections } from "@/data/collections"
+import { PS_ALL } from "@/lib/psCollections/data"
+import { collectionPhoto } from "@/lib/psCollections/photo"
+import { buildSections, filterSections, type CollectionSection, type CollectionTileData, type SectionId } from "@/lib/psCollections/sections"
+import { songCountLabel } from "@/lib/songsV2/collections"
 import { useScreenTop } from "@/hooks/useScreenTop"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useSongsV2Catalog } from "@/hooks/useSongsV2Catalog"
@@ -19,11 +23,9 @@ import {
   emptyCollectionsText,
   buildCollectionEntries,
   collectionHref,
-  collectionsCountLabel,
-  filterCollections,
+  normalizeText,
   KIND_ORDER,
   kindChips,
-  type CollectionEntry,
   type CollectionKindFilter,
   type MoodSource,
 } from "@/lib/songsV2/collectionsIndex"
@@ -36,6 +38,7 @@ import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 /** The catalog is 5,018 songs; shown until the list has loaded. */
 const CATALOG_SIZE = 5018
+type Row = { key: string; head?: CollectionSection; tiles?: CollectionTileData[] }
 const SIDE = 16
 const GAP = 10
 const REVEALED_TILES = 6
@@ -69,20 +72,49 @@ export default function CollectionsV2Screen() {
   const [kind, setKind] = useState<CollectionKindFilter>(() => (KIND_ORDER as readonly string[]).includes(String(kindParam)) ? (kindParam as CollectionKindFilter) : "all")
   const [width, setWidth] = useState(0)
 
+  // The old (site) collections stay as they were; the Prabhat Samgiita collections come in their own sections above them.
   const entries = useMemo(() => buildCollectionEntries(allCollections, moodSources()), [t])
-  const chips = useMemo(() => kindChips(entries), [entries])
-  const shown = useMemo(() => filterCollections(entries, query, kind), [entries, query, kind])
+  const sections = useMemo(
+    () =>
+      buildSections({
+        ps: PS_ALL,
+        site: entries,
+        siteHref: (entry) => collectionHref(entry),
+        titleOf: (id) => t(`psColl.section.${id}` as const),
+        countLabel: songCountLabel,
+      }),
+    [entries, t],
+  )
+  const [section, setSection] = useState<SectionId | "all">(() => ((KIND_ORDER as readonly string[]).includes(String(kindParam)) ? "site" : "all"))
+  const chips = useMemo(
+    () => [{ id: "all", label: t("psColl.chips.all") }, ...sections.map((x) => ({ id: x.id as string, label: x.title }))],
+    [sections, t],
+  )
+  const siteChips = useMemo(() => kindChips(entries), [entries])
+  const shown = useMemo(() => filterSections(sections, query, normalizeText, section, kind), [sections, query, section, kind])
+  const shownCount = shown.reduce((n, x) => n + x.tiles.length, 0)
+  const totalCount = sections.reduce((n, x) => n + x.tiles.length, 0)
   const searching = query.trim().length > 0
   const total = catalog.entries.length || CATALOG_SIZE
   const coverIds = useMemo(() => collageCoverIds(Array.from({ length: 48 }, (_, i) => i + 1)), [])
 
   const tileWidth = Math.floor(((width || 390) - SIDE * 2 - GAP) / 2)
   const onLayout = useCallback((event: LayoutChangeEvent) => setWidth(Math.round(event.nativeEvent.layout.width)), [])
-  const open = useCallback((entry: CollectionEntry) => router.push(href(collectionHref(entry))), [router])
+  const open = useCallback((tile: CollectionTileData) => router.push(href(tile.href)), [router])
   const clear = useCallback(() => {
     setQuery("")
     setKind("all")
+    setSection("all")
   }, [])
+  // one list: a section header, then its tiles two to a row
+  const rows = useMemo(() => {
+    const out: Row[] = []
+    for (const x of shown) {
+      out.push({ key: `h:${x.id}`, head: x })
+      for (let i = 0; i < x.tiles.length; i += 2) out.push({ key: `r:${x.id}:${i}`, tiles: x.tiles.slice(i, i + 2) })
+    }
+    return out
+  }, [shown])
 
   const allSongs = (
     <Press
@@ -109,11 +141,39 @@ export default function CollectionsV2Screen() {
   )
 
   const renderItem = useCallback(
-    ({ item, index }: { item: CollectionEntry; index: number }) => {
-      const tile = <CollectionTile entry={item} width={tileWidth} onOpen={open} />
-      return index < REVEALED_TILES ? <SongsReveal index={4 + index}>{tile}</SongsReveal> : tile
+    ({ item, index }: { item: Row; index: number }) => {
+      let body
+      if (item.head) {
+        body = (
+          <View style={styles.sectionHead}>
+            <Text style={[styles.sectionTitle, { color: theme.textHeading }]} numberOfLines={1} accessibilityRole="header">
+              {item.head.title}
+            </Text>
+            <Text style={[styles.count, { color: theme.textBody }]}>{item.head.tiles.length}</Text>
+          </View>
+        )
+      } else {
+        body = (
+          <View style={styles.column}>
+            {item.tiles?.map((tile) => (
+              <CollectionCard
+                key={tile.key}
+                kind="theme"
+                toneIndex={0}
+                title={tile.label}
+                caption={tile.countLabel}
+                label={`${tile.label}, ${tile.countLabel}`}
+                width={tileWidth}
+                photo={collectionPhoto(tile.photoSeed, tile.photoMood).thumb}
+                onPress={() => open(tile)}
+              />
+            ))}
+          </View>
+        )
+      }
+      return index < REVEALED_TILES ? <SongsReveal index={4 + index}>{body}</SongsReveal> : body
     },
-    [tileWidth, open],
+    [tileWidth, open, theme],
   )
 
   return (
@@ -128,7 +188,7 @@ export default function CollectionsV2Screen() {
                 {t("songs.coll.title")}
               </Text>
               <Text style={[styles.count, { color: theme.textBody }]} numberOfLines={1}>
-                {collectionsCountLabel(shown.length, entries.length)}
+                {shownCount === totalCount ? t("songs.collections.count", { count: totalCount }) : t("songs.shownOf", { shown: shownCount, total: totalCount })}
               </Text>
             </View>
           </SongsReveal>
@@ -155,17 +215,16 @@ export default function CollectionsV2Screen() {
             </View>
           </SongsReveal>
           <SongsReveal index={2}>
-            <ChipsRow theme={theme} chips={chips} active={kind} onPick={(id) => setKind(id as CollectionKindFilter)} />
+            <ChipsRow theme={theme} chips={chips} active={section} onPick={(id) => { setSection(id as SectionId | "all"); setKind("all") }} />
+            {section === "site" ? <ChipsRow theme={theme} chips={siteChips} active={kind} onPick={(id) => setKind(id as CollectionKindFilter)} /> : null}
           </SongsReveal>
         </View>
 
         <FlatList
-          data={shown}
-          keyExtractor={(entry) => `${entry.kind}:${entry.id}`}
+          data={rows}
+          keyExtractor={(row) => row.key}
           renderItem={renderItem}
-          numColumns={2}
-          columnWrapperStyle={styles.column}
-          ListHeaderComponent={!searching && kind === "all" ? <SongsReveal index={3}>{allSongs}</SongsReveal> : null}
+          ListHeaderComponent={!searching && section === "all" ? <SongsReveal index={3}>{allSongs}</SongsReveal> : null}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Text style={[styles.empty, { color: theme.textBody }]}>{emptyCollectionsText()}</Text>
@@ -206,7 +265,9 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, height: 48, fontFamily: amFonts.medium, fontSize: 16 },
   clearBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  column: { gap: GAP, paddingHorizontal: SIDE, marginBottom: GAP },
+  column: { flexDirection: "row", gap: GAP, paddingHorizontal: SIDE, marginBottom: GAP },
+  sectionHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: SIDE + 4, paddingTop: 16, paddingBottom: 12 },
+  sectionTitle: { flex: 1, fontFamily: amFonts.display, fontSize: 22, lineHeight: 24, letterSpacing: -0.33, textTransform: "uppercase" },
   allOuter: { marginHorizontal: SIDE, marginBottom: GAP },
   all: { height: 100, borderRadius: 24, borderWidth: 1, paddingLeft: 8, paddingRight: 14, flexDirection: "row", alignItems: "center", gap: 14 },
   allCover: { borderRadius: 16, overflow: "hidden" },
