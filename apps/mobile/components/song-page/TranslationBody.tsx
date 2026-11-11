@@ -1,13 +1,18 @@
+import { useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 
 import { SpIcon } from "@/components/song-v2/SpIcon"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useColleagueTexts } from "@/hooks/useColleagueData"
+import { langOfVariant, pickVariant, type TranslationVariant } from "@/lib/psColleagues/translations"
+import { useLanguage } from "@/lib/i18n"
 import { meaningKind } from "@/lib/songPage/songTabs"
 import { versionsOf } from "@/lib/songTranslations/derive"
 import type { SongTranslation, TranslationKind } from "@/lib/songTranslations/types"
 import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
 
+import { ColleagueVersions, VariantChips } from "./ColleagueTranslation"
 import type { PageUi } from "./state"
 import { Eyebrow, QuietNote } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
@@ -62,12 +67,29 @@ function Version({ t, tr, item, scale, heading }: { t: SpTheme; tr: PageT; item:
  */
 export function TranslationBody({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
   const tr = usePageT()
+  const appLanguage = useLanguage()
   const { kinds, items } = model.translations
   const kind = meaningKind(kinds)
+  // the colleagues' archives: separate variants next to Official, never in its place
+  const colleagueTexts = useColleagueTexts(model.song?.number)
+  const [chosen, setChosen] = useState<TranslationVariant | null>(null)
+  const variant = pickVariant({ chosen, hasOfficial: kind !== null, texts: colleagueTexts, appLanguage })
+  const lang = langOfVariant(variant)
+  const colleague = lang ? colleagueTexts.find((text) => text.lang === lang) : undefined
+  const chips = colleagueTexts.length ? <VariantChips t={t} texts={colleagueTexts} hasOfficial={kind !== null} value={variant} onChange={setChosen} /> : null
+  if (colleague) {
+    return (
+      <View>
+        {chips}
+        <ColleagueVersions t={t} text={colleague} scale={ui.scale} />
+      </View>
+    )
+  }
   if (!kind) return <QuietNote t={t}>{model.translationsLoading ? tr("songPage.translation.loading") : tr("songPage.lyrics.expand.none")}</QuietNote>
   const versions = versionsOf(items, kind)
   return (
     <View>
+      {chips}
       {kind !== "official" ? (
         <View style={styles.switch}>
           <Eyebrow t={t}>{tr(KIND_LABEL[kind])}</Eyebrow>

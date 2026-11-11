@@ -7,6 +7,7 @@ import { ChordBox, SpChordTokens, type SpChordToken } from "@/components/song-v2
 import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { useColleagueCharts } from "@/hooks/useColleagueData"
 import { useCommunityChords } from "@/hooks/useCommunityChords"
 import { usePianoSheets } from "@/hooks/usePianoSheets"
 import { columnsInScript, layoutChart, type WordColumn } from "@/lib/songPage/chordChart"
@@ -18,6 +19,7 @@ import { pianoEditHref, pianoHref } from "@/lib/pianoNotes/links"
 import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
+import { ColleagueChords } from "./ColleagueChords"
 import { TuneGlyph } from "./Glyphs"
 import { SheetRow } from "./Rows"
 import type { PageUi } from "./state"
@@ -185,6 +187,8 @@ function MoreRows({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPage
 export function ChordsTab({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: PageUi }) {
   const tr = usePageT()
   const key = model.song ? requestKey("chords", model.song.number) : ""
+  // the chord pages of the colleagues' archives (only those with chord symbols), under the song's own card
+  const colleagueCharts = useColleagueCharts(model.song?.number)
   return (
     <View style={styles.tab}>
       {model.chart ? <DemoTag t={t} /> : null}
@@ -192,7 +196,7 @@ export function ChordsTab({ t, model, ui }: { t: SpTheme; model: SongPageModel; 
         <View style={styles.pad}>
           <ChordsCard t={t} tr={tr} model={model} ui={ui} />
         </View>
-      ) : (
+      ) : colleagueCharts.length > 0 ? null : (
         <SpEmptyNote
           t={t}
           text={model.notationUrl ? `${tr("songPage.chords.none")} ${tr("songPage.chords.pdfNote")}` : tr("songPage.chords.none")}
@@ -205,6 +209,11 @@ export function ChordsTab({ t, model, ui }: { t: SpTheme; model: SongPageModel; 
           link={model.notationUrl ? { label: tr("songPage.chords.notationPdf"), url: model.notationUrl } : null}
         />
       )}
+      {colleagueCharts.length > 0 ? (
+        <View style={styles.pad}>
+          <ColleagueChords t={t} charts={colleagueCharts} scale={ui.scale} />
+        </View>
+      ) : null}
       <View style={styles.pad}>
         <MoreRows t={t} tr={tr} model={model} ui={ui} />
       </View>
