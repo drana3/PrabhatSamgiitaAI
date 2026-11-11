@@ -9,7 +9,7 @@ import { useSongPageStore } from "@/stores/songPageStore"
 export const TEXT_SCALES = [0.9, 1, 1.2] as const
 export type TextScaleIndex = TextSize
 
-export type PageSheet = null | "menu" | "pronounce"
+export type PageSheet = null | "menu" | "pronounce" | "pdf" | "languages"
 
 /** The sheets of the Chords tab: the capo (or the harmonium key) with its arrows, and the charts members offered. */
 export type ChordSheet = null | "capo" | "members"

@@ -11,8 +11,10 @@ import { activeLineKind, lineKinds, type LineKind } from "@/lib/songTranslations
 import { scriptName, usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import type { ScriptId } from "@/lib/songPage/scripts"
 
-import { lyricLanguage } from "@/lib/songPage/lyricLanguages"
+import { summaryOf } from "@/lib/songPdf/languages"
+import { useSongPdfStore } from "@/stores/songPdfStore"
 
+import { effectiveWordLanguages } from "./PdfSheet"
 import { PronunciationRow } from "./Pronunciation"
 import type { PageUi, TextScaleIndex } from "./state"
 import { Segmented, type SegItem } from "./ui"
@@ -114,19 +116,47 @@ function LineTranslationRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model
   )
 }
 
-/** The language of the word by word meanings: only the languages this song really has; with fewer than two there is nothing to choose. */
-function WordLanguageRow({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageModel }) {
-  const codes = model.wordLanguages
-  if (codes.length < 2) return null
-  const items: Array<SegItem<string>> = codes.map((code) => ({ id: code, label: lyricLanguage(code)?.native ?? code.toUpperCase() }))
-  const value = codes.includes(model.wordLanguage) ? model.wordLanguage : (codes[0] as string)
+/**
+ * The languages of the word by word meanings, as ONE row: the names chosen and a "+N" when there are more, then an arrow.
+ * The list itself (many can be on, a search, the languages the song does not have yet) opens in its own sheet, so a long
+ * list of languages takes no room here. Shown when the song has word meanings or the page asked for it.
+ */
+function WordLanguageRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi }) {
+  const chosen = useSongPdfStore((s) => s.wordLanguages)
+  if (model.wordLanguages.length === 0) return null
+  const { names, more } = summaryOf(effectiveWordLanguages(chosen, model))
+  const open = () => {
+    ui.closeOptions()
+    ui.setSheet("languages")
+  }
   return (
     <>
-      <View style={styles.stack}>
+      <SpPress onPress={open} accessibilityLabel={`${tr("songWords.language.title")}. ${names}`} pressedScale={0.985} style={styles.row}>
         <Text style={[styles.label, { color: t.ink800 }]}>{tr("songWords.language.title")}</Text>
-        <Segmented t={t} items={items} value={value} onChange={model.setWordLanguage} label={tr("songWords.language.title")} role="radio" fit />
-      </View>
+        <View style={styles.value}>
+          <Text style={[styles.valueText, { color: t.ink900 }]} numberOfLines={1}>{names}</Text>
+          {more ? <Text style={[styles.valueMore, { color: t.ink500 }]}>{tr("lang.more", { count: more })}</Text> : null}
+          <Text style={[styles.chev, { color: t.ink500 }]}>›</Text>
+        </View>
+      </SpPress>
       <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
+    </>
+  )
+}
+
+/** The way into the PDF sheet, the last row of the popover. */
+function PdfRow({ t, tr, ui }: { t: SpTheme; tr: PageT; ui: PageUi }) {
+  const open = () => {
+    ui.closeOptions()
+    ui.setSheet("pdf")
+  }
+  return (
+    <>
+      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
+      <SpPress onPress={open} accessibilityLabel={tr("pdf.button")} pressedScale={0.985} style={styles.row}>
+        <Text style={[styles.label, { color: t.ink800 }]}>{tr("pdf.button")}</Text>
+        <Text style={[styles.chev, { color: t.ink500 }]}>›</Text>
+      </SpPress>
     </>
   )
 }
@@ -140,8 +170,9 @@ function Card({ t, tr, model, ui, withWordLanguage }: { t: SpTheme; tr: PageT; m
       <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
       <LineTranslationRow t={t} tr={tr} model={model} ui={ui} />
       <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
-      {withWordLanguage ? <WordLanguageRow t={t} tr={tr} model={model} /> : null}
+      {withWordLanguage ? <WordLanguageRow t={t} tr={tr} model={model} ui={ui} /> : null}
       <PronunciationRow t={t} ui={ui} onOpen={ui.closeOptions} last />
+      <PdfRow t={t} tr={tr} ui={ui} />
     </>
   )
 }
@@ -239,6 +270,10 @@ const styles = StyleSheet.create({
   stepBtn: { width: 44, height: 44, borderRadius: 9999, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   stepText: { fontFamily: amFonts.bold },
   dim: { opacity: 0.4 },
+  value: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
+  valueText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20, flexShrink: 1 },
+  valueMore: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 18 },
+  chev: { fontFamily: amFonts.bold, fontSize: 22, lineHeight: 24 },
   dots: { flexDirection: "row", alignItems: "center", gap: 4 },
   dot: { width: 6, height: 6, borderRadius: 3 },
 })
