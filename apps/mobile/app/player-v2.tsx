@@ -17,6 +17,7 @@ import { scheduleOnRN } from "react-native-worklets"
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { notifyScreenTouch } from "@/components/common/HintBubble"
 import { AboutButton, AboutSheet } from "@/components/player-v2/AboutSong"
 import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
 import { CrossfadeGradient } from "@/components/player-v2/CrossfadeGradient"
@@ -179,6 +180,13 @@ export default function PlayerV2Screen() {
   const theme = useAmTheme()
   const spTheme = useSpTheme()
   const insets = useSafeAreaInsets()
+  // the rows the "i" hint bubble must keep clear of: the transport and the row of icons
+  const transportBox = useRef<View>(null)
+  const iconRowBox = useRef<View>(null)
+  const listenToTouch = useCallback(() => {
+    notifyScreenTouch()
+    return false
+  }, [])
   const { height: windowHeight, width: windowWidth } = useWindowDimensions()
   const toast = usePlayerToast()
 
@@ -784,7 +792,7 @@ export default function PlayerV2Screen() {
   const sourceKey = activeSourceKey(playbackMode, activePlaylist?.id)
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} onStartShouldSetResponderCapture={listenToTouch}>
       <Animated.View style={[styles.flex, dragStyle, { backgroundColor: playerColors.ground }]}>
       {radioView && radioArt && radioArt.kind !== "baba" ? (
         <RadioHero art={radioArt} title={song?.title ?? ""} durationSec={song?.durationSeconds || null} height={radioHeroHeight} />
@@ -1034,6 +1042,7 @@ export default function PlayerV2Screen() {
                   {v2.sleep.kind !== "off" ? <SleepChip text={sleepValue} onCancel={v2.cancelSleep} /> : null}
                 </Reveal>
                 <Reveal index={4}>
+                  <View ref={transportBox} collapsable={false}>
                   <TransportRow
                     playState={playState}
                     shuffleOn={v2.shuffleOriginal != null}
@@ -1045,9 +1054,10 @@ export default function PlayerV2Screen() {
                     onShuffle={onShuffle}
                     onRepeat={onRepeat}
                   />
+                  </View>
                 </Reveal>
                 <Reveal index={5}>
-                  <View style={styles.iconRow}>
+                  <View ref={iconRowBox} collapsable={false} style={styles.iconRow}>
                     <View style={styles.util}>
                       {saveItem ? (
                         <SaveButton item={saveItem} size={28} color={playerColors.utilIcon} title={songTitle} hit={playerSize.util} />
@@ -1066,7 +1076,7 @@ export default function PlayerV2Screen() {
                     <UtilButton label={t("songs.menu.share")} onPress={() => setSheet("share")}>
                       <PlayerIcon name="share" size={playerSize.utilGlyph} color={playerColors.utilIcon} />
                     </UtilButton>
-                    {showAbout ? <AboutButton onOpen={() => setSheet("about")} /> : null}
+                    {showAbout ? <AboutButton onOpen={() => setSheet("about")} avoid={[transportBox, iconRowBox]} /> : null}
                   </View>
                 </Reveal>
               </>

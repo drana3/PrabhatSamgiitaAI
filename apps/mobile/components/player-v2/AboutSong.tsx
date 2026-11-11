@@ -1,8 +1,8 @@
-import { useEffect } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import Svg, { Circle, Path } from "react-native-svg"
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming } from "react-native-reanimated"
 
+import { HintBubble } from "@/components/common/HintBubble"
 import { SheetPill } from "@/components/player-v2/Rows"
 import { Sheet } from "@/components/player-v2/Sheet"
 import { TouchButton } from "@/components/player-v2/TouchButton"
@@ -24,43 +24,34 @@ function InfoGlyph({ size, color }: { size: number; color: string }) {
   )
 }
 
-const HINT_DELAY_MS = 900
+/** The bubble shows once per run of the app, not on every player opening; the gold dot stays until the sheet is opened. */
+let bubbleShownThisRun = false
 
 /**
  * "About this song": the "i" in the row of icons under the transport (Save, Download, Queue, Share, i). Until the
- * person opens it once, it wears a small gold dot and a one-time bubble says what it is; opening the sheet (or tapping
- * the bubble) ends the hint for good (stores/pageHintsStore.ts). Only opacity and transform move, and with Reduce Motion
- * the bubble just appears.
+ * person opens it once, it wears a small gold dot, and a bubble says what it is for a few seconds. The bubble is
+ * components/common/HintBubble.tsx: it sits on free ground next to the icon (`avoid` names the rows of buttons it must
+ * not cover), takes no touches, and a tap anywhere or the time running out takes it away. Opening the sheet ends the
+ * hint for good (stores/pageHintsStore.ts).
  */
-export function AboutButton({ onOpen }: { onOpen: () => void }) {
+export function AboutButton({ onOpen, avoid }: { onOpen: () => void; avoid?: readonly RefObject<View | null>[] }) {
   const t = useT()
-  const reduce = useReducedMotion()
   const ready = useHintsReady()
   const seen = usePageHintsStore((s) => s.aboutHintSeen)
   const markSeen = usePageHintsStore((s) => s.markAboutHintSeen)
   const hint = ready && !seen
-  const show = useSharedValue(0)
+  const wrap = useRef<View>(null)
+  const [bubbleOpen, setBubbleOpen] = useState(!bubbleShownThisRun)
   useEffect(() => {
-    if (!hint) {
-      show.value = withTiming(0, { duration: 150 })
-      return
-    }
-    show.value = reduce ? 1 : withDelay(HINT_DELAY_MS, withTiming(1, { duration: 320, easing: Easing.bezier(0.2, 0.7, 0.2, 1) }))
-  }, [hint, reduce, show])
-  const bubble = useAnimatedStyle(() => ({ opacity: show.value, transform: [{ translateX: (1 - show.value) * 6 }] }))
+    if (hint && bubbleOpen) bubbleShownThisRun = true
+  }, [hint, bubbleOpen])
   return (
-    <View style={styles.wrap}>
-      {hint ? (
-        <Animated.View style={[styles.bubble, bubble]} pointerEvents="box-none">
-          <TouchButton accessibilityRole="button" accessibilityLabel={t("player.about.hint")} onAction={markSeen} pressedScale={0.97} style={styles.bubbleBody}>
-            <Text style={styles.bubbleText}>{t("player.about.hint")}</Text>
-          </TouchButton>
-          <View style={styles.tip} />
-        </Animated.View>
-      ) : null}
+    <View ref={wrap} collapsable={false} style={styles.wrap}>
+      <HintBubble text={t("player.about.hint")} active={hint && bubbleOpen} anchorRef={wrap} avoid={avoid} onDismiss={() => setBubbleOpen(false)} />
       <TouchButton
         accessibilityRole="button"
         accessibilityLabel={t("player.about.button")}
+        accessibilityHint={hint ? t("player.about.hint") : undefined}
         onAction={() => {
           markSeen()
           onOpen()
@@ -115,11 +106,6 @@ const styles = StyleSheet.create({
   wrap: { width: playerSize.util, height: playerSize.util, alignItems: "center", justifyContent: "center" },
   btn: { width: playerSize.util, height: playerSize.util, alignItems: "center", justifyContent: "center" },
   dot: { position: "absolute", top: 9, right: 9, width: 9, height: 9, borderRadius: 5, backgroundColor: amColors.gold300 },
-  // the bubble sits to the left of the button, on the same line, so it never covers the Play and Next buttons above the row
-  bubble: { position: "absolute", top: 0, bottom: 0, right: playerSize.util - 4, width: 232, flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
-  bubbleBody: { flexShrink: 1, backgroundColor: amColors.gold300, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9, minHeight: 44, justifyContent: "center" },
-  bubbleText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 17, color: amDark.page },
-  tip: { width: 12, height: 12, marginLeft: -6, backgroundColor: amColors.gold300, transform: [{ rotate: "45deg" }] },
   songTitle: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 24, letterSpacing: -0.48, textTransform: "uppercase", paddingHorizontal: 20, paddingBottom: 12, color: amColors.white },
   section: { paddingHorizontal: 20, paddingBottom: 16, gap: 6 },
   sectionHead: { fontFamily: amFonts.bold, fontSize: 12, letterSpacing: 0.96, textTransform: "uppercase", color: amColors.gold300 },
