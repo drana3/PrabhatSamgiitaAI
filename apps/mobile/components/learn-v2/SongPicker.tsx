@@ -1,9 +1,11 @@
 import { memo, type RefObject } from "react"
 import { StyleSheet, Text, TextInput, View } from "react-native"
 import { Check, Plus, Search, X } from "lucide-react-native"
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated"
+import Animated, { FadeIn, FadeOut, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated"
+import { useEffect } from "react"
 
 import { PressBox } from "@/components/learn-v2/PressBox"
+import { amSpring } from "@/constants/tokens/amMotion"
 import { amColors } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
@@ -33,6 +35,7 @@ export function PickerSearch({
   inputRef,
   autoFocus,
   placeholder,
+  compact,
 }: {
   p: AmProto
   value: string
@@ -41,10 +44,12 @@ export function PickerSearch({
   autoFocus?: boolean
   /** the hint inside the field; the song chooser's own by default */
   placeholder?: string
+  /** a slimmer field (44pt, 1pt border) for screens where the list needs the room */
+  compact?: boolean
 }) {
   const t = useT()
   return (
-    <View style={[s.field, { backgroundColor: p.white, borderColor: p.ink900 }]}>
+    <View style={[s.field, compact && s.fieldCompact, { backgroundColor: p.white, borderColor: compact ? p.sand300 : p.ink900 }]}>
       <Search size={20} color={p.ink500} strokeWidth={1.9} />
       <TextInput
         ref={inputRef}
@@ -80,21 +85,38 @@ export function PickerSearch({
   )
 }
 
-/** "With audio": a pill that is on or off. Selected = orange700 fill with white text. */
+/** Track and knob of the small switch. */
+const SWITCH_W = 34
+const SWITCH_H = 20
+const KNOB = 16
+
+/**
+ * "With audio" (or any one-line filter): a small label with an on/off switch, 20pt high with a 44pt touch area.
+ * On = orange700 track, knob at the right. The knob moves with a spring that starts from where it is.
+ */
 export function AudioChip({ p, on, onPress, label: given }: { p: AmProto; on: boolean; onPress: () => void; label?: string }) {
   const t = useT()
   const label = given ?? t("learn.add.withAudio")
+  const reduce = useReducedMotion()
+  const x = useSharedValue(on ? 1 : 0)
+  useEffect(() => {
+    x.value = reduce ? withTiming(on ? 1 : 0, { duration: 150 }) : withSpring(on ? 1 : 0, amSpring.default)
+  }, [on, reduce, x])
+  const knob = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * (SWITCH_W - KNOB - 4) }] }))
   return (
     <PressBox
       accessibilityRole="switch"
       accessibilityLabel={label}
       accessibilityState={{ checked: on }}
       onPress={onPress}
-      pressedScale={0.96}
-      style={[s.chip, { backgroundColor: on ? p.action : p.white, borderColor: on ? p.action : p.sand300 }]}
+      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+      pressedScale={0.97}
+      style={s.toggle}
     >
-      {on ? <Check size={16} color={p.onAction} strokeWidth={2.4} /> : null}
-      <Text style={[s.chipText, { color: on ? p.onAction : p.ink800 }]}>{label}</Text>
+      <Text style={[s.toggleText, { color: p.ink800 }]}>{label}</Text>
+      <View style={[s.track, { backgroundColor: on ? p.action : p.sand300 }]}>
+        <Animated.View style={[s.knob, { backgroundColor: on ? p.onAction : p.white }, knob]} />
+      </View>
     </PressBox>
   )
 }
@@ -180,7 +202,12 @@ const s = StyleSheet.create({
     paddingHorizontal: 0,
     outlineStyle: "none",
   } as never,
+  fieldCompact: { height: 44, borderWidth: 1 },
   clear: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  toggle: { height: 32, flexDirection: "row", alignItems: "center", gap: 8 },
+  toggleText: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
+  track: { width: SWITCH_W, height: SWITCH_H, borderRadius: SWITCH_H / 2, padding: 2, justifyContent: "center" },
+  knob: { width: KNOB, height: KNOB, borderRadius: KNOB / 2 },
   chip: {
     height: 44,
     paddingHorizontal: 16,

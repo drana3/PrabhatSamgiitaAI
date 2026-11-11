@@ -34,19 +34,19 @@ export function ScopeLine({
         accessibilityLabel={t("learn.scope.change.a11y")}
         onPress={onChange}
         pressedScale={0.95}
-        style={[styles.button, { borderColor: theme.line }]}
+        style={styles.button}
       >
-        <Text style={[styles.buttonText, { color: theme.textHeading }]}>{t("learn.scope.change")}</Text>
+        <Text style={[styles.buttonText, { color: theme.eyebrow }]}>{t("learn.scope.change")}</Text>
       </PressBox>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  box: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 20, paddingVertical: 10, paddingLeft: 16, paddingRight: 10 },
-  texts: { flex: 1, minWidth: 0, gap: 2 },
-  deck: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20, fontVariant: ["tabular-nums"] },
-  note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  button: { height: 44, paddingHorizontal: 16, borderRadius: 70, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  buttonText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18 },
+  box: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 16, paddingVertical: 4, paddingLeft: 14, paddingRight: 4 },
+  texts: { flex: 1, minWidth: 0 },
+  deck: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 19, fontVariant: ["tabular-nums"] },
+  note: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16 },
+  button: { height: 44, paddingHorizontal: 12, justifyContent: "center" },
+  buttonText: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 18 },
 })

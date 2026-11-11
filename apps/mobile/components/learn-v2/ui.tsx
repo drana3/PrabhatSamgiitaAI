@@ -414,11 +414,14 @@ export function Segmented({
   options,
   value,
   onChange,
+  compact,
 }: {
   theme: AmTheme
   options: ReadonlyArray<{ key: string; label: string }>
   value: string
   onChange: (key: string) => void
+  /** a slim 36px control for small choices (What to study); the default is the 56px one */
+  compact?: boolean
 }) {
   const reduce = useReducedMotion()
   const [width, setWidth] = useState(0)
@@ -443,9 +446,9 @@ export function Segmented({
     <View
       accessibilityRole="tablist"
       onLayout={(event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width)}
-      style={[styles.seg, { backgroundColor: theme.card, borderColor: theme.line }]}
+      style={[styles.seg, compact && styles.segCompact, { backgroundColor: theme.card, borderColor: theme.line }]}
     >
-      {segment > 0 ? <Animated.View pointerEvents="none" style={[styles.segInd, { width: segment }, indicator]} /> : null}
+      {segment > 0 ? <Animated.View pointerEvents="none" style={[styles.segInd, compact && styles.segIndCompact, { width: segment }, indicator]} /> : null}
       {options.map((option) => {
         const on = option.key === value
         return (
@@ -456,9 +459,9 @@ export function Segmented({
             onPress={() => onChange(option.key)}
             pressedScale={0.97}
             outerStyle={styles.segOuter}
-            style={styles.segButton}
+            style={[styles.segButton, compact && styles.segButtonCompact]}
           >
-            <Text style={[styles.segText, { color: on ? amColors.white : theme.textBody }]}>{option.label}</Text>
+            <Text numberOfLines={1} style={[styles.segText, compact && styles.segTextCompact, { color: on ? amColors.white : theme.textBody }]}>{option.label}</Text>
           </PressBox>
         )
       })}
@@ -651,6 +654,10 @@ const styles = StyleSheet.create({
   segOuter: { flex: 1 },
   segButton: { height: 46, borderRadius: 70, alignItems: "center", justifyContent: "center" },
   segText: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 22 },
+  segCompact: { height: 40 },
+  segIndCompact: { height: 30 },
+  segButtonCompact: { height: 30 },
+  segTextCompact: { fontSize: 13, lineHeight: 17 },
   ovlHead: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 8, paddingHorizontal: 10, paddingBottom: 12 },
   ovlBody: { gap: 20, paddingHorizontal: 10, paddingBottom: 140 },
   head: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10 },
