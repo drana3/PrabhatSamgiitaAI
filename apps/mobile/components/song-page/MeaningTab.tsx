@@ -25,7 +25,8 @@ export function MeaningTab({ t, model, ui }: { t: SpTheme; model: SongPageModel;
   return (
     <View>
       <View style={styles.head}>
-        <Segmented t={t} items={items} value={ui.wordsMode} onChange={ui.setWordsMode} label={tr("songWords.mode.a11y")} role="tab" fit style={styles.mode} />
+        <Segmented t={t} items={items} value={ui.wordsMode} onChange={ui.setWordsMode} label={tr("songWords.mode.a11y")} role="tab" compact />
+        <View style={styles.grow} />
         <TextOptionsButton t={t} ui={ui} wordLanguage={wordByWord} />
       </View>
       {wordByWord ? (
@@ -50,6 +51,6 @@ export function MeaningTab({ t, model, ui }: { t: SpTheme; model: SongPageModel;
 
 const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-  mode: { flex: 1 },
+  grow: { flex: 1 },
   pad: { paddingHorizontal: 20 },
 })

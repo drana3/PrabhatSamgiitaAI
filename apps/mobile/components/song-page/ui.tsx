@@ -153,6 +153,7 @@ export function Segmented<T extends string>({
   equal,
   role = "radio",
   fit,
+  compact,
 }: {
   t: SpTheme
   items: Array<SegItem<T>>
@@ -166,12 +167,14 @@ export function Segmented<T extends string>({
   role?: "radio" | "tab"
   /** one line each, the segments grow to share the row (three short labels in a phone width) */
   fit?: boolean
+  /** small and quiet: 32 high, 13pt, the width of its words (a switch inside a page, not a main control) */
+  compact?: boolean
 }) {
   return (
-    <View accessibilityRole={role === "tab" ? "tablist" : "radiogroup"} accessibilityLabel={label} style={[styles.seg, { backgroundColor: t.white, borderColor: t.sand400 }, style]}>
+    <View accessibilityRole={role === "tab" ? "tablist" : "radiogroup"} accessibilityLabel={label} style={[styles.seg, { backgroundColor: t.white, borderColor: t.sand400 }, compact && { backgroundColor: t.sand300, borderColor: t.sand300 }, style]}>
       {items.map((item) => {
         const on = item.id === value
-        const fg = on ? (t.dark ? t.onAction : t.onInk) : t.ink800
+        const fg = on ? (compact ? t.ink900 : t.dark ? t.onAction : t.onInk) : compact ? t.ink500 : t.ink800
         return (
           <SpPress
             key={item.id}
@@ -181,10 +184,10 @@ export function Segmented<T extends string>({
             accessibilityLabel={item.a11y ?? item.label}
             accessibilityState={{ selected: on, disabled: item.disabled }}
             pressedScale={0.96}
-            style={[styles.segItem, equal && { flex: 1 }, fit && styles.segFit, { backgroundColor: on ? (t.dark ? t.action : t.ink900) : "transparent" }]}
+            style={[styles.segItem, equal && { flex: 1 }, fit && styles.segFit, compact && styles.segCompact, { backgroundColor: on ? (compact ? t.white : t.dark ? t.action : t.ink900) : "transparent" }]}
           >
             <Text
-              style={[styles.segLabel, { color: fg, fontFamily: on ? amFonts.bold : amFonts.semi }, item.disabled && { opacity: 0.45 }, item.fontSize ? { fontSize: item.fontSize, lineHeight: Math.round(item.fontSize * 1.3) } : null]}
+              style={[styles.segLabel, compact && styles.segLabelCompact, { color: fg, fontFamily: on ? amFonts.bold : amFonts.semi }, item.disabled && { opacity: 0.45 }, item.fontSize ? { fontSize: item.fontSize, lineHeight: Math.round(item.fontSize * 1.3) } : null]}
               numberOfLines={equal && !fit ? 2 : 1}
               adjustsFontSizeToFit={fit}
               minimumFontScale={fit ? 0.8 : undefined}
@@ -263,6 +266,8 @@ const styles = StyleSheet.create({
   segItem: { minHeight: 44, minWidth: 44, paddingHorizontal: 14, paddingVertical: 4, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
   segFit: { flexGrow: 1, paddingHorizontal: 12 },
   segLabel: { fontSize: 15, lineHeight: 20, textAlign: "center" },
+  segCompact: { minHeight: 32, minWidth: 32, paddingHorizontal: 12, paddingVertical: 0 },
+  segLabelCompact: { fontSize: 13, lineHeight: 18 },
   pill: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, borderRadius: 9999, borderWidth: 1 },
   pillLabel: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   pillValue: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20, flexShrink: 1 },

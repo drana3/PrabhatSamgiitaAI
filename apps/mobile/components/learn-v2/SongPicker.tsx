@@ -114,7 +114,7 @@ export function AudioChip({ p, on, onPress, label: given }: { p: AmProto; on: bo
       style={s.toggle}
     >
       <Text style={[s.toggleText, { color: p.ink800 }]}>{label}</Text>
-      <View style={[s.track, { backgroundColor: on ? p.action : p.sand300 }]}>
+      <View style={[s.track, { backgroundColor: on ? p.action : amColors.stone500 }]}>
         <Animated.View style={[s.knob, { backgroundColor: on ? p.onAction : p.white }, knob]} />
       </View>
     </PressBox>

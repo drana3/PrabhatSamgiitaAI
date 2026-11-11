@@ -144,23 +144,6 @@ function WordLanguageRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: S
   )
 }
 
-/** The way into the PDF sheet, the last row of the popover. */
-function PdfRow({ t, tr, ui }: { t: SpTheme; tr: PageT; ui: PageUi }) {
-  const open = () => {
-    ui.closeOptions()
-    ui.setSheet("pdf")
-  }
-  return (
-    <>
-      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
-      <SpPress onPress={open} accessibilityLabel={tr("pdf.button")} pressedScale={0.985} style={styles.row}>
-        <Text style={[styles.label, { color: t.ink800 }]}>{tr("pdf.button")}</Text>
-        <Text style={[styles.chev, { color: t.ink500 }]}>›</Text>
-      </SpPress>
-    </>
-  )
-}
-
 function Card({ t, tr, model, ui, withWordLanguage }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi; withWordLanguage: boolean }) {
   return (
     <>
@@ -172,7 +155,6 @@ function Card({ t, tr, model, ui, withWordLanguage }: { t: SpTheme; tr: PageT; m
       <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
       {withWordLanguage ? <WordLanguageRow t={t} tr={tr} model={model} ui={ui} /> : null}
       <PronunciationRow t={t} ui={ui} onOpen={ui.closeOptions} last />
-      <PdfRow t={t} tr={tr} ui={ui} />
     </>
   )
 }

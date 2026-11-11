@@ -4,7 +4,7 @@ import type { SpTheme } from "@/constants/tokens/amSong"
 
 import { ChordSheets } from "./ChordSheets"
 import { songTitle } from "./Hero"
-import { LanguagesSheet, PdfSheet } from "./PdfSheet"
+import { LanguagesSheet } from "./PdfSheet"
 import { PronunciationSheet } from "./Pronunciation"
 import { TextOptionsPopover } from "./TextOptions"
 import type { PageUi } from "./state"
@@ -40,7 +40,6 @@ export function PageSheets({ t, model, ui }: { t: SpTheme; model: SongPageModel;
       <TextOptionsPopover t={t} model={model} ui={ui} />
       <ChordSheets t={t} model={model} ui={ui} />
       <PronunciationSheet t={t} model={model} ui={ui} />
-      <PdfSheet t={t} model={model} ui={ui} />
       <LanguagesSheet t={t} model={model} ui={ui} />
     </>
   )
