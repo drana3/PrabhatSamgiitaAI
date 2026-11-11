@@ -1,0 +1,191 @@
+{
+ "counts": {
+  "songs": 231,
+  "with_chords": 146,
+  "translation_en": 230,
+  "translation_ru": 231,
+  "translation_uk": 225,
+  "translation_fr": 56
+ },
+ "english_compared_with_app": {
+  "same": 10,
+  "line_breaks_or_punctuation_only": 3,
+  "different": 215,
+  "app_has_none": 2,
+  "no_docx_en": 1
+ },
+ "not_in_app": [],
+ "flags_by_song": {
+  "29": [
+   "section labelled EN holds fr"
+  ],
+  "68": [
+   "section labelled EN: no translation text found"
+  ],
+  "130": [
+   "section labelled EN holds fr"
+  ],
+  "150": [
+   "section labelled RU holds en"
+  ],
+  "279": [
+   "second ru text in the document (kept as extra version)"
+  ],
+  "759": [
+   "section labelled UA holds ru",
+   "second ru text in the document (kept as extra version)"
+  ],
+  "1237": [
+   "section labelled EN holds fr"
+  ],
+  "2505": [
+   "heading '#2505 SHIVA GIITI' has no language label: read as en from the words"
+  ],
+  "3261": [
+   "second uk text in the document (kept as extra version)"
+  ],
+  "3275": [
+   "section labelled UA holds ru",
+   "second ru text in the document (kept as extra version)"
+  ],
+  "4659": [
+   "section labelled RU holds uk"
+  ],
+  "4954": [
+   "uk: translation holds an all-caps line (maybe romanised lyric)"
+  ]
+ },
+ "pdf_files": [
+  "450 PS CHORDS .pdf",
+  "PS CHORDS 181-209-903 .pdf"
+ ],
+ "pdf_charts_vs_docx": {
+  "58": {
+   "pdf_capo": "2",
+   "docx_capo": "2",
+   "capo_agrees": true,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 11,
+   "docx_chords": 44,
+   "in_docx_archive": true
+  },
+  "59": {
+   "pdf_capo": "2",
+   "docx_capo": "2",
+   "capo_agrees": true,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 9,
+   "docx_chords": 36,
+   "in_docx_archive": true
+  },
+  "135": {
+   "pdf_capo": "2",
+   "docx_capo": "6",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 10,
+   "docx_chords": 32,
+   "in_docx_archive": true
+  },
+  "181": {
+   "pdf_capo": "3",
+   "docx_capo": "3",
+   "capo_agrees": true,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 16,
+   "docx_chords": 23,
+   "in_docx_archive": true
+  },
+  "199": {
+   "pdf_capo": "1",
+   "docx_capo": "2",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 20,
+   "docx_chords": 48,
+   "in_docx_archive": true
+  },
+  "209": {
+   "pdf_capo": "none",
+   "docx_capo": "2",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 26,
+   "docx_chords": 55,
+   "in_docx_archive": true
+  },
+  "450": {
+   "pdf_capo": "2",
+   "docx_capo": "1",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 16,
+   "docx_chords": 42,
+   "in_docx_archive": true
+  },
+  "903": {
+   "pdf_capo": "3",
+   "docx_capo": "7",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 32,
+   "docx_chords": 83,
+   "in_docx_archive": true
+  },
+  "1187": {
+   "pdf_capo": "2",
+   "docx_capo": "4",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 16,
+   "docx_chords": 36,
+   "in_docx_archive": true
+  },
+  "1315": {
+   "pdf_capo": "3",
+   "docx_capo": "3",
+   "capo_agrees": true,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 23,
+   "docx_chords": 64,
+   "in_docx_archive": true
+  },
+  "1550": {
+   "pdf_capo": "1",
+   "docx_capo": "1",
+   "capo_agrees": true,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 18,
+   "docx_chords": 73,
+   "in_docx_archive": true
+  },
+  "1682": {
+   "pdf_capo": "1",
+   "docx_capo": "5",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 23,
+   "docx_chords": 46,
+   "in_docx_archive": true
+  },
+  "2702": {
+   "pdf_capo": "2",
+   "docx_capo": "4",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 20,
+   "docx_chords": 76,
+   "in_docx_archive": true
+  },
+  "3389": {
+   "pdf_capo": "1",
+   "docx_capo": "4",
+   "capo_agrees": false,
+   "chord_sequence_agrees": false,
+   "pdf_chords": 22,
+   "docx_chords": 50,
+   "in_docx_archive": true
+  }
+ },
+ "word_by_word": "none of the documents holds a word-by-word translation; nothing was generated"
+}

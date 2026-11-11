@@ -1,0 +1,248 @@
+{
+ "_meta": {
+  "source_archive": "тексты-20261111T150500Z-1-001.zip",
+  "pdf_files": [
+   "450 PS CHORDS .pdf",
+   "PS CHORDS 181-209-903 .pdf"
+  ],
+  "format": "see docs in scripts/import_colleague_texts.py"
+ },
+ "songs": {
+  "58": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "2",
+   "chord_lines": [
+    "A               E",
+    "                    A",
+    "               E",
+    "                            A",
+    "            E",
+    "                       A",
+    "            E",
+    "                     A",
+    "                  E",
+    "                    A"
+   ]
+  },
+  "59": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "2",
+   "chord_lines": [
+    "A            E",
+    "                          A",
+    "            E",
+    "                        A",
+    "             E",
+    "                             A",
+    "               E",
+    "                       A"
+   ]
+  },
+  "135": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "2",
+   "chord_lines": [
+    "          G             C",
+    "          D                     G",
+    "          D                       G",
+    "                      D",
+    "                                G",
+    "          D                       G"
+   ]
+  },
+  "181": {
+   "source_pdf": "PS CHORDS 181-209-903 .pdf",
+   "capo": "3",
+   "chord_lines": [
+    "     G",
+    "     D",
+    "     Em               G",
+    "     D               Em",
+    "     G",
+    "     D",
+    "     Em             G",
+    "     D              Em",
+    "     G",
+    "     D",
+    "     G",
+    "     D"
+   ]
+  },
+  "199": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "1",
+   "chord_lines": [
+    "     C                         Am",
+    "     G                               C",
+    "     G                           C",
+    "     C",
+    "     G                                          C",
+    "     Am                 C",
+    "     G                                           C",
+    "     C",
+    "     G                              C",
+    "     Am                   C",
+    "     G                               C"
+   ]
+  },
+  "209": {
+   "source_pdf": "PS CHORDS 181-209-903 .pdf",
+   "capo": "none",
+   "chord_lines": [
+    "                                          Am        G           Am",
+    "                                          G                        Am",
+    "                                                   G",
+    "                                          Am            G             Am",
+    "                                                        G",
+    "                                          Am              G       Am",
+    "                                                        G",
+    "                                          Am              G      Am",
+    "                                                        G",
+    "                                          Am              G         Am",
+    "                                          Am      G            Am",
+    "                                          G                    Am"
+   ]
+  },
+  "450": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "2",
+   "chord_lines": [
+    "G                      D",
+    "            G",
+    "                          C",
+    "          D               G",
+    "          D",
+    "                    C     D",
+    "             G",
+    "                           D",
+    "                            G",
+    "              D",
+    "                   C        D",
+    "              G"
+   ]
+  },
+  "903": {
+   "source_pdf": "PS CHORDS 181-209-903 .pdf",
+   "capo": "3",
+   "chord_lines": [
+    "G           C        G",
+    "     C G     D      G",
+    "         C             G",
+    "D              G",
+    "G            C",
+    "G          D      G",
+    "         C",
+    "G       D     G",
+    "G              C",
+    "G            D        G",
+    "              C",
+    "D                  G",
+    "            C",
+    "G     D       G"
+   ]
+  },
+  "1187": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "2",
+   "chord_lines": [
+    "G",
+    "     D         G",
+    "        D      G",
+    "G",
+    "          D    G",
+    "G",
+    "        D        G",
+    "G",
+    "         D         G",
+    "     D          G"
+   ]
+  },
+  "1315": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "3",
+   "chord_lines": [
+    "        G                 C",
+    "D                   G",
+    "           D",
+    "G                   C       G",
+    "               C        G",
+    "                 C           G",
+    "D                       G",
+    "G               C       G",
+    "            C          G",
+    "              C        G",
+    "D                              G"
+   ]
+  },
+  "1550": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "1",
+   "chord_lines": [
+    "C",
+    "G",
+    "C",
+    "G",
+    "Am         C",
+    "G                Am",
+    "G            Am",
+    "G",
+    "Am           C",
+    "G                Am",
+    "G             Am",
+    "G"
+   ]
+  },
+  "1682": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "1",
+   "chord_lines": [
+    "Am             C",
+    "G                    Am",
+    "C             G                    Am",
+    "            G        Am",
+    "            G          Am",
+    "G                    Am",
+    "G                    Am",
+    "                G        Am",
+    "                       G         Am",
+    "G                       Am",
+    "         G Am"
+   ]
+  },
+  "2702": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "2",
+   "chord_lines": [
+    "     G             D",
+    "                       G",
+    "                   D",
+    "                     G",
+    "     D                 G",
+    "     D          C",
+    "     G             D     G",
+    "     G",
+    "     D                 G",
+    "     D             C",
+    "     G         D       G"
+   ]
+  },
+  "3389": {
+   "source_pdf": "450 PS CHORDS .pdf",
+   "capo": "1",
+   "chord_lines": [
+    "C          G",
+    "               D G",
+    "C                G",
+    "                  D G",
+    "Am          C",
+    "G                      Am",
+    "            G",
+    "                    D G",
+    "Am             C",
+    "G                  Am",
+    "             G",
+    "                 D G"
+   ]
+  }
+ }
+}

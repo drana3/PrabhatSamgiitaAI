@@ -1,0 +1,1140 @@
+{
+ "_meta": {
+  "source_archive": "аудио-20261111T150419Z-1-001.zip",
+  "storage": "Cloudflare R2, bucket am-site-books-private (private); key below is relative to the bucket",
+  "note": "previous audio links are kept; a recording with is_current true is the one to play first"
+ },
+ "songs": {
+  "1": {
+   "app_title": "BANDHU HE NIYE CALO",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "1 Bandhu He Niye Calo.m4a",
+     "container": "m4a",
+     "bytes": 2178899,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "2": {
+   "app_title": "E GÁN ÁMÁR, ÁLOR JHARAŃÁ DHÁRÁ",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "2 E Gan Amar Alor Jharana Dhara.m4a",
+     "container": "m4a",
+     "bytes": 4415485,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "4": {
+   "app_title": "SAKAL MANER VIIŃÁ EK SURE BÁJE ÁJ",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "4 Sakal Maner Viina Ek Sure Baje Aj.m4a",
+     "container": "m4a",
+     "bytes": 3813229,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "5": {
+   "app_title": "ELO, ANEK JUGER SEI AJÁNÁ PATHIK",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "5 Elo Anek Juger Sei Ajana Pathik.m4a",
+     "container": "m4a",
+     "bytes": 2905191,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "6": {
+   "app_title": "BANDHU ÁMÁR",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "6 Bandhu Amar.m4a",
+     "container": "m4a",
+     "bytes": 9106433,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "8": {
+   "app_title": "ÁMI JETE CÁI, TUMI NIYE JÁO",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "8 Ami Jete Cai Tumi Niye Jao.m4a",
+     "container": "m4a",
+     "bytes": 1979239,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "10": {
+   "app_title": "MÁYÁ MUKURE KE KI BHÁVE KI KARE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "10 Maya Mukure Ke Ki Bhave Ki Kare.m4a",
+     "container": "m4a",
+     "bytes": 1324374,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "12": {
+   "app_title": "NAYANE MAMATÁ BHARÁ",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "12 Nayane Mamata Bhara.m4a",
+     "container": "m4a",
+     "bytes": 3566258,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "15": {
+   "app_title": "JEONÁ JEONÁ OGO BANDHU",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "15 Jeona Jeona Ogo Bandhu.m4a",
+     "container": "m4a",
+     "bytes": 9778517,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "17": {
+   "app_title": "KET́E GECHE MEGH, GECHE UDVEG",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "17 Kete Geche Megh Geche Udveg.m4a",
+     "container": "m4a",
+     "bytes": 4828169,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "25": {
+   "app_title": "DUNIÁVÁNLO, TÁKATE RAHO",
+   "previous_audio_links_kept": 5,
+   "recordings": [
+    {
+     "file_name": "25 Duniavanlo Takate Raho.m4a",
+     "container": "m4a",
+     "bytes": 3981468,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "29": {
+   "app_title": "ÁMÁY CHOT́T́A EKT́I MAN DIYECHO",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "29 Amay Chotta Ekti Man Diyecho.m4a",
+     "container": "m4a",
+     "bytes": 3026772,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "50": {
+   "app_title": "RAKTIM KISHALAY, ÁMI RAKTIM KISHALAY",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "50 Raktim Kishalay Ami Raktim Kishalay.m4a",
+     "container": "m4a",
+     "bytes": 2103570,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "53": {
+   "app_title": "O GO PRABHU",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "53 O Go Prabhu.m4a",
+     "container": "m4a",
+     "bytes": 4226564,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "58": {
+   "app_title": "DU JANE JAKHAN, MILICHE TAKHAN",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "58 Du Jane Jakhan Miliche Takhan.m4a",
+     "container": "m4a",
+     "bytes": 3608681,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "59": {
+   "app_title": "NANIR PUTUL, T́UT́ULT́UT́UL",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "59 Nanir Putul Tutultutul.m4a",
+     "container": "m4a",
+     "bytes": 2410006,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "63": {
+   "app_title": "DIIPÁVALII SÁJÁYECHI PRABHU",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "63 Diipavalii Sajayechi Prabhu.m4a",
+     "container": "m4a",
+     "bytes": 2627110,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "68": {
+   "app_title": "I love this tiny green island",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "68 I Love This Tiny Green Island.m4a",
+     "container": "m4a",
+     "bytes": 1972853,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "74": {
+   "app_title": "CAL CAL CAL CAL GÁN GEYE CAL",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "74 Cal Cal Cal Cal Gan Geye Cal.m4a",
+     "container": "m4a",
+     "bytes": 2684749,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "80": {
+   "app_title": "SVAPANE ESECHO ÁNANDA GHANA TUMI",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "80 Svapane Esecho Ananda Ghana Tumi.m4a",
+     "container": "m4a",
+     "bytes": 3418197,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "110": {
+   "app_title": "GRIIŚMÁVAKÁSHE SE YADI ÁSE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "110 Griismavakashe Se Yadi Ase.m4a",
+     "container": "m4a",
+     "bytes": 6165556,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "122": {
+   "app_title": "PATHIK TUMI EKÁKI ESE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "122 Pathik Tumi Ekaki Ese.mp3",
+     "container": "mp3",
+     "bytes": 5356263,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "127": {
+   "app_title": "EK NÚTANER SUR ÁJI BÁJALO, BÁJALO",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "127 Ek Nutaner Sur Aji Bajalo Bajalo.m4a",
+     "container": "m4a",
+     "bytes": 5869128,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "130": {
+   "app_title": "SONÁLI BHOR JIIVANE MOR",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "130 Sonali Bhor Jiivane Mor.m4a",
+     "container": "m4a",
+     "bytes": 4715149,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "135": {
+   "app_title": "JANMA DINE EI SHUBHA KŚAŃE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "135 Janma Dine Ei Shubha Ksane.m4a",
+     "container": "m4a",
+     "bytes": 5565117,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "152": {
+   "app_title": "CAMPAKA VANE MADHURA SVAPANE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "152 Campaka Vane Madhura Svapane.m4a",
+     "container": "m4a",
+     "bytes": 2379735,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "154": {
+   "app_title": "ESO ESO, PRABHU, ESO ESO",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "154 Eso Eso Prabhu Eso Eso.m4a",
+     "container": "m4a",
+     "bytes": 3087848,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "158": {
+   "app_title": "TUMI SABÁR MANE ÁCHO",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "158 Tumi Sabar Mane Acho.m4a",
+     "container": "m4a",
+     "bytes": 4755886,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "159": {
+   "app_title": "PRABHU, ÁMI BHÁLOBÁSI, TOMÁY BHÁLOBÁSI",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "159 Prabhu Ami Bhalobasi Tomay Bhalobasi.m4a",
+     "container": "m4a",
+     "bytes": 5570563,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "162": {
+   "app_title": "KICHU KAYE JÁO KICHU SUNE JÁO",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "162 Kichu Kaye Jao Kichu Sune Jao.m4a",
+     "container": "m4a",
+     "bytes": 3620890,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "163": {
+   "app_title": "MAN KE KONO CHOT́O KÁJEI",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "163 Man Ke Kono Choto Kajei.m4a",
+     "container": "m4a",
+     "bytes": 3961411,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "181": {
+   "app_title": "TUMI, NIKAT́A HOITE ÁRO NIKAT́ETE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "181 Tumi Nikata Hoite Aro Nikatete (1 of 2).m4a",
+     "container": "m4a",
+     "bytes": 6255166,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "181 Tumi Nikata Hoite Aro Nikatete (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 5792541,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "193": {
+   "app_title": "ÁNDHÁR SAGARE PATH HÁRIYE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "193 Andhar Sagare Path Hariye.m4a",
+     "container": "m4a",
+     "bytes": 7247160,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "199": {
+   "app_title": "HIYÁR MÁJHÁRE NIIRAVA PRAHARE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "199 Hiyar Majhare Niirava Prahare (1 of 2).m4a",
+     "container": "m4a",
+     "bytes": 5634119,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "199 Hiyar Majhare Niirava Prahare (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 9020206,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "209": {
+   "app_title": "TOMÁR E ASIIM APÁR BHÁLOBÁSÁR",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "209 Tomar E Asiim Apar Bhalobasar (1 of 2).m4a",
+     "container": "m4a",
+     "bytes": 9467597,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "209 Tomar E Asiim Apar Bhalobasar (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 5603326,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "216": {
+   "app_title": "TUMI ESE CHILE DHARÁ DIYE CHILE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "216 Tumi Ese Chile Dhara Diye Chile.m4a",
+     "container": "m4a",
+     "bytes": 10195561,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "342": {
+   "app_title": "SUMUKHER PÁNE CALE JÁBO ÁMI",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "342 Sumukher Pane Cale Jabo Ami.m4a",
+     "container": "m4a",
+     "bytes": 4414884,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "450": {
+   "app_title": "SE ÁMÁR ÁPANÁR JÁNITÁM NÁ",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "450 Se Amar Apanar Janitam Na (1 of 2).m4a",
+     "container": "m4a",
+     "bytes": 4199657,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "450 Se Amar Apanar Janitam Na (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 6890765,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "563": {
+   "app_title": "ÁLOR DHÁRÁY TUMI BHÁSO",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "563 Alor Dharay Tumi Bhaso.m4a",
+     "container": "m4a",
+     "bytes": 8553480,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "647": {
+   "app_title": "TUMI JE ESECHO ÁJ",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "647 Tumi Je Esecho Aj.m4a",
+     "container": "m4a",
+     "bytes": 4474008,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "737": {
+   "app_title": "TUMI ESO ESO MOR GHARE BASO",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "737 Tumi Eso Eso Mor Ghare Baso.m4a",
+     "container": "m4a",
+     "bytes": 9718503,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "797": {
+   "app_title": "TOMÁRE BHÁLOBÁSI TOMÁRI LÁGIYÁ",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "797 Tomare Bhalobasi Tomari Lagiya.m4a",
+     "container": "m4a",
+     "bytes": 11638361,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "867": {
+   "app_title": "TANDRÁ DÁO KÁT́IYE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "867 Tandra Dao Katiye (1 of 2).mp3",
+     "container": "mp3",
+     "bytes": 8854810,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "867 Tandra Dao Katiye (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 8159175,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "903": {
+   "app_title": "TUMI JAKHAN ESE CHILE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "903 Tumi Jakhan Ese Chile (1 of 2).m4a",
+     "container": "m4a",
+     "bytes": 6901788,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "903 Tumi Jakhan Ese Chile (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 6522274,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "911": {
+   "app_title": "ÁMÁR GRÁME JÁIO RE BANDHU",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "911 Amar Grame Jaio Re Bandhu.m4a",
+     "container": "m4a",
+     "bytes": 8827637,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "960": {
+   "app_title": "TÚMI DHARÁ DILE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "960 Tumi Dhara Dile.m4a",
+     "container": "m4a",
+     "bytes": 6588109,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1025": {
+   "app_title": "ÁMÁR JIIVANE TUMI KE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "1025 Amar Jiivane Tumi Ke.m4a",
+     "container": "m4a",
+     "bytes": 5148064,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1027": {
+   "app_title": "TOMÁRE CÁI JE EKÁNTE",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "1027 Tomare Cai Je Ekante.m4a",
+     "container": "m4a",
+     "bytes": 7445704,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1041": {
+   "app_title": "ANEK SHUNIÁ ANEK BHÁVIÁ",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "1041 Anek Shunia Anek Bhavia.m4a",
+     "container": "m4a",
+     "bytes": 8314957,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1082": {
+   "app_title": "VANE UPAVANE KHUNJIÁ KHUNJIÁ",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "1082 Vane Upavane Khunjia Khunjia.m4a",
+     "container": "m4a",
+     "bytes": 7559727,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1187": {
+   "app_title": "TOMÁRI PRIITITE GAŔÁ",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "1187 Tomari Priitite Gara.m4a",
+     "container": "m4a",
+     "bytes": 8470513,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1237": {
+   "app_title": "NAYANERI TÁRÁ TUMI",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "1237 Nayaneri Tara Tumi.m4a",
+     "container": "m4a",
+     "bytes": 5982221,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1315": {
+   "app_title": "TUMI, NAYAN MÁJHÁRE RAYECHO TÁI",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "1315 Tumi Nayan Majhare Rayecho Tai (1 of 2).m4a",
+     "container": "m4a",
+     "bytes": 4452026,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "1315 Tumi Nayan Majhare Rayecho Tai (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 2026004,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1550": {
+   "app_title": "ÁNKHI MELE CEYE DEKHO",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "1550 Ankhi Mele Ceye Dekho.m4a",
+     "container": "m4a",
+     "bytes": 7131026,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1642": {
+   "app_title": "MANETE ESECHO TUMI",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "1642 Manete Esecho Tumi.m4a",
+     "container": "m4a",
+     "bytes": 2035851,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1682": {
+   "app_title": "VASANTERI ÁGAMANE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "1682 Vasanteri Agamane.m4a",
+     "container": "m4a",
+     "bytes": 4620982,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "1698": {
+   "app_title": "AJÁNÁ PATHIK, THÁMO GO KŚAŃIK",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "1698 Ajana Pathik Thamo Go Ksanik.mp3",
+     "container": "mp3",
+     "bytes": 7837634,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "2036": {
+   "app_title": "EK PHÁLI CÁND SHUDHU ÁKÁSHE",
+   "previous_audio_links_kept": 5,
+   "recordings": [
+    {
+     "file_name": "2036 Ek Phali Cand Shudhu Akashe.wav",
+     "container": "wav",
+     "bytes": 56360490,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "2505": {
+   "app_title": "JAYA, SHIVA SVAYAMBHO PASHUPATE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "2505 Jaya Shiva Svayambho Pashupate.wav",
+     "container": "wav",
+     "bytes": 66415290,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "2526": {
+   "app_title": "JAYA, SHUBHA VAJRA DHARA SHUBHRA KALEVARA",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "2526 Jaya Shubha Vajra Dhara Shubhra Kalevara.wav",
+     "container": "wav",
+     "bytes": 66182144,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "2702": {
+   "app_title": "JANAME JANAME ÁMI",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "2702 Janame Janame Ami.wav",
+     "container": "wav",
+     "bytes": 52848690,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "2976": {
+   "app_title": "TOMÁY ÁMI PELÚM",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "2976 Tomay Ami Pelum.m4a",
+     "container": "m4a",
+     "bytes": 2184554,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "3389": {
+   "app_title": "TOMÁY ÁMI BHÁLOBÁSI",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "3389 Tomay Ami Bhalobasi (1 of 2).m4a",
+     "container": "m4a",
+     "bytes": 5519106,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "3389 Tomay Ami Bhalobasi (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 5495357,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "3522": {
+   "app_title": "TOMÁRE D́EKECHI TOMÁRE CEYECHI",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "3522 Tomare Dekechi Tomare Ceyechi.m4a",
+     "container": "m4a",
+     "bytes": 6065013,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "3530": {
+   "app_title": "EI, TAMASÁCCHANNA DHARÁY",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "3530 Ei Tamasacchanna Dharay.m4a",
+     "container": "m4a",
+     "bytes": 10711038,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "3570": {
+   "app_title": "JIIVANE MARAŃE",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "3570 Jiivane Marane.mp3",
+     "container": "mp3",
+     "bytes": 5887143,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "4455": {
+   "app_title": "KE GO KE GO TUMI ACENÁ",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "4455 Ke Go Ke Go Tumi Acena.m4a",
+     "container": "m4a",
+     "bytes": 7360929,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "4673": {
+   "app_title": "BHAJO RE IŚT́A NÁM, MAN ÁMÁR",
+   "previous_audio_links_kept": 4,
+   "recordings": [
+    {
+     "file_name": "4673 Bhajo Re Ista Nam Man Amar (1 of 2).mp3",
+     "container": "mp3",
+     "bytes": 13865823,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    },
+    {
+     "file_name": "4673 Bhajo Re Ista Nam Man Amar (2 of 2).m4a",
+     "container": "m4a",
+     "bytes": 9508780,
+     "is_current": null,
+     "needs_decision": "two files for one song in the archive: which one is current is not decided",
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "4682": {
+   "app_title": "BÁBÁ E BÁR JÁBO NÁ ÁR",
+   "previous_audio_links_kept": 3,
+   "recordings": [
+    {
+     "file_name": "4682 Baba E Bar Jabo Na Ar.m4a",
+     "container": "m4a",
+     "bytes": 6819941,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  },
+  "4955": {
+   "app_title": "BAESHÁKH TUMI ESO",
+   "previous_audio_links_kept": 2,
+   "recordings": [
+    {
+     "file_name": "4955 Baeshakh Tumi Eso.wav",
+     "container": "wav",
+     "bytes": 66561588,
+     "is_current": true,
+     "needs_decision": null,
+     "r2_key": null,
+     "status": "planned"
+    }
+   ]
+  }
+ }
+}
