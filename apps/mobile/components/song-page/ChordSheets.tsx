@@ -56,6 +56,7 @@ function CapoSheet({ t, model, ui }: { t: SpTheme; model: SongPageModel; ui: Pag
             upLabel={tr("songPage.chords.key.raise")}
           />
         )}
+        <Text style={[styles.explain, { color: t.ink500 }]}>{tr(guitar ? "hmGuide.sp.capoNote" : "hmGuide.sp.keyNote")}</Text>
         {easier !== null ? (
           <SpPress
             onPress={() => setCapo(easier)}
@@ -102,6 +103,7 @@ export function ChordSheets({ t, model, ui }: { t: SpTheme; model: SongPageModel
 const styles = StyleSheet.create({
   title: { fontFamily: amFonts.display, fontSize: 24, lineHeight: 30, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
   pad: { paddingHorizontal: 20, gap: 12 },
+  explain: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
   hint: { minHeight: 44, borderRadius: 20, paddingHorizontal: 16, justifyContent: "center" },
   hintText: { fontFamily: amFonts.bold, fontSize: 15, lineHeight: 20 },
   done: { flexDirection: "row", paddingTop: 8, paddingBottom: 24 },

@@ -2,14 +2,16 @@ import { useCallback, useMemo, useState } from "react"
 import { Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
+import { SpBlockLabel, SpHowTo, SpPurpose } from "@/components/song-v2/SpGuide"
 import { SpCardButton, SpKeyRow } from "@/components/song-v2/SpSections"
 import { SpKeyboard, SpOverlayPage, SpReadout } from "@/components/song-v2/SpHarmonium"
-import { note, over } from "@/components/song-v2/spType"
+import { note } from "@/components/song-v2/spType"
 import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { Reveal } from "@/components/today/motion"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { PRACTISE_SONGS } from "@/lib/fixtures/harmonium"
+import { usePageT } from "@/lib/songPage/pageCopy"
 import { keyLabel, keyPitch } from "@/lib/songPage/spChords"
 import { spKeys, type SpKey } from "@/lib/songPage/spKeyboard"
 import { useSongPageStore } from "@/stores/songPageStore"
@@ -24,6 +26,7 @@ export default function HarmoniumV2Screen() {
   const router = useRouter()
   const t = useSpTheme()
   const tr = useT()
+  const pg = usePageT()
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
   const stepKey = useSongPageStore((s) => s.stepHarmoniumKey)
   const setInstrument = useSongPageStore((s) => s.setInstrument)
@@ -46,11 +49,15 @@ export default function HarmoniumV2Screen() {
 
   return (
     <SpOverlayPage t={t} title={tr("hm.title")} onBack={back}>
-      <Reveal index={0}>
+      <Reveal index={0} style={{ gap: 12 }}>
+        <SpPurpose t={t} text={pg("hmGuide.hm.purpose")} />
+        <SpHowTo t={t} steps={[pg("hmGuide.hm.step1"), pg("hmGuide.hm.step2"), pg("hmGuide.hm.step3")]} />
+      </Reveal>
+      <Reveal index={1}>
         <SpKeyRow
           t={t}
           label={tr("hm.saIs")}
-          noteText={tr("hm.pickKey")}
+          noteText={pg("hmGuide.hm.saNote")}
           value={keyLabel(harmoniumKey)}
           onDown={() => stepKey(-1)}
           onUp={() => stepKey(1)}
@@ -59,7 +66,8 @@ export default function HarmoniumV2Screen() {
           inset
         />
       </Reveal>
-      <Reveal index={1}>
+      <Reveal index={2} style={{ gap: 8 }}>
+        <SpBlockLabel t={t} text={pg("hmGuide.hm.last")} />
         <SpReadout
           t={t}
           live
@@ -67,7 +75,8 @@ export default function HarmoniumV2Screen() {
           small={current ? tr("hm.noteOn", { note: current.note }) : tr("hm.tapKey")}
         />
       </Reveal>
-      <Reveal index={2}>
+      <Reveal index={3} style={{ gap: 8 }}>
+        <SpBlockLabel t={t} title={pg("hmGuide.hm.keys")} text={pg("hmGuide.hm.keysNote")} />
         <SpKeyboard
           t={t}
           interactive
@@ -78,17 +87,15 @@ export default function HarmoniumV2Screen() {
           tonic={harmoniumKey}
         />
       </Reveal>
-      <Reveal index={3}>
+      <Reveal index={4}>
         <Text style={[note(t), { paddingHorizontal: 0 }]}>
           {tr("hm.marked")}
           {MOCKUP_DATA ? ` ${tr("hm.noSound")}` : ""}
         </Text>
       </Reveal>
-      <Reveal index={4}>
+      <Reveal index={5}>
         <View style={{ gap: 10 }}>
-          <View style={{ paddingHorizontal: 10 }}>
-            <Text style={over(t)}>{tr("hm.practiseOn")}</Text>
-          </View>
+          <SpBlockLabel t={t} title={tr("hm.practiseOn")} text={pg("hmGuide.hm.practiseNote")} />
           {PRACTISE_SONGS.map((song) => (
             <SpCardButton
               key={song.number}

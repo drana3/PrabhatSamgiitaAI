@@ -3,6 +3,7 @@
  * it key for key (the parity test checks them once these objects are spread into locales/en.ts, ru.ts and
  * es.ts). Song lyrics, meanings and word meanings are data, not here. "Kiirtan" is always written with two i's.
  */
+import { hmGuideEn, hmGuideEs, hmGuideRu } from "./hmGuide"
 import { songPdfEn, songPdfEs, songPdfRu } from "./songPdf"
 import { songTabsEn, songTabsEs, songTabsRu } from "./songTabs"
 
@@ -165,7 +166,7 @@ const songPageBaseEn = {
 } as const
 
 /** The song page's strings: its base set plus locales/songTabs.ts (tabs, the row of icons, Learn, chords rows). */
-export const songPageEn = { ...songPageBaseEn, ...songTabsEn, ...songPdfEn } as const
+export const songPageEn = { ...songPageBaseEn, ...songTabsEn, ...songPdfEn, ...hmGuideEn } as const
 
 const songPageBaseRu: Readonly<Record<string, string>> = {
   "songPage.back": "Назад",
@@ -325,7 +326,7 @@ const songPageBaseRu: Readonly<Record<string, string>> = {
   "songPage.about.photo.note": "{credit}. Подобрано по номеру песни, снято не для этой песни.",
 }
 
-export const songPageRu: Readonly<Record<string, string>> = { ...songPageBaseRu, ...songTabsRu, ...songPdfRu }
+export const songPageRu: Readonly<Record<string, string>> = { ...songPageBaseRu, ...songTabsRu, ...songPdfRu, ...hmGuideRu }
 
 const songPageBaseEs: Record<keyof typeof songPageBaseEn, string> = {
   "songPage.back": "Atrás",
@@ -485,4 +486,4 @@ const songPageBaseEs: Record<keyof typeof songPageBaseEn, string> = {
   "songPage.about.photo.note": "{credit}. Elegida por el número de la canción, no hecha para esta canción.",
 }
 
-export const songPageEs: Record<keyof typeof songPageEn, string> = { ...songPageBaseEs, ...songTabsEs, ...songPdfEs }
+export const songPageEs: Record<keyof typeof songPageEn, string> = { ...songPageBaseEs, ...songTabsEs, ...songPdfEs, ...hmGuideEs }

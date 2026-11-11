@@ -3,6 +3,7 @@ import { Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
 import { SpKeyboard, SpChipRow, SpOverlayPage, SpReadout } from "@/components/song-v2/SpHarmonium"
+import { SpBlockLabel, SpHowTo, SpPurpose } from "@/components/song-v2/SpGuide"
 import { SpChordTokens, SpKeyRow } from "@/components/song-v2/SpSections"
 import { bodyT, note, over, secH2 } from "@/components/song-v2/spType"
 import { SpCard, SpChip, SpPill } from "@/components/song-v2/SpUi"
@@ -10,6 +11,7 @@ import { Reveal } from "@/components/today/motion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useSpTheme } from "@/hooks/useSpTheme"
 import { useT } from "@/lib/i18n"
+import { usePageT } from "@/lib/songPage/pageCopy"
 import { EXPLAINER_SONG_LINES } from "@/lib/fixtures/harmonium"
 import { keyLabel, keyPitch } from "@/lib/songPage/spChords"
 import {
@@ -34,6 +36,7 @@ export default function HarmoniumChordsScreen() {
   const router = useRouter()
   const t = useSpTheme()
   const tr = useT()
+  const pg = usePageT()
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
   const stepKey = useSongPageStore((s) => s.stepHarmoniumKey)
   const setInstrument = useSongPageStore((s) => s.setInstrument)
@@ -57,16 +60,22 @@ export default function HarmoniumChordsScreen() {
 
   return (
     <SpOverlayPage t={t} title={tr("hm.chordsTitle")} onBack={back}>
-      <Reveal index={0}>
+      <Reveal index={0} style={{ gap: 12 }}>
+        <SpPurpose t={t} text={pg("hmGuide.ch.purpose")} />
+        <SpHowTo t={t} steps={[pg("hmGuide.ch.step1"), pg("hmGuide.ch.step2"), pg("hmGuide.ch.step3")]} />
+      </Reveal>
+
+      <Reveal index={1} style={{ gap: 12 }}>
         <View style={{ paddingHorizontal: 10 }}>
           <Text accessibilityRole="header" style={secH2(t, 40)}>
             {tr("hm.threeKeys")}
           </Text>
           <Text style={[secH2(t, 40), { color: t.ink300 }]}>{tr("hm.atOnce")}</Text>
         </View>
+        <SpBlockLabel t={t} text={pg("hmGuide.ch.ideaNote")} />
       </Reveal>
 
-      <Reveal index={1}>
+      <Reveal index={2}>
         <View style={{ gap: 10 }}>
           {HOW.map((n, index) => (
             <View
@@ -92,14 +101,15 @@ export default function HarmoniumChordsScreen() {
         </View>
       </Reveal>
 
-      <Reveal index={2}>
+      <Reveal index={3} style={{ gap: 8 }}>
         {/* the label sits in a block with the page line height, so it is taller than the 16px text */}
         <View style={{ paddingHorizontal: 10, minHeight: 23, paddingTop: 3 }}>
           <Text style={over(t)}>{tr("hm.tryIt")}</Text>
         </View>
+        <SpBlockLabel t={t} text={pg("hmGuide.ch.tryNote")} />
       </Reveal>
 
-      <Reveal index={3} style={{ gap: 20 }}>
+      <Reveal index={4} style={{ gap: 20 }}>
         <SpKeyRow
           t={t}
           label={tr("hm.saIs")}
@@ -111,31 +121,37 @@ export default function HarmoniumChordsScreen() {
           upLabel={tr("songPage.chords.key.raise")}
           inset
         />
-        <SpChipRow>
-          {EXPLAINER_CHORDS.map((name) => (
-            <SpChip
-              key={name}
-              t={t}
-              label={explainChord(name, saPitch).name}
-              on={name === base}
-              onPress={() => setBase(name)}
-            />
-          ))}
-        </SpChipRow>
+        <View style={{ gap: 8 }}>
+          <SpBlockLabel t={t} text={pg("hmGuide.ch.pickChord")} />
+          <SpChipRow>
+            {EXPLAINER_CHORDS.map((name) => (
+              <SpChip
+                key={name}
+                t={t}
+                label={explainChord(name, saPitch).name}
+                on={name === base}
+                onPress={() => setBase(name)}
+              />
+            ))}
+          </SpChipRow>
+        </View>
         <SpReadout t={t} live keepCase big={chord.name} small={chord.kind} />
         <SpKeyboard t={t} whites={whites} blacks={blacks} lit={(key) => keyInChord(key, chord)} />
         <Text style={[note(t), { paddingHorizontal: 10 }]}>{tr("hm.pressedTogether", { equation: chord.equation })}</Text>
       </Reveal>
 
-      <Reveal index={4} style={{ gap: 20 }}>
+      <Reveal index={5} style={{ gap: 20 }}>
         <SpCard t={t} style={{ marginHorizontal: 0 }}>
-          <Text style={over(t)}>{tr("hm.inSong")}</Text>
-          <SpChordTokens t={t} tokens={tokens} />
-          <Text style={note(t)}>
-            {tr("hm.inSongNote")}
+          <Text style={over(t)}>
+            {tr("hm.inSong")} · {pg("hmGuide.ch.example")}
           </Text>
+          <SpChordTokens t={t} tokens={tokens} />
+          <Text style={note(t)}>{pg("hmGuide.ch.exampleNote")}</Text>
         </SpCard>
-        <SpPill t={t} label={tr("hm.openSong")} onPress={openSong} style={{ width: "100%" }} />
+        <View style={{ gap: 8 }}>
+          <SpPill t={t} label={tr("hm.openSong")} onPress={openSong} style={{ width: "100%" }} />
+          <SpBlockLabel t={t} text={pg("hmGuide.ch.songNote")} />
+        </View>
       </Reveal>
     </SpOverlayPage>
   )

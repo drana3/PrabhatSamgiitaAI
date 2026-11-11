@@ -104,6 +104,7 @@ function ChordsCard({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPa
           <Eyebrow t={t}>{tr("songChords.shapes")}</Eyebrow>
           <TunePill t={t} text={pillText} a11y={tr("songChords.badge.a11y", { text: pillSpoken })} onPress={open} />
         </View>
+        <Text style={[styles.strum, { color: t.ink500 }]}>{tr(guitar ? "hmGuide.sp.guitar" : "hmGuide.sp.harmonium")}</Text>
         {easier !== null ? (
           <SpPress
             onPress={() => setCapo(easier)}
