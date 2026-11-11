@@ -15,8 +15,9 @@
      "bytes": 2178899,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "4365c5d707cadaf15594369c1d13caeb3f14fef49c4bd0722461f5620744217b",
+     "r2_key": "audio-extractor/ps-audio/1 Bandhu He Niye Calo.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -30,8 +31,9 @@
      "bytes": 4415485,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "d8dc3068991171b3a4636510bb2aa58b561b4ff66ed275be2c266a49b4f19ecf",
+     "r2_key": "audio-extractor/ps-audio/2 E Gan Amar Alor Jharana Dhara.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -45,8 +47,9 @@
      "bytes": 3813229,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "63ef5aa5586296d541498ae044b5bd90a1e15c7b913b07d62d82f77f85a3f3d7",
+     "r2_key": "audio-extractor/ps-audio/4 Sakal Maner Viina Ek Sure Baje Aj.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -60,8 +63,9 @@
      "bytes": 2905191,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "aa315f94a08e59894be9140e8d7bb5fac1d125d4e7a198054e08c2749fb2b0b5",
+     "r2_key": "audio-extractor/ps-audio/5 Elo Anek Juger Sei Ajana Pathik.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -75,8 +79,9 @@
      "bytes": 9106433,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "45101c167dddb3ab5943c43674fe9b435f63b92b89b9dca1790c8cd65f5aa4e9",
+     "r2_key": "audio-extractor/ps-audio/6 Bandhu Amar.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -90,8 +95,9 @@
      "bytes": 1979239,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "d08fca02ff19cd6f1bf19931d0495d8f9577d8b6993a519f2e37533099aac366",
+     "r2_key": "audio-extractor/ps-audio/8 Ami Jete Cai Tumi Niye Jao.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -105,8 +111,9 @@
      "bytes": 1324374,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "227393a8a4d500ca2360fa74bfda36e0eddca63a12fd393b02cf3b748c8bc807",
+     "r2_key": "audio-extractor/ps-audio/10 Maya Mukure Ke Ki Bhave Ki Kare.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -120,8 +127,9 @@
      "bytes": 3566258,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "3b1d392fb57914ee7a05a3aff392ee3b84838d1dfa4d2dd1f222a0ba0c7a233c",
+     "r2_key": "audio-extractor/ps-audio/12 Nayane Mamata Bhara.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -135,8 +143,9 @@
      "bytes": 9778517,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "94deeffcd8338b6f6abc55e8d6de8587b4e137ced2855bedd7556f71d6113a0c",
+     "r2_key": "audio-extractor/ps-audio/15 Jeona Jeona Ogo Bandhu.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -150,8 +159,9 @@
      "bytes": 4828169,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "052eb37fbf5e9fe01093714d6862942891fd456873e6a4e179338d2af14420bc",
+     "r2_key": "audio-extractor/ps-audio/17 Kete Geche Megh Geche Udveg.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -165,8 +175,9 @@
      "bytes": 3981468,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "e35ef27f9e181b801b7c2eff367db5c0032c3bc664817639eda9a100bb06a257",
+     "r2_key": "audio-extractor/ps-audio/25 Duniavanlo Takate Raho.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -180,8 +191,9 @@
      "bytes": 3026772,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "15c535fc11919c528a889c9d8d09ea67d9cd905971faaab3f8624fa69ab97cfc",
+     "r2_key": "audio-extractor/ps-audio/29 Amay Chotta Ekti Man Diyecho.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -195,8 +207,9 @@
      "bytes": 2103570,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "85a3944b4f4605b92179fb218a23469f0834fd0024fc3031744d22c34645ea0b",
+     "r2_key": "audio-extractor/ps-audio/50 Raktim Kishalay Ami Raktim Kishalay.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -210,8 +223,9 @@
      "bytes": 4226564,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "fb4bf3b4df701cb6e9b1f6b34669978a9a8100cd8c0fe5b6a54a8680e710ddcf",
+     "r2_key": "audio-extractor/ps-audio/53 O Go Prabhu.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -225,8 +239,9 @@
      "bytes": 3608681,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "44f5f7e9fc55a21c718973ed686dc84c474d9a6deb83b715c17841ac95d189f6",
+     "r2_key": "audio-extractor/ps-audio/58 Du Jane Jakhan Miliche Takhan.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -240,8 +255,9 @@
      "bytes": 2410006,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "e1d6d8c8d0362ffb540e1d9739b067d317658d9afae439096df91fd230c1cee2",
+     "r2_key": "audio-extractor/ps-audio/59 Nanir Putul Tutultutul.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -255,8 +271,9 @@
      "bytes": 2627110,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "115214f9cc9e93dd6cc2fff0d5a0fa7cdfcd905785be75183a62c6c2fcbd075e",
+     "r2_key": "audio-extractor/ps-audio/63 Diipavalii Sajayechi Prabhu.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -270,8 +287,9 @@
      "bytes": 1972853,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "93a8c06a354ca99c762124e7f46258a20e69e561601f11ef90842ee7d6cfd701",
+     "r2_key": "audio-extractor/ps-audio/68 I Love This Tiny Green Island.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -285,8 +303,9 @@
      "bytes": 2684749,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "57778e4cb4887db33967fa0a241a4ab908c457fa9b01cfebcdb525138a631e4e",
+     "r2_key": "audio-extractor/ps-audio/74 Cal Cal Cal Cal Gan Geye Cal.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -300,8 +319,9 @@
      "bytes": 3418197,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "93052bf3af6a50491a98193847ff5ae5ecef37f4af85b83eab6de3a3468d0652",
+     "r2_key": "audio-extractor/ps-audio/80 Svapane Esecho Ananda Ghana Tumi.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -315,8 +335,9 @@
      "bytes": 6165556,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "eb2bb28997e34b448713cb0ef7bb24f8dbe300b99fd758f0d7866658eb1c23fc",
+     "r2_key": "audio-extractor/ps-audio/110 Griismavakashe Se Yadi Ase.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -330,8 +351,9 @@
      "bytes": 5356263,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "f6209279be9eab0788ffbaaceffec20810ec1ddf308d7b6bc3443acfe39c5c80",
+     "r2_key": "audio-extractor/ps-audio/122 Pathik Tumi Ekaki Ese.mp3",
+     "status": "uploaded"
     }
    ]
   },
@@ -345,8 +367,9 @@
      "bytes": 5869128,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "7a9eb7b1d720b48ba6da337c6bacd81c6e4a23b7a075eeb5e897cb42d813c2e1",
+     "r2_key": "audio-extractor/ps-audio/127 Ek Nutaner Sur Aji Bajalo Bajalo.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -360,8 +383,9 @@
      "bytes": 4715149,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "ec0c5173de7d0b6a41acbedc059fb886b35aaef49302a91d1ecf8e499a0ef4d9",
+     "r2_key": "audio-extractor/ps-audio/130 Sonali Bhor Jiivane Mor.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -375,8 +399,9 @@
      "bytes": 5565117,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "6e70c9b159629b368d4d7cf71398626726646d2fc5a4e43e6d910570bb6010f7",
+     "r2_key": "audio-extractor/ps-audio/135 Janma Dine Ei Shubha Ksane.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -390,8 +415,9 @@
      "bytes": 2379735,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "cf8790790a360258d51817d32c59353f21906bdb2171a75b6df527c6c33f1be6",
+     "r2_key": "audio-extractor/ps-audio/152 Campaka Vane Madhura Svapane.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -405,8 +431,9 @@
      "bytes": 3087848,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "186a3b64d0941f89cc9230cc4000c49dd4c55be551409e4c3fff60b4e51e2c09",
+     "r2_key": "audio-extractor/ps-audio/154 Eso Eso Prabhu Eso Eso.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -420,8 +447,9 @@
      "bytes": 4755886,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "cf25f4ce5953e44dc8ac58b1ba74518ee7a5ba73a534081631f84341bcecbbe0",
+     "r2_key": "audio-extractor/ps-audio/158 Tumi Sabar Mane Acho.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -435,8 +463,9 @@
      "bytes": 5570563,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "2f547d1755cb160ec1f9f467f512ca88379f110c173a583795966a4aa368dd95",
+     "r2_key": "audio-extractor/ps-audio/159 Prabhu Ami Bhalobasi Tomay Bhalobasi.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -450,8 +479,9 @@
      "bytes": 3620890,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "369c3156fcdf266de44c1b4e5f646880bd0af5c4187c706b2d40127691662cbf",
+     "r2_key": "audio-extractor/ps-audio/162 Kichu Kaye Jao Kichu Sune Jao.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -465,8 +495,9 @@
      "bytes": 3961411,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "de64d912f0ca2d85c2e25a1360252ad1be29241286dc9a5a17a52b2312a6da88",
+     "r2_key": "audio-extractor/ps-audio/163 Man Ke Kono Choto Kajei.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -480,8 +511,9 @@
      "bytes": 6255166,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "b721534fdc12a7b008f8bd3479e725b8488870906e826cc2d78b3fb03c1515b0",
+     "r2_key": "audio-extractor/ps-audio/181 Tumi Nikata Hoite Aro Nikatete (1 of 2).m4a",
+     "status": "uploaded"
     },
     {
      "file_name": "181 Tumi Nikata Hoite Aro Nikatete (2 of 2).m4a",
@@ -489,8 +521,9 @@
      "bytes": 5792541,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "dc2681aca87a8412fa3d908c1cda331b319345fe290d73434a6ec9e910566f78",
+     "r2_key": "audio-extractor/ps-audio/181 Tumi Nikata Hoite Aro Nikatete (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -504,8 +537,9 @@
      "bytes": 7247160,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "309d398a426f750a41f4631cb969e34dbde32f97f671f9b3cf37da73ba824e66",
+     "r2_key": "audio-extractor/ps-audio/193 Andhar Sagare Path Hariye.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -519,8 +553,9 @@
      "bytes": 5634119,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "f015ffb18a5b1d914e4f4871903ab22d4488c2f5084158cd0eef9f501de5ada8",
+     "r2_key": "audio-extractor/ps-audio/199 Hiyar Majhare Niirava Prahare (1 of 2).m4a",
+     "status": "uploaded"
     },
     {
      "file_name": "199 Hiyar Majhare Niirava Prahare (2 of 2).m4a",
@@ -528,8 +563,9 @@
      "bytes": 9020206,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "be40a04b6ae7c08685931d950b3424adff2655bd632e51036cbb822698ae7710",
+     "r2_key": "audio-extractor/ps-audio/199 Hiyar Majhare Niirava Prahare (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -543,8 +579,9 @@
      "bytes": 9467597,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "1581ec85f85cb81020df15fc00300182112034b7994d5f713663ce527be05f37",
+     "r2_key": "audio-extractor/ps-audio/209 Tomar E Asiim Apar Bhalobasar (1 of 2).m4a",
+     "status": "uploaded"
     },
     {
      "file_name": "209 Tomar E Asiim Apar Bhalobasar (2 of 2).m4a",
@@ -552,8 +589,9 @@
      "bytes": 5603326,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "b3515d2adca3c61bc9663b658d4094975f446b930cfd6f8efd6282c5b4abc730",
+     "r2_key": "audio-extractor/ps-audio/209 Tomar E Asiim Apar Bhalobasar (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -567,8 +605,9 @@
      "bytes": 10195561,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "5071945285072549c3a7a559a7ee292ade35feb6e0a93ec688bd9041109db3c7",
+     "r2_key": "audio-extractor/ps-audio/216 Tumi Ese Chile Dhara Diye Chile.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -582,8 +621,9 @@
      "bytes": 4414884,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "6121c8fc38e6994902438a8ce360f47d36218585a32ca0d878560bf2f03171e7",
+     "r2_key": "audio-extractor/ps-audio/342 Sumukher Pane Cale Jabo Ami.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -597,8 +637,9 @@
      "bytes": 4199657,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "888b9997efb0e9e5f8c5f4772f210db6660e02d8aed6f96df6d61fc20a57fa78",
+     "r2_key": "audio-extractor/ps-audio/450 Se Amar Apanar Janitam Na (1 of 2).m4a",
+     "status": "uploaded"
     },
     {
      "file_name": "450 Se Amar Apanar Janitam Na (2 of 2).m4a",
@@ -606,8 +647,9 @@
      "bytes": 6890765,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "43a9b7be6c67758d325923c84c81a6655b33b83b489e3e7ee696f18f217f57e4",
+     "r2_key": "audio-extractor/ps-audio/450 Se Amar Apanar Janitam Na (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -621,8 +663,9 @@
      "bytes": 8553480,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "6b0a587c0b60c302affa8f3c6f9c4d8f3ab9af697a66d37a4e60066df36b7ceb",
+     "r2_key": "audio-extractor/ps-audio/563 Alor Dharay Tumi Bhaso.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -636,8 +679,9 @@
      "bytes": 4474008,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "b7f85da34668927eea402a88326b53d4406d802965d95cf34327166629c9c76f",
+     "r2_key": "audio-extractor/ps-audio/647 Tumi Je Esecho Aj.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -651,8 +695,9 @@
      "bytes": 9718503,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "7035b965a126f4437bf57aea3a66218fc4082e501fca312e65f2de55e6d27ddf",
+     "r2_key": "audio-extractor/ps-audio/737 Tumi Eso Eso Mor Ghare Baso.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -666,8 +711,9 @@
      "bytes": 11638361,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "be3da40551d42dc62d91e4ffaa135a3fda1dea5d4f35c2cf30782fe37d883a73",
+     "r2_key": "audio-extractor/ps-audio/797 Tomare Bhalobasi Tomari Lagiya.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -681,8 +727,9 @@
      "bytes": 8854810,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "822bc05b061758e44a5154378ec36feda3e84d59a65c44eba160e90dda01d5ca",
+     "r2_key": "audio-extractor/ps-audio/867 Tandra Dao Katiye (1 of 2).mp3",
+     "status": "uploaded"
     },
     {
      "file_name": "867 Tandra Dao Katiye (2 of 2).m4a",
@@ -690,8 +737,9 @@
      "bytes": 8159175,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "04b8ad91c33b627d4ffc0ac165fd4cc935d25f2df03abd94521f965e05eff1c0",
+     "r2_key": "audio-extractor/ps-audio/867 Tandra Dao Katiye (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -705,8 +753,9 @@
      "bytes": 6901788,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "9b07099bb0c9d302e7e66113bec4d2aab9008a88a9e1955da5740b8108dc446e",
+     "r2_key": "audio-extractor/ps-audio/903 Tumi Jakhan Ese Chile (1 of 2).m4a",
+     "status": "uploaded"
     },
     {
      "file_name": "903 Tumi Jakhan Ese Chile (2 of 2).m4a",
@@ -714,8 +763,9 @@
      "bytes": 6522274,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "4937b5f9f61a498127daec8c883ffea810245482d5cd3fd414d1c72cb98c8af7",
+     "r2_key": "audio-extractor/ps-audio/903 Tumi Jakhan Ese Chile (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -729,8 +779,9 @@
      "bytes": 8827637,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "6ef527b833bc1ef992922c60d32b0d4b0b192af8f38261814c3cf3f2c161f4b8",
+     "r2_key": "audio-extractor/ps-audio/911 Amar Grame Jaio Re Bandhu.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -744,8 +795,9 @@
      "bytes": 6588109,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "e081cfeb611e78814fafbc24ab41b59d7ab89b5a318f0c1547baa707104efbd5",
+     "r2_key": "audio-extractor/ps-audio/960 Tumi Dhara Dile.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -759,8 +811,9 @@
      "bytes": 5148064,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "99e59d36170b88b9a98355e735f2547d9a2d661bf1bd7b18ea68834b68ee540e",
+     "r2_key": "audio-extractor/ps-audio/1025 Amar Jiivane Tumi Ke.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -774,8 +827,9 @@
      "bytes": 7445704,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "dcda6061348d34626265646356d68c00cddb96df72e217ecc1f22ebbeb4af4b7",
+     "r2_key": "audio-extractor/ps-audio/1027 Tomare Cai Je Ekante.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -789,8 +843,9 @@
      "bytes": 8314957,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "f3621d2d3d4f0f9dbc935960a2ddb097303344056a500bbfc3d4bf47d35735bc",
+     "r2_key": "audio-extractor/ps-audio/1041 Anek Shunia Anek Bhavia.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -804,8 +859,9 @@
      "bytes": 7559727,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "9395d0fe5340d1d2be89f189ce4149109838553f0ced9c3fda39e57f840f095c",
+     "r2_key": "audio-extractor/ps-audio/1082 Vane Upavane Khunjia Khunjia.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -819,8 +875,9 @@
      "bytes": 8470513,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "1bf6863d403ccbec0fe661cee1ac4d2ff358b5e6fc7ee5db06cee0ea9ef3bc60",
+     "r2_key": "audio-extractor/ps-audio/1187 Tomari Priitite Gara.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -834,8 +891,9 @@
      "bytes": 5982221,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "399573d64705938a7e9f188c48f890b410e54bf0bd879ac5a5f659e1be06028a",
+     "r2_key": "audio-extractor/ps-audio/1237 Nayaneri Tara Tumi.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -849,8 +907,9 @@
      "bytes": 4452026,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "d313887ed642dcd5267203dfab3b1f5fe0322c820857123a6df79473097dd75c",
+     "r2_key": "audio-extractor/ps-audio/1315 Tumi Nayan Majhare Rayecho Tai (1 of 2).m4a",
+     "status": "uploaded"
     },
     {
      "file_name": "1315 Tumi Nayan Majhare Rayecho Tai (2 of 2).m4a",
@@ -858,8 +917,9 @@
      "bytes": 2026004,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "27cd126bd978e0f139a0064e63aecf6a35251c845fb57eb985d8d31d1259b26d",
+     "r2_key": "audio-extractor/ps-audio/1315 Tumi Nayan Majhare Rayecho Tai (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -873,8 +933,9 @@
      "bytes": 7131026,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "0feb5eb27bcc801e41f35dff6567083a81abe2fb87db15a8cefaa0bfcbde7e6a",
+     "r2_key": "audio-extractor/ps-audio/1550 Ankhi Mele Ceye Dekho.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -888,8 +949,9 @@
      "bytes": 2035851,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "6996ababfc97599ab72085b894378da1c39efedc844a03e5e357eadf401fa3c3",
+     "r2_key": "audio-extractor/ps-audio/1642 Manete Esecho Tumi.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -903,8 +965,9 @@
      "bytes": 4620982,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "444d7be6cf953439840d61e2017e2da5913d757bc0ce04b9fbc82c8b6a1a9522",
+     "r2_key": "audio-extractor/ps-audio/1682 Vasanteri Agamane.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -918,8 +981,9 @@
      "bytes": 7837634,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "e7cafde15c8b0c78e4c78750e52cd6a01d1de35ed9bbcf2c9aa7848645aa2e70",
+     "r2_key": "audio-extractor/ps-audio/1698 Ajana Pathik Thamo Go Ksanik.mp3",
+     "status": "uploaded"
     }
    ]
   },
@@ -933,8 +997,9 @@
      "bytes": 56360490,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "dd16d4a628a2aad63c6b12796e3c1abd9f4ca744d34455e3f73f0bdb93f866fb",
+     "r2_key": "audio-extractor/ps-audio/2036 Ek Phali Cand Shudhu Akashe.wav",
+     "status": "uploaded"
     }
    ]
   },
@@ -948,8 +1013,9 @@
      "bytes": 66415290,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "532dba14e71331326ea72d89d860fc501913e4302da481f45930e956f6df0bdc",
+     "r2_key": "audio-extractor/ps-audio/2505 Jaya Shiva Svayambho Pashupate.wav",
+     "status": "uploaded"
     }
    ]
   },
@@ -963,8 +1029,9 @@
      "bytes": 66182144,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "1692ecf232b9880d6a848a8e6b1f0d1de1b0b9aad42b2f6d2a978e7efb8a106b",
+     "r2_key": "audio-extractor/ps-audio/2526 Jaya Shubha Vajra Dhara Shubhra Kalevara.wav",
+     "status": "uploaded"
     }
    ]
   },
@@ -978,8 +1045,9 @@
      "bytes": 52848690,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "a3e4bcea44923c3db9be94edd4f0f64919a766299886653b044e2c0ef459dd7b",
+     "r2_key": "audio-extractor/ps-audio/2702 Janame Janame Ami.wav",
+     "status": "uploaded"
     }
    ]
   },
@@ -993,8 +1061,9 @@
      "bytes": 2184554,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "001dcad9a0a2f6e0fffff64593f1ed5c6fd817db96e8197c70ccf2558e2a0f2b",
+     "r2_key": "audio-extractor/ps-audio/2976 Tomay Ami Pelum.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -1008,8 +1077,9 @@
      "bytes": 5519106,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "2a04d82b4f74fbdfa528fc767c31a8acad1d36ab26dfde69a59c36e1c069700b",
+     "r2_key": "audio-extractor/ps-audio/3389 Tomay Ami Bhalobasi (1 of 2).m4a",
+     "status": "uploaded"
     },
     {
      "file_name": "3389 Tomay Ami Bhalobasi (2 of 2).m4a",
@@ -1017,8 +1087,9 @@
      "bytes": 5495357,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "3603a097ee41bde269d916c4c8c88bef4a740a80ed5052858d031f5bd2133e72",
+     "r2_key": "audio-extractor/ps-audio/3389 Tomay Ami Bhalobasi (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -1032,8 +1103,9 @@
      "bytes": 6065013,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "bd4c04e0ad46eeba88d8e86bd48d20e7a723110a6776a2200fefee4cddef8f61",
+     "r2_key": "audio-extractor/ps-audio/3522 Tomare Dekechi Tomare Ceyechi.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -1047,8 +1119,9 @@
      "bytes": 10711038,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "f7e80ed5aab579dffec07ea25d8110bdde60d7be97d6cb1d391cb7e4f5bd60dd",
+     "r2_key": "audio-extractor/ps-audio/3530 Ei Tamasacchanna Dharay.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -1062,8 +1135,9 @@
      "bytes": 5887143,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "e0deb3ada451eecaec68ace62b3e98891b23aa5977f383afae044dc9b87d32fe",
+     "r2_key": "audio-extractor/ps-audio/3570 Jiivane Marane.mp3",
+     "status": "uploaded"
     }
    ]
   },
@@ -1077,8 +1151,9 @@
      "bytes": 7360929,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "24a3182b1092182545f5551c04a1a0638fcdd0d8506e93ce5ec9e82291e11449",
+     "r2_key": "audio-extractor/ps-audio/4455 Ke Go Ke Go Tumi Acena.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -1092,8 +1167,9 @@
      "bytes": 13865823,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "ae25af7ef5400832d2069900edde0b03d7a6cb8bd4e65daf2b0ddb0dd3751e5c",
+     "r2_key": "audio-extractor/ps-audio/4673 Bhajo Re Ista Nam Man Amar (1 of 2).mp3",
+     "status": "uploaded"
     },
     {
      "file_name": "4673 Bhajo Re Ista Nam Man Amar (2 of 2).m4a",
@@ -1101,8 +1177,9 @@
      "bytes": 9508780,
      "is_current": null,
      "needs_decision": "two files for one song in the archive: which one is current is not decided",
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "801d493326b6fc519cabd5c8034531277732d1ae8d1c6e8e20662ed4e6a7da0c",
+     "r2_key": "audio-extractor/ps-audio/4673 Bhajo Re Ista Nam Man Amar (2 of 2).m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -1116,8 +1193,9 @@
      "bytes": 6819941,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "72243247cc48e426038231bda384f96c976a9022d124a77c85b91da692da42c3",
+     "r2_key": "audio-extractor/ps-audio/4682 Baba E Bar Jabo Na Ar.m4a",
+     "status": "uploaded"
     }
    ]
   },
@@ -1131,8 +1209,9 @@
      "bytes": 66561588,
      "is_current": true,
      "needs_decision": null,
-     "r2_key": null,
-     "status": "planned"
+     "sha256": "14d01d8a4ac2716b881f7bedc9fe90069b351e4633e3dd56abaf3b429d1c4f9e",
+     "r2_key": "audio-extractor/ps-audio/4955 Baeshakh Tumi Eso.wav",
+     "status": "uploaded"
     }
    ]
   }
