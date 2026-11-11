@@ -39,6 +39,8 @@ export type PdfOptions = {
   wordLanguages: string[]
   /** languages of the translation, in the order they sit side by side or one after the other */
   translationLanguages: string[]
+  /** the Sheet picks its own layout, photo band and type scale to fit one page; this overrides that (for checking the fit) */
+  fit?: { k?: number; kt?: number; mode?: "wide" | "dense" | "tight"; band?: "tall" | "slim"; flow?: boolean }
 }
 
 export const DEFAULT_PDF_OPTIONS: PdfOptions = { variant: "sheet", theme: "dawn", script: "roman", wordLanguages: ["en"], translationLanguages: ["en"] }

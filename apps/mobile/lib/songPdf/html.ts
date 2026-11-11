@@ -123,37 +123,215 @@ function songColumn(song: PdfSongInput, options: PdfOptions, plan: PdfPlan, with
   return stanzas(lines).map((st) => `<div class="stanza">${st.map(({ line, index }) => lineHtml(song, line, index, glossable[index] ?? false, plan, withWords)).join("")}</div>`).join("")
 }
 
-function translationColumn(plan: PdfPlan, separate: boolean): string {
+function translationColumn(plan: PdfPlan, separate: boolean, flow = false): string {
   return plan.translations
-    .map((t) => `${separate || plan.translations.length > 1 ? `<div class="eb lang">${esc(languageName(t.code))}</div>` : ""}${t.blocks.map((b) => `<p>${esc(b).replace(/\n/g, "<br>")}</p>`).join("")}`)
+    .map((t) => `${separate || plan.translations.length > 1 ? `<div class="eb lang">${esc(languageName(t.code))}</div>` : ""}${t.blocks.map((b) => `<p>${esc(b).replace(/\n/g, flow ? " " : "<br>")}</p>`).join("")}`)
     .join("")
+}
+
+/* ---- the Sheet: one page, always. The photo sits at the bottom and melts upward into the paper like a sky; the title is written in
+   that sky. The text size is chosen so the whole song fits the page (a long song gets smaller type, never a second page). ---- */
+
+const PT = 25.4 / 72
+/** The Sheet at scale 1; the real sizes are these times `--k`. Widths are the text columns in mm on the 297 mm page. */
+const SHEET = { lyric: 25, gloss: 14, tr: 17, gap: 5, lineGap: 6, stanzaGap: 9, trGap: 5, wide: { left: 172, right: 81, full: 255 }, dense: { col: 95, colFull: 130, right: 59 }, tight: { col: 78, colFull: 130, right: 93 } }
+/** The photo band at the bottom: its height, and the lowest point the text may reach (mm from the top of the 210 mm page). */
+const BANDS = { tall: { height: 76, limit: 164 }, slim: { height: 28, limit: 190 } } as const
+const TOP_BLOCK = 48 // from the top of the page to where the text starts, mm
+const MIN_K = 0.2
+const SAFETY = 1.05
+
+/** `wide`: song and translation side by side; `dense`: the song in two columns and a narrow translation; `tight`: the same with a wide translation. */
+export type SheetMode = "wide" | "dense" | "tight"
+export type SheetModel = { stanzas: Array<{ left: string[]; glosses: number }>; right: string[][]; hasTr: boolean }
+
+/** The height in mm of one printed line at scale k in a column of the given width, from a model of how its words wrap. */
+function lineMm(line: string, glossRows: number, k: number, colMm: number): number {
+  const c = SHEET
+  const r = c.lyric * k
+  const g = c.gloss * k
+  let rows = 1
+  let x = 0
+  for (const w of words(line)) {
+    const ww = w.length * r * 0.5 * PT
+    if (x > 0 && x + c.gap * k + ww > colMm) {
+      rows += 1
+      x = ww
+    } else x += (x > 0 ? c.gap * k : 0) + ww
+  }
+  return rows * (r * 1.12 * PT + glossRows * 8.6 * k) + c.lineGap * k
+}
+
+function translationMm(blocks: string[], k: number, colMm: number, flow = false): number {
+  const t = SHEET.tr * k
+  const perLine = Math.max(6, Math.floor(colMm / (t * 0.5 * PT)))
+  const rows = (b: string) => (flow ? Math.max(1, Math.ceil(b.replace(/\n/g, " ").length / perLine)) : b.split("\n").reduce((n, seg) => n + Math.max(1, Math.ceil(seg.length / perLine)), 0))
+  return blocks.reduce((sum, b) => sum + rows(b) * t * 1.38 * PT + SHEET.trGap * k, 0)
+}
+
+/** How the song is cut into the two columns of the dense layout: the first stanza (or line) index that starts the second one. */
+function splitAt(heights: number[]): number {
+  const total = heights.reduce((a, b) => a + b, 0)
+  let best = 0
+  let bestMax = Infinity
+  let acc = 0
+  for (let i = 0; i <= heights.length; i++) {
+    const m = Math.max(acc, total - acc)
+    if (m < bestMax) {
+      bestMax = m
+      best = i
+    }
+    acc += heights[i] ?? 0
+  }
+  return best
+}
+
+/** Blocks the dense layout moves around: whole stanzas, or single lines when the song is one run of lines. */
+function units(m: SheetModel): string[][] {
+  return m.stanzas.length > 1 ? m.stanzas.map((st) => st.left) : (m.stanzas[0]?.left ?? []).map((l) => [l])
+}
+
+function denseHeights(m: SheetModel, k: number, mode: SheetMode): { heights: number[]; col: number } {
+  const col = m.hasTr ? SHEET[mode === "tight" ? "tight" : "dense"].col : SHEET.dense.colFull
+  const gl = m.stanzas[0]?.glosses ?? 0
+  const heights = units(m).map((u) => u.reduce((sum, line) => sum + lineMm(line, gl, k, col), 0) + (m.stanzas.length > 1 ? SHEET.stanzaGap * k : 0))
+  return { heights, col }
+}
+
+/** The translation column of a layout, mm tall at scale kt. */
+function trMm(m: SheetModel, kt: number, mode: SheetMode, flow: boolean): number {
+  const w = mode === "wide" ? SHEET.wide.right : SHEET[mode].right
+  return m.hasTr ? m.right.reduce((sum, blocks) => sum + translationMm(blocks, kt, w, flow), 0) : 0
+}
+
+/** The song column(s) of a layout, mm tall at scale k. */
+function songMm(m: SheetModel, k: number, mode: SheetMode): number {
+  const gl = m.stanzas[0]?.glosses ?? 0
+  if (mode !== "wide") {
+    const { heights } = denseHeights(m, k, mode)
+    const cut = splitAt(heights)
+    return Math.max(heights.slice(0, cut).reduce((a, b) => a + b, 0), heights.slice(cut).reduce((a, b) => a + b, 0))
+  }
+  const leftW = m.hasTr ? SHEET.wide.left : SHEET.wide.full
+  return m.stanzas.reduce((sum, st) => sum + st.left.reduce((n, line) => n + lineMm(line, gl, k, leftW), 0) + SHEET.stanzaGap * k, 0)
+}
+
+/** Stanza rows with each stanza beside its own translation: one scale for both. */
+function alignedMm(m: SheetModel, k: number): number {
+  const gl = m.stanzas[0]?.glosses ?? 0
+  return m.stanzas.reduce((sum, st, i) => sum + Math.max(st.left.reduce((n, line) => n + lineMm(line, gl, k, SHEET.wide.left), 0), translationMm([m.right[0]?.[i] ?? ""], k, SHEET.wide.right)) + SHEET.stanzaGap * k * 0.6, 0)
+}
+
+/** The height in mm the Sheet needs at the scales k (song) and kt (translation) in the given layout. */
+export function sheetHeight(m: SheetModel, k: number, kt: number, mode: SheetMode, aligned: boolean, flow = false): number {
+  if (aligned && mode === "wide") return 7 + alignedMm(m, k)
+  return 7 + Math.max(songMm(m, k, mode), trMm(m, kt, mode, flow))
+}
+
+/** `flow`: the translation runs on as paragraphs instead of one short line per line, when its lines would force tiny type. */
+export type SheetFit = { k: number; kt: number; band: keyof typeof BANDS; mode: SheetMode; flow: boolean }
+
+const MIN_KT = 0.2
+
+/** The layout, photo band and largest scales at which the song fits on one page. */
+export function fitSheet(m: SheetModel, aligned: boolean): SheetFit {
+  const largest = (height: (k: number) => number, room: number, floor: number, cap: number) => {
+    let k = cap
+    while (k > floor && height(k) * SAFETY > room) k = Math.round((k - 0.01) * 100) / 100
+    return k
+  }
+  const candidate = (mode: SheetMode, band: keyof typeof BANDS): SheetFit => {
+    const room = BANDS[band].limit - TOP_BLOCK - 7
+    if (aligned && mode === "wide") {
+      const k = largest((x) => alignedMm(m, x), room, MIN_K, 1)
+      return { k, kt: k, band, mode, flow: false }
+    }
+    const k = largest((x) => songMm(m, x, mode), room, MIN_K, 1)
+    const cap = Math.min(1, k * 1.25)
+    const lines = largest((x) => trMm(m, x, mode, false), room, MIN_KT, cap)
+    if (lines >= 0.55 || lines >= cap) return { k, kt: lines, band, mode, flow: false }
+    return { k, kt: largest((x) => trMm(m, x, mode, true), room, MIN_KT, cap), band, mode, flow: true }
+  }
+  const score = (f: SheetFit) => (m.hasTr ? Math.min(f.k, f.kt * 1.15) : f.k)
+  const best = (band: keyof typeof BANDS) => {
+    const all = (["wide", "dense", "tight"] as const).map((mode) => candidate(mode, band)).sort((a, b) => score(b) - score(a))
+    // Each stanza beside its own translation reads best; it is kept unless it costs more than a tenth of the type size.
+    const wide = all.find((f) => f.mode === "wide")
+    return aligned && wide && score(wide) >= score(all[0]) * 0.9 ? wide : all[0]
+  }
+  const tall = best("tall")
+  const slim = best("slim")
+  // The tall photo is the look; it is given up only when it would cost clearly smaller type.
+  return score(slim) > score(tall) * 1.18 && score(tall) < 0.7 ? slim : tall
+}
+
+function sheetModel(song: PdfSongInput, options: PdfOptions, plan: PdfPlan) {
+  const { lines, glossable } = linesOf(song, options)
+  const parts = stanzas(lines)
+  const first = plan.translations[0]
+  const aligned = !!first && parts.length > 1 && first.blocks.length === parts.length
+  const model: SheetModel = {
+    stanzas: parts.map((st) => ({ left: st.map((x) => x.line), glosses: plan.wordLanguages.length })),
+    right: plan.translations.map((t) => t.blocks),
+    hasTr: plan.translations.length > 0,
+  }
+  void glossable
+  return { model, aligned, parts, lines, glossable }
+}
+
+/** What the Sheet will do with this song: the layout, the photo band and the scale. For tests and for checking the fit. */
+export function sheetPlan(song: PdfSongInput, options: PdfOptions): SheetFit & { aligned: boolean } {
+  const plan = planFor(song, options)
+  const { model, aligned } = sheetModel(song, options, plan)
+  return { ...fitSheet(model, aligned), aligned }
+}
+
+/** The height the model gives for this song at a scale and layout, mm. Only for checking the model against a real render. */
+export function sheetEstimate(song: PdfSongInput, options: PdfOptions, k: number, kt: number, mode: SheetMode, flow = false): number {
+  const { model, aligned } = sheetModel(song, options, planFor(song, options))
+  return sheetHeight(model, k, kt, mode, aligned, flow)
 }
 
 function sheet(song: PdfSongInput, options: PdfOptions, plan: PdfPlan): Frame {
   const withWords = plan.wordLanguages.length > 0
-  const note = withWords ? "" : "Word meanings are not in the catalogue for this song yet"
-  const { lines, glossable } = linesOf(song, options)
-  const parts = stanzas(lines)
-  const first = plan.translations[0]
-  // When the translation has as many parts as the song has stanzas, each stanza sits beside its own translation (and a page
-  // break never splits a pair). Otherwise the song and the translation are two columns that run on side by side.
-  const aligned = !!first && parts.length > 1 && first.blocks.length === parts.length
+  const { model, aligned, parts, glossable } = sheetModel(song, options, plan)
+  const hasTr = model.hasTr
+  const { k, kt, band, mode, flow } = { ...fitSheet(model, aligned), ...options.fit }
   const label = `<div class="eb col-h">Song${withWords ? " · word by word" : ""}</div>`
-  const body = aligned
-    ? `<div class="srow"><div class="col-l">${label}</div><div class="col-r"><div class="eb col-h">Translation</div></div></div>` +
-      parts
-        .map((st, i) => {
-          const left = st.map(({ line, index }) => lineHtml(song, line, index, glossable[index] ?? false, plan, withWords)).join("")
-          const right = plan.translations.map((t) => `<p>${esc(t.blocks[i] ?? "").replace(/\n/g, "<br>")}</p>`).join("")
-          return `<div class="srow"><div class="col-l"><div class="stanza">${left}</div></div><div class="col-r tl">${right}</div></div>`
-        })
-        .join("")
-    : `<table><tr><td class="col-l">${label}${songColumn(song, options, plan, true)}</td><td class="col-r tl"><div class="eb col-h">Translation</div>${translationColumn(plan, false)}</td></tr></table>`
+  const rows = (st: Array<{ line: string; index: number }>) => st.map(({ line, index }) => lineHtml(song, line, index, glossable[index] ?? false, plan, withWords)).join("")
+  const trCol = `<div class="eb col-h">Translation</div>${translationColumn(plan, false, flow)}`
+  let body: string
+  if (mode !== "wide") {
+    const flat = parts.length > 1 ? parts.map((st) => `<div class="stanza">${rows(st)}</div>`) : (parts[0] ?? []).map((l) => rows([l]))
+    const { heights } = denseHeights(model, k, mode)
+    const cut = splitAt(heights)
+    body = `<div class="dense"><div class="c">${label}${flat.slice(0, cut).join("")}</div><div class="c"><div class="eb col-h">&nbsp;</div>${flat.slice(cut).join("")}</div>${hasTr ? `<div class="c tl">${trCol}</div>` : ""}</div>`
+  } else if (aligned) {
+    body =
+      `<div class="srow"><div class="col-l">${label}</div><div class="col-r"><div class="eb col-h">Translation</div></div></div>` +
+      parts.map((st, i) => `<div class="srow"><div class="col-l"><div class="stanza">${rows(st)}</div></div><div class="col-r tl">${plan.translations.map((t) => `<p>${esc(t.blocks[i] ?? "").replace(/\n/g, "<br>")}</p>`).join("")}</div></div>`).join("")
+  } else if (hasTr) body = `<table><tr><td class="col-l">${label}${songColumn(song, options, plan, true)}</td><td class="col-r tl">${trCol}</td></tr></table>`
+  else body = `<div class="solo">${label}${songColumn(song, options, plan, true)}</div>`
+  const meta = [song.composed ? `Composed ${song.composed}` : "", song.raga ? `Raga ${song.raga}` : "", song.tala ? `Tala ${song.tala}` : ""].filter(Boolean)
+  const titleSize = song.title.length <= 22 ? 36 : song.title.length <= 34 ? 28 : 22
+  const { height } = BANDS[band]
+  const paperAt = (pct: number) => `color-mix(in srgb,var(--paper) ${pct}%,transparent)`
+  const fade = `linear-gradient(to bottom,var(--paper) 0%,${paperAt(88)} 14%,${paperAt(60)} 34%,${paperAt(28)} 58%,${paperAt(6)} 86%,transparent 100%)`
+  const sky = `<div class="sky"${song.photo ? ` style="background-image:${fade},url('${song.photo}')"` : ""}></div>`
+  const title = `<div class="skyhd"><div><span class="chip">№ ${song.number}</span><h1 style="font-size:${titleSize}pt">${esc(song.title)}</h1></div><div class="meta eb">${meta.map((x) => `<span>${esc(x)}</span>`).join("")}</div></div>`
   return {
-    css: "@page{size:297mm 210mm;margin:12mm 15mm}.col-l{width:67%;padding-right:7mm;border-right:1px solid var(--rule)}.col-r{padding-left:7mm;flex:1}.srow{display:flex}.srow .stanza{margin-bottom:0;padding-bottom:6mm}.srow .tl{padding-bottom:6mm}.w .r{font-size:25pt;line-height:1.12}.w .g{font-size:14pt;margin-top:1.4mm;padding-top:.9mm;min-height:6.5mm}.line{gap:0 5mm;margin-bottom:6mm}.stanza{margin-bottom:9mm}.tl p{font-size:17pt;line-height:1.35;margin-bottom:5mm}.eb{font-size:9.5pt}",
+    css:
+      `@page{size:297mm 210mm;margin:12mm 15mm}:root{--k:${k};--kt:${kt}}html,body{height:210mm}body{position:relative;overflow:hidden;box-sizing:border-box}` +
+      `.sky{position:absolute;left:0;right:0;bottom:0;height:${height}mm;background:var(--paper) center bottom/cover no-repeat}` +
+      ".skyhd,.srow,table,.solo,.dense{position:relative;z-index:1}.skyhd{display:flex;justify-content:space-between;align-items:flex-end;gap:10mm;margin-bottom:9mm}" +
+      ".chip{display:inline-block;background:var(--accent);color:#fff;font:800 11pt/1 var(--display);padding:2mm 3mm;margin-bottom:3mm}.skyhd h1{color:var(--ink);letter-spacing:-.02em;line-height:1}.skyhd .meta{flex-direction:column;align-items:flex-end;gap:1.4mm}.skyhd .meta span+span{border:0;padding:0}" +
+      ".col-l{width:67%;padding-right:7mm;border-right:1px solid var(--rule)}.col-r{padding-left:7mm;flex:1}.srow{display:flex}.srow .stanza{margin-bottom:0;padding-bottom:calc(5mm*var(--k))}.srow .tl{padding-bottom:calc(5mm*var(--kt))}" +
+      `.dense{display:flex;gap:6mm}.dense .c{width:${hasTr ? SHEET[mode === "tight" ? "tight" : "dense"].col : SHEET.dense.colFull}mm}.dense .tl{width:${SHEET[mode === "tight" ? "tight" : "dense"].right + 6}mm;border-left:1px solid var(--rule);padding-left:6mm}` +
+      ".w .r{font-size:calc(25pt*var(--k));line-height:1.12}.w .g{font-size:calc(14pt*var(--k));margin-top:calc(1.4mm*var(--k));padding-top:calc(.9mm*var(--k));min-height:calc(6.5mm*var(--k))}" +
+      ".line{gap:0 calc(5mm*var(--k));margin-bottom:calc(6mm*var(--k))}.stanza{margin-bottom:calc(9mm*var(--k))}.tl p{font-size:calc(17pt*var(--kt));line-height:1.38;margin-bottom:calc(5mm*var(--kt))}.eb{font-size:9.5pt}",
     page: "landscape",
-    note,
-    body: `${head(song, options, plan)}${body}${foot(song, note)}`,
+    note: withWords ? "" : "Word meanings are not in the catalogue for this song yet",
+    body: `${sky}${title}${body}`,
   }
 }
 

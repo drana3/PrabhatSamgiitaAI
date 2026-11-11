@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { buildSongPdfHtml, planFor } from "@/lib/songPdf/html"
+import { buildSongPdfHtml, planFor, sheetPlan } from "@/lib/songPdf/html"
 import { pdfFileName } from "@/lib/songPdf/share"
 import { DEFAULT_PDF_OPTIONS, PDF_THEMES, PDF_VARIANTS, type PdfSongInput } from "@/lib/songPdf/types"
 
@@ -150,5 +150,31 @@ describe("a language the app does not list", () => {
     const onlyEn = pdfLanguages("ru", { words: ["en"], translations: ["en"] })
     expect(onlyEn).toMatchObject({ words: ["en"], translations: ["en"], fellBack: true })
     expect(pdfLanguages("ru", { words: [], translations: [] })).toMatchObject({ words: [], translations: [], fellBack: false })
+  })
+
+  it("fits the Sheet on one page: the type shrinks as the song grows, the song moves into two columns, and the photo band slims down", () => {
+    const make = (lineCount: number, trLines: number): PdfSongInput => {
+      const lines = Array.from({ length: lineCount }, (_, i) => `Tumi ámár prabhu tomáy ${i}`)
+      const tr = Array.from({ length: trLines }, (_, i) => `Translation line number ${i} of the song`).join("\n")
+      return { ...song, romanLines: lines, linesByScript: { roman: lines }, glosses: null, translations: { en: tr } }
+    }
+    const short = sheetPlan(make(6, 6), DEFAULT_PDF_OPTIONS)
+    const median = sheetPlan(make(20, 14), DEFAULT_PDF_OPTIONS)
+    const longest = sheetPlan(make(41, 56), DEFAULT_PDF_OPTIONS)
+    expect(short.k).toBeGreaterThan(median.k)
+    expect(median.k).toBeGreaterThan(longest.k)
+    expect(short.k).toBeGreaterThan(0.85)
+    expect(median.k).toBeGreaterThanOrEqual(0.5)
+    expect(median.mode).not.toBe("wide")
+    expect(longest.k).toBeGreaterThan(0)
+    const { html } = buildSongPdfHtml(make(41, 56), DEFAULT_PDF_OPTIONS)
+    expect(html).toContain(`--k:${longest.k}`)
+    expect(html).toContain("class=\"sky\"")
+  })
+
+  it("lets a caller force the Sheet's layout, which is how the model was checked against a real render", () => {
+    const { html } = buildSongPdfHtml(song, { ...DEFAULT_PDF_OPTIONS, fit: { k: 0.5, kt: 0.4, mode: "dense", band: "slim" } })
+    expect(html).toContain("--k:0.5;--kt:0.4")
+    expect(html).toContain('class="dense"')
   })
 })
