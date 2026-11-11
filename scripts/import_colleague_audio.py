@@ -38,6 +38,23 @@ R2_DIR = Path.home() / "Developer" / "audio-extractor"
 AUDIO_EXT = {".m4a", ".mp3", ".wav"}
 PREFIX_DIR = "ps-audio/"
 
+# Dada, 2026-11-11: the Google Drive folder "ПС-КОНТЕНТ / аудио / Didi Sushraddha" holds recordings that are not sung
+# correctly. These archive files match its listing by name, size (Drive shows MiB) and date, so they are left out
+# of the import: (archive file name, bytes). The list on Dada's screenshot was cut off; more can be added here.
+EXCLUDED_DRIVE_DIDI_SUSHRADDHA = {
+    ("181.m4a", 5792541),
+    ("199 Hiyara majhare.m4a", 5634119),
+    ("209.m4a", 5603326),
+    ("450 Se amar.m4a", 4199657),
+    ("867 tandra-dao-katiye-cosmic love-.mp3", 8854810),
+    ("903.m4a", 6522274),
+    ("1315 Nayan majhare.m4a", 4452026),
+    ("1682 Vasanteri.m4a", 4620982),
+    ("3389 Tomay ami bhalobasi Диди.m4a", 5519106),
+    ("4673 bhajo-re-ista-nam-man-amar.mp3", 13865823),
+}
+excluded_seen: list[dict] = []  # filled by plan(): song number, bytes and reason of every file left out
+
 
 def english_title(title: str) -> str:
     """The app's song title as a plain file-name title: no diacritics, no punctuation, Title Case."""
@@ -65,6 +82,9 @@ def plan(zip_path: Path):
                 unmatched.append(base)
                 continue
             n = int(m.group(1))
+            if (base, info.file_size) in EXCLUDED_DRIVE_DIDI_SUSHRADDHA:
+                excluded_seen.append({"ps": n, "bytes": info.file_size, "reason": "from Drive folder Didi Sushraddha, not sung correctly (Dada, 2026-11-11)"})
+                continue
             entries.append({"ps": n, "archive_name": base, "info": info, "ext": Path(base).suffix.lower()})
     by_song: dict[int, list[dict]] = {}
     for e in entries:
@@ -145,6 +165,7 @@ def main() -> int:
                 "source_archive": args.zip.name,
                 "storage": "Cloudflare R2, bucket am-site-books-private (private); key below is relative to the bucket",
                 "note": "previous audio links are kept; a recording with is_current true is the one to play first",
+                "excluded": sorted(excluded_seen, key=lambda x: x["ps"]),
             },
             "songs": {},
         }
