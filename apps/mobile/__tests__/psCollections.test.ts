@@ -27,17 +27,16 @@ describe("the delivered main file", () => {
     expect(main.length).toBe(24)
     expect(new Set(main.flatMap((c) => c.songs)).size).toBe(5018)
   })
-  it("shows path, society and memory after the 11 Nov read-through (118, 58 and 55 songs), and keeps Sadhana hidden until it is read", () => {
-    expect(byId(main, "inner-world")?.hidden).toBe("review")
+  it("shows path, society, memory and Sadhana after the 11 Nov read-through (118, 58, 55 and 57 songs)", () => {
     expect(byId(main, "inner-world")?.title).toBe("Sadhana")
-    for (const [id, n] of [["path", 118], ["society", 58], ["memory", 55]] as const) {
+    for (const [id, n] of [["path", 118], ["society", 58], ["memory", 55], ["inner-world", 57]] as const) {
       expect(byId(main, id)?.hidden, id).toBeNull()
       expect(byId(main, id)?.songs.length, id).toBe(n)
     }
-    expect(visiblePs(main).length).toBe(23)
+    expect(visiblePs(main).length).toBe(24)
   })
-  it("counts Songs of the heart honestly (518 songs without a theme, plus 50 dropped by the read-through)", () => {
-    expect(byId(main, "heart")?.songs.length).toBe(568)
+  it("counts Songs of the heart honestly (518 songs without a theme, plus 97 dropped by the two read-throughs)", () => {
+    expect(byId(main, "heart")?.songs.length).toBe(615)
     expect(byId(main, "heart")?.section).toBe("heart")
   })
 })
@@ -129,12 +128,12 @@ describe("the sections of the page", () => {
   it("Songs of the heart is one tile with the honest count", () => {
     const heart = sections[sections.length - 1]
     expect(heart.tiles.length).toBe(1)
-    expect(heart.tiles[0]).toMatchObject({ label: "Songs of the Heart", count: 568, countLabel: "568 songs" })
+    expect(heart.tiles[0]).toMatchObject({ label: "Songs of the Heart", count: 615, countLabel: "615 songs" })
   })
-  it("shows the read collections in Theme and not Sadhana while it waits for review", () => {
+  it("shows the read collections in Theme, Sadhana among them, and no old Inner World name", () => {
     const theme = sections.find((s) => s.id === "theme")?.tiles.map((t) => t.label) ?? []
-    for (const shown of ["The Path", "Society and Humanity", "Time and Memory", "Nature and Flowers"]) expect(theme).toContain(shown)
-    for (const hidden of ["Sadhana", "The Inner World"]) expect(theme).not.toContain(hidden)
+    for (const shown of ["The Path", "Society and Humanity", "Time and Memory", "Nature and Flowers", "Sadhana"]) expect(theme).toContain(shown)
+    expect(theme).not.toContain("The Inner World")
   })
   it("a section with nothing to show is not there", () => {
     const only = buildSections({ ps: [], site: [], siteHref: () => "", titleOf: (id) => id, countLabel: String })
