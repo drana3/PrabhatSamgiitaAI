@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { EmptyCard } from "@/components/learn-v2/LearnBlocks"
+import { ScopeLine } from "@/components/learn-v2/ScopeLine"
 import { LearnGate } from "@/components/learn-v2/LearnGate"
 import { PressBox } from "@/components/learn-v2/PressBox"
 import { OverlayScreen, Over, Pill, Track, toneOf, useToast } from "@/components/learn-v2/ui"
@@ -10,6 +11,7 @@ import { Reveal } from "@/components/today/motion"
 import { amColors, type AmTheme } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useAmTheme } from "@/hooks/useAmTheme"
+import { useStudyScope } from "@/hooks/useStudyScope"
 import { useT } from "@/lib/i18n"
 import { SAMPLE_QUIZ, SAMPLE_QUIZ_PASS_MARK } from "@/lib/fixtures/learn"
 import {
@@ -20,6 +22,8 @@ import {
   type LearnQuizLevel,
   type LearnQuizQuestion,
 } from "@/lib/learn/quiz"
+import { scopeRecordsQuizLevel } from "@/lib/learn/scope"
+import { deckLine, emptyKind, partialLine } from "@/lib/learn/scopeText"
 import { allWordsQuizQuestions, songQuizQuestions } from "@/lib/learn/songQuiz"
 import { quizFeedback } from "@/lib/learn/quizFeedback"
 import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
@@ -33,8 +37,11 @@ import { href } from "@/utils/href"
  *  - ?song=3: the Quiz step of one song. Five questions on its words, pass mark 70 per cent (4 of 5).
  *    Passing it marks the song's Quiz step done. A song with fewer than four different meanings has no
  *    quiz and says "Quiz needs more words".
- *  - no ?song: the quiz over all the words (Practice on the Learn page), ten questions, pass mark 7.
- *    The preview keeps the prototype's three-question sample (pass mark 2) to compare with the design.
+ *  - no ?song: the quiz over "what to study" (Practice on the Learn page: one song, several, my songs or all
+ *    songs, the same choice the word cards use), ten questions, pass mark 7. Fewer than four different meanings
+ *    in that choice: no quiz, and the screen says so. Only a broad choice (my songs, all songs) counts toward
+ *    the quiz levels. The preview shows the prototype's three-question sample (pass mark 2) only for my songs
+ *    when they have no words to ask about.
  * ?level=1..3 picks the level; level 2 and 3 have no question bank yet (API-12) and say so.
  */
 export default function LearnQuizScreen() {
@@ -58,14 +65,19 @@ function LearnQuiz() {
   const status = levelStatuses(quizBest).find((entry) => entry.level === level)!
   const levelTitle = QUIZ_LEVELS.find((entry) => entry.level === level)?.title ?? ""
 
+  const study = useStudyScope()
   const [attempt, setAttempt] = useState(1)
-  const questions = useMemo<LearnQuizQuestion[]>(() => {
-    if (level !== 1) return []
-    if (songNumber !== undefined) return songQuizQuestions(learnWordList(), songNumber, attempt)
-    if (MOCKUP_DATA) return SAMPLE_QUIZ
-    return allWordsQuizQuestions(learnWordList(), attempt)
-  }, [level, songNumber, attempt])
-  const passMark = songNumber === undefined && MOCKUP_DATA ? SAMPLE_QUIZ_PASS_MARK : passMarkFor(questions.length)
+  const { questions, sample } = useMemo<{ questions: LearnQuizQuestion[]; sample: boolean }>(() => {
+    if (level !== 1) return { questions: [], sample: false }
+    if (songNumber !== undefined) return { questions: songQuizQuestions(learnWordList(), songNumber, attempt), sample: false }
+    const scoped = allWordsQuizQuestions(study.words, attempt)
+    if (MOCKUP_DATA && scoped.length === 0 && study.scope.mode === "mine") return { questions: SAMPLE_QUIZ, sample: true }
+    return { questions: scoped, sample: false }
+  }, [level, songNumber, attempt, study.words, study.scope.mode])
+  const passMark = sample ? SAMPLE_QUIZ_PASS_MARK : passMarkFor(questions.length)
+  const scopeLine = songNumber === undefined && level === 1
+  const scopeKind = emptyKind(study.summary)
+  const changeScope = () => router.push(href(LEARN_ROUTES.scope))
 
   const [index, setIndex] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -77,6 +89,15 @@ function LearnQuiz() {
     if (router.canGoBack()) router.back()
     else router.replace(href(LEARN_ROUTES.learn))
   }
+
+  // another choice of songs (made on the "What to study" screen) means another quiz: start over
+  useEffect(() => {
+    setIndex(0)
+    setPicked(null)
+    setAnswers({})
+    setFinished(false)
+    recorded.current = false
+  }, [questions])
 
   const restart = () => {
     setAttempt((value) => value + 1)
@@ -113,7 +134,7 @@ function LearnQuiz() {
       if (songNumber !== undefined) {
         if (result.passed) markPart(`ps-${songNumber}`, "meaning")
       } else {
-        recordQuiz(level, { score: result.score, total: result.total, passed: result.passed })
+        if (scopeRecordsQuizLevel(study.scope.mode)) recordQuiz(level, { score: result.score, total: result.total, passed: result.passed })
       }
     }
     setFinished(true)
@@ -140,16 +161,35 @@ function LearnQuiz() {
           onAction={back}
         />
       ) : questions.length === 0 ? (
-        <EmptyCard
-          theme={theme}
-          eyebrow={t("learn.quiz.levelEyebrow", { level })}
-          title={songNumber !== undefined ? t("learn.quiz.song.needsMore.title") : t("learn.quiz.song.noQuestions.title")}
-          text={songNumber !== undefined ? t("learn.quiz.song.needsMore.text") : t("learn.quiz.song.noQuestions.text")}
-          action={songNumber !== undefined ? t("learn.quiz.backToSong") : t("learn.quiz.backToLearn")}
-          onAction={songNumber !== undefined ? toSong : back}
-        />
+        songNumber !== undefined ? (
+          <EmptyCard
+            theme={theme}
+            eyebrow={t("learn.quiz.levelEyebrow", { level })}
+            title={t("learn.quiz.song.needsMore.title")}
+            text={t("learn.quiz.song.needsMore.text")}
+            action={t("learn.quiz.backToSong")}
+            onAction={toSong}
+          />
+        ) : (
+          <>
+            <ScopeLine theme={theme} deck={deckLine(study.summary)} note={partialLine(study.summary)} onChange={changeScope} />
+            <EmptyCard
+              theme={theme}
+              eyebrow={t("learn.scope.empty.eyebrow")}
+              title={
+                scopeKind === "none" ? t("learn.scope.empty.none.title") : scopeKind === "nowords" ? t("learn.scope.empty.title") : t("learn.scope.quizEmpty.title")
+              }
+              text={
+                scopeKind === "none" ? t("learn.scope.empty.none.text") : scopeKind === "nowords" ? t("learn.scope.empty.text") : t("learn.scope.quizEmpty.text")
+              }
+              action={t("learn.scope.empty.action")}
+              onAction={changeScope}
+            />
+          </>
+        )
       ) : finished ? (
         <Reveal index={0} style={styles.stack}>
+          {scopeLine && !sample ? <ScopeLine theme={theme} deck={deckLine(study.summary)} note={partialLine(study.summary)} onChange={changeScope} /> : null}
           <View style={styles.result}>
             <Over color={amColors.gold300}>{t("learn.quiz.result")}</Over>
             <Text style={styles.resultNumber}>{t("learn.quiz.score", { score: result.score, total: result.total })}</Text>
@@ -175,6 +215,7 @@ function LearnQuiz() {
         </Reveal>
       ) : question ? (
         <Reveal index={0} style={styles.stack}>
+          {scopeLine && !sample ? <ScopeLine theme={theme} deck={deckLine(study.summary)} note={partialLine(study.summary)} onChange={changeScope} /> : null}
           <Track theme={theme} value={(index + (picked !== null ? 1 : 0)) / questions.length} />
           <Over color={theme.eyebrow} numeric>{t("learn.quiz.progress", { n: index + 1, total: questions.length })}</Over>
           <Text accessibilityRole="header" style={[styles.question, { color: theme.textHeading }]}>

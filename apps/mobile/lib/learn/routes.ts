@@ -12,6 +12,8 @@ export const LEARN_ROUTES = {
   mySongs: "/learn/songs",
   /** the picker: every Prabhat Samgiita song, search, tap to add to the Learn list */
   addSong: "/learn/add",
+  /** what to study: one song, several, my songs or all (drives the word cards and the quiz) */
+  scope: "/learn/scope",
   stories: "/stories",
   about: "/about",
   liveQuiz: "/quiz",

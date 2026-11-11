@@ -4,6 +4,7 @@
  * (English) and are not translated here.
  */
 import { learnPageEn, learnPageEs, learnPageRu } from "./learnPage"
+import { learnScopeEn, learnScopeEs, learnScopeRu } from "./learnScope"
 
 export const learnScreensEn = {
   "common.dragToClose": "Drag down to close",
@@ -79,6 +80,7 @@ export const learnScreensEn = {
   "learn.strip.cell.a11y": "{label}: {value}",
   "learn.strip.cellOf.a11y": "{label}: {value} of {total}",
   ...learnPageEn,
+  ...learnScopeEn,
 } as const
 
 export const learnScreensEs = {
@@ -155,6 +157,7 @@ export const learnScreensEs = {
   "learn.strip.cell.a11y": "{label}: {value}",
   "learn.strip.cellOf.a11y": "{label}: {value} de {total}",
   ...learnPageEs,
+  ...learnScopeEs,
 } as const
 
 export const learnScreensRu = {
@@ -233,4 +236,5 @@ export const learnScreensRu = {
   "learn.strip.cell.a11y": "{label}: {value}",
   "learn.strip.cellOf.a11y": "{label}: {value} из {total}",
   ...learnPageRu,
+  ...learnScopeRu,
 } as const

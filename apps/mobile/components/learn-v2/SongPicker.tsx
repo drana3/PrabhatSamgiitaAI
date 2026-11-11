@@ -81,9 +81,9 @@ export function PickerSearch({
 }
 
 /** "With audio": a pill that is on or off. Selected = orange700 fill with white text. */
-export function AudioChip({ p, on, onPress }: { p: AmProto; on: boolean; onPress: () => void }) {
+export function AudioChip({ p, on, onPress, label: given }: { p: AmProto; on: boolean; onPress: () => void; label?: string }) {
   const t = useT()
-  const label = t("learn.add.withAudio")
+  const label = given ?? t("learn.add.withAudio")
   return (
     <PressBox
       accessibilityRole="switch"
@@ -107,17 +107,24 @@ type RowProps = {
   /** the song is on the Learn list */
   listed: boolean
   onToggle: (entry: CatalogEntry) => void
+  /** true in the "What to study" picker, which has its own spoken labels */
+  study?: boolean
 }
 
 /**
  * One song: `PS 12`, the title, the first line under it, and a 44pt round control at the right
  * ("+" to add, a check once it is on the list). The whole row is the touch target.
  */
-export const PickerRow = memo(function PickerRow({ p, entry, listed, onToggle }: RowProps) {
+export const PickerRow = memo(function PickerRow({ p, entry, listed, onToggle, study }: RowProps) {
   const t = useT()
-  const label = listed
-    ? t("learn.add.row.in.a11y", { number: entry.number, title: entry.title })
-    : t("learn.add.row.add.a11y", { number: entry.number, title: entry.title })
+  const params = { number: entry.number, title: entry.title }
+  const label = study
+    ? listed
+      ? t("learn.scope.row.on.a11y", params)
+      : t("learn.scope.row.off.a11y", params)
+    : listed
+      ? t("learn.add.row.in.a11y", params)
+      : t("learn.add.row.add.a11y", params)
   return (
     <PressBox
       accessibilityRole="button"

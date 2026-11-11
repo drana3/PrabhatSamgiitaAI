@@ -3,12 +3,15 @@ import { StyleSheet, Text } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { DoneCard, FlashCard, GradeButtons, QueueCounters, ReviewStyleBar } from "@/components/learn-v2/CardsParts"
+import { EmptyCard } from "@/components/learn-v2/LearnBlocks"
+import { ScopeLine } from "@/components/learn-v2/ScopeLine"
 import { ReviewStyleSheet } from "@/components/learn-v2/ReviewStyleSheet"
 import { LearnGate } from "@/components/learn-v2/LearnGate"
 import { OverlayScreen, Over, Pill, Track } from "@/components/learn-v2/ui"
 import { Reveal } from "@/components/today/motion"
 import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnHydrated } from "@/hooks/useLearnHydrated"
+import { useStudyScope } from "@/hooks/useStudyScope"
 import { useT } from "@/lib/i18n"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
@@ -25,11 +28,11 @@ import {
   REVIEW_STYLES,
   type Grade,
 } from "@/lib/learn/srs"
+import { deckLine, emptyKind, partialLine } from "@/lib/learn/scopeText"
 import { songFactsFor } from "@/lib/learn/songQuiz"
 import { quizNotNeeded } from "@/lib/learn/songStatus"
-import { sessionDeck, songNumbersFromIds, wordsForSong } from "@/lib/learn/words"
+import { wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
-import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 
 /**
@@ -50,20 +53,21 @@ function WordCards() {
   const hydrated = useLearnHydrated()
 
   const cards = useLearnStore((s) => s.cards)
-  const songs = useLearnStore((s) => s.songs)
   const reviewStyle = useLearnStore((s) => s.reviewStyle)
   const grade = useLearnStore((s) => s.grade)
   const markPart = useLearnStore((s) => s.markPart)
   const setReviewStyle = useLearnStore((s) => s.setReviewStyle)
-  const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
-
+  // without a song of its own the deck is "what to study" (the same choice the quiz uses); the preview keeps its ten cards
+  const study = useStudyScope()
   const deck = useMemo(
     () =>
       songNumber !== undefined
         ? wordsForSong(learnWordList(), songNumber).slice(0, MOCKUP_DATA ? 10 : undefined)
-        : sessionDeck(learnWordList(), [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
-    [songNumber, songs, savedSongIds],
+        : study.words.slice(0, MOCKUP_DATA ? 10 : undefined),
+    [songNumber, study.words],
   )
+  const scopeEmpty = songNumber === undefined ? emptyKind(study.summary) : null
+  const changeScope = () => router.push(href(LEARN_ROUTES.scope))
   const wordById = useMemo(() => new Map(deck.map((word) => [word.id, word])), [deck])
 
   const [queue, setQueue] = useState<string[] | null>(null)
@@ -150,8 +154,23 @@ function WordCards() {
     >
       {queue === null ? (
         <Over color={theme.eyebrow}>{t("learn.cards.loading")}</Over>
+      ) : scopeEmpty ? (
+        <>
+          <ScopeLine theme={theme} deck={deckLine(study.summary)} note={partialLine(study.summary)} onChange={changeScope} />
+          <EmptyCard
+            theme={theme}
+            eyebrow={t("learn.scope.empty.eyebrow")}
+            title={scopeEmpty === "none" ? t("learn.scope.empty.none.title") : t("learn.scope.empty.title")}
+            text={scopeEmpty === "none" ? t("learn.scope.empty.none.text") : t("learn.scope.empty.text")}
+            action={t("learn.scope.empty.action")}
+            onAction={changeScope}
+          />
+        </>
       ) : (
         <>
+          {songNumber === undefined ? (
+            <ScopeLine theme={theme} deck={deckLine(study.summary)} note={partialLine(study.summary)} onChange={changeScope} />
+          ) : null}
           <Reveal index={0}>
             <Track theme={theme} value={fraction} />
           </Reveal>

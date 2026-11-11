@@ -209,5 +209,6 @@ describe("page structure", () => {
     expect("certificates" in HUB_LINKS).toBe(false)
     expect(HUB_LINKS.allSongs).toBe("/learn/songs")
     expect(HUB_LINKS.pickSong).toBe("/learn/add")
+    expect(HUB_LINKS.scope).toBe("/learn/scope")
   })
 })

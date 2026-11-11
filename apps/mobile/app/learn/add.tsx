@@ -12,9 +12,8 @@ import { useAmTheme } from "@/hooks/useAmTheme"
 import { useLearnSongs } from "@/hooks/useLearnSongs"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { LEARN_ROUTES } from "@/lib/learn/routes"
-import { PICKER_ROW_HEIGHT, buildPickerIndex, entryFromIndexRow, queryLabel, searchPicker, type PickerIndexRow } from "@/lib/learn/songPicker"
-import { catalogLyricRows } from "@/lib/lyricSearch"
-import { hasPlayableAudio } from "@/lib/playableAudio"
+import { buildIndex, type PickerIndex as Index } from "@/lib/learn/pickerIndex"
+import { PICKER_ROW_HEIGHT, queryLabel, searchPicker } from "@/lib/learn/songPicker"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
@@ -23,15 +22,6 @@ const TOAST_MS = 4000
 const HEADER_H = 64
 const SEARCH_H = 56
 const CHIPS_H = 56
-
-type Index = { status: "loading" } | { status: "error" } | { status: "ready"; rows: PickerIndexRow[] }
-
-/** The 5,018 songs from the song index that ships with the app: no network, so it opens at once and works offline. */
-function buildIndex(): Index {
-  const rows = catalogLyricRows()
-  if (!rows.length) return { status: "error" }
-  return { status: "ready", rows: buildPickerIndex(rows.map((row) => entryFromIndexRow(row, hasPlayableAudio))) }
-}
 
 /**
  * "Add a song" (Learn): every Prabhat Samgiita song in one long list, with a search for the number,

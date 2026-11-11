@@ -55,6 +55,8 @@ import { useLearnStore } from "@/stores/learnStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
+import { useStudyScope } from "@/hooks/useStudyScope"
+import { deckLine } from "@/lib/learn/scopeText"
 
 /**
  * Learn tab, variant A (Dada, 10 November 2026): one page, one chain. Continue, then My songs with the three
@@ -87,6 +89,8 @@ export default function LearnScreen() {
   const paths = useLearnStore((s) => s.paths)
   const quizBest = useLearnStore((s) => s.quizBest)
   const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
+
+  const studyScope = useStudyScope()
 
   const go = (path: string) => router.push(href(path))
 
@@ -270,6 +274,7 @@ export default function LearnScreen() {
               <View style={styles.pad}>
                 {wordsReady ? (
                   <>
+                    <ExploreRow p={p} title={t("learn.scope.title")} subtitle={deckLine(studyScope.summary)} onPress={() => go(HUB_LINKS.scope)} />
                     <View style={styles.tiles}>
                       <HubTile
                         p={p}

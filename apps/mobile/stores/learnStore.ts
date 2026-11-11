@@ -14,6 +14,7 @@ import {
 import { buildLearnDemoSeed } from "@/lib/fixtures/learn"
 import { planAddSong, planRemoveSong, planRestoreSong, type AddStatus } from "@/lib/learn/learnSongs"
 import { mergeBest, type LearnQuizLevel, type QuizBest, type QuizBestMap } from "@/lib/learn/quiz"
+import { DEFAULT_SCOPE, normalizeScope, type StudyScope } from "@/lib/learn/scope"
 import {
   DEFAULT_REVIEW_STYLE,
   gradeCard,
@@ -39,6 +40,8 @@ export type LearnData = {
 
 type LearnState = OwnedData<LearnData> & {
   reviewStyle: ReviewStyle
+  /** which songs the word cards and the all-words quiz take their words from (a setting of the phone, like the review style) */
+  scope: StudyScope
   cards: Record<string, WordCard>
   songs: LearningSong[]
   paths: Record<string, PathState>
@@ -48,6 +51,8 @@ type LearnState = OwnedData<LearnData> & {
   /** put the prototype's sample library in an empty store, once */
   seedDemo: (now?: number) => void
   setReviewStyle: (style: ReviewStyle) => void
+  /** choose what to study; a damaged value is cleaned on the way in */
+  setScope: (scope: StudyScope) => void
   /** grade one word card; the first grade creates the card */
   grade: (wordId: string, grade: Grade, now?: number) => void
   /** put a song on the list; a song already there is left as it is */
@@ -71,6 +76,7 @@ const emptyLearnData = (): LearnData => ({
 
 const INITIAL = {
   reviewStyle: DEFAULT_REVIEW_STYLE,
+  scope: normalizeScope(DEFAULT_SCOPE),
   ...emptyLearnData(),
   owner: null as string | null,
   slots: {} as Record<string, LearnData>,
@@ -82,6 +88,8 @@ export const useLearnStore = create<LearnState>()(
       ...INITIAL,
 
       setReviewStyle: (reviewStyle) => set({ reviewStyle }),
+
+      setScope: (scope) => set({ scope: normalizeScope(scope) }),
 
       seedDemo: (now = Date.now()) => {
         const { demoSeeded, songs, cards } = get()
@@ -127,7 +135,7 @@ export const useLearnStore = create<LearnState>()(
       },
 
       // Clears the account in use; the owner stamp and the other accounts' put-aside data stay.
-      resetAll: () => set({ ...emptyLearnData(), reviewStyle: DEFAULT_REVIEW_STYLE }),
+      resetAll: () => set({ ...emptyLearnData(), reviewStyle: DEFAULT_REVIEW_STYLE, scope: normalizeScope(DEFAULT_SCOPE) }),
     }),
     {
       name: "prabhat-learn",
@@ -139,6 +147,7 @@ export const useLearnStore = create<LearnState>()(
         owner: state.owner,
         slots: state.slots,
         reviewStyle: state.reviewStyle,
+        scope: state.scope,
         cards: state.cards,
         songs: state.songs,
         paths: state.paths,

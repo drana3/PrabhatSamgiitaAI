@@ -38,6 +38,8 @@ export const HUB_LINKS = {
   index: LEARN_ROUTES.ragaTalaIndex,
   /** "Search all 5018 songs": the picker where any song is added */
   pickSong: LEARN_ROUTES.addSong,
+  /** "What to study": the songs the word cards and the quiz use */
+  scope: LEARN_ROUTES.scope,
   // certificates: LEARN_ROUTES.liveQuiz, // hidden for now, Dada 2026-11-05 (routes /quiz stay in place)
 } as const
 
