@@ -33,6 +33,7 @@ import { listPageRowHeight, ROW_GEOMETRY, slotHeight } from "@/lib/songsV2/rowSt
 import { useListViewStore } from "@/stores/listViewStore"
 import type { CatalogEntry } from "@/lib/songsV2/entry"
 import { useT } from "@/lib/i18n"
+import { songPhoto } from "@/lib/psCollections/photo"
 import type { PhotoMood } from "@/lib/photos/catalog"
 import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 import { href } from "@/utils/href"
@@ -143,6 +144,7 @@ export function SongsListPage({
               theme={theme}
               entry={item}
               variant={rowStyle}
+              photo={kind === "collection" ? songPhoto(item.number).thumb : undefined}
               saved={list.saved.has(item.number)}
               offline={list.downloaded.has(item.number)}
               onOpen={list.playRow}
@@ -154,7 +156,7 @@ export function SongsListPage({
         )
       return index < REVEALED_ROWS ? <SongsReveal index={4 + index}>{row}</SongsReveal> : row
     },
-    [theme, rowStyle, list.currentNumber, list.saved, list.downloaded, list.downloading, list.playRow, list.toggleSave, list.queueEntry, openMenu],
+    [theme, rowStyle, kind, list.currentNumber, list.saved, list.downloaded, list.downloading, list.playRow, list.toggleSave, list.queueEntry, openMenu],
   )
 
   // What the rows read from `list`: a stable value, so the list re-draws its rows only when one of these changes

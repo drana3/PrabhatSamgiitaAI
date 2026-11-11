@@ -2,6 +2,7 @@ import { memo, useRef, type ReactNode } from "react"
 import { Pressable, StyleSheet, Text, View } from "react-native"
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated"
 import ReanimatedSwipeable, { SwipeDirection, type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable"
+import { Image } from "expo-image"
 import { ListPlus } from "lucide-react-native"
 
 import { SaveButton } from "@/components/save/SaveButton"
@@ -29,6 +30,8 @@ type Props = {
   offline?: boolean
   /** which look; omitted = the listener's "Rows" setting */
   variant?: RowStyle
+  /** a small photograph in front of the row (Tracklist and Compact; a collection page): the number stays, smaller, beside it */
+  photo?: number
   onOpen: (entry: CatalogEntry) => void
   onToggleSave: (entry: CatalogEntry) => void
   onQueue: (entry: CatalogEntry) => void
@@ -61,6 +64,7 @@ export const SongCardRow = memo(function SongCardRow({
   saved,
   offline = false,
   variant,
+  photo,
   onOpen,
   onToggleSave,
   onQueue,
@@ -159,6 +163,25 @@ export const SongCardRow = memo(function SongCardRow({
             onPress={() => onOpen(entry)}
             onLongPress={() => onMenu(entry)}
           >
+            {photo !== undefined ? (
+              <View style={styles.photoCol}>
+                <Image
+                  source={photo}
+                  contentFit="cover"
+                  accessibilityIgnoresInvertColors
+                  style={[styles.photo, look === "compact" ? styles.photoCompact : styles.photoTrack, { backgroundColor: theme.inner }]}
+                />
+                <View style={styles.numSmall}>
+                  {current ? (
+                    <RowPlayingMark color={theme.accent} />
+                  ) : (
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={[styles.numTextSmall, { color: theme.accent }]} numberOfLines={1}>
+                      {entry.number}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ) : (
             <View style={look === "compact" ? styles.numCompact : styles.numTrack}>
               {current ? (
                 <RowPlayingMark color={theme.accent} />
@@ -168,6 +191,7 @@ export const SongCardRow = memo(function SongCardRow({
                 </Text>
               )}
             </View>
+            )}
             <View style={styles.text}>
               <View style={styles.eyebrowLine}>
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE}
@@ -195,7 +219,7 @@ export const SongCardRow = memo(function SongCardRow({
             color={theme.textBody}
             title={`PS ${entry.number}, ${entry.title}`}
           />
-          {look === "tracklist" ? <View pointerEvents="none" style={[styles.hairline, { backgroundColor: `${theme.textHeading}1A` }]} /> : null}
+          {look === "tracklist" ? <View pointerEvents="none" style={[styles.hairline, photo !== undefined && styles.hairlinePhoto, { backgroundColor: `${theme.textHeading}1A` }]} /> : null}
         </View>
       )}
     </ReanimatedSwipeable>
@@ -300,5 +324,12 @@ const styles = StyleSheet.create({
   eyebrowLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   eyebrowText: { flexShrink: 1 },
   dlMark: { alignItems: "center", justifyContent: "center" },
+  photoCol: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 8, paddingRight: 8 },
+  photo: { borderRadius: 8 },
+  photoCompact: { width: 32, height: 32 },
+  photoTrack: { width: 40, height: 40 },
+  numSmall: { width: 28 },
+  numTextSmall: { fontFamily: amFonts.medium, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] },
+  hairlinePhoto: { left: 10 + 8 + 40 },
   hairline: { position: "absolute", left: HAIRLINE_INSET, right: 0, bottom: 0, height: StyleSheet.hairlineWidth },
 })
