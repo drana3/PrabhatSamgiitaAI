@@ -4,13 +4,15 @@ import { LinearGradient } from "expo-linear-gradient"
 import { Shuffle } from "lucide-react-native"
 
 import { AuthorAvatar, Chip, DemoBadge, LoadingRows, PillButton, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { RoleTabs } from "@/components/authors/RoleTabs"
 import { Section, BlockStack } from "@/components/common/Layout"
 import { artistGradient } from "@/components/kirtan/ArtistParts"
 import { KirtanRow, PlayFilled } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
-import type { AuthorProfilePublic } from "@/lib/authors/types"
+import type { PersonRole } from "@/lib/authors/roles"
+import type { AuthorProfilePublic, KindCount } from "@/lib/authors/types"
 import { useT } from "@/lib/i18n"
 import { kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
 import type { Kirtan, RecordingKind } from "@/lib/kirtan/types"
@@ -30,6 +32,16 @@ export type ShowcaseProps = {
   state: "loading" | "ready" | "error" | "more"
   kind: string | null
   setKind: (kind: string | null) => void
+  /** the kinds of the recordings in the open tab, with counts (the whole page when there are no tabs) */
+  kinds: KindCount[]
+  /** recordings in the open tab (the whole page when there are no tabs): the number on the Play button and the "All" chip */
+  count: number
+  /** the tabs "Wrote" / "Performs": only the roles that have recordings, and an empty list when there are fewer than two (lib/authors/roles.ts) */
+  roles: { role: PersonRole; count: number }[]
+  role: PersonRole | null
+  setRole: (role: PersonRole) => void
+  /** the list failed to load: ask for it again */
+  onRetry: () => void
   busy: boolean
   onPlay: (shuffle: boolean) => void
   onShare: () => void
@@ -56,12 +68,12 @@ function Back({ theme, top, onBack, right }: { theme: SongsTheme; top: number; o
 
 function KindChips({ props }: { props: ShowcaseProps }) {
   const t = useT()
-  const { theme, profile, kind, setKind } = props
-  const kinds = profile.kinds.filter((k) => k.count > 0)
+  const { theme, kind, setKind } = props
+  const kinds = props.kinds.filter((k) => k.count > 0)
   if (kinds.length < 2) return null
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-      <Chip theme={theme} label={t("authors.page.allKinds")} active={kind === null} onPress={() => setKind(null)} count={profile.recordings_count} />
+      <Chip theme={theme} label={t("authors.page.allKinds")} active={kind === null} onPress={() => setKind(null)} count={props.count} />
       {kinds.map((k) => (
         <Chip key={k.kind} theme={theme} label={kindLabelPlural(k.kind as RecordingKind)} active={kind === k.kind} onPress={() => setKind(k.kind)} count={k.count} />
       ))}
@@ -71,9 +83,9 @@ function KindChips({ props }: { props: ShowcaseProps }) {
 
 function Status({ props }: { props: ShowcaseProps }) {
   const t = useT()
-  const { theme, state, kirtans, kind, setKind } = props
+  const { theme, state, kirtans, onRetry } = props
   if (state === "loading") return <LoadingRows theme={theme} rows={4} />
-  if (state === "error") return <StateBlock theme={theme} tone="error" title={t("authors.page.errorTitle")} body={t("authors.error.generic")} action={t("common.tryAgain")} onAction={() => setKind(kind)} />
+  if (state === "error") return <StateBlock theme={theme} tone="error" title={t("authors.page.errorTitle")} body={t("authors.error.generic")} action={t("common.tryAgain")} onAction={onRetry} />
   if (!kirtans.length) return <StateBlock theme={theme} title={t("authors.page.empty")} />
   return null
 }
@@ -88,7 +100,7 @@ export function ShowcasePage(props: ShowcaseProps) {
   const place = [profile.city, profile.country].filter(Boolean).join(", ")
   // With the listening statistics switched off the page shows no ranking and no counts at all, so no "Most played" shelf.
   const popular = !profile.stats ? [] : [...kirtans].sort((a, b) => (b.plays ?? 0) - (a.plays ?? 0)).slice(0, 6)
-  const groups = (props.kind ? [props.kind] : profile.kinds.filter((k) => k.count > 0).map((k) => k.kind)).map((k) => ({ kind: k, rows: kirtans.filter((x) => x.kind === k) })).filter((g) => g.rows.length)
+  const groups = (props.kind ? [props.kind] : props.kinds.filter((k) => k.count > 0).map((k) => k.kind)).map((k) => ({ kind: k, rows: kirtans.filter((x) => x.kind === k) })).filter((g) => g.rows.length)
   const [from, to] = artistGradient(profile.slug)
   return (
     <View style={styles.page}>
@@ -118,8 +130,9 @@ export function ShowcasePage(props: ShowcaseProps) {
             </Text>
           ) : null}
         </BlockStack>
+        {props.role ? <RoleTabs theme={theme} roles={props.roles} value={props.role} onChange={props.setRole} /> : null}
         <BlockStack gap={12}>
-          <PillButton theme={theme} busy={busy} disabled={!total} label={`${t("common.play")} · ${t("authors.count.recordings", { count: profile.recordings_count })}`} icon={<PlayFilled size={18} color={theme.onBrand} />} onPress={() => onPlay(false)} a11y={t("authors.page.playA11y", { name: profile.display_name })} />
+          <PillButton theme={theme} busy={busy} disabled={!total} label={`${t("common.play")} · ${t("authors.count.recordings", { count: props.count })}`} icon={<PlayFilled size={18} color={theme.onBrand} />} onPress={() => onPlay(false)} a11y={t("authors.page.playA11y", { name: profile.display_name })} />
           <BlockStack row gap={12}>
             <PillButton theme={theme} flex tone="line" disabled={!total || busy} label={t("common.shuffle")} icon={<Shuffle size={18} color={theme.textHeading} strokeWidth={2.2} />} onPress={() => onPlay(true)} />
             <PillButton theme={theme} flex tone="line" label={t("common.share")} onPress={onShare} a11y={t("authors.page.shareA11y", { name: profile.display_name })} />

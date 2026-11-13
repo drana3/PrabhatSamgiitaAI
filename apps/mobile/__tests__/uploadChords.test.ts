@@ -90,9 +90,9 @@ describe("the words of the section", () => {
     }
   })
 
-  it("say the truth about the page: both roles go on the author page, which does not tell them apart yet", () => {
-    expect(uploadExtrasEn["ux.role.page"]).toMatch(/author page lists every recording you upload/)
-    expect(uploadExtrasEn["ux.role.page"]).toMatch(/does not tell the two apart yet/)
+  it("say the truth about the page: the first tick puts a recording under Wrote, the rest under Performs, the second tick is not saved yet", () => {
+    expect(uploadExtrasEn["ux.role.page"]).toMatch(/first tick are under “Wrote”/)
+    expect(uploadExtrasEn["ux.role.page"]).toMatch(/second tick is not saved on the server yet/)
     expect(uploadExtrasEn["ux.role.performsHint"]).not.toMatch(/page/i)
   })
 })

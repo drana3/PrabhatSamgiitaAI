@@ -73,6 +73,9 @@ function SortSwitch({ theme, value, onChange }: { theme: SongsTheme; value: Dire
 /**
  * THE FILTER ROW: one line under the search, two small dropdown buttons (Kind, Language) and the sort switch. A chosen
  * value shows in its own button. Nothing else is filter chrome: the lists open in `FilterSheet`, a quiet "Clear" sits by the count.
+ *
+ * With the Role filter on offer (`combined`) three buttons and the sort switch do not fit in 390 px, so Kind and Role share
+ * one button, "Filters" (it reads "Filters · 2" while two are chosen), which opens `FiltersSheet`; Language keeps its own.
  */
 export function AuthorsFilterRow({
   theme,
@@ -83,6 +86,7 @@ export function AuthorsFilterRow({
   onKind,
   onLanguage,
   onSort,
+  combined,
 }: {
   theme: SongsTheme
   kindLabel?: string
@@ -93,11 +97,17 @@ export function AuthorsFilterRow({
   onKind: () => void
   onLanguage: () => void
   onSort: (sort: DirectorySort) => void
+  /** the Kind and Role filters share one button: how many of the two are chosen, and what the button opens */
+  combined?: { chosen: number; onPress: () => void }
 }) {
   const t = useT()
   return (
     <View style={styles.row}>
-      <FilterPill theme={theme} name={t("authors.dir.filter.kind")} value={kindLabel} full={kindFull} onPress={onKind} />
+      {combined ? (
+        <FilterPill theme={theme} name={t("authors.dir.filter.title")} value={combined.chosen ? t("authors.dir.filter.titleCount", { count: combined.chosen }) : undefined} full={combined.chosen ? t("authors.dir.filter.titleCount", { count: combined.chosen }) : undefined} onPress={combined.onPress} />
+      ) : (
+        <FilterPill theme={theme} name={t("authors.dir.filter.kind")} value={kindLabel} full={kindFull} onPress={onKind} />
+      )}
       <FilterPill theme={theme} name={t("authors.dir.filter.language")} value={languageLabel} onPress={onLanguage} />
       <View style={styles.spacer} />
       <SortSwitch theme={theme} value={sort} onChange={onSort} />
@@ -171,7 +181,49 @@ export function FilterSheet({
   )
 }
 
+/**
+ * The "Filters" sheet: Kind and Role, each a short list with "All" on top. A pick takes effect at once and the sheet stays
+ * open (there are two choices to make), so it closes with Done.
+ */
+export function FiltersSheet({
+  visible,
+  theme,
+  groups,
+  onClose,
+}: {
+  visible: boolean
+  theme: SongsTheme
+  groups: { key: string; title: string; options: FilterOption[]; value: string | undefined; onPick: (id: string | undefined) => void }[]
+  onClose: () => void
+}) {
+  const t = useT()
+  return (
+    <Sheet visible={visible} onClose={onClose} title={t("authors.dir.filter.title")} theme={theme}>
+      <View style={styles.sheetBody}>
+        {groups.map((g) => {
+          const rows: FilterOption[] = [{ id: "", label: t("authors.dir.filter.all") }, ...g.options]
+          return (
+            <View key={g.key} style={styles.group}>
+              <Text style={[styles.groupTitle, { color: theme.textMuted }]} accessibilityRole="header">
+                {g.title}
+              </Text>
+              <SheetGroup theme={theme}>
+                {rows.map((o, i) => {
+                  const on = (g.value ?? "") === o.id
+                  return <SheetRow key={o.id || "all"} theme={theme} title={o.label} accessibilityRole="radio" selected={on} last={i === rows.length - 1} trailing={<Radio theme={theme} on={on} />} onPress={() => g.onPick(o.id || undefined)} />
+                })}
+              </SheetGroup>
+            </View>
+          )
+        })}
+      </View>
+    </Sheet>
+  )
+}
+
 const styles = StyleSheet.create({
+  group: { gap: 8, paddingBottom: 16 },
+  groupTitle: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.8, textTransform: "uppercase", paddingLeft: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: SIDE },
   spacer: { flex: 1 },
   pillOuter: { flexShrink: 1 },

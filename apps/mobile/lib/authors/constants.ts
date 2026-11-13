@@ -26,6 +26,13 @@ export const CONTENT_RULES_HREF = "/content-rules"
  */
 export const SHOW_PAGE_LINK = false
 
+/**
+ * TEMPORARY (Dada, 2026-11-13): the directory's "Role" filter (writes / performs) is built on the phone and in the demo,
+ * but the server's directory has no `role` parameter yet, so against the real server the filter would do nothing. It stays
+ * hidden there until the server answers it; set to true then. The demo always shows it. See the report of the roles work.
+ */
+export const DIRECTORY_ROLE_FILTER_LIVE = false
+
 /** The public address of a page inside the app and on the web (the same path on both). */
 export function authorHref(slug: string): string {
   return `/author/${encodeURIComponent(slug)}`

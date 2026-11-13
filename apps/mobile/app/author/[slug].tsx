@@ -18,6 +18,7 @@ import { useScreenTop } from "@/hooks/useScreenTop"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
+import { activeRole, kindCountsOf, roleCounts, roleOf, visibleRoles, type PersonRole } from "@/lib/authors/roles"
 import { isSignedIn } from "@/lib/authors/session"
 import { AUTHORS_HREF, MY_AUTHOR_HREF, RECORDINGS_PAGE, authorHref } from "@/lib/authors/constants"
 import { formatDay, linkHost } from "@/lib/authors/format"
@@ -33,6 +34,8 @@ import { href } from "@/utils/href"
 
 const REASONS: ReportReason[] = ["impersonation", "offensive", "spam", "copyright", "wrong_info", "other"]
 const SAFE_LINK = /^https:\/\//i
+/** The most recordings of a page the phone loads at once; it needs them all to know which tabs ("Wrote", "Performs") are not empty. */
+const LOAD_CAP = 300
 
 /** Public author page: /author/<slug>. Recordings by kind, playlists from events, About; play all, share, report. */
 export default function AuthorPage() {
@@ -77,6 +80,8 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
   const api = authorsApi()
   const actions = useKirtanActions()
   const [kind, setKind] = useState<string | null>(null)
+  const [pickedRole, setPickedRole] = useState<PersonRole | null>(null)
+  const [attempt, setAttempt] = useState(0)
   const [items, setItems] = useState<RemoteRecording[]>([])
   const [total, setTotal] = useState(0)
   const [state, setState] = useState<"loading" | "ready" | "error" | "more">("loading")
@@ -102,22 +107,27 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
     </KPress>
   ) : null
 
-  const fetchPage = useCallback(
-    async (offset: number) => {
-      const page = await api.recordings(slug, { kind: kind ?? undefined, offset, limit: RECORDINGS_PAGE })
-      return page
-    },
-    [api, slug, kind],
-  )
+  const fetchPage = useCallback((offset: number) => api.recordings(slug, { offset, limit: RECORDINGS_PAGE }), [api, slug])
 
+  // All the page's recordings (up to LOAD_CAP) in one go: the tabs, the kind chips and Play all work on them, not on the server's filter.
   useEffect(() => {
     let live = true
     setState("loading")
-    fetchPage(0).then(
-      (page) => {
+    ;(async () => {
+      let all: RemoteRecording[] = []
+      let count = 0
+      do {
+        const page = await fetchPage(all.length)
+        all = [...all, ...page.items]
+        count = page.total
+        if (!page.items.length) break
+      } while (all.length < count && all.length < LOAD_CAP)
+      return { all, count }
+    })().then(
+      ({ all, count }) => {
         if (!live) return
-        setItems(page.items)
-        setTotal(page.total)
+        setItems(all)
+        setTotal(count)
         setState("ready")
       },
       () => live && setState("error"),
@@ -125,8 +135,9 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
     return () => {
       live = false
     }
-  }, [fetchPage])
+  }, [fetchPage, attempt])
 
+  // beyond LOAD_CAP: the next page; its recordings may open a tab that was empty so far
   const more = async () => {
     setState("more")
     try {
@@ -140,21 +151,23 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
     }
   }
 
-  /** Everything that matches the current filter (up to 300), for Play all and Shuffle. */
-  const everything = async (): Promise<RemoteRecording[]> => {
-    let all = items
-    while (all.length < total && all.length < 300) {
-      const page = await fetchPage(all.length)
-      if (!page.items.length) break
-      all = [...all, ...page.items]
-    }
-    return all
+  const counts = useMemo(() => roleCounts(items), [items])
+  const roles = useMemo(() => visibleRoles(counts).map((r) => ({ role: r, count: counts[r] })), [counts])
+  const role = activeRole(counts, pickedRole)
+  const inRole = useMemo(() => (role ? items.filter((r) => roleOf(r) === role) : items), [items, role])
+  const kinds = useMemo(() => kindCountsOf(inRole), [inRole])
+  const kindNow = kind && kinds.some((k) => k.kind === kind) ? kind : null
+  const shown = useMemo(() => (kindNow ? inRole.filter((r) => r.kind === kindNow) : inRole), [inRole, kindNow])
+  const complete = items.length >= total
+  const pickRole = (next: PersonRole) => {
+    setPickedRole(next)
+    setKind(null)
   }
+
   const playAll = async (shuffle: boolean) => {
     setBusy(true)
     try {
-      const all = await everything()
-      const message = playAuthor({ slug, name }, all, { shuffle })
+      const message = playAuthor({ slug, name }, shown, { shuffle })
       if (message) actions.flash(message)
     } catch {
       actions.flash(t("authors.error.generic"))
@@ -163,10 +176,10 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
     }
   }
 
-  const kirtans = useMemo(() => items.map((r) => fromRemote(r)), [items])
+  const kirtans = useMemo(() => shown.map((r) => fromRemote(r)), [shown])
 
   const openRecording = (r: Kirtan) => {
-    const message = playAuthor({ slug, name }, items, { startId: r.serverId ?? null })
+    const message = playAuthor({ slug, name }, shown, { startId: r.serverId ?? null })
     if (message) actions.flash(message)
   }
   const shared: ShowcaseProps = {
@@ -176,10 +189,17 @@ function Page({ profile, demo, top, bottom, onBack }: { profile: AuthorProfilePu
     top,
     onBack,
     kirtans,
-    total,
+    // what is still on the server: while some recordings are not loaded, the "more" button stays
+    total: complete ? shown.length : total,
     state,
-    kind,
+    kind: kindNow,
     setKind,
+    kinds,
+    count: complete || role || kindNow ? shown.length : total,
+    roles,
+    role,
+    setRole: pickRole,
+    onRetry: () => setAttempt((n) => n + 1),
     busy,
     onPlay: (shuffle) => void playAll(shuffle),
     onShare: () => setShareOpen(true),

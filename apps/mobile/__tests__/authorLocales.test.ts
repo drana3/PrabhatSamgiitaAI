@@ -71,6 +71,7 @@ function dynamicKeys(): string[] {
   for (const k of LINK_KINDS) keys.push(`authors.link.${k}`)
   for (const r of ["impersonation", "offensive", "spam", "copyright", "wrong_info", "other"]) keys.push(`authors.report.reason.${r}`)
   for (const s of ["listeners", "new", "name"]) keys.push(`authors.dir.sort.${s}`)
+  for (const r of ["writes", "performs"]) keys.push(`authors.dir.role.${r}`)
   for (const r of TEAM_REASONS) keys.push(reasonKey(r as TeamReason))
   for (const c of CLAIM_STATUSES) keys.push(`authors.claims.status.${c}`)
   for (const l of MATCH_LEVELS) keys.push(`authors.find.level.${l}`)
