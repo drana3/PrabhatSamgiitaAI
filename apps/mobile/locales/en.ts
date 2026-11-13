@@ -1350,7 +1350,7 @@ export const en = {
   ...chordInstrumentsEn,
   ...keyPickerEn,
   ...choiceFieldEn,
+  ...playlistsLibraryEn,
   ...kiirtanHubEn,
   ...onboardingEn,
 } as const
-  ...playlistsLibraryEn,

@@ -1344,7 +1344,7 @@ export const es: Dictionary = {
   ...chordInstrumentsEs,
   ...keyPickerEs,
   ...choiceFieldEs,
+  ...playlistsLibraryEs,
   ...kiirtanHubEs,
   ...onboardingEs,
 }
-  ...playlistsLibraryEs,

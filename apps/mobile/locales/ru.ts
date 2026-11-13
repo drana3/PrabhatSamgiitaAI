@@ -1430,7 +1430,7 @@ export const ru: Dictionary = {
   ...chordInstrumentsRu,
   ...keyPickerRu,
   ...choiceFieldRu,
+  ...playlistsLibraryRu,
   ...kiirtanHubRu,
   ...onboardingRu,
 }
-  ...playlistsLibraryRu,
