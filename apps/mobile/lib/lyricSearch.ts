@@ -38,6 +38,11 @@ function loadCatalogRows(): LyricSearchRow[] {
   return catalogRows
 }
 
+/** Every catalog row of the bundled index (all 5,018 songs: number, title, first line). Empty if the index is missing. */
+export function catalogLyricRows(): readonly LyricSearchRow[] {
+  return loadCatalogRows()
+}
+
 export function warmLyricSearchIndex() {
   prepareLyricSearch(loadCatalogRows())
 }
@@ -107,4 +112,52 @@ export function searchCatalogLyrics(
     return mergeLyricAndMeaningHits(pickLyrics(stripped), pickMeanings(stripped), limit)
   }
   return []
+}
+
+/**
+ * Word-gloss search on its own. `searchCatalogLyrics` skips meanings when a lyric
+ * line already matched a short query, and the core meaning search refuses a single
+ * short word, so "friend" would miss PS 1 (spec SCR-13: "Word match also searches
+ * the word glosses"). Used by the unified search.
+ */
+export function searchCatalogGlosses(query: string, limit = 5): LyricSearchHit[] {
+  const rows = loadCatalogRows()
+  if (!rows.length) return []
+  const normalized = normalizeLyricText(query)
+  const tokens = normalized.split(" ").filter(Boolean)
+  if (tokens.length !== 1) return searchMeanings(query, rows, limit).filter((hit) => hit.score >= 30)
+  return singleWordGlossHits(tokens[0], rows, limit)
+}
+
+const MIN_GLOSS_WORD = 4
+
+/** Rows whose English meaning uses the word (or a longer form of it), most uses first. */
+export function singleWordGlossHits(
+  word: string,
+  rows: LyricSearchRow[],
+  limit = 5,
+): LyricSearchHit[] {
+  if (word.length < MIN_GLOSS_WORD) return []
+  const needle = ` ${word}`
+  const scored: Array<{ row: LyricSearchRow; uses: number }> = []
+  for (const row of rows) {
+    if (!row.e) continue
+    const haystack = ` ${row.e}`
+    let uses = 0
+    let at = haystack.indexOf(needle)
+    while (at !== -1) {
+      uses += 1
+      at = haystack.indexOf(needle, at + needle.length)
+    }
+    if (uses) scored.push({ row, uses })
+  }
+  scored.sort((a, b) => b.uses - a.uses || a.row.n - b.row.n)
+  return scored.slice(0, Math.max(1, limit)).map(({ row, uses }) => ({
+    number: row.n,
+    title: row.t,
+    firstLine: row.o,
+    snippet: row.o || row.t,
+    score: 30 + Math.min(uses, 20),
+    matchedBy: "meaning" as const,
+  }))
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { memberPrincipalFor } from "@/lib/member-request"
-import { runtimeEnv } from "@/lib/runtime-env"
+import { runtimeEnv, proxyKeyHeaders } from "@/lib/runtime-env"
 
 function backendBase() {
   return runtimeEnv("API_BASE_URL")
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const proxyKey = runtimeEnv("MEMBER_PROXY_KEY")
   if (principal && proxyKey) {
     headers["X-MS-CLIENT-PRINCIPAL"] = principal
-    headers["X-Member-Proxy-Key"] = proxyKey
+    Object.assign(headers, proxyKeyHeaders(proxyKey))
   }
 
   const forwarded = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip")

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -77,6 +77,12 @@ class ChatMemoryResponse(BaseModel):
 
 class FavoriteWrite(BaseModel):
     song_number: int = Field(ge=1, le=5018)
+
+
+class FavoritesMerge(BaseModel):
+    """A guest's saved songs, sent once when the guest signs in (docs/guest-saves.md)."""
+
+    song_numbers: list[Annotated[int, Field(ge=1, le=5018)]] = Field(max_length=5018)
 
 
 class PlaylistSongItem(BaseModel):

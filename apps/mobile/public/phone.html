@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prabhat Samgiita redesign preview</title>
+<style>
+  :root { --bg: #e9e4de; --ink: #2b2623; --brand: #e8803a; --line: #cfc7bd; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink);
+    font: 15px/1.4 -apple-system, "Segoe UI", sans-serif; display: flex; gap: 40px;
+    align-items: center; justify-content: center; padding: 24px; flex-wrap: wrap; }
+  .phone { width: 414px; height: 868px; border-radius: 56px; background: #111; padding: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.35), inset 0 0 0 2px #333; position: relative; flex: none; }
+  .screen { width: 390px; height: 844px; border-radius: 44px; overflow: hidden; background: #fff; position: relative; }
+  /* Edge to edge: the app fills the whole 390x844 screen, behind the status bar and the island, as on a
+     real iPhone. The status bar and the home indicator are drawn ON TOP of it and never take space; the app
+     is told the safe-area insets (59 top, 34 bottom) through data-safe-* on the iframe (lib/framePreview.ts). */
+  iframe { position: absolute; inset: 0; width: 390px; height: 844px; border: 0; background: #fff; display: block; }
+  .status { position: absolute; z-index: 3; top: 0; left: 0; right: 0; height: 59px; pointer-events: none;
+    display: flex; align-items: flex-start; justify-content: space-between; padding: 21px 30px 0 44px;
+    font-size: 17px; line-height: 22px; font-weight: 600; color: #1d1a18; transition: color .2s; }
+  .status.light { color: #fff; }
+  .status .icons { display: flex; align-items: center; gap: 6px; padding-right: 2px; }
+  .status svg { display: block; fill: currentColor; }
+  .island { position: absolute; z-index: 4; top: 11px; left: 50%; width: 124px; height: 36px; margin-left: -62px;
+    background: #000; border-radius: 20px; pointer-events: none; }
+  .homebar { position: absolute; z-index: 3; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px;
+    border-radius: 3px; background: #1d1a18; opacity: .85; pointer-events: none; transition: background .2s; }
+  .homebar.light { background: #fff; }
+  .panel { width: 280px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 16px; color: #6b625b; }
+  .group { margin: 0 0 18px; }
+  .group b { display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+    color: #8a8076; margin-bottom: 8px; }
+  button { font: inherit; border: 1px solid var(--line); background: #fff; color: var(--ink);
+    border-radius: 999px; padding: 8px 14px; margin: 0 6px 8px 0; cursor: pointer; }
+  button:hover { border-color: var(--brand); }
+  button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .note { font-size: 13px; color: #6b625b; }
+</style>
+</head>
+<body>
+  <div class="phone" id="phone"><div class="screen"><iframe id="app" title="App" src="/v2/today" data-safe-top="59" data-safe-bottom="34"></iframe><div class="status" id="status"><span>9:41</span><span class="icons" aria-hidden="true"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2.5" width="3" height="9.5" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="18" height="8" rx="2.2"/><rect x="23" y="4" width="1.6" height="4" rx=".8" opacity=".45"/></svg></span></div><div class="island"></div><div class="homebar" id="homebar"></div></div></div>
+  <div class="panel">
+    <h1>Redesign preview</h1>
+    <p>Click inside the phone like on a real one. The buttons jump to a screen.</p>
+    <div class="group"><b>Tabs</b><span id="tabs"></span></div>
+    <div class="group"><b>Screens</b><span id="screens"></span></div>
+    <p class="note">Browser preview: sound, haptics and glass blur differ from a real phone.</p>
+  </div>
+<script>
+  const frame = document.getElementById("app")
+  const tabs = [["Today","/v2/today"],["Songs","/v2/songs"],["Player","/v2/player"],["Learn","/v2/learn"]]
+  const screens = [["Search","/search-v2?focus=1"],["Song PS 1","/song-v2/ps-1"],["Profile","/profile-sheet"],
+    ["Assistant","/assistant"],["Harmonium","/harmonium-v2"],["Storage","/storage"],["Mine","/saved-v2"],
+    ["Learn a song","/learn/song/ps-1"],["Word cards","/learn/words"],["Quiz","/learn/quiz"]]
+  function make(into, list) {
+    list.forEach(([label, path]) => {
+      const b = document.createElement("button")
+      b.textContent = label
+      b.onclick = () => { frame.src = path; document.querySelectorAll("button").forEach(x => x.classList.remove("on")); b.classList.add("on") }
+      document.getElementById(into).appendChild(b)
+    })
+  }
+  make("tabs", tabs); make("screens", screens)
+  // The app tells the frame whether its status bar should be light (over dark) or dark (over light).
+  window.addEventListener("message", (e) => {
+    if (!e.data || e.data.type !== "ps-status-bar") return
+    const light = e.data.style === "light"
+    document.getElementById("status").classList.toggle("light", light)
+    document.getElementById("homebar").classList.toggle("light", light)
+  })
+  function fit() { document.getElementById("phone").style.zoom = Math.min(1, (window.innerHeight - 40) / 892) }
+  fit(); window.addEventListener("resize", fit)
+</script>
+</body>
+</html>

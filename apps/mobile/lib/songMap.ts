@@ -29,6 +29,25 @@ export function songCardTitle(song: {
   return song.title?.trim() || `PS ${song.number}`
 }
 
+function comparableText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s.,;:!?"'()\-–—]+/g, " ")
+    .trim()
+}
+
+/** Subtitle to show under a title, or null when it only repeats the title (BUG-13). */
+export function distinctSubtitle(
+  title: string | null | undefined,
+  subtitle: string | null | undefined,
+): string | null {
+  const sub = subtitle?.trim() ?? ""
+  if (!sub) return null
+  if (comparableText(sub) === comparableText(title ?? "")) return null
+  return sub
+}
+
 /** Lightweight song shell for instant navigation from search rows. */
 export function songPlaceholder(
   number: number,
@@ -48,7 +67,7 @@ export function songPlaceholder(
     meaning: "",
     lyrics: "",
     translation: "",
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos: [],
     audioUrl: null,
@@ -304,7 +323,7 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
     meaning: summary.theme || "A song from the Prabhat Samgiita collection.",
     lyrics: summary.first_line || summary.title,
     translation: summary.first_line || summary.title,
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos: [],
     audioUrl: null,
@@ -314,6 +333,9 @@ export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong
 export function songDetailToMockSong(detail: SongDetail): MockSong {
   const hero = scenicHeroFor(detail.number)
   const thumb = scenicThumbFor(detail.number)
+  const playable = listPlayableAudio(detail.media)
+  const preferredUrl = pickPreferredAudioUrl(detail.media)
+  const preferred = playable.find((item) => item.url === preferredUrl)
   const embeds = mediaVideosToEmbeds(detail.media, thumb, detail.number)
   const videos: SongVideo[] = embeds.map((item) => ({
     id: item.id,
@@ -374,11 +396,14 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
     lyricsDevanagari,
     devanagariStatus: englishSong ? "none" : detail.devanagari_status || "none",
     translation: detail.english_meaning || detail.hindi_meaning || detail.first_line || detail.title,
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos,
-    audioUrl: pickPreferredAudioUrl(detail.media),
-    audioRecordings: listPlayableAudio(detail.media).slice(0, 5),
+    audioUrl: preferredUrl,
+    audioRecordings: playable.slice(0, 5),
+    ...(preferred && typeof preferred.loudnessLufs === "number"
+      ? { loudness: { lufs: preferred.loudnessLufs, truePeakDb: typeof preferred.truePeakDb === "number" ? preferred.truePeakDb : null } }
+      : {}),
     notationSourceUrl: detail.notation_source_url?.trim() || null,
     mediaHydrated: true,
   }

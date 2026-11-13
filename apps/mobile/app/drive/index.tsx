@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useFocusEffect } from "expo-router"
 import {
   ActivityIndicator,
@@ -19,21 +19,31 @@ import { useExitDriveOnBlur } from "@/hooks/useExitDriveOnBlur"
 import { DriveNowPlaying } from "@/components/drive/DriveNowPlaying"
 import { DrivePlaylistAccordion } from "@/components/drive/DrivePlaylistAccordion"
 import { DriveReorderableQueue } from "@/components/drive/DriveReorderableQueue"
+import { RadioCategoryStrip } from "@/components/radio/RadioCategoryStrip"
+import { useRadioPools } from "@/hooks/useRadioPools"
 import { PlaylistSyncBar } from "@/components/playlists/PlaylistSyncBar"
-import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { amColors, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
+import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
+import { useT } from "@/lib/i18n"
 import { playlistPlaybackSubtitle } from "@/lib/playlistPlayback"
-import { playPlaylist, starterSongForNumber } from "@/lib/playPlaylist"
+import { playPlaylist } from "@/lib/playPlaylist"
+import { trackForNumber } from "@/lib/kirtan/mixPlayback"
 import { shouldAutoStartRandomOnDriveFocus } from "@/lib/driveAutoStart"
 import { randomPlayableSongNumber } from "@/lib/playableAudio"
 import { canStepPlaylist } from "@/lib/playbackQueue"
+import { startRadioMix } from "@/lib/radio/live"
 import { usePlaylistStore } from "@/stores/playlistStore"
 import { usePlayerStore } from "@/stores/playerStore"
 import { useAuthStore } from "@/stores/authStore"
 
 export default function DriveScreen() {
+  const t = useT()
+  const theme = useAmTheme()
+  const dark = useResolvedAppearance() === "dark"
+  const styles = useMemo(() => makeStyles(theme), [theme])
   useExitDriveOnBlur()
   const mode = useAuthStore((s) => s.mode)
   const playlists = usePlaylistStore((s) => s.playlists)
@@ -63,6 +73,7 @@ export default function DriveScreen() {
     current?.number ?? null,
     activePlaylist,
   )
+  const radioChosen = useRadioPools().chosen // the first card names what the Radio plays: songs only, or a mix of categories
   const [showPlaylists, setShowPlaylists] = useState(false)
   const [startingRandom, setStartingRandom] = useState(false)
   const drivePlaylistChosenRef = useRef(false)
@@ -101,8 +112,10 @@ export default function DriveScreen() {
         usePlayerStore.getState().next()
         return
       }
+      startRadioMix() // a fresh radio: a new seed, and the chosen categories from the first track
       const number = randomPlayableSongNumber(latest.currentSong?.number ?? 0)
-      const song = starterSongForNumber(number)
+      // trackForNumber: a catalogue song, or a recording when the chosen categories include recordings
+      const song = trackForNumber(number)
       loadSong(song, [number], "random")
     } finally {
       setStartingRandom(false)
@@ -175,14 +188,14 @@ export default function DriveScreen() {
         if (!usePlayerStore.getState().driveScreenFocused) return
         enterDrivePlayback()
         const error = await playPlaylist(playlist, startAt)
-        if (error) Alert.alert("Drive Mode", error)
+        if (error) Alert.alert(t("radio.title"), error)
       })()
     },
-    [enterDrivePlayback],
+    [enterDrivePlayback, t],
   )
 
   return (
-    <ScreenContainer edges={["top"]} title="Drive Mode" subtitle="Random play by default · pick a playlist to switch">
+    <ScreenContainer themed edges={["top"]} title={t("radio.title")} subtitle={t("radio.subtitle")}>
       <PlaylistSyncBar />
       <NestableScrollContainer
         style={styles.scroll}
@@ -192,7 +205,7 @@ export default function DriveScreen() {
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Play random Prabhat Samgiita"
+          accessibilityLabel={t("radio.random.a11y")}
           disabled={startingRandom}
           onPress={() => void startRandom(true)}
           style={({ pressed }) => [
@@ -202,28 +215,30 @@ export default function DriveScreen() {
           ]}
         >
           <LinearGradient
-            colors={[colors.primaryLight, colors.surface]}
+            colors={[dark ? amDarkSurface.peach : amColors.orange100, theme.card]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
           <View style={styles.modeIcon}>
-            <Shuffle size={22} color={colors.primaryDark} />
+            <Shuffle size={22} color={theme.accentText} />
           </View>
-          <Text style={styles.modeTitle}>Random Prabhat Samgiita</Text>
+          <Text style={styles.modeTitle}>{radioChosen.length === 1 && radioChosen[0] === "prabhat_samgiita" ? t("radio.random.title") : t("radio.mix.title")}</Text>
           <Text style={styles.modeBody}>
             {playbackMode === "random" && driveAutoAdvance
-              ? "Now playing · tap for another random song"
-              : "Starts automatically when you open Drive"}
+              ? t("radio.random.playing")
+              : t("radio.random.idle")}
           </Text>
           {startingRandom ? (
-            <ActivityIndicator style={styles.modeSpinner} color={colors.primary} />
+            <ActivityIndicator style={styles.modeSpinner} color={theme.accentBright} />
           ) : null}
         </Pressable>
 
+        <RadioCategoryStrip />
+
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Play a playlist"
+          accessibilityLabel={t("radio.list.a11y")}
           onPress={() => setShowPlaylists((value) => !value)}
           style={({ pressed }) => [
             styles.modeCard,
@@ -232,11 +247,11 @@ export default function DriveScreen() {
           ]}
         >
           <View style={styles.modeIcon}>
-            <ListMusic size={22} color={colors.primaryDark} />
+            <ListMusic size={22} color={theme.accentText} />
           </View>
-          <Text style={styles.modeTitle}>Your playlist</Text>
+          <Text style={styles.modeTitle}>{t("radio.list.title")}</Text>
           <Text style={styles.modeBody}>
-            {showPlaylists ? "Tap a playlist to expand · ▶ to play" : "Tap to show your playlists"}
+            {showPlaylists ? t("radio.list.open") : t("radio.list.closed")}
           </Text>
         </Pressable>
 
@@ -244,11 +259,11 @@ export default function DriveScreen() {
           mode === "signed_in" ? (
             <DrivePlaylistAccordion playlists={playlists} onPlayPlaylist={playDrivePlaylist} />
           ) : (
-            <Text style={styles.modeBody}>Playlist playback requires you to sign in.</Text>
+            <Text style={styles.modeBody}>{t("radio.list.signIn")}</Text>
           )
         ) : null}
         {showPlaylists && mode === "signed_in" && !playlists.length ? (
-          <Text style={styles.modeBody}>Create a playlist from the Saved tab first.</Text>
+          <Text style={styles.modeBody}>{t("radio.list.none")}</Text>
         ) : null}
 
         {driving && current ? (
@@ -274,8 +289,8 @@ export default function DriveScreen() {
           </>
         ) : (
           <View style={styles.hint}>
-            <Car size={18} color={colors.textMuted} />
-            <Text style={styles.hintText}>Starting random play…</Text>
+            <Car size={18} color={theme.textMuted} />
+            <Text style={styles.hintText}>{t("radio.starting")}</Text>
           </View>
         )}
       </NestableScrollContainer>
@@ -283,35 +298,35 @@ export default function DriveScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AmTheme) => StyleSheet.create({
   scroll: { flex: 1 },
   content: { gap: spacing.md, paddingBottom: 160 },
   modeCard: {
     minHeight: 120,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.line,
     padding: spacing.lg,
     overflow: "hidden",
-    backgroundColor: colors.surface,
+    backgroundColor: theme.card,
     ...(Platform.OS === "android" ? { elevation: 0 } : softShadow(1)),
   },
   pressed: { opacity: 0.94 },
   modeCardActive: {
-    borderColor: colors.primary,
+    borderColor: theme.controlOn,
     borderWidth: 2,
   },
   modeIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: theme.card,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.sm,
   },
-  modeTitle: { fontFamily: "Lora_700Bold", fontSize: 22, lineHeight: 28, color: colors.textPrimary },
-  modeBody: { ...typography.bodySmall, color: colors.textSecondary, marginTop: spacing.xs },
+  modeTitle: { fontFamily: "Lora_700Bold", fontSize: 22, lineHeight: 28, color: theme.textHeading },
+  modeBody: { ...typography.bodySmall, color: theme.textBody, marginTop: spacing.xs },
   modeSpinner: { marginTop: spacing.sm, alignSelf: "flex-start" },
   hint: {
     flexDirection: "row",
@@ -320,7 +335,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: theme.inner,
   },
-  hintText: { ...typography.bodySmall, color: colors.textSecondary, flex: 1 },
+  hintText: { ...typography.bodySmall, color: theme.textBody, flex: 1 },
 })

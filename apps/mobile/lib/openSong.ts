@@ -8,11 +8,11 @@ type SongRouter = {
   push: (value: ReturnType<typeof href>) => void
 }
 
-/** Canonical `/song/ps-N` path. */
+/** Canonical `/song-v2/ps-N` path (the redesigned song page). */
 export function songPath(songId: string | number, extraQuery?: string) {
   const raw = String(songId).trim()
   const id = raw.toLowerCase().startsWith("ps-") ? raw : `ps-${raw}`
-  const base = `/song/${id}`
+  const base = `/song-v2/${id}`
   return extraQuery ? `${base}?${extraQuery}` : base
 }
 

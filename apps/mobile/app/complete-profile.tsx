@@ -1,158 +1,204 @@
-import { useRef, useState } from "react"
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native"
-import { useRouter } from "expo-router"
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
-import { PhoneInput, phoneInputValid } from "@/components/common/PhoneInput"
-import { PrimaryButton } from "@/components/common/PrimaryButton"
-import { colors } from "@/constants/colors"
-import { radius, spacing } from "@/constants/spacing"
-import { typography } from "@/constants/typography"
+import { DEFAULT_PHONE_COUNTRY, formatPhonePayload } from "@prabhat/core"
+import { useMemo, useRef, useState } from "react"
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
+import { AccountBar, AccountButton, AccountField, ACCOUNT_SIDE, InlineError, topInset } from "@/components/account/AccountUi"
+import { PhoneField, phoneError } from "@/components/account/PhoneField"
+import { RevealClock, SongsReveal, useRevealClock } from "@/components/songs-v2/SongsReveal"
+import { NAME_MAX, normalizeName, validateName } from "@/lib/profile/validate"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { useSongsTheme } from "@/hooks/useSongsTheme"
+import { authErrorMessage } from "@/lib/auth/signInFlow"
 import { apiBaseUrl } from "@/lib/client"
 import { buildMemberAuthHeaders, memberAuthAvailable } from "@/lib/memberAuth"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
+import { localProfileSink } from "@/lib/profile/localSink"
+import { saveProfile } from "@/lib/profile/saveProfile"
 import { refreshMemberSession } from "@/lib/session"
-import { DEFAULT_PHONE_COUNTRY, formatPhonePayload } from "@prabhat/core"
 import { useAuthStore } from "@/stores/authStore"
+import { t as tPlain, useT } from "@/lib/i18n"
+import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
+/**
+ * One-time page after sign-in for what the provider did not give: the name (Apple only sends it the
+ * first time) and/or the mobile number the member account needs. `?name=1` and `?phone=1` say which;
+ * with neither it asks for the number, as it always did. A missing name can be skipped, the number can
+ * not. Preview only: with EXPO_PUBLIC_MOCKUP_DATA=1 nothing is sent anywhere.
+ */
 export default function CompleteProfileScreen() {
+  const t = useT()
   const router = useRouter()
+  const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
-  const scrollRef = useRef<ScrollView>(null)
-  const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const inset = topInset(insets.top)
+  const openedAt = useRevealClock()
+  const params = useLocalSearchParams<{ name?: string; phone?: string; state?: string }>()
+  const needsName = params.name === "1"
+  const needsPhone = params.phone === "1" || !needsName
+  const preview = MOCKUP_DATA ? params.state : undefined
 
-  const scrollFieldIntoView = () => {
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true })
-    })
-  }
+  const [name, setName] = useState("")
+  const [countryCode, setCountryCode] = useState(DEFAULT_PHONE_COUNTRY.code)
+  const [phone, setPhone] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [touched, setTouched] = useState(preview === "error")
+  const [error, setError] = useState<string | null>(
+    preview === "error" ? t("account.error.network") : null,
+  )
+  const phoneRef = useRef<TextInput>(null)
+
+  const nameCheck = useMemo(() => validateName(name), [name])
+  const nameError = needsName && touched && !nameCheck.ok ? nameCheck.error : null
+  const phoneProblem = needsPhone && touched ? phoneError(countryCode, phone) : null
+
+  const leave = () => router.replace(href(NAV_V2_HOME_ROUTE))
 
   const submit = async () => {
-    if (!phoneInputValid(countryCode, phoneNumber)) {
-      setError("Enter a valid mobile number with country code.")
-      return
-    }
-    if (!memberAuthAvailable()) {
-      setError("Member API is not configured on this build.")
-      return
-    }
+    setTouched(true)
+    if (needsName && !nameCheck.ok) return
+    if (needsPhone && phoneError(countryCode, phone)) return
     setBusy(true)
     setError(null)
     try {
-      const { email, displayName, memberId, identityProvider } = useAuthStore.getState()
-      if (!email) throw new Error("Sign in again to continue.")
-      const response = await fetch(`${apiBaseUrl}/api/v1/members/phone`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...buildMemberAuthHeaders(email, displayName, memberId, identityProvider || "aad"),
-        },
-        body: JSON.stringify(formatPhonePayload(countryCode, phoneNumber)),
-      })
-      const body = await response.json().catch(() => null)
-      if (!response.ok) {
-        throw new Error(
-          body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
-            ? body.detail
-            : "Could not save your mobile number.",
-        )
+      if (MOCKUP_DATA) {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        leave()
+        return
       }
-      await refreshMemberSession()
-      router.replace("/(tabs)")
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Could not save phone.")
+      if (needsName) {
+        const saved = await saveProfile({ name }, localProfileSink)
+        if (!saved.ok) throw new Error(saved.error)
+        await rememberAppleName(normalizeName(name))
+      }
+      if (needsPhone) await savePhone(countryCode, phone)
+      leave()
+    } catch (failure) {
+      setError(authErrorMessage(failure) ?? t("account.error.saveFailed"))
     } finally {
       setBusy(false)
     }
   }
 
+  const title = needsName && needsPhone ? t("account.complete.title.both") : needsName ? t("account.complete.title.name") : t("account.complete.title.phone")
+  const lead =
+    needsName && needsPhone
+      ? t("account.complete.lead.both")
+      : needsName
+        ? t("account.complete.lead.name")
+        : t("account.complete.lead.phone")
+
   return (
-    <SafeAreaView style={styles.root}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
-      >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={[styles.scroll, { paddingBottom: spacing.xxl * 4 }]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.card}>
-            <Text style={styles.title}>Add your mobile number</Text>
-            <Text style={styles.body}>
-              Every member account needs a mobile number. Pick your country code and enter the number
-              without spaces.
-            </Text>
-            <PhoneInput
-              countryCode={countryCode}
-              nationalNumber={phoneNumber}
-              onCountryCodeChange={setCountryCode}
-              onNationalNumberChange={setPhoneNumber}
-              onFocus={scrollFieldIntoView}
-              disabled={busy}
-            />
-            {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.error}>{error}</Text>
-              </View>
+    <RevealClock.Provider value={openedAt}>
+      <View style={[styles.root, { backgroundColor: theme.page }]}>
+        <AccountBar theme={theme} title={title} onBack={() => (router.canGoBack() ? router.back() : leave())} inset={inset} />
+        <KeyboardAvoidingView style={styles.flex} behavior={keyboardBehavior(Platform.OS)}>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets
+            showsVerticalScrollIndicator={false}
+          >
+            <SongsReveal index={1}>
+              <Text style={[styles.lead, { color: theme.textBody }]}>{lead}</Text>
+            </SongsReveal>
+
+            <SongsReveal index={2} style={styles.form}>
+              {needsName ? (
+                <AccountField
+                  theme={theme}
+                  label={t("common.name")}
+                  value={name}
+                  onChangeText={setName}
+                  onBlur={() => setTouched(true)}
+                  error={nameError}
+                  hint={t("account.edit.nameHint")}
+                  autoFocus
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  autoCorrect={false}
+                  returnKeyType={needsPhone ? "next" : "done"}
+                  maxLength={NAME_MAX + 20}
+                  editable={!busy}
+                  onSubmitEditing={() => (needsPhone ? phoneRef.current?.focus() : void submit())}
+                />
+              ) : null}
+              {needsPhone ? (
+                <PhoneField
+                  theme={theme}
+                  countryCode={countryCode}
+                  nationalNumber={phone}
+                  onCountryCodeChange={setCountryCode}
+                  onNationalNumberChange={setPhone}
+                  error={phoneProblem}
+                  disabled={busy}
+                />
+              ) : null}
+              {error ? (
+                <InlineError theme={theme} onRetry={() => void submit()}>
+                  {error}
+                </InlineError>
+              ) : null}
+            </SongsReveal>
+          </ScrollView>
+
+          <View style={[styles.footer, { backgroundColor: theme.page, borderTopColor: theme.line, paddingBottom: Platform.OS === "web" ? 20 : Math.max(insets.bottom, 12) + 8 }]}>
+            <AccountButton theme={theme} label={t("common.continue")} onPress={() => void submit()} loading={busy} />
+            {needsName && !needsPhone ? (
+              <AccountButton theme={theme} tone="quiet" label={t("account.complete.skip")} onPress={leave} disabled={busy} />
             ) : null}
-            <PrimaryButton
-              label="Continue"
-              onPress={() => void submit()}
-              disabled={busy || !phoneInputValid(countryCode, phoneNumber)}
-              loading={busy}
-            />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </View>
+    </RevealClock.Provider>
   )
 }
 
+/** Apple sends the name once: keep the one the person typed for the next sign-in. */
+async function rememberAppleName(name: string) {
+  const { identityProvider, memberId } = useAuthStore.getState()
+  if (identityProvider !== "apple" || !memberId) return
+  try {
+    const { rememberAppleDisplayName } = await import("@/lib/appleAuth")
+    await rememberAppleDisplayName(memberId, name)
+  } catch {
+    // Best-effort: the name is already saved on this phone.
+  }
+}
+
+async function savePhone(countryCode: string, nationalNumber: string) {
+  if (!memberAuthAvailable()) throw new Error(tPlain("account.error.apiMissing"))
+  const { email, displayName, memberId, identityProvider } = useAuthStore.getState()
+  if (!email) throw new Error(tPlain("account.error.signInAgain"))
+  const response = await fetch(`${apiBaseUrl}/api/v1/members/phone`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...buildMemberAuthHeaders(email, displayName, memberId, identityProvider || "aad"),
+    },
+    body: JSON.stringify(formatPhonePayload(countryCode, nationalNumber)),
+  })
+  const body = await response.json().catch(() => null)
+  if (!response.ok) {
+    throw new Error(
+      body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
+        ? body.detail
+        : tPlain("account.complete.phoneFailed"),
+    )
+  }
+  await refreshMemberSession()
+}
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  root: { flex: 1 },
   flex: { flex: 1 },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xxl,
-    padding: spacing.xxl,
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  title: {
-    fontFamily: "Lora_700Bold",
-    fontSize: 28,
-    color: colors.textPrimary,
-    textAlign: "center",
-  },
-  body: { ...typography.bodySmall, color: colors.textSecondary, textAlign: "center" },
-  errorBox: {
-    backgroundColor: "#FDEEEE",
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  error: { ...typography.caption, color: colors.error, textAlign: "center" },
+  content: { paddingHorizontal: ACCOUNT_SIDE, paddingTop: 8, paddingBottom: 32, gap: 24 },
+  lead: { fontFamily: amFonts.medium, fontSize: 17, lineHeight: 25 },
+  form: { gap: 20 },
+  footer: { paddingHorizontal: ACCOUNT_SIDE, paddingTop: 12, gap: 4, borderTopWidth: StyleSheet.hairlineWidth },
 })

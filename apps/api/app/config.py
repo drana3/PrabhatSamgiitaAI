@@ -1,6 +1,7 @@
+from datetime import UTC, date, datetime
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -91,6 +92,173 @@ class Settings(BaseSettings):
         default="./data/generated/google_translate_quota.json",
         alias="GOOGLE_TRANSLATE_QUOTA_PATH",
     )
+
+    # Kiirtan / Bhajan recordings (docs/kiirtan-publishing.md). No real credentials here.
+    recording_storage_backend: str = Field(default="local", alias="RECORDING_STORAGE_BACKEND")
+    recording_local_dir: str = Field(
+        default="./data/generated/recordings", alias="RECORDING_LOCAL_DIR"
+    )
+    recording_max_bytes: int = Field(default=60 * 1024 * 1024, alias="RECORDING_MAX_BYTES", ge=1024)
+    # The longest recording we accept (docs/upload-validation.md). A file that declares or measures
+    # more is refused before ffmpeg is started on it.
+    recording_max_duration_seconds: int = Field(
+        default=4 * 3600, alias="RECORDING_MAX_DURATION_SECONDS", ge=60, le=24 * 3600
+    )
+    recording_signing_secret: str | None = Field(default=None, alias="RECORDING_SIGNING_SECRET")
+    recording_upload_ttl_seconds: int = Field(
+        default=900, alias="RECORDING_UPLOAD_TTL_SECONDS", ge=60, le=86_400
+    )
+    recording_terms_version: str = Field(default="2026-11", alias="RECORDING_TERMS_VERSION")
+    recording_flag_threshold: int = Field(default=3, alias="RECORDING_FLAG_THRESHOLD", ge=1)
+    recording_fpcalc_path: str = Field(default="fpcalc", alias="RECORDING_FPCALC_PATH")
+    # ffmpeg measures the loudness of a new recording (docs/loudness-leveling.md); optional.
+    recording_ffmpeg_path: str = Field(default="ffmpeg", alias="RECORDING_FFMPEG_PATH")
+    # Virus scan of an uploaded recording (docs/upload-validation.md): off | auto | required.
+    # auto = scan when ClamAV is reachable, else carry on and log it; required = no scan, no upload.
+    recording_virus_scan: str = Field(default="auto", alias="RECORDING_VIRUS_SCAN")
+    recording_clamscan_path: str = Field(default="clamscan", alias="RECORDING_CLAMSCAN_PATH")
+    clamd_host: str | None = Field(default=None, alias="CLAMD_HOST")
+    clamd_port: int = Field(default=3310, alias="CLAMD_PORT", ge=1, le=65535)
+    recording_virus_scan_timeout_seconds: float = Field(
+        default=60.0, alias="RECORDING_VIRUS_SCAN_TIMEOUT_SECONDS", ge=2.0, le=600.0
+    )
+    recording_loudness_timeout_seconds: float = Field(
+        default=120.0, alias="RECORDING_LOUDNESS_TIMEOUT_SECONDS", ge=5.0, le=900.0
+    )
+    # How many recordings one member may add in 24 hours (docs/kiirtan-publishing.md, "Duplicates").
+    recording_uploads_per_day: int = Field(default=20, alias="RECORDING_UPLOADS_PER_DAY", ge=1)
+    # Playlists from an event (docs/kiirtan-sets.md, "Limits"). A team member is not held to the
+    # per-day numbers; the per-set cap for the team is only a sanity bound.
+    recording_set_max_tracks: int = Field(default=60, alias="RECORDING_SET_MAX_TRACKS", ge=1)
+    recording_set_max_tracks_team: int = Field(
+        default=200, alias="RECORDING_SET_MAX_TRACKS_TEAM", ge=1
+    )
+    recording_set_tracks_per_day: int = Field(
+        default=60, alias="RECORDING_SET_TRACKS_PER_DAY", ge=1
+    )
+    recording_sets_per_day: int = Field(default=3, alias="RECORDING_SETS_PER_DAY", ge=1)
+    recording_set_empty_drafts: int = Field(default=5, alias="RECORDING_SET_EMPTY_DRAFTS", ge=1)
+    # S3-compatible storage (Cloudflare R2). All empty until Dada creates the bucket.
+    recording_s3_endpoint: str | None = Field(default=None, alias="RECORDING_S3_ENDPOINT")
+    recording_s3_bucket: str | None = Field(default=None, alias="RECORDING_S3_BUCKET")
+    recording_s3_region: str = Field(default="auto", alias="RECORDING_S3_REGION")
+    recording_s3_access_key_id: str | None = Field(default=None, alias="RECORDING_S3_ACCESS_KEY_ID")
+    recording_s3_secret_access_key: str | None = Field(
+        default=None, alias="RECORDING_S3_SECRET_ACCESS_KEY"
+    )
+    recording_public_base_url: str | None = Field(default=None, alias="RECORDING_PUBLIC_BASE_URL")
+    # The colleagues' PS recordings (docs/ps-audio.md): files in a PRIVATE bucket, played through a
+    # short-lived signed link from `GET /api/v1/ps-audio/{file}`. The endpoint and keys fall back to
+    # the RECORDING_S3_* ones (one Cloudflare account), so only the bucket name is needed when the
+    # same token can read that bucket.
+    ps_audio_s3_bucket: str = Field(default="am-site-books-private", alias="PS_AUDIO_S3_BUCKET")
+    ps_audio_s3_endpoint: str | None = Field(default=None, alias="PS_AUDIO_S3_ENDPOINT")
+    ps_audio_s3_access_key_id: str | None = Field(default=None, alias="PS_AUDIO_S3_ACCESS_KEY_ID")
+    ps_audio_s3_secret_access_key: str | None = Field(
+        default=None, alias="PS_AUDIO_S3_SECRET_ACCESS_KEY"
+    )
+    ps_audio_link_seconds: int = Field(default=3600, alias="PS_AUDIO_LINK_SECONDS", ge=60, le=86400)
+    # Account for Apple / Google store reviewers (docs/store-review-account.md). OFF by default.
+    # While enabled, one ordinary member (never admin) with this e-mail and password is kept.
+    store_reviewer_enabled: bool = Field(default=False, alias="STORE_REVIEWER_ENABLED")
+    store_reviewer_email: str | None = Field(default=None, alias="STORE_REVIEWER_EMAIL")
+    store_reviewer_password: str | None = Field(default=None, alias="STORE_REVIEWER_PASSWORD")
+    # Crash reports (docs/observability.md). Off while SENTRY_DSN is empty.
+    sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+    sentry_environment: str | None = Field(default=None, alias="SENTRY_ENVIRONMENT")
+    sentry_release: str | None = Field(default=None, alias="SENTRY_RELEASE")
+    sentry_traces_sample_rate: float = Field(
+        default=0.0, alias="SENTRY_TRACES_SAMPLE_RATE", ge=0.0, le=1.0
+    )
+
+    # --- Member sign-in tokens (docs/security-member-auth.md). Values: environment. ---
+    # Signs the short-lived access tokens. At least 32 random characters; empty = new sign-in off.
+    member_session_secret: str | None = Field(default=None, alias="MEMBER_SESSION_SECRET")
+    # The previous secret, accepted for checking only while rotating (access tokens live one hour).
+    member_session_secret_previous: str | None = Field(
+        default=None, alias="MEMBER_SESSION_SECRET_PREVIOUS"
+    )
+    member_access_ttl_seconds: int = Field(
+        default=3600, alias="MEMBER_ACCESS_TTL_SECONDS", ge=60, le=86_400
+    )
+    member_refresh_ttl_days: int = Field(default=30, alias="MEMBER_REFRESH_TTL_DAYS", ge=1, le=365)
+    # A key only the website server holds (never inside an app). With it set, the website is trusted
+    # for admin; the old shared key (MEMBER_PROXY_KEY, public inside every app) is not.
+    web_proxy_key: str | None = Field(default=None, alias="WEB_PROXY_KEY")
+    # Old apps: shared key + self-made principal. true = still accepted as a plain member.
+    allow_legacy_member_principal: bool = Field(default=True, alias="ALLOW_LEGACY_MEMBER_PRINCIPAL")
+    # Where rights holders write about a recording (the takedown letters, docs/takedown-process.md).
+    copyright_contact_email: str = Field(
+        default="info@anandamarga.org", alias="COPYRIGHT_CONTACT_EMAIL"
+    )
+    # Last day (UTC, YYYY-MM-DD) the old shared key still works for members. The day after, old app
+    # versions are refused with "please update". Empty = no end date (docs/decisions-security.md).
+    legacy_principal_until: date | None = Field(default=None, alias="LEGACY_PRINCIPAL_UNTIL")
+
+    @field_validator("legacy_principal_until", mode="before")
+    @classmethod
+    def _empty_date_is_no_date(cls, value: object) -> object:
+        """`LEGACY_PRINCIPAL_UNTIL=` (empty, as in .env.example) means no end date, not an error."""
+        return None if isinstance(value, str) and not value.strip() else value
+
+    # Emergency switch: true = the shared key may again act as admin/team. Keep false.
+    legacy_principal_admin: bool = Field(default=False, alias="LEGACY_PRINCIPAL_ADMIN")
+    # Who may sign a token the server accepts (comma lists; the ids are public, not secrets).
+    google_oauth_client_ids: str = Field(default="", alias="GOOGLE_OAUTH_CLIENT_IDS")
+    apple_bundle_ids: str = Field(default="net.prabhatasamgiita.ai", alias="APPLE_BUNDLE_IDS")
+    azure_client_ids: str = Field(default="", alias="AZURE_CLIENT_IDS")
+    # Sign in with Apple, token revocation when an Apple member deletes the account (App Store
+    # rule 5.1.1(v), docs/apple-token-revocation.md). The key (.p8 file contents, "\n" escapes
+    # allowed) comes ONLY from the environment and is never logged. Without all three, deletion
+    # works and the revocation is skipped with a log line. APPLE_BUNDLE_IDS (first entry) is the
+    # client_id.
+    apple_team_id: str = Field(default="", alias="APPLE_TEAM_ID")
+    apple_key_id: str = Field(default="", alias="APPLE_KEY_ID")
+    apple_private_key: str | None = Field(default=None, alias="APPLE_PRIVATE_KEY", repr=False)
+    # Sign-up age confirmation (minimum age 16, docs/age-confirmation.md). False = a client that
+    # does not send `age_confirmed` at all (an old app build) is still accepted; an explicit false
+    # is always refused. Set true once the old builds are gone to refuse the missing field too.
+    require_age_confirmation: bool = Field(default=False, alias="REQUIRE_AGE_CONFIRMATION")
+    # Microsoft tenants whose e-mail addresses we trust as verified (comma list of tenant ids).
+    member_trusted_ms_tenants: str = Field(default="", alias="MEMBER_TRUSTED_MS_TENANTS")
+    # Recording links are signed with RECORDING_SIGNING_SECRET, or with the member secret. The old
+    # fallback to the shared app key is off in production unless this is true.
+    recording_signing_allow_proxy_key: bool = Field(
+        default=False, alias="RECORDING_SIGNING_ALLOW_PROXY_KEY"
+    )
+
+    # --- YouTube Data API (docs/broadcasts.md): "is this broadcast live right now" ---
+    # The key comes ONLY from the environment. Without it (or with the flag off) a broadcast is
+    # "on" by the organizer's clock, as before. Never logged, never sent to a client.
+    youtube_api_key: str | None = Field(default=None, alias="YOUTUBE_API_KEY", repr=False)
+    youtube_status_enabled: bool = Field(default=True, alias="YOUTUBE_STATUS_ENABLED")
+    # One answer is reused this long, for every viewer.
+    youtube_status_ttl_seconds: int = Field(
+        default=60, alias="YOUTUBE_STATUS_TTL_SECONDS", ge=10, le=3600
+    )
+    # Calls to the API per UTC day in one server process (a videos.list call costs 1 unit of the
+    # 10,000 a day that are free; a list of up to 50 videos is ONE call).
+    youtube_daily_request_limit: int = Field(
+        default=3000, alias="YOUTUBE_DAILY_REQUEST_LIMIT", ge=1, le=10000
+    )
+
+    # --- Request limiter (docs/rate-limits.md) ---
+    rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    # "database" (default, shared by all instances, survives restarts) or "memory" (one process)
+    rate_limit_backend: str = Field(default="database", alias="RATE_LIMIT_BACKEND")
+    rate_limit_pepper: str | None = Field(default=None, alias="RATE_LIMIT_PEPPER")
+    # How many reverse proxies sit in front of the API (Azure Container Apps ingress = 1).
+    rate_limit_trusted_proxy_hops: int = Field(
+        default=1, alias="RATE_LIMIT_TRUSTED_PROXY_HOPS", ge=0, le=5
+    )
+
+    def legacy_principal_allowed(self, today: date | None = None) -> bool:
+        """May the old shared app key still act as a plain member right now?"""
+        if not self.allow_legacy_member_principal:
+            return False
+        if self.legacy_principal_until is None:
+            return True
+        return (today or datetime.now(UTC).date()) <= self.legacy_principal_until
 
 
 @lru_cache(maxsize=1)

@@ -3,9 +3,10 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
 import type { MemberPlaylist } from "@prabhat/core"
 import { ChevronDown, ChevronRight, Play } from "lucide-react-native"
 
-import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import type { AmTheme } from "@/constants/tokens/amColors"
+import { useAmTheme } from "@/hooks/useAmTheme"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { playlistSongNumbers } from "@/lib/playPlaylist"
 import { usePlayerStore } from "@/stores/playerStore"
@@ -16,6 +17,8 @@ type Props = {
 }
 
 export function DrivePlaylistAccordion({ playlists, onPlayPlaylist }: Props) {
+  const theme = useAmTheme()
+  const styles = useMemo(() => makeStyles(theme), [theme])
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const currentNumber = usePlayerStore((s) => s.currentSong?.number ?? null)
 
@@ -49,9 +52,9 @@ export function DrivePlaylistAccordion({ playlists, onPlayPlaylist }: Props) {
                 style={({ pressed }) => [styles.headerMain, pressed && styles.pressed]}
               >
                 {expanded ? (
-                  <ChevronDown size={20} color={colors.textSecondary} />
+                  <ChevronDown size={20} color={theme.textBody} />
                 ) : (
-                  <ChevronRight size={20} color={colors.textSecondary} />
+                  <ChevronRight size={20} color={theme.textBody} />
                 )}
                 <View style={styles.headerText}>
                   <Text style={styles.playlistName}>{playlist.name}</Text>
@@ -71,7 +74,7 @@ export function DrivePlaylistAccordion({ playlists, onPlayPlaylist }: Props) {
                   pressed && styles.pressed,
                 ]}
               >
-                <Play size={18} color={numbers.length ? colors.primaryDark : colors.textMuted} />
+                <Play size={18} color={numbers.length ? theme.accentText : theme.textMuted} />
               </Pressable>
             </View>
             {expanded ? (
@@ -112,13 +115,13 @@ export function DrivePlaylistAccordion({ playlists, onPlayPlaylist }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AmTheme) => StyleSheet.create({
   wrap: { gap: spacing.sm },
   block: {
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: theme.line,
+    backgroundColor: theme.card,
     overflow: "hidden",
     ...(Platform.OS === "android" ? { elevation: 0 } : null),
   },
@@ -136,8 +139,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   headerText: { flex: 1, minWidth: 0 },
-  playlistName: { ...typography.h3, color: colors.textPrimary },
-  meta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  playlistName: { ...typography.h3, color: theme.textHeading },
+  meta: { ...typography.caption, color: theme.textBody, marginTop: 2 },
   playBtn: {
     width: 44,
     height: 44,
@@ -145,15 +148,15 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: theme.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: theme.line,
   },
   playBtnDisabled: { opacity: 0.45 },
   songs: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
+    borderTopColor: theme.line,
+    backgroundColor: theme.card,
   },
   songRow: {
     flexDirection: "row",
@@ -162,16 +165,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.line,
   },
-  songRowCurrent: { backgroundColor: colors.surfaceSoft },
-  songNumber: { ...typography.caption, color: colors.textSecondary, width: 52 },
-  songNumberCurrent: { color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
-  songTitle: { ...typography.bodySmall, color: colors.textPrimary, flex: 1 },
-  now: { ...typography.caption, color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
+  songRowCurrent: { backgroundColor: theme.inner },
+  songNumber: { ...typography.caption, color: theme.textBody, width: 52 },
+  songNumberCurrent: { color: theme.accentText, fontFamily: "Inter_600SemiBold" },
+  songTitle: { ...typography.bodySmall, color: theme.textHeading, flex: 1 },
+  now: { ...typography.caption, color: theme.accentText, fontFamily: "Inter_600SemiBold" },
   emptySong: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
+    color: theme.textBody,
     padding: spacing.md,
   },
   pressed: { opacity: 0.9 },

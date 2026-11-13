@@ -14,13 +14,13 @@ describe("memberPhoneRequired", () => {
     }
   })
 
-  it("requires phone for local accounts without a saved number", () => {
+  it("does not ask local accounts for a number either, even when an older server says so", () => {
     expect(
       memberPhoneRequired(
         { phone_required: true, phone_e164: null, identity_provider: "local" },
         "local",
       ),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it("never requires phone when one is already saved", () => {

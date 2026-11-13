@@ -56,7 +56,8 @@ describe("use case: drive random", () => {
     })
     expect(session.kind).toBe("drive-random")
     expect(sessionAutoAdvanceWhileLocked(session)).toBe(true)
-    expect(sessionEndsOnLeaveDrive(session)).toBe(true)
+    // Dada's decision: the Radio keeps playing when its screen is left (it used to end there); see lib/radio/keepPlaying.ts
+    expect(sessionEndsOnLeaveDrive(session)).toBe(false)
     expect(shouldAutoAdvanceTrack("random", 3302, [3302], true, false, false)).toBe(true)
     expect(shouldAutoAdvanceTrack("random", 3302, [3302], false, false, false)).toBe(false)
   })

@@ -223,6 +223,8 @@ describe("drive exit — end-to-end player regression", () => {
     })
     const TrackPlayer = await catalogPlayer()
     TrackPlayer.add.mockClear()
+    // The native player really is playing (the song is mid-skip), so nothing needs correcting.
+    TrackPlayer.getPlaybackState.mockResolvedValueOnce({ state: "playing" })
     usePlayerStore.getState().reconcileForegroundCatalogPlayback()
     await new Promise((r) => setTimeout(r, 50))
     expect(TrackPlayer.add).not.toHaveBeenCalled()
@@ -273,6 +275,47 @@ describe("drive exit — end-to-end player regression", () => {
     expect(usePlayerStore.getState().playbackMode).toBe("random")
   })
 
+  // Dada's decision: the Radio plays on when its screen is left; only a drive playlist still ends there (lib/radio/keepPlaying.ts).
+  it("leaving the Radio screen keeps a running Radio playing (it used to stop it)", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.setState({ driveScreenFocused: true, driveAutoAdvance: true, playbackMode: "random", currentSong: driveSong as never, isPlaying: true })
+    usePlayerStore.getState().scheduleDriveBlurExit()
+    await new Promise((r) => setTimeout(r, 1400))
+    const state = usePlayerStore.getState()
+    expect(state.driveAutoAdvance).toBe(true)
+    expect(state.playbackMode).toBe("random")
+    expect(state.currentSong?.number).toBe(3302)
+    expect(state.isPlaying).toBe(true)
+  })
+
+  it("leaving the screen still ends a drive playlist", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.setState({ driveScreenFocused: true, driveAutoAdvance: true, playbackMode: "playlist", playlistBounds: [3302, 3303], currentSong: driveSong as never, isPlaying: true })
+    usePlayerStore.getState().scheduleDriveBlurExit()
+    await new Promise((r) => setTimeout(r, 1400))
+    expect(usePlayerStore.getState().driveAutoAdvance).toBe(false)
+    expect(usePlayerStore.getState().currentSong).toBeNull()
+  })
+
+  it("another song replaced the Radio: leaving the screen clears the drive flag but never stops that song", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.setState({ driveScreenFocused: true, driveAutoAdvance: true, playbackMode: "default", currentSong: driveSong as never, isPlaying: true })
+    usePlayerStore.getState().scheduleDriveBlurExit()
+    await new Promise((r) => setTimeout(r, 1400))
+    const state = usePlayerStore.getState()
+    expect(state.driveAutoAdvance).toBe(false)
+    expect(state.currentSong?.number).toBe(3302)
+    expect(state.isPlaying).toBe(true)
+  })
+
+  it("an explicit exit (the mini-player's stop) still ends the Radio", async () => {
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.setState({ driveScreenFocused: false, driveAutoAdvance: true, playbackMode: "random", currentSong: driveSong as never, isPlaying: true })
+    usePlayerStore.getState().exitDriveMode()
+    expect(usePlayerStore.getState().driveAutoAdvance).toBe(false)
+    expect(usePlayerStore.getState().currentSong).toBeNull()
+  })
+
   it("foreground reconcile does not open a new stream when the handle was lost", async () => {
     const { usePlayerStore } = await import("@/stores/playerStore")
     const bag = globalThis as typeof globalThis & { __psSound?: unknown; __psWantPlaying?: boolean }
@@ -290,6 +333,7 @@ describe("drive exit — end-to-end player regression", () => {
       currentSong: driveSong as never,
     })
 
+    TrackPlayer.getPlaybackState.mockResolvedValueOnce({ state: "playing" })
     usePlayerStore.getState().reconcileForegroundCatalogPlayback()
     await new Promise((r) => setTimeout(r, 50))
     expect(TrackPlayer.add).not.toHaveBeenCalled()

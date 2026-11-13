@@ -1,103 +1,68 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native"
+import { StyleSheet, Text } from "react-native"
 import { useRouter } from "expo-router"
-import { ChevronLeft, CalendarHeart } from "lucide-react-native"
 
-import { IconButton } from "@/components/common/IconButton"
-import { ScreenContainer } from "@/components/common/ScreenContainer"
-import { colors } from "@/constants/colors"
-import { softShadow } from "@/constants/shadows"
-import { radius, spacing } from "@/constants/spacing"
-import { typography } from "@/constants/typography"
-import { REVIEWED_FESTIVAL_YEAR, festivalCalendarExhausted, getUpcomingFestivals } from "@/data/festivals"
+import { CardText, CardTitle, OverlayScreen, Over, PageHeading } from "@/components/learn-v2/ui"
+import { PressBox } from "@/components/learn-v2/PressBox"
+import { Reveal } from "@/components/today/motion"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { getUpcomingFestivals, type FestivalListItem } from "@/data/festivals"
+import { useAmTheme } from "@/hooks/useAmTheme"
+import { useLanguage, useT } from "@/lib/i18n"
+import { festivalText } from "@/lib/i18n/festivalText"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 import { href } from "@/utils/href"
 
+/**
+ * Upcoming observances with confirmed dates (data/festivals.ts). Dates that are not confirmed are not
+ * listed and not hinted at: see docs/festival-calendar.md.
+ */
 export default function FestivalsScreen() {
+  const t = useT()
+  const language = useLanguage()
   const router = useRouter()
+  const theme = useAmTheme()
   const upcoming = getUpcomingFestivals(new Date(), 20)
-  const exhausted = festivalCalendarExhausted()
+
+  const back = () => {
+    if (router.canGoBack()) router.back()
+    else router.replace(href(NAV_V2_HOME_ROUTE))
+  }
+  const when = (item: FestivalListItem) =>
+    item.daysUntil === 0
+      ? t("fest.today")
+      : item.daysUntil === 1
+        ? t("fest.tomorrow")
+        : t("fest.inDays", { count: item.daysUntil })
 
   return (
-    <ScreenContainer
-      edges={["top"]}
-      padded={false}
-      title="Festivals"
-      subtitle={`Reviewed ${REVIEWED_FESTIVAL_YEAR} observances`}
-    >
-      <FlatList
-        data={upcoming}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <Text style={styles.empty}>
-            {exhausted
-              ? `The reviewed ${REVIEWED_FESTIVAL_YEAR} calendar has no remaining dates. Next year’s observances will appear when published.`
-              : "No upcoming observances right now."}
-          </Text>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push(href(`/festival/${item.id}`))}
-            style={({ pressed }) => [styles.card, pressed && { opacity: 0.94 }]}
-          >
-            <View style={styles.icon}>
-              <CalendarHeart size={18} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.date}>
-                {item.dateLabel}
-                {item.daysUntil === 0
-                  ? " · Today"
-                  : item.daysUntil === 1
-                    ? " · Tomorrow"
-                    : ` · in ${item.daysUntil} days`}
-              </Text>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardSub}>{item.subtitle}</Text>
-            </View>
-          </Pressable>
-        )}
-      />
-    </ScreenContainer>
+    <OverlayScreen theme={theme} onBack={back} label={t("fest.title")}>
+      <PageHeading theme={theme} first={t("fest.heading.first")} second={t("fest.heading.second")} />
+      {upcoming.length === 0 ? (
+        <Text style={[styles.empty, { color: theme.textBody }]}>{t("fest.empty")}</Text>
+      ) : (
+        upcoming.map((item, index) => (
+          <Reveal key={item.id} index={Math.min(index, 6)}>
+            <PressBox
+              accessibilityRole="button"
+              accessibilityLabel={t("fest.open.a11y", { title: festivalText(item, language).title, date: item.expected ? `${item.dateLabel}, ${t("fest.expected")}` : item.dateLabel })}
+              onPress={() => router.push(href(`/festival/${item.id}`))}
+              pressedScale={0.98}
+              style={[styles.card, { backgroundColor: theme.card, borderColor: theme.line }]}
+            >
+              <Over color={theme.eyebrow} numeric>{`${item.dateLabel} · ${when(item)}`}</Over>
+              {item.expected ? <Text style={[styles.expected, { color: theme.textBody }]}>{t("fest.expected")}</Text> : null}
+              <CardTitle color={theme.textHeading}>{festivalText(item, language).title}</CardTitle>
+              <CardText color={theme.textBody} wide>{festivalText(item, language).subtitle}</CardText>
+            </PressBox>
+          </Reveal>
+        ))
+      )}
+    </OverlayScreen>
   )
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.caption, color: colors.textSecondary },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section, gap: spacing.md },
-  card: {
-    flexDirection: "row",
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...softShadow(1),
-  },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  date: { ...typography.caption, color: colors.primaryDark },
-  cardTitle: { ...typography.label, fontSize: 16, color: colors.textPrimary, marginTop: 2 },
-  cardSub: { ...typography.caption, color: colors.textSecondary, marginTop: 4 },
-  empty: {
-    ...typography.body,
-    color: colors.textSecondary,
-    paddingVertical: spacing.xl,
-    lineHeight: 22,
-  },
+  card: { borderWidth: 1, borderRadius: 24, padding: 20, gap: 8 },
+  expected: { fontFamily: amFonts.semi, fontSize: 13, lineHeight: 18 },
+  empty: { fontFamily: amFonts.medium, fontSize: 16, lineHeight: 24, paddingHorizontal: 10 },
 })

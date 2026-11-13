@@ -1,10 +1,13 @@
+import { Platform } from "react-native"
+
 import type { AuthSessionPayload } from "@/lib/oauthIdentity"
 import { apiBaseUrl } from "@/lib/client"
+import { adoptTokenResponse } from "@/lib/memberSession"
 
-async function postAuth(path: "register" | "login", body: Record<string, string>) {
+async function postAuth(path: "register" | "login", body: Record<string, string | boolean>) {
   const response = await fetch(`${apiBaseUrl}/api/v1/auth/${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-device-label": `${Platform.OS} app` },
     body: JSON.stringify(body),
   })
   const payload = (await response.json().catch(() => null)) as { detail?: string } | AuthSessionPayload | null
@@ -14,6 +17,8 @@ async function postAuth(path: "register" | "login", body: Record<string, string>
   if (!payload || !("client_principal" in payload)) {
     throw new Error("Authentication response was incomplete.")
   }
+  // The server sends session tokens with the sign-in answer; keep them in secure storage.
+  await adoptTokenResponse(payload)
   return payload
 }
 
@@ -21,15 +26,14 @@ export async function registerWithEmail(input: {
   email: string
   password: string
   displayName: string
-  phoneCountryCode: string
-  phoneNumber: string
+  /** The "I'm 16 or older" tick of the sign-up form (docs/age-confirmation.md). Sent only when ticked. */
+  ageConfirmed?: boolean
 }) {
   return postAuth("register", {
     email: input.email,
     password: input.password,
     display_name: input.displayName,
-    phone_country_code: input.phoneCountryCode,
-    phone_number: input.phoneNumber.replace(/\D/g, ""),
+    ...(input.ageConfirmed ? { age_confirmed: true } : {}),
   })
 }
 

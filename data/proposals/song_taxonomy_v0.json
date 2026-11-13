@@ -1,0 +1,207 @@
+{
+  "version": "v0-draft",
+  "note": "MACHINE DRAFT taxonomy and seed lexicon. Needs review by Dada and editors before anything is shown in the app. Terms are plain English words taken from the corpus' own english_meaning vocabulary; weight 3 = strongly diagnostic, 2 = diagnostic, 1 = suggestive, 0.5 = weak or generic. Phrases of two words are allowed. Editors may add or remove terms freely; the pipeline stems both sides the same way.",
+  "facets": {
+    "feeling": {
+      "app_kind": "mood",
+      "label": "Feeling",
+      "definition": "The emotional stance of the song, as told in the English meaning.",
+      "max_secondary": 2,
+      "min_score": 1.8,
+      "values": [
+        {
+          "id": "longing",
+          "draft_reliability": "better",
+          "label": "Longing and waiting",
+          "definition": "The singer searches for the Beloved, waits, calls out, or feels the distance.",
+          "terms": {"search": 2, "seek": 2, "wait": 2.5, "await": 2.5, "longing": 3, "long for": 3, "yearn": 3, "separation": 3, "lonely": 2, "alone": 1, "restless": 2, "why do you not": 3, "do not come": 2, "not come": 2, "will you come": 2.5, "when will": 2, "come back": 2, "distant": 1, "far away": 1.5, "hidden": 1.5, "hiding": 1.5, "cannot find": 2.5, "could not find": 2.5, "not find": 2, "in vain": 2, "thirst": 2, "thirsty": 2, "calling": 1.5, "path of": 0.5, "come": 0.4, "why then": 1.5, "did not come": 2.5, "has not come": 2.5, "have not come": 2.5, "never come": 2.5, "come soon": 2, "come again": 2, "come once": 2, "i do not know when": 2.5}
+        },
+        {
+          "id": "nearness",
+          "draft_reliability": "mixed",
+          "label": "Nearness and merging",
+          "definition": "The Beloved has come or is close, and the singer merges in Him; love is fulfilled.",
+          "terms": {"you came": 3, "you have come": 3, "have come": 1.5, "came close": 3, "come close": 1.5, "near": 1.5, "nearer": 2, "embrace": 2.5, "merge": 2.5, "merged": 2.5, "union": 3, "unite": 2.5, "united": 2.5, "one with": 3, "become one": 3, "became one": 3, "together": 1.5, "your own": 2, "made me": 1.5, "sweetness": 1.5, "sweet": 1, "ecstasy": 3, "ecstatic": 3, "bliss": 1.5, "blissful": 2, "fulfil": 2.5, "fulfilled": 2.5, "fulfilment": 2.5, "intoxicated": 2.5, "love": 0.4, "beloved": 0.8, "filled": 0.6, "poured": 1.5, "loved me": 2, "love you": 1.2, "acquainted": 1.5, "acquaintance": 1.5, "lifted me": 2, "made me your own": 3, "took me": 1.5, "lap": 1.5, "touch": 1.0, "touched": 1.0, "smile": 0.4, "you are with me": 2, "always with": 1.5}
+        },
+        {
+          "id": "surrender",
+          "draft_reliability": "better",
+          "label": "Grace and surrender",
+          "definition": "The singer offers themselves, asks for grace and mercy, or takes shelter at the feet.",
+          "terms": {"surrender": 3, "refuge": 3, "take shelter": 3, "shelter": 2, "grace": 1.5, "mercy": 2, "merciful": 2, "forgive": 3, "forgiveness": 3, "pray": 3, "prayer": 3, "bow": 2, "obeisance": 3, "salute": 2, "offer": 1.5, "offering": 1.5, "worship": 2.5, "feet": 1, "lotus feet": 2.5, "accept me": 3, "take me": 2, "kindly": 1.5, "please": 1.5, "devotion": 1.5, "devotee": 1.5, "devotees": 1.5, "blessing": 2, "bless": 2, "shower": 1, "compassion": 2, "compassionate": 2, "gracious": 2, "causeless": 2, "cause less": 2, "lap of": 0.5, "i am yours": 2.5, "yours only": 2.5, "i have none": 2, "none but you": 2.5, "humble": 1.5, "humbly": 2, "repent": 2.5, "repentance": 2.5, "fault": 1.5, "faults": 1.5, "mistake": 1.5, "mistakes": 1.5, "sins": 1.2}
+        },
+        {
+          "id": "sorrow_hope",
+          "draft_reliability": "untested",
+          "label": "Pain, tears and hope",
+          "definition": "The song speaks of sorrow, tears or fear, and of hope that continues through them.",
+          "terms": {"tears": 2, "tear": 1.5, "weep": 2.5, "weeping": 2.5, "cry": 1.2, "pain": 1.6, "sorrow": 3, "grief": 3, "suffer": 2.5, "suffering": 2.5, "wound": 2, "hurt": 2, "heartache": 3, "despair": 3, "hopeless": 3, "hope": 1.2, "hopes": 1.2, "disappoint": 2.5, "disappointment": 2.5, "misery": 3, "wipe": 1.5, "sad": 2, "sadness": 2.5, "burn": 1, "burning": 1.2, "fear": 1.2, "afraid": 1.5, "wither": 2, "lost": 0.8, "crying": 1.8, "dry": 1.0, "agony": 2.5, "agonies": 2.5, "tearful": 2.5, "cruel": 1.5, "harassed": 2, "abandon": 2, "bitter": 1.5, "thorn": 1.5, "thorns": 1.5}
+        },
+        {
+          "id": "joy",
+          "draft_reliability": "better",
+          "label": "Joy and dance",
+          "definition": "Dance, laughter, play and the rhythm of delight.",
+          "terms": {"dance": 2.2, "dancing": 2.2, "laugh": 2.5, "laughing": 2.5, "laughter": 2.5, "play": 1, "playing": 1, "game": 1, "sport": 1, "joy": 2.5, "joyful": 3, "joyous": 3, "happy": 2.5, "happiness": 2.5, "delight": 2.5, "delighted": 2.5, "merry": 3, "festival": 3, "celebrate": 3, "celebration": 3, "swing": 2, "swinging": 2, "rhythm": 1, "rhythmic": 1.5, "colour": 1.2, "colourful": 1.5, "gay": 2, "cheerful": 3, "smile": 0.6, "smiling": 0.6, "enchant": 1, "carefree": 2.5, "frolic": 3, "wave of joy": 3, "intoxicate": 1}
+        },
+        {
+          "id": "peace",
+          "draft_reliability": "weak",
+          "label": "Peace and stillness",
+          "definition": "Calm, silence, rest and quiet of the mind.",
+          "terms": {"peace": 3, "peaceful": 3, "calm": 3, "silence": 3, "silent": 2.5, "quiet": 2.5, "stillness": 3, "still": 0.8, "serene": 3, "serenity": 3, "tranquil": 3, "tranquillity": 3, "rest": 1.5, "repose": 2.5, "restful": 2.5, "unmoving": 2, "stable": 1.5, "equipoise": 3, "balance": 1.5, "without desire": 2.5, "no desire": 2.5, "desireless": 3, "gentle": 1, "soothing": 3, "soothe": 3, "lull": 2, "restraint": 1.5}
+        },
+        {
+          "id": "courage",
+          "draft_reliability": "weak",
+          "label": "Strength and striving",
+          "definition": "Strength, determination and the call to rise, move forward and win.",
+          "terms": {"courage": 3, "courageous": 3, "brave": 3, "fearless": 3, "strong": 1.5, "strength": 2, "victory": 2.5, "victorious": 3, "win": 1.5, "conquer": 3, "fight": 3, "struggle": 3, "battle": 3, "march": 3, "arise": 3, "rise up": 3, "do not fear": 3, "no fear": 2.5, "determination": 3, "resolve": 2.5, "resolution": 2, "vow": 2.5, "break the chains": 3, "chains": 2, "destroy": 1.5, "shatter": 2, "move on": 1.5, "go forward": 2.5, "forward": 1.5, "onward": 2.5, "do not stop": 2.5, "unstoppable": 3, "valour": 3, "hero": 2.5, "warrior": 3, "challenge": 2, "sound the": 1.5, "trumpet": 2.5, "drum": 1, "bugle": 3}
+        }
+      ]
+    },
+    "subject": {
+      "app_kind": "theme",
+      "label": "Subject",
+      "definition": "What the song is about or built around, as told in the English meaning.",
+      "max_secondary": 2,
+      "min_score": 3.2,
+      "fallback_value": "devotion",
+      "fallback_baseline": 3.0,
+      "fallback_margin": 1.0,
+      "values": [
+        {
+          "id": "light_dark",
+          "draft_reliability": "better",
+          "label": "Light and darkness",
+          "definition": "Darkness giving way to effulgence, the lamp, the dawn of knowledge.",
+          "terms": {"darkness": 1.8, "dark": 1.0, "effulgence": 2.2, "effulgent": 2.2, "illumination": 2.2, "illumine": 2.2, "illuminate": 2.2, "light": 0.7, "lamp": 1.5, "lamps": 1.5, "torch": 2.5, "ray": 1.2, "rays": 1.2, "radiance": 2.2, "radiant": 1.8, "luminous": 2.2, "lustre": 1.8, "brilliance": 2.2, "shine": 1.2, "shining": 1.2, "gloom": 2.5, "ignorance": 3, "dispel": 2.5, "remove darkness": 3, "blind": 1.5, "lighthouse": 3, "ocean of darkness": 3, "night of ignorance": 3}
+        },
+        {
+          "id": "nature",
+          "draft_reliability": "better",
+          "label": "Nature and seasons",
+          "definition": "Flowers, moon, rivers, clouds, birds, the garden and the changing seasons.",
+          "terms": {"flower": 1.0, "flowers": 1.0, "blossom": 1.6, "blossoming": 1.6, "petal": 1.6, "petals": 1.6, "fragrance": 0.8, "garland": 0.5, "bee": 1.5, "bees": 1.5, "butterfly": 2.5, "cuckoo": 2.5, "peacock": 2, "swan": 2, "bird": 1.5, "birds": 1.5, "moon": 1.2, "moonlight": 1.5, "stars": 0.8, "sun": 0.6, "river": 1.8, "stream": 1.2, "waves": 1.0, "ocean": 0.4, "sea": 0.8, "mountain": 1.6, "hill": 1.6, "hills": 1.6, "forest": 2.2, "tree": 1.6, "trees": 1.6, "leaf": 1.4, "leaves": 1.4, "garden": 1.2, "grass": 1.6, "breeze": 0.8, "wind": 0.6, "cloud": 1.5, "clouds": 1.5, "rain": 1.5, "rainy": 2.5, "lightning": 1.5, "thunder": 1.5, "spring": 1.6, "summer": 2.5, "autumn": 2.5, "winter": 2.5, "season": 2.0, "seasons": 2.0, "sky": 0.4, "lotus": 1.2, "jasmine": 2.5, "kadamba": 2.5, "bakul": 2.5, "champa": 2.5, "malati": 2.5, "sandal": 0.8, "pollen": 1.0, "dew": 2.0, "dewdrop": 2.5, "sunrise": 1.5, "sunset": 1.5, "earth": 0.3, "mango": 2.5, "green": 1.2, "valley": 2.0, "shore": 1.0, "village": 1.2}
+        },
+        {
+          "id": "meditation",
+          "draft_reliability": "weak",
+          "label": "Meditation and the inner world",
+          "definition": "The mind, ideation, concentration, the inner core and spiritual practice.",
+          "terms": {"meditation": 3, "meditate": 3, "meditating": 3, "ideation": 2.2, "ideate": 3, "concentration": 3, "concentrate": 3, "sadhana": 3, "sadhaka": 3, "spiritual practice": 2.2, "practice": 0.5, "mantra": 3, "japa": 3, "intuition": 2.0, "intuitional": 2.0, "mental": 0.6, "mind": 0.4, "inner": 1.5, "within": 0.5, "core of": 1.2, "depth of": 1.0, "consciousness": 1.2, "witness": 2, "subtle": 1.5, "introvert": 3, "introspect": 3, "thought": 0.6, "thoughts": 0.6, "samadhi": 3, "silence": 1.5, "kundalini": 3, "chakra": 3, "ego": 2.2, "attachment": 1.5, "detach": 2.5, "desire": 0.8, "desires": 0.8, "restraint": 1.5, "senses": 1.0, "dhyana": 3}
+        },
+        {
+          "id": "path",
+          "draft_reliability": "weak",
+          "label": "The path and the journey",
+          "definition": "Walking the road, the traveller, the guide, the goal and the way across.",
+          "terms": {"path": 0.9, "paths": 1.2, "road": 2.0, "journey": 3, "travel": 2.2, "traveller": 2.5, "traveler": 2.5, "wayfarer": 3, "pilgrim": 3, "pilgrimage": 3, "walk": 1.5, "walking": 1.5, "wander": 1.5, "wanderer": 2.5, "destination": 3, "goal": 2.2, "step": 1.2, "steps": 1.2, "guide": 2.2, "guidance": 2.2, "lead me": 2.0, "show me the way": 3, "way": 0.3, "boat": 2.2, "ship": 2.2, "helm": 3, "helmsman": 3, "boatman": 3, "ferry": 3, "cross over": 2.5, "lead": 0.8, "teacher": 2.5, "master": 1.5, "preceptor": 3, "guru": 3, "move ahead": 1.5, "proceed": 1.5, "follow": 0.8, "caravan": 3, "polestar": 2.5, "pole star": 2.5, "voyage": 2.5, "voyager": 2.5}
+        },
+        {
+          "id": "cosmos",
+          "draft_reliability": "better",
+          "label": "Creation and the Infinite",
+          "definition": "The universe, time and space, the ocean of consciousness, what is beyond.",
+          "terms": {"universe": 2.0, "cosmos": 3, "cosmic": 3, "creation": 1.8, "create": 0.8, "creator": 2.0, "infinite": 2.0, "infinity": 2.5, "eternal": 1.6, "eternity": 2.5, "ocean": 0.6, "beyond": 1.2, "supreme": 1.5, "supreme consciousness": 3, "absolute": 3, "unmanifest": 3, "manifest": 1.5, "brahma": 3, "origin": 1.5, "primordial": 3, "dawn of creation": 3, "time": 0.4, "timeless": 3, "space": 1.2, "firmament": 2.5, "planet": 2.2, "planets": 2.2, "galaxy": 3, "world": 0.3, "worlds": 0.6, "boundless": 1.5, "limitless": 1.5, "vast": 1.0, "immense": 2.0, "formless": 3, "form and formless": 3, "static": 1.5, "unborn": 3, "microcosm": 2.5, "macrocosm": 3, "eras": 1.5, "ages": 1.0}
+        },
+        {
+          "id": "music",
+          "draft_reliability": "better",
+          "label": "Music, rhythm and song",
+          "definition": "Songs about singing, melody, the flute, the beat and the sound of the universe.",
+          "terms": {"song": 0.5, "songs": 0.8, "sing": 1.0, "singing": 1.2, "melody": 1.2, "melodies": 1.8, "melodious": 2.2, "tune": 1.2, "tunes": 1.8, "rhythm": 1.0, "rhythmic": 1.5, "flute": 1.8, "lyre": 2.5, "veena": 3, "lute": 3, "drum": 2.2, "drums": 2.2, "conch": 3, "bell": 1.6, "bells": 1.6, "anklet": 2.2, "anklets": 2.2, "music": 2.2, "musical": 2.2, "note": 0.8, "notes": 0.8, "raga": 3, "tala": 3, "sound": 0.8, "echo": 1.5, "resound": 2.0, "resonate": 2.0, "reverberate": 2.0, "singer": 2.2, "poet": 1.8, "poem": 1.8, "verse": 1.8, "lyrics": 2.2, "chant": 1.5, "harp": 3, "dance": 1.0}
+        },
+        {
+          "id": "humanity",
+          "draft_reliability": "weak",
+          "label": "Humanity and society",
+          "definition": "People and society, freedom from bondage, service, justice and a new era.",
+          "terms": {"humanity": 3, "human": 0.5, "humans": 1.0, "mankind": 3, "people": 0.8, "society": 3, "social": 2.5, "poor": 1.2, "poverty": 3, "hungry": 2.5, "oppressed": 3, "oppression": 3, "exploit": 3, "exploitation": 3, "exploiter": 3, "slave": 3, "slavery": 3, "bondage": 0.8, "freedom": 2.2, "liberate": 2.0, "liberation": 1.5, "justice": 3, "equality": 3, "equal": 1.2, "brotherhood": 3, "unity": 2.2, "service": 2.2, "serve": 2.2, "nation": 3, "country": 2.0, "motherland": 3, "workers": 3, "worker": 2, "farmer": 3, "farmers": 3, "labourer": 3, "peasant": 3, "new era": 3, "new age": 3, "new world": 2.2, "new society": 3, "all human": 3, "downtrodden": 3, "neglected": 1.5, "welfare": 3, "youth": 1.2, "children": 1.5, "women": 2.0, "dogma": 3, "religion": 2.0, "caste": 3, "rich": 1.5, "wealth": 1.5, "gold": 0.6}
+        },
+        {
+          "id": "devotion",
+          "draft_reliability": "default",
+          "label": "Devotion and the Beloved",
+          "definition": "Direct address to the Lord, the Beloved or the Friend; the heart of the devotee. Used when no more specific subject stands out.",
+          "terms": {"lord": 1.2, "beloved": 1.5, "dear one": 1.5, "friend": 1.5, "devotee": 2, "devotees": 2, "devotion": 2.2, "love": 0.8, "feet": 1.2, "name": 0.6, "grace": 1.2, "mercy": 1.2, "heart": 0.5, "affection": 1.2, "darling": 2, "dearest": 2, "worship": 2, "supreme beloved": 3, "my own": 1.5, "your own": 1.5, "krsna": 1.5, "shiva": 1.5, "radha": 2, "gopa": 2, "gopi": 2, "gopika": 2, "i love you": 2, "loved me": 2, "come to me": 1.5, "come close": 1.2, "affectionate": 1.5, "benevolent": 1.5, "o lord": 1.5, "you came": 1.0}
+        },
+        {
+          "id": "memory",
+          "draft_reliability": "weak",
+          "label": "Memory and the passing of time",
+          "definition": "Remembering, the passing of time, parting, and the end of life.",
+          "terms": {"remembrance": 2.2, "memory": 3, "memories": 3, "recall": 2.0, "bygone": 3, "old days": 3, "long ago": 3, "once upon": 3, "death": 3, "die": 1.5, "dying": 3, "grave": 2, "farewell": 3, "depart": 2.0, "departed": 3, "parting": 3, "end of life": 3, "old age": 3, "childhood": 3, "yesterday": 2, "faded": 2.0, "fade": 2.0, "pass away": 3, "ashes": 3, "funeral": 3, "past": 0.8, "forgotten": 0.8, "forget": 0.5, "remember": 0.8, "gone": 0.8}
+        }
+      ]
+    },
+    "time_of_day": {
+      "app_kind": "mood",
+      "label": "Time of day",
+      "definition": "Hours of the day that the song names or is set in.",
+      "max_secondary": 1,
+      "min_score": 2.5,
+      "values": [
+        {"id": "dawn", "label": "Dawn and morning", "definition": "Daybreak, sunrise and the morning.", "terms": {"dawn": 3, "morning": 2.5, "sunrise": 3, "daybreak": 3, "early morning": 3, "first light": 3, "rising sun": 3, "awake at dawn": 3, "dew": 0.8, "cockcrow": 3, "bhor": 3, "prabhat": 3, "usa": 3}, "roman": {"prabhat": 3, "prabhata": 3, "bhor": 3, "bhore": 3, "usha": 3}},
+        {"id": "day", "label": "Daytime", "definition": "Noon, afternoon and the bright day.", "terms": {"noon": 3, "midday": 3, "afternoon": 3, "daytime": 3, "day": 0.5, "scorching sun": 3, "sunlit": 2, "bright day": 3, "sun": 0.6}, "roman": {}},
+        {"id": "evening", "label": "Evening and twilight", "definition": "Sunset, dusk and the evening.", "terms": {"evening": 3, "twilight": 3, "dusk": 3, "sunset": 3, "setting sun": 3, "eventide": 3, "lamp lit": 2, "lighting the lamp": 2, "sandhya": 3}, "roman": {"sandhya": 3, "sandhyaya": 3, "godhuli": 3}},
+        {"id": "night", "label": "Night and moonlit night", "definition": "The night, midnight and the moonlit night.", "terms": {"night": 2.2, "nights": 2.2, "midnight": 3, "moonlit": 3, "moonlight": 1.5, "full moon": 2.5, "new moon": 2.5, "dark night": 3, "starry": 3, "stars": 0.8, "slumber": 0.6, "sleep": 0.5, "all night": 3}, "roman": {"ratri": 3, "rat": 1.2, "rate": 1.2, "nishi": 3, "nisha": 3, "nishiith": 3, "niisha": 3}}
+      ]
+    },
+    "season": {
+      "app_kind": "season",
+      "label": "Season",
+      "definition": "Season of the year that the song names or celebrates.",
+      "max_secondary": 1,
+      "min_score": 3.0,
+      "values": [
+        {"id": "spring", "label": "Spring", "definition": "Spring, the season of new blossoms and the south wind.", "terms": {"spring": 3, "springtime": 3, "vernal": 3, "south wind": 3, "southern breeze": 3, "new blossoms": 2, "mango blossom": 3, "cuckoo": 1, "blossoming": 1, "colour festival": 3, "vasanta": 3, "basanta": 3}, "roman": {"vasanta": 3, "basanta": 3, "phagun": 3, "madhavii": 1}},
+        {"id": "summer", "label": "Summer", "definition": "Summer and the hot, dry weather.", "terms": {"summer": 3, "scorching": 3, "hot season": 3, "heat of": 2, "sultry": 3, "parched": 3, "drought": 3, "dry season": 3, "thirsty earth": 3, "baisakh": 3, "vaesakh": 3, "vaeshakh": 3}, "roman": {"griishma": 3, "grisma": 3, "baisakh": 3, "vaeshakh": 3, "vaesakh": 3}},
+        {"id": "rainy", "label": "Rainy season", "definition": "Monsoon clouds, rain and thunder.", "terms": {"rainy": 3, "rain": 1.5, "rainfall": 3, "rains": 2, "raindrop": 3, "raindrops": 3, "monsoon": 3, "shower of rain": 3, "downpour": 3, "thunder": 1.5, "lightning": 1.2, "clouds": 1, "cloud": 1, "rain cloud": 3, "rain clouds": 3, "varsa": 3, "varsha": 3, "pour": 0.3, "drizzle": 3}, "roman": {"varsa": 3, "varsha": 3, "barsha": 3, "varasha": 3, "megha": 1.5, "megh": 1.5, "meghe": 1.5, "sravan": 3, "shravan": 3, "ashadh": 3}},
+        {"id": "autumn", "label": "Autumn", "definition": "Autumn: clear skies, white clouds, shiuli flowers (Sharat) and the mist-laden Hemanta.", "terms": {"autumn": 3, "autumnal": 3, "sharat": 3, "sarat": 3, "hemanta": 3, "hemant": 3, "shiuli": 3, "shefali": 3, "white clouds": 2, "harvest": 3, "paddy": 2.5, "falling leaves": 3}, "roman": {"sharat": 3, "sarat": 3, "hemanta": 3, "hemant": 3, "shiuli": 3, "shefali": 3}},
+        {"id": "winter", "label": "Winter", "definition": "Winter, cold, mist and fog.", "terms": {"winter": 3, "cold": 1.5, "chill": 2.5, "chilly": 3, "fog": 3, "mist": 2, "frost": 3, "shivering": 2.5, "shiver": 2, "wintry": 3, "cold wind": 3, "shiita": 3, "sita": 1}, "roman": {"shiita": 3, "shiitale": 3}}
+      ]
+    },
+    "imagery": {
+      "app_kind": "search_only",
+      "label": "Imagery",
+      "definition": "Recurring images in the meaning. Search aid only, not a browse shelf.",
+      "max_secondary": 2,
+      "min_score": 3.0,
+      "values": [
+        {"id": "flowers", "label": "Flowers and fragrance", "definition": "Blossoms, garlands, fragrance and the honey bee.", "terms": {"flower": 2, "flowers": 2, "blossom": 2.5, "petal": 3, "petals": 3, "fragrance": 2, "garland": 2, "bee": 2.5, "bees": 2.5, "honey": 1.5, "pollen": 2, "jasmine": 3, "lotus": 2.5, "bud": 3, "buds": 3, "perfume": 3, "scent": 3}},
+        {"id": "moon_stars", "label": "Moon, stars and sky", "definition": "The moon, moonlight, stars and the open sky.", "terms": {"moon": 2.5, "moonlight": 3, "moonlit": 3, "stars": 2.5, "star": 2, "sky": 1.2, "firmament": 3, "constellation": 3, "sun": 1.5, "rainbow": 3, "horizon": 3}},
+        {"id": "water", "label": "River, ocean and waves", "definition": "Rivers, the ocean, waves, springs and water.", "terms": {"river": 3, "stream": 2.5, "ocean": 2, "sea": 2, "waves": 2.5, "wave": 2, "water": 1.5, "waterfall": 3, "spring of": 2, "lake": 3, "pond": 3, "tide": 3, "current": 1.5, "flow": 1.2, "flowing": 1.5, "shore": 2, "ganges": 3, "fountain": 3, "drown": 2.5, "diving": 2}},
+        {"id": "clouds_storm", "label": "Clouds, rain and storm", "definition": "Clouds, rain, lightning, thunder, wind and storm.", "terms": {"cloud": 2.5, "clouds": 2.5, "rain": 2.5, "rainy": 3, "storm": 3, "lightning": 3, "thunder": 3, "wind": 1.5, "breeze": 1.5, "tempest": 3, "gale": 3, "cyclone": 3, "monsoon": 3}},
+        {"id": "birds", "label": "Birds and bees", "definition": "Cuckoo, peacock, swan, parrot and the humming bee.", "terms": {"bird": 3, "birds": 3, "cuckoo": 3, "peacock": 3, "swan": 3, "parrot": 3, "dove": 3, "nest": 3, "wings": 3, "wing": 3, "fly": 2, "flying": 2, "sparrow": 3, "bee": 1.5, "bees": 1.5, "butterfly": 3, "deer": 3}},
+        {"id": "flute_music", "label": "Flute and instruments", "definition": "The flute, lyre, drum and other instruments.", "terms": {"flute": 3, "lyre": 3, "veena": 3, "lute": 3, "drum": 3, "drums": 3, "conch": 3, "bell": 2.5, "bells": 2.5, "anklet": 3, "anklets": 3, "harp": 3, "instrument": 3, "pipe": 2, "cymbal": 3}},
+        {"id": "lamp_fire", "label": "Lamp, flame and sun", "definition": "The lamp, flame, fire, torch and the sun.", "terms": {"lamp": 3, "lamps": 3, "flame": 3, "fire": 2.5, "torch": 3, "candle": 3, "sun": 2, "sunlight": 3, "spark": 3, "lighting": 2, "incense": 3, "ember": 3, "ashes": 2}},
+        {"id": "mountain_path", "label": "Mountains, forests and roads", "definition": "Mountains, forests, deserts, roads and shores.", "terms": {"mountain": 3, "mountains": 3, "hill": 3, "hills": 3, "peak": 2.5, "forest": 3, "jungle": 3, "desert": 3, "valley": 3, "cave": 3, "road": 2.5, "path": 1, "shore": 1.5, "himalaya": 3, "snow": 3, "cliff": 3, "rock": 2.5, "stone": 2}}
+      ]
+    }
+  },
+  "source_tags": {
+    "note": "Deterministic reading of the source site's own category text in metadata_json.category and the English theme label. No model involved. The meaning of the plain K and D codes is NOT documented in this repository; they are carried through as raw codes and must be confirmed before they get a public label.",
+    "figure": {
+      "krsna": {"label": "Krsna songs", "match": ["krsna", "krs'n'a", "krs’n’a", "krishna"]},
+      "shiva": {"label": "Shiva songs", "match": ["shiva", "siva"]}
+    },
+    "language": {
+      "bengali_dialect": {"label": "Bengali dialect", "match": ["bangla dialect", "bengali dialect", "banglá dialect", "banga dialect", "bangala dialect", "ba'ngla' dialect", "ba’ngla’ dialect", "benga’li language", "bengalistan", "bhojpuri mixed"]},
+      "aungika": {"label": "Aungika", "match": ["aungika"]},
+      "hindi_urdu": {"label": "Hindi / Urdu", "match": ["urdu", "hindi"]},
+      "sanskrit": {"label": "Sanskrit", "match": ["samskrta", "samskrit", "sanskrit", "sam'skrta"]},
+      "magahii": {"label": "Magahii", "match": ["magahii"]},
+      "maithili": {"label": "Maithili", "match": ["maithili", "maethili"]}
+    },
+    "form": {
+      "teora": {"label": "Teorá tala", "match": ["teor", "teoŕ"]},
+      "jhaptal": {"label": "Jhaptál", "match": ["jhaptal", "jhapta'l", "jhapt", "jhap"]},
+      "rupak": {"label": "Rúpak", "match": ["rupak", "rúpak"]},
+      "ektal": {"label": "Ektál", "match": ["ek"]},
+      "trital": {"label": "Trital", "match": ["trital", "trita'l", "tritál", "tri", "trit"]},
+      "ghazal_qawwali": {"label": "Ghazal / Qawwali type", "match": ["gazal", "ghazal", "kawa'li", "kavali", "qawwali"]},
+      "baetalik": {"label": "Baetálik", "match": ["baet", "baetálik"]}
+    }
+  }
+}

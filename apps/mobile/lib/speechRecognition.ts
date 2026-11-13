@@ -216,6 +216,22 @@ async function pausePlaybackForMic() {
   }
 }
 
+/**
+ * Listening switches the iOS audio session to play-and-record (quieter, follows the silent switch,
+ * can leave the song paused). When listening ends the session goes back to plain playback.
+ */
+export function restorePlaybackSessionIOS(
+  speech: Pick<SpeechModule, "setCategoryIOS">,
+  platform: string = platformOS(),
+): void {
+  if (platform !== "ios") return
+  try {
+    speech.setCategoryIOS?.({ category: "playback", categoryOptions: [], mode: "default" })
+  } catch {
+    /* the next song sets the session up again */
+  }
+}
+
 async function waitUntilInactive(speech: SpeechModule) {
   if (!speech.getStateAsync) return
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -274,6 +290,13 @@ export async function startNativeSpeechRecognition(
   // iOS: keep on-device when available (avoids flaky network Siri on Simulator).
   const onDevice = await shouldUseOnDeviceRecognition(speech, lang)
 
+  let restored = false
+  const restoreOnce = () => {
+    if (restored) return
+    restored = true
+    restorePlaybackSessionIOS(speech)
+  }
+
   const subscriptions = [
     speech.addListener("result", (event) => {
       const transcript = event.results?.[0]?.transcript?.trim()
@@ -290,6 +313,7 @@ export async function startNativeSpeechRecognition(
       handlers.onError?.(friendly)
     }),
     speech.addListener("end", () => {
+      restoreOnce()
       handlers.onEnd?.()
     }),
   ]
@@ -349,6 +373,7 @@ export async function startNativeSpeechRecognition(
       /* ignore */
     }
     for (const sub of subscriptions) sub.remove()
+    restoreOnce()
   }
 }
 

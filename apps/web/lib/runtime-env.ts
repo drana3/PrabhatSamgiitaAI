@@ -19,3 +19,16 @@ export function googleOAuthClientId(): string | undefined {
       : undefined)
   )
 }
+
+/**
+ * Headers that prove the website server to the API. `X-Member-Proxy-Key` is the old shared key (it also
+ * ships inside the mobile app, so the API treats it as a plain member). `X-Web-Proxy-Key` is a key only this
+ * server holds (WEB_PROXY_KEY); with it the API trusts the website for admin. Both are sent while the
+ * migration runs; an API without WEB_PROXY_KEY ignores the second one.
+ */
+export function proxyKeyHeaders(proxyKey: string): Record<string, string> {
+  const webKey = runtimeEnv("WEB_PROXY_KEY")
+  return webKey
+    ? { "X-Member-Proxy-Key": proxyKey, "X-Web-Proxy-Key": webKey }
+    : { "X-Member-Proxy-Key": proxyKey }
+}

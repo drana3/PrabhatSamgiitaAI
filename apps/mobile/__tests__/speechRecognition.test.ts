@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   humanizeSpeechRecognitionError,
   isNativeSpeechRecognitionAvailable,
+  restorePlaybackSessionIOS,
   shouldUseOnDeviceRecognition,
   speechRecognitionRuntime,
   startNativeSpeechRecognition,
@@ -89,5 +90,14 @@ describe("speech recognition wrapper", () => {
 
   it("ignores aborted cleanup noise", () => {
     expect(humanizeSpeechRecognitionError("aborted", { code: "aborted" })).toBe("")
+  })
+
+  it("puts the iOS audio session back to playback when listening ends (checkup P22)", () => {
+    const setCategoryIOS = vi.fn()
+    restorePlaybackSessionIOS({ setCategoryIOS }, "ios")
+    expect(setCategoryIOS).toHaveBeenCalledWith(expect.objectContaining({ category: "playback" }))
+    setCategoryIOS.mockClear()
+    restorePlaybackSessionIOS({ setCategoryIOS }, "android")
+    expect(setCategoryIOS).not.toHaveBeenCalled()
   })
 })

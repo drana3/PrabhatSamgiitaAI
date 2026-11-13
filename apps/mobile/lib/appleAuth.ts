@@ -3,7 +3,6 @@ import * as AppleAuthentication from "expo-apple-authentication"
 import { Platform } from "react-native"
 
 import { isApplePrivateRelayEmail, isGenericMemberLabel } from "@/lib/displayName"
-import { facebookAuthConfigured } from "@/lib/facebookAuth"
 import { googleAuthConfigured } from "@/lib/googleOAuthConfig"
 import { microsoftAuthConfigured } from "@/lib/msal"
 import type { OAuthIdentity } from "@/lib/oauthIdentity"
@@ -46,9 +45,7 @@ export function appleAuthConfigured() {
 /** App Store 4.8: offer Sign in with Apple when other third-party login is shown on iOS. */
 export function appleSignInOffered() {
   if (!appleAuthConfigured()) return false
-  return (
-    microsoftAuthConfigured() || googleAuthConfigured() || facebookAuthConfigured()
-  )
+  return microsoftAuthConfigured() || googleAuthConfigured()
 }
 
 function displayNameFromApple(
@@ -84,6 +81,14 @@ async function writeStoredAppleDisplayName(userId: string, name: string) {
   } catch {
     // Best-effort — greeting fallbacks still apply.
   }
+}
+
+/**
+ * Keeps a name the person typed themselves for their Apple account, so the next sign-in has it even
+ * though Apple only hands the name over the first time.
+ */
+export async function rememberAppleDisplayName(userId: string, name: string) {
+  await writeStoredAppleDisplayName(userId, name)
 }
 
 async function resolveAppleDisplayName(
@@ -129,11 +134,17 @@ export async function signInWithApple(): Promise<OAuthIdentity> {
         credential.email ?? (await readStoredAppleEmail(credential.user)),
       ),
       provider: "apple",
+      ...(credential.identityToken ? { idToken: credential.identityToken } : {}),
+      ...(credential.authorizationCode ? { authorizationCode: credential.authorizationCode } : {}),
     }
   } catch (error) {
     const code = (error as { code?: string })?.code
     if (code === "ERR_REQUEST_CANCELED") {
       throw new Error("Sign-in was cancelled.")
+    }
+    if (code === "ERR_REQUEST_UNKNOWN" || code === "ERR_REQUEST_NOT_HANDLED" || code === "ERR_REQUEST_FAILED") {
+      // Error 1000 on a real device usually means the build lacks the Sign in with Apple capability.
+      throw new Error("Sign in with Apple isn’t available in this build. Use another sign-in method.")
     }
     if (error instanceof Error && error.message) throw error
     throw new Error("Sign in with Apple didn’t finish. Try again.")

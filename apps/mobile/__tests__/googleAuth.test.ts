@@ -88,6 +88,16 @@ describe("signInWithGoogle", () => {
     )
   })
 
+  it("does not attempt a browser fallback on Android DEVELOPER_ERROR and says so honestly", async () => {
+    const developerError = Object.assign(new Error("DEVELOPER_ERROR"), { code: "10" })
+    signIn.mockRejectedValue(developerError)
+    const auth = await import("@/lib/googleAuth")
+    await expect(auth.signInWithGoogle()).rejects.toThrow(auth.ANDROID_DEVELOPER_ERROR_MESSAGE)
+    expect(auth.ANDROID_DEVELOPER_ERROR_MESSAGE).toMatch(/another sign-in method/)
+    const { readFileSync } = await import("node:fs")
+    expect(readFileSync("lib/googleAuth.ts", "utf8")).not.toMatch(/expo-auth-session|promptAsync/)
+  })
+
   it("surfaces an iOS-specific setup hint instead of the Android browser fallback", async () => {
     vi.resetModules()
     platformState.os = "ios"

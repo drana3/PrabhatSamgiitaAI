@@ -21,6 +21,7 @@ import {
 } from "@prabhat/core"
 import { Maximize2 } from "lucide-react-native"
 
+import { keyboardBehavior } from "@/lib/keyboardBehavior"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { AdminSargamFullscreenStudio } from "@/components/admin/AdminSargamFullscreenStudio"
 import { CaptureListenPlayer } from "@/components/admin/CaptureListenPlayer"
@@ -482,7 +483,7 @@ export function AdminSargamCapturePanel({ songNumber }: Props) {
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={keyboardBehavior(Platform.OS)}
       keyboardVerticalOffset={88}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">

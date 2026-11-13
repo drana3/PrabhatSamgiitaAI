@@ -10,7 +10,7 @@ vi.mock("expo-constants", () => ({
   },
 }))
 
-import { songShareMessage, songShareUrl, webBaseUrl } from "@/lib/webLinks"
+import { privacyUrl, songShareMessage, songShareUrl, takedownUrl, termsUrl, webBaseUrl } from "@/lib/webLinks"
 
 describe("web share links", () => {
   const previous = process.env.EXPO_PUBLIC_WEB_BASE_URL
@@ -36,5 +36,12 @@ describe("web share links", () => {
       performer: "VEN'UKA'R VAN KII KATHA' KAY",
     })
     expect(message).not.toContain("Singer ·")
+  })
+
+  it("links the legal pages of the website", () => {
+    delete process.env.EXPO_PUBLIC_WEB_BASE_URL
+    expect(termsUrl()).toBe("https://example.test/terms")
+    expect(privacyUrl()).toBe("https://example.test/privacy")
+    expect(takedownUrl()).toBe("https://example.test/takedown")
   })
 })

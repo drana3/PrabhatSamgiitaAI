@@ -3,8 +3,11 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 import type { MockSong } from "@/data/mock"
+import { bindOwner } from "@/lib/account/bindOwner"
+import type { OwnedData } from "@/lib/account/owner"
 import { api } from "@/lib/client"
 import { favoritesScopeKey } from "@/lib/favoritesScope"
+import { missingNumbers, songNumbersOf, unionIds } from "@/lib/guest/guestSaves"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -18,13 +21,24 @@ export type RecentPlay = {
 
 const MAX_RECENT = 12
 
-type PreferencesState = {
+/** What belongs to one account: what they played and searched, and their own notes on songs. */
+export type PreferencesOwnedData = {
+  recentPlays: RecentPlay[]
+  searchRecents: string[]
+  songNotes: Record<string, string>
+}
+
+const emptyOwnedData = (): PreferencesOwnedData => ({ recentPlays: [], searchRecents: [], songNotes: {} })
+
+type PreferencesState = OwnedData<PreferencesOwnedData> & {
   favoritesScope: string
   favoritesByScope: Record<string, string[]>
   savedSongIds: string[]
   recentPlays: RecentPlay[]
   searchRecents: string[]
   feelingSearchEnabled: boolean
+  /** "Download on Wi-Fi only": downloads wait for Wi-Fi instead of using mobile data. On by default. */
+  downloadWifiOnly: boolean
   songNotes: Record<string, string>
   syncingFavorites: boolean
   activateFavoritesScope: (scope: string) => void
@@ -38,6 +52,7 @@ type PreferencesState = {
   addSearchRecent: (query: string) => void
   clearSearchRecents: () => void
   setFeelingSearchEnabled: (enabled: boolean) => void
+  setDownloadWifiOnly: (enabled: boolean) => void
   setSongNote: (songId: string, note: string) => void
 }
 
@@ -66,7 +81,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       recentPlays: [],
       searchRecents: [],
       feelingSearchEnabled: false,
+      downloadWifiOnly: true,
       songNotes: {},
+      owner: null,
+      slots: {},
       syncingFavorites: false,
 
       activateFavoritesScope: (scope) => {
@@ -97,27 +115,45 @@ export const usePreferencesStore = create<PreferencesState>()(
           const remote = await api.fetchMemberFavorites()
           if (remote === null) return
           const scope = get().favoritesScope
-          const localNumbers = (get().favoritesByScope[scope] ?? get().savedSongIds)
-            .map(toSongNumber)
-            .filter((n): n is number => n != null)
+          const own = get().favoritesByScope[scope] ?? get().savedSongIds
+          // What the person saved as a guest on this phone joins the account (docs/guest-saves.md): the union,
+          // no song twice, none lost. The guest list is emptied only once the account really holds it.
+          const guestIds = scope === "guest" ? [] : (get().favoritesByScope.guest ?? [])
+          const localNumbers = songNumbersOf(unionIds(own, guestIds))
           const merged = [...new Set([...remote, ...localNumbers])]
           const savedSongIds = merged.map(toSongId)
           set({
             savedSongIds,
             favoritesByScope: { ...get().favoritesByScope, [scope]: savedSongIds },
           })
-          for (const number of localNumbers) {
-            if (remote.includes(number)) continue
+          const missing = missingNumbers(localNumbers, remote)
+          let uploaded = true
+          if (missing.length) {
             try {
-              const next = await api.addMemberFavorite(number)
-              const synced = next.map(toSongId)
+              // one request for the whole list; an older server that has no such route is told one song at a time
+              const synced = (await api.mergeMemberFavorites(missing)).map(toSongId)
               set({
                 savedSongIds: synced,
                 favoritesByScope: { ...get().favoritesByScope, [scope]: synced },
               })
             } catch {
-              // Keep merged local list if upload fails.
+              for (const number of missing) {
+                try {
+                  const next = await api.addMemberFavorite(number)
+                  const synced = next.map(toSongId)
+                  set({
+                    savedSongIds: synced,
+                    favoritesByScope: { ...get().favoritesByScope, [scope]: synced },
+                  })
+                } catch {
+                  // Keep merged local list if upload fails.
+                  uploaded = false
+                }
+              }
             }
+          }
+          if (uploaded && guestIds.length) {
+            set({ favoritesByScope: { ...get().favoritesByScope, guest: [] } })
           }
         } finally {
           set({ syncingFavorites: false })
@@ -126,9 +162,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       toggleSaved: async (songId) => {
         const { mode } = useAuthStore.getState()
-        if (mode !== "signed_in") {
-          return { needsAuth: true }
-        }
+        // A guest saves on the phone only (the list of the "guest" scope); it joins the account at sign-in.
+        // Nothing is sent to the server for a guest.
+        const guest = mode !== "signed_in"
 
         const existing = get().savedSongIds
         const isSaved = existing.includes(songId)
@@ -142,7 +178,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         })
 
         const number = toSongNumber(songId)
-        if (!memberAuthAvailable() || !number) return { needsAuth: false }
+        if (guest || !memberAuthAvailable() || !number) return { needsAuth: false }
 
         try {
           const numbers = isSaved
@@ -190,6 +226,7 @@ export const usePreferencesStore = create<PreferencesState>()(
 
       clearSearchRecents: () => set({ searchRecents: [] }),
       setFeelingSearchEnabled: (enabled) => set({ feelingSearchEnabled: enabled }),
+      setDownloadWifiOnly: (enabled) => set({ downloadWifiOnly: enabled }),
 
       setSongNote: (songId, note) => {
         const trimmed = note.trim()
@@ -202,7 +239,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     {
       name: "prabhat-preferences",
       storage: createJSONStorage(() => AsyncStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const state = persisted as {
           savedSongIds?: string[]
@@ -212,10 +249,13 @@ export const usePreferencesStore = create<PreferencesState>()(
           searchRecents?: string[]
           songNotes?: Record<string, string>
         }
+        // v3 stamps the account data with an owner; older data is taken by whoever is signed in at the first start.
+        const owned = { owner: null, slots: {} }
         if (version < 2) {
           const legacySaved = state.savedSongIds ?? []
           return {
             ...state,
+            ...owned,
             favoritesScope: state.favoritesScope ?? "guest",
             favoritesByScope: {
               ...(state.favoritesByScope ?? {}),
@@ -224,15 +264,18 @@ export const usePreferencesStore = create<PreferencesState>()(
             savedSongIds: legacySaved,
           }
         }
-        return state
+        return { ...state, ...owned }
       },
       partialize: (state) => ({
+        owner: state.owner,
+        slots: state.slots,
         favoritesScope: state.favoritesScope,
         favoritesByScope: state.favoritesByScope,
         savedSongIds: state.savedSongIds,
         recentPlays: state.recentPlays,
         searchRecents: state.searchRecents,
         feelingSearchEnabled: state.feelingSearchEnabled,
+        downloadWifiOnly: state.downloadWifiOnly,
         songNotes: state.songNotes,
       }),
       onRehydrateStorage: () => (state) => {
@@ -266,4 +309,11 @@ useAuthStore.subscribe((state, previous) => {
       email: state.email,
     }),
   )
+})
+
+/** Recent songs, recent searches and notes follow the signed-in person (lib/account/owner.ts). */
+export const reconcilePreferencesOwner = bindOwner<PreferencesState, PreferencesOwnedData>(usePreferencesStore, {
+  pick: (s) => ({ recentPlays: s.recentPlays, searchRecents: s.searchRecents, songNotes: s.songNotes }),
+  empty: emptyOwnedData,
+  apply: (data) => data,
 })

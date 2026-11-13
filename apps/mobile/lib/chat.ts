@@ -125,8 +125,8 @@ export function validatePrompt(value: string): string | null {
   return null
 }
 
-/** Prefer an explicit PS number in the prompt, else the currently loaded song. */
-export function resolveExplainSongNumber(prompt: string, currentSongNumber?: number | null): number {
+/** A PS number the prompt names ("song 12", "PS 12", or just "12"), or null. */
+export function explicitSongNumberFromPrompt(prompt: string): number | null {
   const match = prompt.match(
     /\b(?:song|ps|prabhat\s+(?:samgiita|sangeet))\s*(?:number|no\.?|#)?\s*(\d{1,4})\b/i,
   )
@@ -138,6 +138,13 @@ export function resolveExplainSongNumber(prompt: string, currentSongNumber?: num
     const number = Number(prompt.trim())
     if (number >= 1 && number <= 5018) return number
   }
+  return null
+}
+
+/** Prefer an explicit PS number in the prompt, else the currently loaded song. */
+export function resolveExplainSongNumber(prompt: string, currentSongNumber?: number | null): number {
+  const explicit = explicitSongNumberFromPrompt(prompt)
+  if (explicit) return explicit
   if (currentSongNumber && currentSongNumber >= 1 && currentSongNumber <= 5018) {
     return currentSongNumber
   }

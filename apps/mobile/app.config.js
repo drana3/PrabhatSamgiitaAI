@@ -24,6 +24,17 @@ function mergeUrlSchemes(existing, schemes) {
   return next
 }
 
+/**
+ * Crash-report source maps (docs/observability.md). The Sentry plugin uploads them during an EAS build,
+ * so it is added ONLY when the build environment holds all three values; otherwise the build is exactly
+ * what it was. SENTRY_AUTH_TOKEN is a secret set in EAS, never written in the repository.
+ */
+function sentryPlugins() {
+  const { SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT } = process.env
+  if (!SENTRY_AUTH_TOKEN?.trim() || !SENTRY_ORG?.trim() || !SENTRY_PROJECT?.trim()) return []
+  return [["@sentry/react-native/expo", { organization: SENTRY_ORG.trim(), project: SENTRY_PROJECT.trim() }]]
+}
+
 /** @param {{ config: import('expo/config').ExpoConfig }} props */
 module.exports = ({ config }) => {
   const configuredProjectId =
@@ -34,6 +45,7 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
+    plugins: [...(config.plugins ?? []), ...sentryPlugins()],
     ios: {
       ...config.ios,
       buildNumber: config.ios?.buildNumber ?? "1",
@@ -43,10 +55,8 @@ module.exports = ({ config }) => {
       ].filter((domain, index, all) => all.indexOf(domain) === index),
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
-        NSPhotoLibraryUsageDescription:
-          "Prabhat Samgiita AI does not access your photo library. This notice is required by an included sign-in component.",
-        NSPhotoLibraryAddUsageDescription:
-          "Prabhat Samgiita AI does not save images to your photo library. This notice is required by an included sign-in component.",
+        // Photo access strings come from the expo-image-picker plugin in app.json (profile picture).
+        // The app never saves to the library, so there is no NSPhotoLibraryAddUsageDescription.
         ...(config.ios?.infoPlist ?? {}),
         UIBackgroundModes: ["audio"],
         CFBundleURLTypes: mergeUrlSchemes(config.ios?.infoPlist?.CFBundleURLTypes, [
@@ -77,14 +87,21 @@ module.exports = ({ config }) => {
               },
             ]
           : []),
+        // Only the host that really serves /.well-known/assetlinks.json is verified. On Android 11 and
+        // older ONE host that fails verification (the bare domain does not answer today) makes the whole
+        // filter fail, so www is verified on its own and the bare domain is a plain, unverified filter.
+        // docs/app-links.md, "Why Android links did not open the app".
         {
           action: "VIEW",
           autoVerify: true,
           category: ["BROWSABLE", "DEFAULT"],
-          data: [
-            { scheme: "https", host: "www.prabhatasamgiita.org", pathPrefix: "/songs" },
-            { scheme: "https", host: "prabhatasamgiita.org", pathPrefix: "/songs" },
-          ],
+          data: [{ scheme: "https", host: "www.prabhatasamgiita.org", pathPrefix: "/songs" }],
+        },
+        {
+          action: "VIEW",
+          autoVerify: false,
+          category: ["BROWSABLE", "DEFAULT"],
+          data: [{ scheme: "https", host: "prabhatasamgiita.org", pathPrefix: "/songs" }],
         },
       ],
     },

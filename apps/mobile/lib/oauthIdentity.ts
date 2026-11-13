@@ -2,7 +2,19 @@ export type OAuthIdentity = {
   id: string
   email: string | null
   displayName: string
-  provider: "google" | "facebook" | "aad" | "apple" | "local"
+  provider: "google" | "aad" | "apple" | "local"
+  /** Profile picture the provider gave (https URL), when it gave one. */
+  photoUrl?: string | null
+  /**
+   * The provider's own signed proof (Google, Apple, Microsoft ID token). The server checks it with the provider
+   * and hands back our session tokens (lib/memberSession.ts). Never stored, never logged.
+   */
+  idToken?: string | null
+  /**
+   * Apple only: the one-time `authorizationCode` of expo-apple-authentication. Sent with the proof so the
+   * server can revoke Apple's grant when the account is deleted. Never stored, never logged.
+   */
+  authorizationCode?: string | null
 }
 
 export type AuthSessionPayload = {
@@ -10,6 +22,11 @@ export type AuthSessionPayload = {
   display_name: string
   email: string
   identity_provider: string
+  /** Signed session tokens, sent by servers that support them (docs/security-member-auth.md). */
+  access_token?: string | null
+  refresh_token?: string | null
+  expires_in?: number | null
+  account_id?: string | null
 }
 
 export function subjectFromPrincipal(principal: string): string {

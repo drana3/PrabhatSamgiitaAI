@@ -24,6 +24,7 @@ import { api } from "@/lib/client"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import { useAuthStore } from "@/stores/authStore"
 import { href } from "@/utils/href"
+import { NAV_V2_HOME_ROUTE } from "@/lib/navV2"
 
 type FeedbackFilter = "new" | "reviewed" | "actioned" | "all"
 
@@ -125,7 +126,7 @@ export default function AdminScreen() {
             Admin tools are available only to team members with admin access. Ask an existing admin
             to grant access from the Members tab.
           </Text>
-          <PrimaryButton label="Go to Profile" onPress={() => router.replace(href("/(tabs)/profile"))} />
+          <PrimaryButton label="Go home" onPress={() => router.replace(href(NAV_V2_HOME_ROUTE))} />
         </View>
       </ScreenContainer>
     )

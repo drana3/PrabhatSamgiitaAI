@@ -1,0 +1,267 @@
+"""The type of recording, the tempo, solo or group, and the English-only title of a Kiirtan.
+Pins docs/kiirtan-recording-info.md (the lists match the phone and anandamarga.org/music).
+"""
+
+# ruff: noqa: F811
+from __future__ import annotations
+
+import os
+
+os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
+
+import pytest
+from test_recording_sets import AS_A, SETS, add_track
+from test_recordings import World, mp3, world  # noqa: F401
+
+from app.schemas.recordings import RecordingCreate
+from app.services.recording_info import (
+    PERFORMANCES,
+    RECORDING_TYPES,
+    TEMPOS,
+    has_non_latin_letters,
+    normalize_performance,
+    normalize_recording_type,
+    normalize_tempo,
+)
+
+
+def test_the_lists_are_the_ones_the_phone_uses() -> None:
+    assert RECORDING_TYPES == ("studio", "live", "ai")  # exactly three (Dada, 9 Nov 2026)
+    assert TEMPOS == ("slow", "medium", "fast", "mix")  # and only dance music has a tempo
+    assert PERFORMANCES == ("solo", "group")
+    assert normalize_recording_type(" AI ") == "ai"
+    assert normalize_recording_type("home") == "studio"  # the removed third kind, from old phones
+    assert normalize_tempo("") is None and normalize_performance(None) is None
+    with pytest.raises(ValueError, match="how this was recorded"):
+        normalize_recording_type("tape")
+    with pytest.raises(ValueError, match="tempo"):
+        normalize_tempo("presto")
+    with pytest.raises(ValueError, match="solo or group"):
+        normalize_performance("duet")
+
+
+def test_latin_letters_with_accents_pass_and_other_scripts_do_not() -> None:
+    assert not has_non_latin_letters("Bábá Nám Kevalam – Śiva, 2nd take (live)")
+    assert not has_non_latin_letters("")
+    assert has_non_latin_letters("Баба Нам Кевалам")
+    assert has_non_latin_letters("बाबा नाम केवलम्")
+    assert has_non_latin_letters("Baba নাম")
+
+
+# --------------------------------------------------------------------------- the fields
+
+
+async def test_a_kiirtan_needs_a_recording_type_and_says_so(world: World) -> None:
+    none = await world.publish("a", mp3(2000), recording_type=None)
+    assert none.status_code == 422 and "recorded" in none.text.lower()
+    wrong = await world.publish("a", mp3(2001), recording_type="tape")
+    assert wrong.status_code == 422
+    ok = await world.publish("a", mp3(2002), recording_type="live", performance="group")
+    assert ok.status_code == 201, ok.text
+    body = ok.json()
+    assert (body["recording_type"], body["performance"]) == ("live", "group")
+    assert body["tempo"] is None  # a tempo is asked of dance music only
+
+
+async def test_a_kiirtan_has_no_tempo_but_solo_or_group_is_required(
+    world: World,
+) -> None:
+    done = await world.publish("a", mp3(2010), tempo="fast", performance="group")
+    assert done.status_code == 201
+    assert done.json()["tempo"] is None and done.json()["performance"] == "group"
+    for seed, value in ((2011, None), (2012, "")):
+        missing = await world.publish("a", mp3(seed), performance=value)
+        assert missing.status_code == 422 and "solo or a group" in missing.text
+    wrong = await world.publish("a", mp3(2013), performance="duet")
+    assert wrong.status_code == 422
+
+
+async def test_an_ai_kiirtan_is_stored_and_shown_as_ai(world: World) -> None:
+    made = await world.publish("a", mp3(2020), recording_type="ai")
+    assert made.status_code == 201
+    rid = made.json()["id"]
+    got = (await world.client.get(f"/api/v1/recordings/{rid}")).json()
+    assert got["recording_type"] == "ai"
+    listed = (await world.client.get("/api/v1/recordings")).json()["items"]
+    assert [i["recording_type"] for i in listed] == ["ai"]
+
+
+async def test_each_category_keeps_only_the_fields_it_carries(world: World) -> None:
+    dance = await world.publish(
+        "a",
+        mp3(2030),
+        kind="dance_song",
+        dance="tandava",
+        recording_type="studio",
+        tempo="mix",
+        performance="solo",
+    )
+    assert dance.status_code == 201, dance.text
+    assert (dance.json()["recording_type"], dance.json()["tempo"]) == ("studio", "mix")
+    assert dance.json()["performance"] is None  # dance music has no solo or group
+    bhajan = await world.publish(
+        "a",
+        mp3(2031),
+        kind="bhajan",
+        language="hi",
+        style=None,
+        recording_type="home",  # an old phone: stored as a studio recording
+        tempo="fast",
+        performance="solo",
+    )
+    assert bhajan.status_code == 201, bhajan.text
+    assert (bhajan.json()["recording_type"], bhajan.json()["performance"]) == ("studio", "solo")
+    assert bhajan.json()["tempo"] is None
+    ps = await world.publish(
+        "a",
+        mp3(2032),
+        kind="prabhat_samgiita",
+        ps_song_number=7,
+        style=None,
+        recording_type="studio",
+    )
+    assert ps.status_code == 201, ps.text
+    assert ps.json()["recording_type"] == "studio"  # every sung category carries it now
+    slow = await world.publish("a", mp3(2033), kind="dance_song", dance="kaoshiki", tempo="slow")
+    assert slow.json()["tempo"] == "slow"
+    bad = await world.publish("a", mp3(2034), kind="dance_song", dance="kaoshiki", tempo="presto")
+    assert bad.status_code == 422
+
+
+async def test_a_bhajan_made_by_ai_is_accepted_and_shown_as_ai(world: World) -> None:
+    # Dada, 8 Nov 2026: the earlier ban on an AI Bhajan is gone.
+    made = await world.publish(
+        "a", mp3(2040), kind="bhajan", language="hi", style=None, recording_type="ai"
+    )
+    assert made.status_code == 201, made.text
+    assert made.json()["recording_type"] == "ai"
+    got = (await world.client.get(f"/api/v1/recordings/{made.json()['id']}")).json()
+    assert got["recording_type"] == "ai"
+    spiritual = await world.publish(
+        "a", mp3(2041), kind="spiritual_song", language="en", style=None, recording_type="ai"
+    )
+    assert spiritual.status_code == 201 and spiritual.json()["recording_type"] == "ai"
+
+
+async def test_a_kiirtan_track_of_a_playlist_carries_its_fields(world: World) -> None:
+    item = (await world.client.post(SETS, headers=AS_A, json={"title": "Retreat"})).json()
+    refused = await add_track(world, item["id"], 2050, recording_type=None)
+    assert refused.status_code == 422, refused.text
+    ok = await add_track(world, item["id"], 2051, recording_type="live", tempo="medium")
+    assert ok.status_code == 201, ok.text
+    assert (ok.json()["recording_type"], ok.json()["tempo"]) == ("live", None)
+
+
+# --------------------------------------------------------------------------- the title
+
+
+async def test_the_title_of_a_kiirtan_is_written_in_english(world: World) -> None:
+    russian = await world.publish("a", mp3(2060), title="Баба Нам Кевалам")
+    assert russian.status_code == 422 and "English" in russian.text
+    mixed = await world.publish("a", mp3(2061), title="Baba Nam बाबा")
+    assert mixed.status_code == 422
+    accents = await world.publish("a", mp3(2062), title="Bábá Nám Kevalam – 2nd take")
+    assert accents.status_code == 201
+
+
+async def test_the_other_categories_keep_their_own_alphabet_in_the_title(world: World) -> None:
+    done = await world.publish(
+        "a", mp3(2070), kind="bhajan", language="hi", style=None, title="बाबा का भजन"
+    )
+    assert done.status_code == 201, done.text
+
+
+async def test_a_kiirtan_track_of_a_playlist_has_an_english_title_too(world: World) -> None:
+    item = (await world.client.post(SETS, headers=AS_A, json={"title": "Retreat 2"})).json()
+    refused = await add_track(world, item["id"], 2080, title="Баба Нам")
+    assert refused.status_code == 422, refused.text
+
+
+def test_the_schema_accepts_a_kiirtan_with_the_three_fields_cleaned() -> None:
+    made = RecordingCreate(
+        key="recordings-some-member-file.mp3",
+        kind="kiirtan",
+        title="Baba Nam Kevalam",
+        author="x",
+        terms_accepted=True,
+        terms_version="x",
+        style="indian",
+        recording_type=" Home ",
+        tempo=" FAST ",
+        performance=" Solo",
+    )
+    # a Kiirtan has no tempo any more; "home" (old phones) is a studio recording
+    assert (made.recording_type, made.tempo, made.performance) == ("studio", None, "solo")
+
+
+# --------------------------------------------------------------------------- migration 0046
+
+import sqlalchemy as sa  # noqa: E402
+from alembic.config import Config  # noqa: E402
+from alembic.script import ScriptDirectory  # noqa: E402
+from test_practice_migration import at_0041, engine  # noqa: E402, F401
+from test_recording_duplicates_migration import VERSIONS, load, run  # noqa: E402
+
+
+def test_0046_is_the_one_head_and_adds_three_nullable_columns_twice_safely(
+    engine: sa.Engine,  # noqa: F811
+) -> None:
+    script = ScriptDirectory.from_config(Config(str(VERSIONS.parents[1] / "alembic.ini")))
+    assert len(script.get_heads()) == 1
+    revision = script.get_revision("0046_recording_info")
+    assert revision is not None and revision.down_revision == "0045_author_claims"
+    m46 = load("0046_recording_info")
+    at_0041(engine)
+    run(engine, m46.upgrade)
+    run(engine, m46.upgrade)
+    columns = {c["name"]: c for c in sa.inspect(engine).get_columns("recordings")}
+    for name in ("recording_type", "tempo", "performance"):
+        assert name in columns and columns[name]["nullable"] is True
+    run(engine, m46.downgrade)
+    assert "tempo" not in {c["name"] for c in sa.inspect(engine).get_columns("recordings")}
+    run(engine, m46.upgrade)
+
+
+# --------------------------------------------------------------------------- "I am the author"
+
+
+async def test_the_author_tick_is_kept_by_every_kind_except_prabhat_samgiita(
+    world: World,
+) -> None:
+    kiirtan = await world.publish("a", mp3(2100), by_author=True)
+    bhajan = await world.publish(
+        "a", mp3(2101), kind="bhajan", language="hi", style=None, by_author=True
+    )
+    spiritual = await world.publish(
+        "a", mp3(2102), kind="spiritual_song", language="en", style=None, by_author=True
+    )
+    dance = await world.publish(
+        "a", mp3(2103), kind="dance_song", dance="tandava", style=None, by_author=True
+    )
+    for made in (kiirtan, bhajan, spiritual, dance):
+        assert made.status_code == 201, made.text
+        assert made.json()["by_author"] is True
+    ps = await world.publish(
+        "a", mp3(2104), kind="prabhat_samgiita", ps_song_number=9, style=None, by_author=True
+    )
+    # Prabhat Samgiita has one author: the tick is not accepted, it is dropped (not an error, so
+    # an older app that still sends it keeps working).
+    assert ps.status_code == 201, ps.text
+    assert ps.json()["by_author"] is False
+    stored = (await world.client.get(f"/api/v1/recordings/{ps.json()['id']}")).json()
+    assert stored["by_author"] is False
+
+
+async def test_a_playlist_track_of_prabhat_samgiita_never_keeps_the_author_tick(
+    world: World,
+) -> None:
+    item = (
+        await world.client.post(
+            SETS, headers=AS_A, json={"title": "PS evening", "default_kind": "prabhat_samgiita"}
+        )
+    ).json()
+    track = await add_track(
+        world, item["id"], 2110, kind="prabhat_samgiita", ps_song_number=12, by_author=True
+    )
+    assert track.status_code == 201, track.text
+    assert track.json()["by_author"] is False

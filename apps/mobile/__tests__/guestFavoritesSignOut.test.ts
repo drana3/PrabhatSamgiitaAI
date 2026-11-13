@@ -48,11 +48,6 @@ vi.mock("@/lib/googleAuth", () => ({
   signOutWithGoogle: vi.fn(async () => undefined),
 }))
 
-vi.mock("@/lib/facebookAuth", () => ({
-  facebookAuthConfigured: () => false,
-  signInWithFacebook: vi.fn(),
-}))
-
 vi.mock("@/lib/localAuth", () => ({
   loginWithEmail: vi.fn(),
   registerWithEmail: vi.fn(),
@@ -86,10 +81,13 @@ describe("guest favorites and Microsoft sign-out", () => {
     vi.clearAllMocks()
   })
 
-  it("does not save songs while signed out", async () => {
+  it("saves songs on the phone while signed out, and sends nothing to the server", async () => {
     const result = await usePreferencesStore.getState().toggleSaved("ps-42")
-    expect(result).toEqual({ needsAuth: true })
-    expect(usePreferencesStore.getState().savedSongIds).toEqual(["ps-1"])
+    expect(result).toEqual({ needsAuth: false })
+    expect(usePreferencesStore.getState().savedSongIds).toEqual(["ps-1", "ps-42"])
+    expect(usePreferencesStore.getState().favoritesByScope.guest).toEqual(["ps-1", "ps-42"])
+    await usePreferencesStore.getState().toggleSaved("ps-1")
+    expect(usePreferencesStore.getState().savedSongIds).toEqual(["ps-42"])
   })
 
   it("clears feeling search and guest favorites on Microsoft sign-out", async () => {

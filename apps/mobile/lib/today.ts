@@ -39,7 +39,7 @@ export function todayItemToMockSong(item: TodayRecommendationItem, index = 0): M
     meaning: item.reasons.join(" · ") || "Song of the Day",
     lyrics: item.first_line || item.title,
     translation: item.first_line || item.title,
-    durationSeconds: 300,
+    durationSeconds: 0, // 0 = length not known yet (never a made-up 5:00)
     performer: "Prabhat Samgiita Collection",
     videos: embedUrl
       ? [

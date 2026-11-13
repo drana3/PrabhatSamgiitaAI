@@ -25,9 +25,29 @@ export function songShareUrl(songNumber: number): string {
   return `${webBaseUrl()}/songs/${songNumber}?open=app`
 }
 
+/** Privacy policy page of the website. */
+export function privacyUrl(): string {
+  return `${webBaseUrl()}/privacy`
+}
+
+/** Terms of use page of the website (apps/web/app/terms). */
+export function termsUrl(): string {
+  return `${webBaseUrl()}/terms`
+}
+
+/** Password reset page of the website (the app has no reset screen of its own). */
+export function forgotPasswordUrl(): string {
+  return `${webBaseUrl()}/forgot-password`
+}
+
 /** Public instructions for account/data deletion (Play / App Store data safety). */
 export function deleteAccountHelpUrl(): string {
   return `${webBaseUrl()}/delete-account`
+}
+
+/** Where a rights holder asks us to remove a recording (docs/takedown-process.md). */
+export function takedownUrl(): string {
+  return `${webBaseUrl()}/takedown`
 }
 
 function foldShareText(value: string): string {

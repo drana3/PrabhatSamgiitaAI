@@ -1,5 +1,7 @@
 import type { MemberPlaylist } from "@prabhat/core"
 
+import { demoSong } from "@/lib/fixtures/playerDemo"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { hasPlayableAudio, nextPlayableInQueue } from "@/lib/playableAudio"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { peekSongDetail } from "@/lib/songCache"
@@ -7,6 +9,7 @@ import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
 import { usePlayerStore } from "@/stores/playerStore"
 
 export function starterSongForNumber(number: number) {
+  if (MOCKUP_DATA) return demoSong(number)
   const cached = peekSongDetail(number)
   if (cached) return songDetailToMockSong(cached)
   const hit = catalogSongsByNumbers([number], 1)[0]

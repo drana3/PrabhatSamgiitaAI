@@ -14,6 +14,13 @@ type Options = {
   onUnavailable?: () => void
 }
 
+/**
+ * Shown when the phone has no speech service (for example Android without Google services, where the
+ * recogniser is com.google.android.googlequicksearchbox) or the native module is missing.
+ */
+export const VOICE_UNAVAILABLE_MESSAGE =
+  "Voice search isn’t available on this device. Type your query or use the keyboard microphone."
+
 export function useVoiceSearch(options: Options = {}) {
   const optionsRef = useRef(options)
   optionsRef.current = options
@@ -46,7 +53,7 @@ export function useVoiceSearch(options: Options = {}) {
     if (!isNativeSpeechRecognitionAvailable()) {
       setNativeAvailable(false)
       setError(
-        "Built-in voice search needs a development build (npm run android or npm run ios). Use the keyboard mic or type your query.",
+        VOICE_UNAVAILABLE_MESSAGE,
       )
       optionsRef.current.onUnavailable?.()
       return false

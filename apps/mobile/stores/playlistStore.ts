@@ -1,6 +1,7 @@
 import type { MemberPlaylist } from "@prabhat/core"
 import { create } from "zustand"
 
+import { ownerKeyOf } from "@/lib/account/owner"
 import { api } from "@/lib/client"
 import { memberAuthAvailable } from "@/lib/memberAuth"
 import {
@@ -17,6 +18,7 @@ import {
   resetPlaylistSyncQueue,
 } from "@/lib/playlistSyncQueue"
 import { useAuthStore } from "@/stores/authStore"
+import { usePlaylistCoverStore } from "@/stores/playlistCoverStore"
 
 type PlaylistResult = MemberPlaylist | { needsAuth: true } | { error: string }
 
@@ -34,6 +36,10 @@ type PlaylistState = {
   addSong: (id: string, songNumber: number) => Promise<PlaylistResult>
   removeSong: (id: string, songNumber: number) => Promise<PlaylistResult>
   flushSync: () => Promise<void>
+}
+
+function currentOwner() {
+  return ownerKeyOf(useAuthStore.getState())
 }
 
 function signedIn() {
@@ -98,14 +104,16 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
 
   refresh: async () => {
     if (!signedIn() || !memberAuthAvailable()) {
-      resetPlaylistSyncQueue()
-      await clearPlaylistCache()
-      set({ playlists: [], error: null, loading: false, syncing: false })
+      await clearPlaylistsOnDevice()
       return
     }
+    const owner = currentOwner()
     const cached = peekPlaylistCache() ?? (await readPlaylistCache()) ?? []
+    if (currentOwner() !== owner) return
     set({ playlists: cached, loading: false, error: null })
     const remote = await api.fetchMemberPlaylists()
+    // Signed out or into another account while the list was loading: it is not for whoever is here now.
+    if (currentOwner() !== owner) return
     if (remote === null) {
       set((state) => ({
         loading: false,
@@ -113,7 +121,8 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       }))
       return
     }
-    await writePlaylistCache(remote)
+    await writePlaylistCache(remote, owner)
+    if (currentOwner() !== owner) return
     set({ playlists: remote, loading: false, error: null })
   },
 
@@ -136,6 +145,8 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const playlists = [...get().playlists, optimistic]
     set({ playlists, error: null })
     persistSoon(playlists)
+    // every new playlist gets its own random cover photo, kept on the phone (stores/playlistCoverStore.ts)
+    usePlaylistCoverStore.getState().assignRandom(tempId)
     enqueuePlaylistSync({ type: "create", tempId, name: trimmed })
     return optimistic
   },
@@ -161,6 +172,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     const playlists = get().playlists.filter((item) => item.id !== id)
     set({ playlists, error: null })
     persistSoon(playlists)
+    usePlaylistCoverStore.getState().remove(id)
     enqueuePlaylistSync({ type: "delete", id })
     return { ok: true }
   },
@@ -197,7 +209,27 @@ bindPlaylistSyncHandlers({
   onPlaylists: (playlists) => usePlaylistStore.setState({ playlists }),
   onError: (message) => usePlaylistStore.setState({ error: message, syncing: false }),
   readPlaylists: () => usePlaylistStore.getState().playlists,
+  onIdAssigned: (tempId, id) => usePlaylistCoverStore.getState().move(tempId, id),
 })
+
+/** Everything about playlists that the phone holds: the list, the cache on disk and the waiting changes. */
+export async function clearPlaylistsOnDevice(): Promise<void> {
+  resetPlaylistSyncQueue()
+  usePlaylistStore.setState({ playlists: [], error: null, loading: false, syncing: false })
+  usePlaylistCoverStore.getState().clear()
+  await clearPlaylistCache()
+}
+
+// Another account, or none: the playlists on the phone are not for them. (Signing out calls the same.)
+let playlistOwner = currentOwner()
+if (typeof useAuthStore.subscribe === "function") {
+  useAuthStore.subscribe(() => {
+    const next = currentOwner()
+    if (next === playlistOwner) return
+    playlistOwner = next
+    void clearPlaylistsOnDevice()
+  })
+}
 
 export function isPlaylist(value: PlaylistResult): value is MemberPlaylist {
   return "id" in value && "songs" in value

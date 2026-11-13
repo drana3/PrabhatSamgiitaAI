@@ -5,7 +5,30 @@ from app.models.admin_workflow import (
 )
 from app.models.ai_usage import AiDailyUsage
 from app.models.announcements import PasswordResetToken, SiteAnnouncement
+from app.models.app_telemetry import AppEvent, FeatureFlag
+from app.models.app_version import AppVersionPolicy
+from app.models.apple_token import AppleRefreshToken
+from app.models.author_profiles import (
+    AuthorAlias,
+    AuthorClaim,
+    AuthorClaimEvent,
+    AuthorProfile,
+    AuthorProfilePhoto,
+    AuthorRecordingLink,
+    AuthorReport,
+    AuthorSlugHistory,
+    AuthorStatsSnapshot,
+    AuthorSuspension,
+    PlayDaily,
+    PlayEvent,
+)
 from app.models.base import Base
+from app.models.broadcasts import (
+    Broadcast,
+    BroadcastDecision,
+    BroadcastRecording,
+    BroadcastReport,
+)
 from app.models.chunk import SongChunk
 from app.models.domain import (
     AnalyticsDaily,
@@ -25,6 +48,7 @@ from app.models.domain import (
 )
 from app.models.google_translate_usage import GoogleTranslateUsage
 from app.models.inventory import InventoryItem
+from app.models.learn_sync import MemberLearnProgress
 from app.models.media import Media
 from app.models.member import (
     CommunityTestimonial,
@@ -44,12 +68,65 @@ from app.models.member import (
     UserPlaylist,
     UserPlaylistSong,
 )
+from app.models.member_session import MemberSession
 from app.models.notation import Notation
+from app.models.piano_sheets import PianoSheet, PianoSheetReport
+from app.models.play_flag import PlayFlag
+from app.models.rate_limit import RateLimitCounter
+from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
+from app.models.recording_extras import (
+    RecordingChordReport,
+    RecordingChordSheet,
+    RecordingComment,
+    RecordingCommentReport,
+    VideoLink,
+    VideoLinkReport,
+)
+from app.models.recording_moods import RecordingMood, RecordingMoodVote
+from app.models.recordings import (
+    AuthorBlock,
+    MemberNotice,
+    Recording,
+    RecordingReport,
+    RecordingSimilarConfirm,
+)
 from app.models.sargam_capture import NotationCapture
+from app.models.search_menu import SearchMenuPin
 from app.models.song import Song
+from app.models.song_chords import SongChordOffer, SongChordProposal, SongChordReport
+from app.models.song_comments import SongComment, SongCommentReport
+from app.models.song_plays import SongPlayDaily, SongPlayEvent
+from app.models.song_translations import SongTranslation
+from app.models.takedown import BlockedAudioHash, TakedownRequest
 
 __all__ = [
+    "AppleRefreshToken",
+    "AppVersionPolicy",
+    "MemberSession",
+    "RateLimitCounter",
+    "TakedownRequest",
+    "PlayFlag",
+    "Broadcast",
+    "BroadcastDecision",
+    "BroadcastRecording",
+    "BroadcastReport",
+    "RecordingMood",
+    "RecordingMoodVote",
+    "BlockedAudioHash",
+    "AppEvent",
+    "FeatureFlag",
     "AiDailyUsage",
+    "AuthorAlias",
+    "AuthorBlock",
+    "AuthorClaim",
+    "AuthorClaimEvent",
+    "AuthorProfile",
+    "AuthorProfilePhoto",
+    "AuthorRecordingLink",
+    "AuthorReport",
+    "AuthorSlugHistory",
+    "AuthorStatsSnapshot",
+    "AuthorSuspension",
     "GoogleTranslateUsage",
     "AnalyticsDaily",
     "Base",
@@ -61,21 +138,45 @@ __all__ = [
     "InspirationStoryRecord",
     "InventoryItem",
     "Media",
+    "MemberLearnProgress",
+    "MemberNotice",
     "Notation",
     "NotationCapture",
     "NotationCapture",
     "Occasion",
     "PasswordResetToken",
     "PhoneVerificationCode",
+    "PlayDaily",
+    "PlayEvent",
     "QuizAttempt",
     "QuizCertification",
     "QuizEvent",
     "QuizEventQuestion",
     "QuizEventSubmission",
     "RecommendationAudit",
+    "Recording",
+    "PianoSheet",
+    "PianoSheetReport",
+    "RecordingChordReport",
+    "RecordingChordSheet",
+    "RecordingComment",
+    "RecordingCommentReport",
+    "RecordingCollection",
+    "RecordingCollectionCover",
+    "SearchMenuPin",
+    "RecordingReport",
+    "RecordingSimilarConfirm",
     "ReflectionQuote",
     "Season",
     "Song",
+    "SongPlayDaily",
+    "SongPlayEvent",
+    "SongTranslation",
+    "SongComment",
+    "SongCommentReport",
+    "SongChordProposal",
+    "SongChordOffer",
+    "SongChordReport",
     "SongChunk",
     "SongIngestionSubmission",
     "SongOccasionLink",
@@ -92,6 +193,8 @@ __all__ = [
     "UserInterestProfile",
     "UserPlaylist",
     "UserPlaylistSong",
+    "VideoLink",
+    "VideoLinkReport",
     "YoutubeReviewQueue",
     "YoutubeScanChannel",
 ]

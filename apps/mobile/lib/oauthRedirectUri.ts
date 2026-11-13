@@ -1,7 +1,7 @@
 const APP_SCHEME = "prabhatai"
 export const APP_PACKAGE_ID = "net.prabhatasamgiita.ai"
 
-/** Stable redirect URI registered in Azure, Google Cloud, and Facebook. */
+/** Stable redirect URI registered in Azure and Google Cloud. */
 export function oauthRedirectHint(path: string) {
   return `${APP_SCHEME}://${path}`
 }

@@ -13,8 +13,39 @@ export function extractYoutubeId(value: string | null | undefined): string | nul
   return match?.[1] ?? null
 }
 
-/** Trusted HTTPS origin so YouTube accepts the WebView Referer (avoids Error 153). */
-export const YOUTUBE_EMBED_REFERER = "https://prabhatasamgiita.net/"
+/**
+ * Referer / base URL for YouTube embeds inside WebViews (Error 153 when it is missing).
+ * YouTube's embedded-player rules ask for an HTTPS URL whose domain is the app's registered id
+ * (reverse-DNS bundle / package id), stable across versions.
+ */
+export const YOUTUBE_EMBED_REFERER = "https://net.prabhatasamgiita.ai/"
+
+function escapeHtmlAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+/**
+ * WebView source for a YouTube embed: a tiny HTML page with the iframe, loaded with a base URL so the
+ * embed gets a real HTTPS Referer (WebView sends none for a bare uri). Shared by the song video card
+ * and the live broadcast embed.
+ */
+export function youtubeEmbedWebSource(embedUrl: string): { html: string; baseUrl: string } {
+  const joiner = embedUrl.includes("?") ? "&" : "?"
+  const src = `${embedUrl}${joiner}widget_referrer=${encodeURIComponent(YOUTUBE_EMBED_REFERER)}`
+  const html = `<!DOCTYPE html><html><head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{border:0;width:100%;height:100%}</style>
+</head><body>
+<iframe
+  src="${escapeHtmlAttribute(src)}"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+  allowfullscreen
+  referrerpolicy="strict-origin-when-cross-origin"
+></iframe>
+</body></html>`
+  return { html, baseUrl: YOUTUBE_EMBED_REFERER }
+}
 
 /** In-app embed URL suitable for WebView / iframe. */
 export function toInAppVideoEmbedUrl(urlOrEmbed: string | null | undefined): string | null {
@@ -49,13 +80,23 @@ type MediaLike = {
   url: string
   embed_url?: string | null
   verification_status: string
+  performer?: string | null
   is_latest?: boolean
+  loudness_lufs?: number | null
+  true_peak_db?: number | null
 }
 
 export type PlayableAudio = {
   title: string
   url: string
   provider: string
+  /** Who sang it, when the catalogue says (the colleagues' recordings); absent for the archive's own files. */
+  performer?: string
+  /** The API marks exactly one audio file per song as the best (`is_latest`). Absent when it does not. */
+  isLatest?: boolean
+  /** Measured loudness of this file (volume leveling); absent when the server has not measured it. */
+  loudnessLufs?: number
+  truePeakDb?: number
 }
 
 function audioStreamUrl(item: MediaLike): string | null {
@@ -82,8 +123,16 @@ export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
       title: item.title?.trim() || "Recording",
       url,
       provider: item.provider,
+      ...(item.performer?.trim() ? { performer: item.performer.trim() } : {}),
+      ...(item.is_latest ? { isLatest: true } : {}),
+      ...(typeof item.loudness_lufs === "number" ? { loudnessLufs: item.loudness_lufs } : {}),
+      ...(typeof item.true_peak_db === "number" ? { truePeakDb: item.true_peak_db } : {}),
     })
   }
+  // The API's choice (`is_latest`, the colleagues' current recording where there is one) is listed first and plays
+  // by default; the rest keep their order. Without this a song with many archive links could cut it off the list.
+  const best = items.findIndex((item) => item.isLatest)
+  if (best > 0) items.unshift(...items.splice(best, 1))
   return items
 }
 

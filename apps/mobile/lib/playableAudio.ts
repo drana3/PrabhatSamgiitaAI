@@ -1,6 +1,10 @@
 import playableNumbers from "@/assets/playable-audio-numbers.json"
+import { isKiirtanNumber, kiirtanHasAudio } from "@/lib/kirtan/track"
+import { MOCKUP_DATA } from "@/lib/mockupMode"
 
 const PLAYABLE = new Set(playableNumbers as number[])
+// The web preview uses the same list as the real build: a song "has audio" only if the catalog says so.
+// (The preview simulates playback with a clock, but it never offers play on a song without a recording.)
 const PLAYABLE_LIST = playableNumbers as number[]
 
 function fallbackRandom(exclude: number, total = 5018): number {
@@ -11,6 +15,8 @@ function fallbackRandom(exclude: number, total = 5018): number {
 }
 
 export function hasPlayableAudio(number: number): boolean {
+  // A Kiirtan plays its uploaded file; the preview simulates playback, so every Kiirtan "has audio" there.
+  if (isKiirtanNumber(number)) return MOCKUP_DATA || kiirtanHasAudio(number)
   return PLAYABLE.has(number)
 }
 
@@ -18,8 +24,22 @@ export function playableAudioCount(): number {
   return PLAYABLE_LIST.length
 }
 
+/**
+ * The Radio's own picker (lib/radio/live.ts): which category and which track comes next, from the categories the
+ * person chose. Null (the default, and in every test that does not install one) keeps the plain random pick below.
+ */
+let radioPicker: ((exclude: number) => number | null) | null = null
+
+export function setRadioPicker(picker: ((exclude: number) => number | null) | null): void {
+  radioPicker = picker
+}
+
 /** Random PS with a known official audio file in corpus (~3.7k of 5018). */
 export function randomPlayableSongNumber(exclude: number): number {
+  if (radioPicker) {
+    const chosen = radioPicker(exclude)
+    if (chosen != null) return chosen
+  }
   if (!PLAYABLE_LIST.length) return fallbackRandom(exclude)
   for (let attempt = 0; attempt < 48; attempt += 1) {
     const pick = PLAYABLE_LIST[Math.floor(Math.random() * PLAYABLE_LIST.length)]
@@ -42,4 +62,9 @@ export function nextPlayableInQueue(
     if (!PLAYABLE_LIST.length || hasPlayableAudio(number)) return number
   }
   return null
+}
+
+/** Every PS number that has a known audio file, ascending. Do not mutate. */
+export function playableNumbersList(): readonly number[] {
+  return PLAYABLE_LIST
 }

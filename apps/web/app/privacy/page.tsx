@@ -77,6 +77,27 @@ export default function PrivacyPage() {
           </div>
 
           <div>
+            <h2 className="font-serif text-2xl text-navy-950">What happens when you delete your account</h2>
+            <p className="mt-4">
+              Your sign-in details, e-mail address, profile, saved songs, notification tokens and the sign-in on every
+              device are deleted, and your listening records tied to you are erased. Recordings you uploaded stay in
+              the library under the name they were uploaded with; they are no longer linked to an account. Comments you
+              wrote stay too, under the name you had; they are no longer linked to an account. Anonymous comments stay
+              anonymous.
+            </p>
+            <p className="mt-4">
+              If you are a rights holder and want a recording removed, use the{" "}
+              <Link href="/takedown" className="font-semibold text-navy-950 underline decoration-gold-500 underline-offset-4">
+                copyright notice form
+              </Link>
+              .
+            </p>
+            {/* Draft paragraph: describes what the system does today and does not change the policy.
+                Remove the line below once the owner has checked the wording. */}
+            <p className="mt-4 border-l-2 border-gold-500 pl-3 italic">[нужна проверка владельцем]</p>
+          </div>
+
+          <div>
             <h2 className="font-serif text-2xl text-navy-950">Security</h2>
             <p className="mt-4">
               Data is transmitted over encrypted connections (HTTPS/TLS). Passwords are stored using industry-standard

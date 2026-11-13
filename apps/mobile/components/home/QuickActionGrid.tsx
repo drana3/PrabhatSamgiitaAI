@@ -9,7 +9,7 @@ import { typography } from "@/constants/typography"
 const actions = [
   { key: "explore", label: "Explore", Icon: Compass },
   { key: "collections", label: "Collections", Icon: Library },
-  { key: "drive", label: "Drive Mode", Icon: Car },
+  { key: "drive", label: "Radio", Icon: Car },
 ] as const
 
 type Props = {

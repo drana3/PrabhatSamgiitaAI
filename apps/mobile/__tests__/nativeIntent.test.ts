@@ -16,9 +16,21 @@ describe("rewriteNativeSystemPath", () => {
   })
 
   it("preserves normal in-app paths", () => {
-    expect(rewriteNativeSystemPath("/(tabs)/index")).toBe("/(tabs)/index")
-    expect(rewriteNativeSystemPath("/song/ps-1")).toBe("/song/ps-1")
-    expect(rewriteNativeSystemPath("prabhatai:///song/ps-1")).toBe("/song/ps-1")
+    expect(rewriteNativeSystemPath("/song-v2/ps-1")).toBe("/song-v2/ps-1")
+    expect(rewriteNativeSystemPath("/player-v2")).toBe("/player-v2")
+  })
+
+  it("sends old (v1) addresses to the redesigned screens", () => {
+    expect(rewriteNativeSystemPath("/(tabs)/index")).toBe("/v2/today")
+    expect(rewriteNativeSystemPath("/song/ps-1")).toBe("/song-v2/ps-1")
+    expect(rewriteNativeSystemPath("prabhatai:///song/ps-1")).toBe("/song-v2/ps-1")
+    expect(rewriteNativeSystemPath("/songs/7")).toBe("/song-v2/ps-7")
+  })
+
+  it("keeps the Radio screen's old address /drive as it is (QA-005)", () => {
+    expect(rewriteNativeSystemPath("prabhatai://drive")).toBe("/drive")
+    expect(rewriteNativeSystemPath("prabhatai:///drive")).toBe("/drive")
+    expect(rewriteNativeSystemPath("/drive")).toBe("/drive")
   })
 
   it("maps quiz event deep links to the event screen", () => {
@@ -26,6 +38,6 @@ describe("rewriteNativeSystemPath", () => {
   })
 
   it("maps website song URLs to the song screen", () => {
-    expect(rewriteNativeSystemPath("https://www.prabhatasamgiita.org/songs/42")).toBe("/song/ps-42")
+    expect(rewriteNativeSystemPath("https://www.prabhatasamgiita.org/songs/42")).toBe("/song-v2/ps-42")
   })
 })

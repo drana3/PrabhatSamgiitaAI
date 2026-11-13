@@ -51,6 +51,8 @@ SETTINGS=(
   "DEFAULT_ADMIN_EMAILS=${DEFAULT_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
 )
 [[ -n "$MEMBER_PROXY_KEY" ]] && SETTINGS+=("MEMBER_PROXY_KEY=${MEMBER_PROXY_KEY}")
+# Key only the website server holds (never inside an app): lets the website keep admin.
+[[ -n "${WEB_PROXY_KEY:-}" ]] && SETTINGS+=("WEB_PROXY_KEY=${WEB_PROXY_KEY}")
 [[ -n "$AZURE_CLIENT_SECRET" ]] && SETTINGS+=("AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}")
 [[ -n "$GOOGLE_CLIENT_SECRET" ]] && SETTINGS+=("GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}")
 

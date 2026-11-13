@@ -26,6 +26,8 @@ class MediaItemResponse(BaseModel):
     notes: str | None = None
     external_id: str | None = None
     channel_name: str | None = None
+    # Who sang a recording (the colleagues' PS audio); absent for the archive's own files.
+    performer: str | None = None
     source_status: str | None = None
     rights_status: str | None = None
     availability_status: str | None = None
@@ -34,6 +36,9 @@ class MediaItemResponse(BaseModel):
     is_latest: bool = False
     is_older: bool = False
     is_low_quality: bool = False
+    # Measured loudness of an audio item (LUFS, dBTP); the phone levels playback with it.
+    loudness_lufs: float | None = None
+    true_peak_db: float | None = None
 
 
 class SargamAttribution(BaseModel):

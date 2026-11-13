@@ -1,4 +1,5 @@
 import type { ActivePlaylistMeta } from "@/lib/playlistPlayback"
+import { RADIO_KEEPS_PLAYING_ON_LEAVE } from "@/lib/radio/keepPlaying"
 import { shouldAdvanceAfterTrackEnd, type PlaybackMode } from "@/lib/playbackQueue"
 
 /** Product-level listening contract — not expo-av details. */
@@ -51,7 +52,8 @@ export function sessionAutoAdvanceWhileLocked(session: ListeningSession): boolea
 }
 
 export function sessionEndsOnLeaveDrive(session: ListeningSession): boolean {
-  return session.kind === "drive-random" || session.kind === "drive-playlist"
+  // the Radio (drive-random) keeps playing when its screen is left (lib/radio/keepPlaying.ts); a drive playlist ends
+  return (session.kind === "drive-random" && !RADIO_KEEPS_PLAYING_ON_LEAVE) || session.kind === "drive-playlist"
 }
 
 /** Random mode left over after Drive exit without a live drive session. */

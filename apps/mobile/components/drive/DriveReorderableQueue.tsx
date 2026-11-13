@@ -7,9 +7,10 @@ import {
 } from "react-native-draggable-flatlist"
 import { GripVertical } from "lucide-react-native"
 
-import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { amColors, amDarkSurface, type AmTheme } from "@/constants/tokens/amColors"
+import { useAmTheme, useResolvedAppearance } from "@/hooks/useAmTheme"
 import { catalogSongsByNumbers } from "@/lib/lyricSearch"
 import { api } from "@/lib/client"
 import { songDetailToMockSong } from "@/lib/songMap"
@@ -20,6 +21,12 @@ const MIN_QUEUE_TO_REORDER = 2
 type QueueRow = { key: string; number: number }
 
 export function DriveReorderableQueue() {
+  const theme = useAmTheme()
+  const dark = useResolvedAppearance() === "dark"
+  const styles = useMemo(
+    () => makeStyles(theme, dark ? amDarkSurface.peach : amColors.orange100),
+    [theme, dark],
+  )
   const queue = usePlayerStore((s) => s.queue)
   const currentNumber = usePlayerStore((s) => s.currentSong?.number ?? null)
   const playbackMode = usePlayerStore((s) => s.playbackMode)
@@ -68,7 +75,7 @@ export function DriveReorderableQueue() {
             hitSlop={10}
             style={styles.dragHandle}
           >
-            <GripVertical size={24} color={colors.textMuted} />
+            <GripVertical size={24} color={theme.textMuted} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -107,25 +114,25 @@ export function DriveReorderableQueue() {
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AmTheme, activeRow: string) => StyleSheet.create({
   wrap: {
     marginTop: spacing.md,
   },
-  heading: { ...typography.label, color: colors.textPrimary },
-  hint: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
+  heading: { ...typography.label, color: theme.textHeading },
+  hint: { ...typography.caption, color: theme.textMuted, marginBottom: spacing.sm },
   list: {
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: theme.line,
+    backgroundColor: theme.card,
     overflow: "hidden",
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
+    borderBottomColor: theme.line,
+    backgroundColor: theme.card,
   },
   dragHandle: {
     paddingHorizontal: spacing.md,
@@ -142,19 +149,19 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   rowActive: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: activeRow,
     opacity: 0.98,
   },
   rowCurrent: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: theme.inner,
   },
   meta: { flex: 1, minWidth: 0 },
-  number: { ...typography.caption, color: colors.textSecondary },
-  numberCurrent: { color: colors.primaryDark, fontFamily: "Inter_600SemiBold" },
-  title: { ...typography.bodySmall, color: colors.textPrimary },
+  number: { ...typography.caption, color: theme.textBody },
+  numberCurrent: { color: theme.accentText, fontFamily: "Inter_600SemiBold" },
+  title: { ...typography.bodySmall, color: theme.textHeading },
   now: {
     ...typography.caption,
-    color: colors.primaryDark,
+    color: theme.accentText,
     fontFamily: "Inter_600SemiBold",
   },
 })

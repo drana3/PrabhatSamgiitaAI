@@ -64,3 +64,19 @@ describe("friendlyPersonName", () => {
     expect(displayNameFromEmail("member@privaterelay.appleid.com")).toBe("Member")
   })
 })
+
+describe("greetFirstName with initials (BUG-26)", () => {
+  it("does not greet an account called 'I M Dada' as 'I'", () => {
+    expect(greetFirstName("I M Dada", null)).toBe("I M Dada")
+    // Same name derived from the account email (i.m.dada@...).
+    expect(greetFirstName(null, "i.m.dada@gmail.com")).toBe("I M Dada")
+  })
+
+  it("keeps the full name when the first token is an initial with a dot", () => {
+    expect(greetFirstName("J. Rana", null)).toBe("J. Rana")
+  })
+
+  it("still uses only the first name when it is a real word", () => {
+    expect(greetFirstName("Dewasheesh Rana", null)).toBe("Dewasheesh")
+  })
+})

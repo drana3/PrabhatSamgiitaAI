@@ -5,7 +5,7 @@ import logging
 import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,7 @@ from app.services.ai_quota import (
     client_ip,
     record_daily_ai_question_persisted,
 )
+from app.services.ai_quota_report import QuotaReport, quota_headers, report_from_status
 from app.services.answer_guard import apply_output_guardrails
 from app.services.catalog import CatalogService
 from app.services.chat_history import cap_chat_history
@@ -36,6 +37,34 @@ from app.services.structured_answers import is_deeper_question, try_structured_a
 router = APIRouter(prefix="/ai", tags=["ai"])
 explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=86_400, maxsize=512)
 logger = logging.getLogger(__name__)
+
+
+ERROR_CODE_HEADER = "X-Error-Code"
+"""Stable machine-readable reason, sent next to the plain-text notices of /ai/explain.
+
+The text stays human and can change; apps map the code to their own words and language.
+Codes: song_not_found, question_not_allowed, quota_exceeded. A rate limit (HTTP 429) carries
+rate_limited, see app.core.security.
+"""
+
+
+def _notice(
+    parts: list[str], code: str, report: QuotaReport | None = None
+) -> StreamingResponse:
+    return StreamingResponse(
+        stream_text(parts),
+        media_type="text/event-stream",
+        headers={ERROR_CODE_HEADER: code, **quota_headers(report)},
+    )
+
+
+def _stream(parts: list[str], report: QuotaReport | None) -> StreamingResponse:
+    """A streamed answer; the daily allowance rides along (docs/ai-quota-header.md)."""
+    return StreamingResponse(
+        stream_text(parts),
+        media_type="text/event-stream",
+        headers=quota_headers(report),
+    )
 
 
 def _stream_answer(parts: list[str]) -> list[str]:
@@ -62,7 +91,7 @@ async def explain(
     catalog = CatalogService(session)
     song = await catalog.get_song(payload.song_number)
     if not song:
-        return StreamingResponse(stream_text(["Song not found."]), media_type="text/event-stream")
+        return _notice(["Song not found."], "song_not_found")
 
     prompt = payload.prompt or f"Explain song {song.number}: {song.title}"
     assessment = assess_query(
@@ -72,11 +101,16 @@ async def explain(
         allow_follow_up=bool(payload.history),
     )
     if not assessment.allowed:
-        return StreamingResponse(
-            stream_text([assessment.guidance]),
-            media_type="text/event-stream",
-        )
+        return _notice([assessment.guidance], "question_not_allowed")
     prompt = assessment.normalized
+    # One read of today's count: reported on every reply below, and reused for the limit check.
+    quota = await check_daily_ai_quota_persisted(
+        is_member=member is not None,
+        identity=quota_identity,
+        session=session,
+        settings=settings,
+    )
+    report = report_from_status(quota)
     profile_context = _sanitize_profile_context(payload.profile_context)
     history: list[tuple[str, str]] = []
     for turn in payload.history:
@@ -108,25 +142,25 @@ async def explain(
     )
     cached = await explanation_cache.get(cache_key)
     if isinstance(cached, list):
-        return StreamingResponse(stream_text(cached), media_type="text/event-stream")
+        return _stream(cached, report)
 
     language_ack = try_language_switch_acknowledgment(prompt, history)
     if language_ack:
         streamed = [sanitize_model_output(language_ack)]
         await explanation_cache.set(cache_key, streamed)
-        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+        return _stream(streamed, report)
 
     conversation_answer = try_conversation_answer(prompt, history)
     if conversation_answer:
         streamed = [sanitize_model_output(conversation_answer)]
         await explanation_cache.set(cache_key, streamed)
-        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+        return _stream(streamed, report)
 
     direct = try_direct_answer(prompt, song)
     if direct:
         streamed = [sanitize_model_output(direct.text)]
         await explanation_cache.set(cache_key, streamed)
-        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+        return _stream(streamed, report)
 
     related = await catalog.related_songs(song)
     deeper = is_deeper_question(prompt, history)
@@ -135,21 +169,17 @@ async def explain(
         if structured:
             streamed = _stream_answer([sanitize_model_output(structured)])
             await explanation_cache.set(cache_key, streamed)
-            return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+            return _stream(streamed, report)
 
-    quota = await check_daily_ai_quota_persisted(
-        is_member=member is not None,
-        identity=quota_identity,
-        session=session,
-        settings=settings,
-    )
     if not quota.allowed:
-        return StreamingResponse(stream_text([quota.guidance]), media_type="text/event-stream")
+        return _notice([quota.guidance], "quota_exceeded", report)
     await record_daily_ai_question_persisted(
         is_member=member is not None,
         identity=quota_identity,
         session=session,
     )
+    # this question is counted now: report the allowance after it
+    report = report_from_status(quota, charged=1)
 
     provider = select_provider(settings)
     rag = RAGService(session, provider)
@@ -172,4 +202,37 @@ async def explain(
     answer = sanitize_model_output(apply_output_guardrails(answer, song))
     streamed = _stream_answer([answer])
     await explanation_cache.set(cache_key, streamed)
-    return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+    return _stream(streamed, report)
+
+
+@router.get("/quota")
+async def daily_quota(
+    request: Request,
+    response: Response,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, int | str]:
+    """Today's allowance of deeper AI questions for this caller, without asking one.
+
+    Same count and same X-RateLimit-* headers as /ai/explain, so the assistant screen can say
+    "N questions left today" the moment it opens. 503 when the count cannot be read: the app then
+    shows nothing rather than a guess.
+    """
+    require_public_quota(request, bucket="ai-quota", limit=60)
+    member = try_member_identity(request)
+    status = await check_daily_ai_quota_persisted(
+        is_member=member is not None,
+        identity=member.subject if member else client_ip(request),
+        session=session,
+        settings=get_settings(),
+    )
+    report = report_from_status(status)
+    if report is None:
+        raise HTTPException(status_code=503, detail="Quota unavailable")
+    response.headers.update(quota_headers(report))
+    return {
+        "scope": "member" if report.is_member else "guest",
+        "limit": report.limit,
+        "used": report.used,
+        "remaining": report.remaining,
+        "resets_in_seconds": report.reset_seconds,
+    }

@@ -6,14 +6,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.db import get_session
 from app.models import UserAccount, UserFavorite, UserPlaylist, UserPlaylistSong
+from app.models.member_session import MemberSession
 from app.schemas.member import (
     AnonymousMember,
     ChatMemoryResponse,
     ChatMemoryWrite,
+    FavoritesMerge,
     FavoriteWrite,
     MemberPhoneWrite,
     MemberPreferencesWrite,
@@ -28,6 +32,10 @@ from app.schemas.member import (
     QuizSubmitResponse,
     QuizSubmitWrite,
 )
+from app.services.apple_revoke import revoke_for_deleted_member as revoke_apple_grant
+from app.services.apple_revoke import stored_refresh_token as stored_apple_refresh_token
+from app.services.author_profiles import erase_member as erase_author_data
+from app.services.comment_authors import keep_comments_under_name
 from app.services.member_phone import set_member_phone
 from app.services.members import (
     clear_member_chat_memory,
@@ -137,6 +145,45 @@ async def add_favorite(
     if exists is None:
         session.add(UserFavorite(user_id=member.id, song_number=payload.song_number))
         await session.commit()
+    return await favorites(request, session)
+
+
+@router.post("/favorites/merge", response_model=list[int])
+async def merge_favorites(
+    payload: FavoritesMerge, request: Request, session: DatabaseSession
+) -> list[int]:
+    """Add every song of the list that the account does not hold yet; remove nothing.
+
+    A guest's saved songs live on the phone. When the guest signs in they are sent here in one
+    request: the account ends with the union, no song twice, none lost. Sending the same list
+    again changes nothing. Returns the account's whole list, like the other favourites routes.
+    """
+    member = await current_member(request, session)
+    wanted = set(payload.song_numbers)
+    for attempt in (1, 2):
+        held = set(
+            (
+                await session.execute(
+                    select(UserFavorite.song_number).where(
+                        UserFavorite.user_id == member.id,
+                        UserFavorite.song_number.in_(wanted),
+                    )
+                )
+            ).scalars()
+        )
+        # keep the order the phone sent them in, so the newest end up as the phone had them
+        fresh = [n for n in dict.fromkeys(payload.song_numbers) if n not in held]
+        if not fresh:
+            break
+        session.add_all(UserFavorite(user_id=member.id, song_number=n) for n in fresh)
+        try:
+            await session.commit()
+            break
+        except IntegrityError:
+            # two merges of the same list at once: the other one won; look again, add the rest
+            await session.rollback()
+            if attempt == 2:
+                raise
     return await favorites(request, session)
 
 
@@ -281,8 +328,23 @@ async def clear_chat_memory(request: Request, session: DatabaseSession) -> Respo
 @router.delete("/me", status_code=204)
 async def delete_member_data(request: Request, session: DatabaseSession) -> Response:
     member = await current_member(request, session)
+    # Apple rule 5.1.1(v): an Apple member's Apple grant is revoked too. The stored token is read
+    # now (the row goes with the account) and used after the commit; Apple trouble never stops the
+    # deletion (services/apple_revoke.py swallows and logs every failure).
+    is_apple_member = member.identity_provider == "apple"
+    apple_token = await stored_apple_refresh_token(session, member.id)
+    # the author page (its address is held back for a while) and the member's raw listening
+    # rows go first
+    await erase_author_data(session, member, get_settings())
+    # the member's comments stay, under the name they had (docs/account-deletion.md)
+    await keep_comments_under_name(session, member)
+    # every signed-in device goes with the account (the database cascade would do it too; this
+    # does not depend on it, and a deleted session row also makes the access token worthless)
+    await session.execute(delete(MemberSession).where(MemberSession.user_id == member.id))
     await session.delete(member)
     await session.commit()
+    if is_apple_member or apple_token:
+        await revoke_apple_grant(apple_token, is_apple_member=is_apple_member)
     return Response(status_code=204)
 
 

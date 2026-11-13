@@ -48,6 +48,7 @@ def require_public_quota(
         raise HTTPException(
             status_code=429,
             detail="Please wait a moment before trying again.",
+            headers={"X-Error-Code": "rate_limited"},
         )
     attempts.append(now)
 

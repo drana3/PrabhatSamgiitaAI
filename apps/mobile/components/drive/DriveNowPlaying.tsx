@@ -1,12 +1,14 @@
+import { useMemo } from "react"
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { Pause, Play, Repeat, SkipBack, SkipForward } from "lucide-react-native"
 
 import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
-import { colors } from "@/constants/colors"
 import { softShadow } from "@/constants/shadows"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
+import { amColors, amScrimPhoto, type AmTheme } from "@/constants/tokens/amColors"
+import { useAmTheme } from "@/hooks/useAmTheme"
 import type { MockSong } from "@/data/mock"
 import { DriveSeekBar } from "@/components/drive/DriveSeekBar"
 import type { PlaybackMode } from "@/lib/playbackQueue"
@@ -47,6 +49,8 @@ export function DriveNowPlaying({
   onToggleDriveRepeat,
   playlistSubtitle,
 }: Props) {
+  const theme = useAmTheme()
+  const styles = useMemo(() => makeStyles(theme), [theme])
   const modeLabel =
     mode === "random"
       ? "Random drive"
@@ -61,12 +65,20 @@ export function DriveNowPlaying({
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.inner}>
-        <Text style={styles.eyebrow}>{modeLabel}</Text>
-        <Text style={styles.number}>PS {song.number}</Text>
-        <Text style={styles.title} numberOfLines={2}>{song.title}</Text>
-        {song.shortDescription ? (
-          <Text style={styles.line} numberOfLines={1}>{song.shortDescription}</Text>
-        ) : null}
+        <View style={styles.captions}>
+          <LinearGradient
+            colors={[amScrimPhoto[1], amScrimPhoto[1], amScrimPhoto[0]]}
+            locations={[0, 0.7, 1]}
+            style={styles.captionsScrim}
+            pointerEvents="none"
+          />
+          <Text style={styles.eyebrow}>{modeLabel}</Text>
+          <Text style={styles.number}>PS {song.number}</Text>
+          <Text style={styles.title} numberOfLines={2}>{song.title}</Text>
+          {song.shortDescription ? (
+            <Text style={styles.line} numberOfLines={1}>{song.shortDescription}</Text>
+          ) : null}
+        </View>
 
         <View style={styles.seekWrap}>
           <DriveSeekBar
@@ -94,7 +106,7 @@ export function DriveNowPlaying({
               pressed && canGoPrevious && styles.pressed,
             ]}
           >
-            <SkipBack size={28} color={canGoPrevious ? colors.white : "rgba(255,255,255,0.35)"} />
+            <SkipBack size={28} color={canGoPrevious ? amColors.white : "rgba(255,255,255,0.35)"} />
           </Pressable>
 
           <Pressable
@@ -104,9 +116,9 @@ export function DriveNowPlaying({
             style={({ pressed }) => [styles.playBtn, pressed && styles.pressed]}
           >
             {isPlaying ? (
-              <Pause size={34} color={colors.white} fill={colors.white} />
+              <Pause size={34} color={amColors.white} fill={amColors.white} />
             ) : (
-              <Play size={34} color={colors.white} fill={colors.white} style={{ marginLeft: 4 }} />
+              <Play size={34} color={amColors.white} fill={amColors.white} style={{ marginLeft: 4 }} />
             )}
           </Pressable>
 
@@ -122,7 +134,7 @@ export function DriveNowPlaying({
               pressed && canGoNext && styles.pressed,
             ]}
           >
-            <SkipForward size={28} color={canGoNext ? colors.white : "rgba(255,255,255,0.35)"} />
+            <SkipForward size={28} color={canGoNext ? amColors.white : "rgba(255,255,255,0.35)"} />
           </Pressable>
         </View>
 
@@ -137,7 +149,7 @@ export function DriveNowPlaying({
           onPress={onToggleDriveRepeat}
           style={({ pressed }) => [styles.repeatBtn, driveRepeat && styles.repeatBtnOn, pressed && styles.pressed]}
         >
-          <Repeat size={22} color={driveRepeat ? colors.white : "rgba(255,255,255,0.85)"} />
+          <Repeat size={22} color={driveRepeat ? amColors.white : "rgba(255,255,255,0.85)"} />
           <Text style={[styles.repeatLabel, driveRepeat && styles.repeatLabelOn]}>
             {driveRepeat ? "Repeat song on" : "Repeat song"}
           </Text>
@@ -152,7 +164,7 @@ export function DriveNowPlaying({
   )
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme: AmTheme) => StyleSheet.create({
   cardOuter: {
     marginTop: spacing.lg,
     borderRadius: radius.xl,
@@ -162,7 +174,7 @@ const styles = StyleSheet.create({
     minHeight: 320,
     borderRadius: radius.xl,
     overflow: "hidden",
-    backgroundColor: colors.surfaceWarm,
+    backgroundColor: theme.inner,
   },
   inner: {
     flex: 1,
@@ -170,6 +182,17 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xl,
     gap: spacing.xs,
+  },
+  captions: {
+    gap: spacing.xs,
+  },
+  /** dark scrim (amScrimPhoto) behind the captions so they reach 4.5:1 on any photo */
+  captionsScrim: {
+    position: "absolute",
+    top: -spacing.lg,
+    left: -spacing.lg,
+    right: -spacing.lg,
+    bottom: -spacing.md,
   },
   eyebrow: {
     ...typography.caption,
@@ -186,7 +209,7 @@ const styles = StyleSheet.create({
     fontFamily: "Lora_700Bold",
     fontSize: 28,
     lineHeight: 34,
-    color: colors.white,
+    color: amColors.white,
   },
   line: {
     ...typography.bodySmall,
@@ -217,7 +240,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.primary,
+    backgroundColor: theme.brand,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -258,7 +281,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
   },
   repeatBtnOn: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.brand,
     borderColor: "rgba(255,255,255,0.4)",
   },
   repeatLabel: {
@@ -266,7 +289,7 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.85)",
   },
   repeatLabelOn: {
-    color: colors.white,
+    color: amColors.white,
     fontFamily: "Inter_600SemiBold",
   },
 })

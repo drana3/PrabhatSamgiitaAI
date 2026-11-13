@@ -32,10 +32,6 @@ vi.mock("@/lib/googleOAuthConfig", () => ({
   googleAuthConfigured: () => false,
 }))
 
-vi.mock("@/lib/facebookAuth", () => ({
-  facebookAuthConfigured: () => false,
-}))
-
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
     getItem: vi.fn(async () => null),
@@ -88,9 +84,30 @@ describe("appleAuth", () => {
     })
   })
 
+  it("passes on the one-time authorization code (the server keeps it to revoke Apple's grant on deletion)", async () => {
+    signInAsync.mockResolvedValue({
+      user: "apple-sub-1",
+      email: "member@privaterelay.appleid.com",
+      fullName: null,
+      identityToken: "id-token",
+      authorizationCode: "auth-code",
+    })
+
+    await expect(signInWithApple()).resolves.toMatchObject({
+      id: "apple-sub-1",
+      idToken: "id-token",
+      authorizationCode: "auth-code",
+    })
+  })
+
   it("surfaces cancellation without a generic failure message", async () => {
     signInAsync.mockRejectedValue({ code: "ERR_REQUEST_CANCELED" })
     await expect(signInWithApple()).rejects.toThrow("Sign-in was cancelled.")
+  })
+
+  it("explains a missing capability instead of a raw native error", async () => {
+    signInAsync.mockRejectedValue({ code: "ERR_REQUEST_UNKNOWN", message: "AuthorizationError 1000" })
+    await expect(signInWithApple()).rejects.toThrow(/isn’t available in this build/)
   })
 
   it("rejects on non-iOS platforms", async () => {

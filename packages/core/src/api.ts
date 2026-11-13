@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { parseDailyQuotaBody, readDailyQuota, type DailyQuota } from "./daily-quota"
 import { queryGuidanceFor, queryIsUseful } from "./query-guard"
 
 export const songSummarySchema = z.object({
@@ -40,9 +41,14 @@ export const songDetailSchema = songSummarySchema.extend({
         url: z.string(),
         embed_url: z.string().nullable().optional(),
         verification_status: z.string(),
+        // Who sang a recording (the colleagues' PS audio); absent for the archive's own files.
+        performer: z.string().nullable().optional(),
         is_latest: z.boolean().optional().default(false),
         is_older: z.boolean().optional().default(false),
         is_low_quality: z.boolean().optional().default(false),
+        // Measured by the server for archive audio (volume leveling); absent or null when not measured.
+        loudness_lufs: z.number().nullable().optional(),
+        true_peak_db: z.number().nullable().optional(),
       }),
     )
     .default([]),
@@ -480,7 +486,12 @@ function emitSseFrames(raw: string, onChunk: (chunk: string) => void, flushParti
   return remainder
 }
 
-async function readEventStream(response: Response, onChunk: (chunk: string) => void) {
+async function readEventStream(
+  response: Response,
+  onChunk: (chunk: string) => void,
+  /** called each time bytes arrive, so the caller can restart its idle timer */
+  onActivity?: () => void,
+) {
   const body = response.body
 
   // React Native / some Expo fetch builds buffer the body but leave `response.body` null.
@@ -501,6 +512,7 @@ async function readEventStream(response: Response, onChunk: (chunk: string) => v
   while (true) {
     const { value, done } = await reader.read()
     if (done) break
+    onActivity?.()
     buffer += decoder.decode(value, { stream: true })
     buffer = emitSseFrames(buffer, onChunk, false)
   }
@@ -1110,6 +1122,17 @@ export function createApiClient(options: ApiClientOptions) {
       }
     },
 
+    /** Today's AI question allowance from the server, or null when it cannot be read (offline, error). */
+    async fetchDailyQuota(signal?: AbortSignal): Promise<DailyQuota | null> {
+      try {
+        const response = await fetchJson("/api/v1/ai/quota", { signal })
+        if (!response.ok) return null
+        return parseDailyQuotaBody(await response.json())
+      } catch {
+        return null
+      }
+    },
+
     async fetchMemberChat(songNumber?: number): Promise<ChatMemoryResponse & { ok: boolean }> {
       const empty = {
         ok: false as const,
@@ -1202,6 +1225,23 @@ export function createApiClient(options: ApiClientOptions) {
       const body = await response.json().catch(() => null)
       if (!response.ok) {
         throw new Error(typeof body?.detail === "string" ? body.detail : "Could not save favorite.")
+      }
+      return z.array(z.number()).parse(body)
+    },
+
+    /**
+     * A guest's saved songs, sent in one request when the guest signs in. The account keeps what it had
+     * and gains what it lacked (no song twice, none removed). Returns the account's whole list.
+     */
+    async mergeMemberFavorites(songNumbers: readonly number[]): Promise<number[]> {
+      const response = await fetchJson("/api/v1/members/favorites/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ song_numbers: songNumbers }),
+      })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(typeof body?.detail === "string" ? body.detail : "Could not merge saved songs.")
       }
       return z.array(z.number()).parse(body)
     },
@@ -1390,17 +1430,34 @@ export function createApiClient(options: ApiClientOptions) {
       onChunk: (chunk: string) => void,
       prompt?: string,
       history: ConversationTurn[] = [],
+      signal?: AbortSignal,
+      /** Called with the server's `X-Error-Code` when the reply is a notice (quota, unknown song, refused question). */
+      onNotice?: (code: string) => void,
+      /** Called with today's allowance when the server reports it (`X-RateLimit-*`); never called otherwise. */
+      onQuota?: (quota: DailyQuota) => void,
     ): Promise<void> {
       if (prompt && !queryIsUseful(prompt, 800, { companion: true, allowFollowUp: history.length > 0 })) {
         onChunk(queryGuidanceFor(prompt, { companion: true, allowFollowUp: history.length > 0 }))
         return
       }
+      // One controller for the whole answer: it is aborted when the caller cancels, and when nothing has
+      // arrived for 45 seconds (headers or text), so a dropped connection ends in an error instead of
+      // "typing" forever.
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 60_000)
-      let response: Response
+      const IDLE_MS = 45_000
+      let idle = setTimeout(() => controller.abort(), IDLE_MS)
+      const touch = () => {
+        clearTimeout(idle)
+        idle = setTimeout(() => controller.abort(), IDLE_MS)
+      }
+      const onCallerAbort = () => controller.abort()
+      if (signal) {
+        if (signal.aborted) controller.abort()
+        else signal.addEventListener("abort", onCallerAbort, { once: true })
+      }
       try {
         const extraAuth = await authHeaders()
-        response = await fetchImpl(`${baseUrl}/api/v1/ai/explain`, {
+        const response = await fetchImpl(`${baseUrl}/api/v1/ai/explain`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1414,15 +1471,37 @@ export function createApiClient(options: ApiClientOptions) {
           }),
           signal: controller.signal,
         })
+        touch()
+        const code = response.headers?.get?.("x-error-code") ?? null
+        if (!response.ok) {
+          throw new ApiRequestError(response.status, code)
+        }
+        const quota = readDailyQuota(response.headers)
+        if (quota) onQuota?.(quota)
+        if (code) onNotice?.(code)
+        await readEventStream(response, onChunk, touch)
       } finally {
-        clearTimeout(timeout)
+        clearTimeout(idle)
+        signal?.removeEventListener("abort", onCallerAbort)
       }
-      if (!response.ok) {
-        throw new Error("The song companion is temporarily unavailable.")
-      }
-      await readEventStream(response, onChunk)
     },
   }
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>
+
+/**
+ * A request the server answered with an error. `code` is the server's stable `X-Error-Code`
+ * (for example `rate_limited`) or, without one, `http_<status>`. Show the person your own words
+ * for the code, not `message`.
+ */
+export class ApiRequestError extends Error {
+  readonly status: number
+  readonly code: string
+  constructor(status: number, code?: string | null) {
+    super(`Request failed with status ${status}`)
+    this.name = "ApiRequestError"
+    this.status = status
+    this.code = code || `http_${status}`
+  }
+}

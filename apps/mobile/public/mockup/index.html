@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ПС · макет из Claude (точная копия)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;700&display=swap">
+<style>
+:root{--bg:#1c2117;--panel:#242b1e;--line:#3a4430;--ink:#f1ede6;--dim:#9aa38c;--accent:#f67931}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:"Roboto Mono",monospace;font-weight:300}
+body{display:grid;grid-template-columns:300px 1fr;background:
+  radial-gradient(900px 600px at 80% 10%,rgba(246,121,49,.12),transparent 60%),
+  repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px),var(--bg)}
+aside{display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel);min-height:0}
+aside h1{margin:0;padding:16px 16px 8px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+aside p{margin:0;padding:0 16px 12px;font-size:11px;line-height:1.5;color:var(--dim)}
+#q{margin:0 16px 12px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:12px;outline:none}
+#q:focus{border-color:var(--accent)}
+#list{overflow:auto;flex:1;padding:0 8px 16px}
+#list button{display:block;width:100%;text-align:left;padding:8px;margin:0;border:0;border-radius:6px;background:none;color:var(--ink);font:inherit;font-size:12px;line-height:1.35;cursor:pointer}
+#list button:hover{background:rgba(255,255,255,.06)}
+#list button[aria-current=true]{background:var(--accent);color:#1c2117;font-weight:700}
+#list small{display:block;color:var(--dim);font-size:10px}
+#list button[aria-current=true] small{color:#3b2410}
+main{position:relative;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:24px}
+#stage{transform-origin:top center;border-radius:44px;background:#000;padding:12px;box-shadow:0 0 0 2px #3a4430,0 30px 80px rgba(0,0,0,.55)}
+#stage.pc{border-radius:14px;padding:6px}
+#stage iframe{display:block;border:0;background:#fff;border-radius:34px}
+#stage.pc iframe{border-radius:8px}
+#bar{position:fixed;right:16px;top:12px;display:flex;gap:8px;z-index:5}
+#bar button{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+#bar button:hover{border-color:var(--accent)}
+@media (prefers-reduced-motion:no-preference){#stage{animation:in .35s cubic-bezier(.2,.8,.2,1)}@keyframes in{from{opacity:0;transform:translateY(12px)}}}
+</style>
+</head>
+<body>
+<aside>
+  <h1>Макет · точная копия</h1>
+  <p>Это настоящие файлы дизайна из Claude, без единого изменения. Первая плашка — рабочий прототип: в нём всё нажимается.</p>
+  <input id="q" placeholder="Поиск экрана…" autocomplete="off">
+  <div id="list"></div>
+</aside>
+<main>
+  <div id="bar"><button id="reload">Перезапустить экран</button><button id="open">Открыть отдельно</button></div>
+  <div id="stage"><iframe id="f" title="Экран макета"></iframe></div>
+</main>
+<script>
+const f=document.getElementById('f'),stage=document.getElementById('stage'),list=document.getElementById('list'),q=document.getElementById('q')
+let boards=[],cur=null
+function fit(){
+  const m=document.querySelector('main'),w=f.width*1+24,h=f.height*1+24
+  const k=Math.min(1,(m.clientWidth-48)/w,(innerHeight-48)/h)
+  stage.style.transform='scale('+k+')'
+  stage.style.marginBottom=(h*k-h)+'px'
+}
+function show(b){
+  cur=b
+  stage.classList.toggle('pc',b.w>600)
+  f.width=b.w;f.height=Math.min(b.h,b.w>600?b.h:4000)
+  f.src='./'+b.file+'?t='+Date.now()
+  history.replaceState(null,'','#'+b.file.replace('.dc.html',''))
+  render();fit()
+}
+function render(){
+  const t=q.value.trim().toLowerCase()
+  list.innerHTML=''
+  boards.filter(b=>!t||b.title.toLowerCase().includes(t)||b.file.toLowerCase().includes(t)).forEach(b=>{
+    const e=document.createElement('button')
+    e.setAttribute('aria-current',cur&&cur.file===b.file)
+    e.innerHTML=b.title+'<small>'+b.file.replace('.dc.html','')+' · '+b.w+'×'+b.h+'</small>'
+    e.onclick=()=>show(b)
+    list.appendChild(e)
+  })
+}
+fetch('./canvas.json').then(r=>r.json()).then(c=>{
+  boards=c.order.filter(k=>c.boards[k]).map(k=>({file:k,...c.boards[k]}))
+  const want=(location.hash||'#Main').slice(1)
+  show(boards.find(b=>b.file.replace('.dc.html','')===want)||boards[0])
+})
+q.oninput=render
+addEventListener('resize',fit)
+document.getElementById('reload').onclick=()=>cur&&show(cur)
+document.getElementById('open').onclick=()=>cur&&window.open('./'+cur.file,'_blank')
+</script>
+</body>
+</html>

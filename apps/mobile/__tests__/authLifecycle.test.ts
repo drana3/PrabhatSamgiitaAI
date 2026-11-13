@@ -23,7 +23,6 @@ const {
   signOutWithMicrosoft,
   signInWithGoogle,
   signOutWithGoogle,
-  signInWithFacebook,
   signInWithApple,
   loginWithEmail,
   registerWithEmail,
@@ -35,7 +34,6 @@ const {
   signOutWithMicrosoft: vi.fn(async () => undefined),
   signInWithGoogle: vi.fn(),
   signOutWithGoogle: vi.fn(async () => undefined),
-  signInWithFacebook: vi.fn(),
   signInWithApple: vi.fn(),
   loginWithEmail: vi.fn(),
   registerWithEmail: vi.fn(),
@@ -55,11 +53,6 @@ vi.mock("@/lib/googleAuth", () => ({
   googleAuthConfigured: () => true,
   signInWithGoogle,
   signOutWithGoogle,
-}))
-
-vi.mock("@/lib/facebookAuth", () => ({
-  facebookAuthConfigured: () => true,
-  signInWithFacebook,
 }))
 
 vi.mock("@/lib/appleAuth", () => ({
@@ -90,7 +83,6 @@ import {
   completeMemberSignOut,
   signInMember,
   signInWithEmailPassword,
-  signInWithFacebookAccount,
   signInWithAppleAccount,
   signInWithGoogleAccount,
   signOutMember,
@@ -180,7 +172,8 @@ describe("mobile auth lifecycle (all providers)", () => {
         identityProvider: "aad",
         memberBackend: true,
       })
-      expect(usePreferencesStore.getState().savedSongIds).toEqual(["ps-12"])
+      // the account had song 12; the guest had saved song 1 on this phone: the account ends with both (docs/guest-saves.md)
+      expect(usePreferencesStore.getState().savedSongIds).toEqual(["ps-12", "ps-1"])
     })
 
     it("signs in with Google", async () => {
@@ -207,28 +200,10 @@ describe("mobile auth lifecycle (all providers)", () => {
       })
     })
 
-    it("signs in with Facebook", async () => {
-      signInWithFacebook.mockResolvedValue({
-        id: "fb-1",
-        email: "fb@example.com",
-        displayName: "FB Member",
-        provider: "facebook",
-      })
-      fetchMemberSession.mockResolvedValue(
-        syncedMemberSession({
-          email: "fb@example.com",
-          identity_provider: "facebook",
-        }),
-      )
-
-      await signInWithFacebookAccount()
-
-      expect(useAuthStore.getState()).toMatchObject({
-        mode: "signed_in",
-        email: "fb@example.com",
-        memberId: "fb-1",
-        identityProvider: "facebook",
-      })
+    it("has no Facebook sign-in any more", async () => {
+      const session = await import("@/lib/session")
+      expect("signInWithFacebookAccount" in session).toBe(false)
+      expect("facebookAuthConfigured" in session).toBe(false)
     })
 
     it("signs in with Apple", async () => {
@@ -327,13 +302,39 @@ describe("mobile auth lifecycle (all providers)", () => {
         "new@example.com",
         "password123",
         "New Member",
-        "+91",
-        "9876543210",
       )
 
-      expect(result.needsPhone).toBe(true)
+      // sign-up is name, email and password: the person is never sent on to ask for a number
+      expect(registerWithEmail).toHaveBeenCalledWith({
+        email: "new@example.com",
+        password: "password123",
+        displayName: "New Member",
+      })
+      expect(result.needsPhone).toBeUndefined()
       expect(useAuthStore.getState().mode).toBe("signed_in")
       expect(useAuthStore.getState().identityProvider).toBe("local")
+    })
+
+    it("tells the server the age box was ticked when the sign-up form says so", async () => {
+      const principal = buildClientPrincipal("reg-oid", "New Member", "local", "new@example.com")
+      registerWithEmail.mockResolvedValue({
+        client_principal: principal,
+        display_name: "New Member",
+        email: "new@example.com",
+        identity_provider: "local",
+      })
+      fetchMemberSession.mockResolvedValue(
+        syncedMemberSession({ display_name: "New Member", email: "new@example.com", identity_provider: "local" }),
+      )
+
+      await signUpWithEmailPassword("new@example.com", "password123", "New Member", { ageConfirmed: true })
+
+      expect(registerWithEmail).toHaveBeenCalledWith({
+        email: "new@example.com",
+        password: "password123",
+        displayName: "New Member",
+        ageConfirmed: true,
+      })
     })
   })
 
@@ -341,6 +342,7 @@ describe("mobile auth lifecycle (all providers)", () => {
     it.each([
       { provider: "aad", email: "ms@example.com", memberId: "oid-ms" },
       { provider: "google", email: "google@example.com", memberId: "gid-1" },
+      // an account made through Facebook before it was removed still signs out cleanly
       { provider: "facebook", email: "fb@example.com", memberId: "fb-1" },
       { provider: "apple", email: "member@privaterelay.appleid.com", memberId: "apple-1" },
       { provider: "local", email: "email@example.com", memberId: "local-oid" },
@@ -462,12 +464,11 @@ describe("mobile auth lifecycle (all providers)", () => {
       const fs = await import("node:fs")
       const path = await import("node:path")
       const source = fs.readFileSync(
-        path.join(process.cwd(), "app/(tabs)/profile.tsx"),
+        path.join(process.cwd(), "components/profile-v2/ProfileContent.tsx"),
         "utf8",
       )
       expect(source).toMatch(/completeMemberSignOut/)
       expect(source).toMatch(/router\.replace\(href\("\/welcome"\)\)/)
-      expect(source).toMatch(/Signed out/)
     })
   })
 })

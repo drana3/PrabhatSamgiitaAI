@@ -47,11 +47,6 @@ vi.mock("@/lib/googleAuth", () => ({
   signOutWithGoogle: vi.fn(async () => undefined),
 }))
 
-vi.mock("@/lib/facebookAuth", () => ({
-  facebookAuthConfigured: () => false,
-  signInWithFacebook: vi.fn(),
-}))
-
 vi.mock("@/lib/localAuth", () => ({
   loginWithEmail: vi.fn(),
   registerWithEmail: vi.fn(),
@@ -118,6 +113,24 @@ describe("member sync from database", () => {
     await refreshMemberSession()
 
     expect(useAuthStore.getState().isAdmin).toBe(false)
+  })
+
+  it("drops a stored admin flag when the server does not confirm the member", async () => {
+    useAuthStore.setState({ isAdmin: true })
+    fetchMemberSession.mockResolvedValue({ authenticated: false })
+
+    await refreshMemberSession()
+
+    expect(useAuthStore.getState().isAdmin).toBe(false)
+  })
+
+  it("never writes the admin flag to storage", async () => {
+    const storage = (await import("@react-native-async-storage/async-storage")).default
+    useAuthStore.setState({ isAdmin: true, displayName: "Persist check" })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const raw = await storage.getItem("prabhat-auth")
+    expect(raw).toBeTruthy()
+    expect(JSON.parse(raw as string).state).not.toHaveProperty("isAdmin")
   })
 
   it("does not revive a guest session if sign-out races a member sync", async () => {

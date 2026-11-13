@@ -1,10 +1,17 @@
 import type { MemberProfile } from "@prabhat/core"
+import { Platform } from "react-native"
 
 import { api } from "@/lib/client"
-import { signInWithFacebook } from "@/lib/facebookAuth"
 import { googleAuthConfigured, signInWithGoogle, signOutWithGoogle } from "@/lib/googleAuth"
 import { loginWithEmail, registerWithEmail } from "@/lib/localAuth"
 import { memberAuthAvailable } from "@/lib/memberAuth"
+import {
+  clearMemberTokens,
+  exchangeProviderProof,
+  memberSessionBaseUrl,
+  revokeMemberSession,
+  type ProviderProof,
+} from "@/lib/memberSession"
 import {
   microsoftAuthConfigured,
   signInWithMicrosoft,
@@ -13,14 +20,19 @@ import {
 } from "@/lib/msal"
 import { subjectFromPrincipal } from "@/lib/oauthIdentity"
 import { buildClientPrincipal } from "@/lib/principal"
+import "@/lib/account/ownership"
+import { mergeGuestKiirtanSaves } from "@/lib/guest/mergeKiirtanSaves"
+import { wipeLocalUserData } from "@/lib/account/wipeLocalUserData"
 import { hydrateLocalMemberEmail, resolveMemberEmail } from "@/lib/memberEmail"
 import { memberPhoneRequired } from "@/lib/memberPhone"
+import { nameIsMissing } from "@/lib/profile/validate"
 import { useAuthStore } from "@/stores/authStore"
+import { useChatStore } from "@/stores/chatStore"
 import { usePreferencesStore } from "@/stores/preferencesStore"
+import { useProfileStore } from "@/stores/profileStore"
 
 export { microsoftAuthConfigured, getMicrosoftRedirectUri }
 export { googleAuthConfigured } from "@/lib/googleAuth"
-export { facebookAuthConfigured } from "@/lib/facebookAuth"
 
 async function hydrateFromSession() {
   const epoch = useAuthStore.getState().sessionEpoch
@@ -41,7 +53,8 @@ async function hydrateFromSession() {
       displayName: auth.displayName,
       email: auth.email,
       memberId: auth.memberId,
-      isAdmin: auth.isAdmin,
+      // the server did not confirm this member, so never keep an admin flag from before
+      isAdmin: false,
       memberBackend: false,
       identityProvider: auth.identityProvider,
     })
@@ -92,12 +105,38 @@ async function syncMemberData() {
   return hydrated
 }
 
+function exchangeProvider(identityProvider: string): ProviderProof["provider"] | null {
+  return identityProvider === "google" ||
+    identityProvider === "apple" ||
+    identityProvider === "aad"
+    ? identityProvider
+    : null
+}
+
+function deviceLabel() {
+  return `${Platform.OS} app`
+}
+
 async function finishSignIn(input: {
   displayName: string
   email: string | null
   memberId: string
   identityProvider: string
+  /** the provider's picture (Google), kept unless the person chose their own */
+  photoUrl?: string | null
+  /** the provider's signed proof; the server trades it for our session tokens before any member request */
+  proof?: Omit<ProviderProof, "provider" | "deviceLabel">
 }) {
+  // First thing: trade the provider's proof for session tokens, so every request after this is signed.
+  // When the server cannot do it (offline, not set up yet) the older path below still works.
+  if (input.proof) {
+    const provider = exchangeProvider(input.identityProvider)
+    if (provider) {
+      await exchangeProviderProof(memberSessionBaseUrl(), { ...input.proof, provider, deviceLabel: deviceLabel() })
+    } else {
+      await clearMemberTokens()
+    }
+  }
   useAuthStore.getState().applyMemberSession({
     displayName: input.displayName,
     email: input.email,
@@ -105,11 +144,17 @@ async function finishSignIn(input: {
     memberBackend: false,
     identityProvider: input.identityProvider,
   })
+  // The Kiirtans saved as a guest join the account's (the songs follow in syncMemberData): docs/guest-saves.md
+  mergeGuestKiirtanSaves()
+  if (input.photoUrl) useProfileStore.getState().setProviderPhoto(input.photoUrl)
+  // The name comes from the provider; when it gave none (Apple only gives it once), the page asks once.
+  const needsName = nameIsMissing(input.displayName, input.email)
 
   if (!memberAuthAvailable()) {
     return {
       ok: true as const,
       memberBackend: false,
+      needsName,
       message:
         "Signed in on this device. Favorites, quiz, and admin status will sync after you install an app update that includes member sync.",
     }
@@ -120,6 +165,7 @@ async function finishSignIn(input: {
     return {
       ok: true as const,
       memberBackend: false,
+      needsName,
       message:
         "Signed in locally. We could not reach your member account — check your connection and try again.",
     }
@@ -129,12 +175,14 @@ async function finishSignIn(input: {
       ok: true as const,
       memberBackend: true,
       needsPhone: true,
+      needsName,
       message: "Add your mobile number to finish setting up your account.",
     }
   }
   return {
     ok: true as const,
     memberBackend: true,
+    needsName,
     message: "Signed in and synced with your Prabhat Samgiita member session.",
   }
 }
@@ -149,11 +197,17 @@ export async function refreshMemberSession() {
 
 /** Clears local auth for every login type; provider SSO logout is best-effort and non-blocking. */
 export async function signOutMember() {
-  const provider = useAuthStore.getState().identityProvider
-  // Always clear local session first (email/password, Google, Microsoft, Facebook).
+  const before = useAuthStore.getState()
+  const provider = before.identityProvider
+  const accountId = useChatStore.getState().getAccountId(before.mode, before.email, before.memberId)
+  // Always clear local session first (email/password, Apple, Google, Microsoft).
   // In-flight Profile/AppState member sync must not revive the session after the alert.
   useAuthStore.getState().signOut()
   usePreferencesStore.getState().resetAfterSignOut()
+  // Tokens leave this phone at once; the server is told in the background (best effort).
+  void revokeMemberSession(memberSessionBaseUrl())
+  // The account's data leaves the phone (see lib/account/wipeLocalUserData.ts); the sign-out itself never waits on it.
+  void wipeLocalUserData(accountId)
 
   // Do not await browser/SSO UI — that delayed the "Signed out" alert and raced sync.
   void (async () => {
@@ -185,6 +239,7 @@ export async function signInMember() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: "aad",
+    proof: { idToken: identity.idToken },
   })
 }
 
@@ -195,16 +250,8 @@ export async function signInWithGoogleAccount() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: identity.provider,
-  })
-}
-
-export async function signInWithFacebookAccount() {
-  const identity = await signInWithFacebook()
-  return finishSignIn({
-    displayName: identity.displayName,
-    email: identity.email,
-    memberId: identity.id,
-    identityProvider: identity.provider,
+    photoUrl: identity.photoUrl,
+    proof: { idToken: identity.idToken },
   })
 }
 
@@ -216,6 +263,12 @@ export async function signInWithAppleAccount() {
     email: identity.email,
     memberId: identity.id,
     identityProvider: identity.provider,
+    // The one-time authorization code lets the server keep what it needs to end Apple's link when the
+    // account is deleted (App Store 5.1.1(v), docs/apple-token-revocation.md). Never stored on the phone.
+    proof: {
+      idToken: identity.idToken,
+      ...(identity.authorizationCode ? { authorizationCode: identity.authorizationCode } : {}),
+    },
   })
 }
 
@@ -233,15 +286,13 @@ export async function signUpWithEmailPassword(
   email: string,
   password: string,
   displayName: string,
-  phoneCountryCode: string,
-  phoneNumber: string,
+  options?: { ageConfirmed?: boolean },
 ) {
   const session = await registerWithEmail({
     email,
     password,
     displayName,
-    phoneCountryCode,
-    phoneNumber,
+    ...(options?.ageConfirmed ? { ageConfirmed: true } : {}),
   })
   return finishSignIn({
     displayName: session.display_name,

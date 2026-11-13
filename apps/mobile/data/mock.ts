@@ -45,11 +45,26 @@ export type MockSong = {
   /** Direct audio stream when available from the catalog. */
   audioUrl?: string | null
   /** Alternate catalog recordings for the Listen tab. */
-  audioRecordings?: Array<{ title: string; url: string; provider: string }>
+  audioRecordings?: Array<{ title: string; url: string; provider: string; performer?: string; isLatest?: boolean; loudnessLufs?: number; truePeakDb?: number }>
   /** Canonical Andromeda notation PDF when available. */
   notationSourceUrl?: string | null
   /** True after GET /songs/{n} media has been applied. */
   mediaHydrated?: boolean
+  /**
+   * What kind of track this is. Absent means a Prabhat Samgiita song. A Kiirtan is a normal audio
+   * track of the same player (lib/kirtan/track.ts) with a synthetic `number`, no lyrics and no versions.
+   */
+  kind?: "song" | "kiirtan"
+  /**
+   * How loud the audio file is, measured on the server (lib/loudness/levels.ts): integrated loudness in LUFS
+   * and true peak in dBTP. Absent until it is measured; the player then leaves the track at its own level.
+   */
+  loudness?: { lufs: number; truePeakDb: number | null }
+  /**
+   * Set when kind is "kiirtan" (a recording of the Kiirtan system): its catalog id, type id and who added it.
+   * `recording` says which kind it is (Kiirtan, Bhajan, Prabhat Samgiita); absent means a Kiirtan.
+   */
+  kiirtan?: { id: string; /** the seed of its stock photo: the server id once the recording is up, else `id` (lib/photos/recordingPhoto.ts) */ photoSeed?: string; type: string; addedBy: string; recording?: "kiirtan" | "bhajan" | "prabhat_samgiita" | "spiritual_song" | "dance_song" | "baba_audio" | "other_mantra" }
 }
 
 export {

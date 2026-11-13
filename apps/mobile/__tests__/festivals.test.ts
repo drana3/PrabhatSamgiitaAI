@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  FESTIVAL_CALENDAR_LAST_YEAR,
+  FESTIVAL_DATES_TO_CONFIRM,
   REVIEWED_FESTIVAL_YEAR,
+  festivalCalendar,
   festivalCalendar2026,
   festivalCalendarExhausted,
   getFestivalById,
@@ -27,8 +30,41 @@ describe("festival calendar", () => {
     )
   })
 
-  it("reports exhaustion after the reviewed year ends", () => {
-    expect(festivalCalendarExhausted(new Date(2026, 11, 31))).toBe(true)
+  it("reports exhaustion only after the last listed date", () => {
+    expect(FESTIVAL_CALENDAR_LAST_YEAR).toBe(2028)
+    expect(festivalCalendarExhausted(new Date(2026, 11, 31))).toBe(false)
+    expect(festivalCalendarExhausted(new Date(2028, 11, 31))).toBe(true)
     expect(festivalCalendarExhausted(new Date(2026, 7, 3))).toBe(false)
+  })
+
+  it("lists 2027 and 2028 only for dates confirmed from the official lists", () => {
+    const later = festivalCalendar.filter((item) => item.year > REVIEWED_FESTIVAL_YEAR)
+    // the three civil-date observances are always there
+    for (const id of ["ru-day", "baba-birthday", "ps-divasa"]) {
+      expect(later.some((item) => item.id === `${id}-2027`)).toBe(true)
+      expect(later.some((item) => item.id === `${id}-2028`)).toBe(true)
+    }
+    // dates without a confirmed or rule-derived source stay out (details: festivalDates2027.test.ts)
+    expect(later.some((item) => /vasantotsava|navavarsa|navanna|bhratrdvitiya/.test(item.id))).toBe(false)
+    expect(festivalCalendar.every((item) => item.year <= FESTIVAL_CALENDAR_LAST_YEAR)).toBe(true)
+  })
+
+  it("keeps ids unique and names every observance that still needs a date", () => {
+    expect(new Set(festivalCalendar.map((item) => item.id)).size).toBe(festivalCalendar.length)
+    const pending = FESTIVAL_DATES_TO_CONFIRM.map((item) => item.idBase)
+    expect(pending).toContain("vasantotsava")
+    expect(pending).toContain("navavarsa")
+    expect(pending).not.toContain("ru-day")
+    expect(pending).not.toContain("ps-divasa")
+    expect(pending).not.toContain("diipavalii")
+    // nothing pending is also in the calendar for those years
+    for (const item of FESTIVAL_DATES_TO_CONFIRM) {
+      expect(festivalCalendar.some((entry) => entry.id === `${item.idBase}-2027`)).toBe(false)
+    }
+  })
+
+  it("still lists dates after the reviewed year ends", () => {
+    const next = getUpcomingFestivals(new Date(2026, 11, 31), 3)
+    expect(next[0]).toMatchObject({ id: "ru-day-2027", month: 1, day: 25, year: 2027 })
   })
 })

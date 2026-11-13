@@ -1,7 +1,8 @@
 import asyncio
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -9,6 +10,7 @@ from app.core.db import get_session
 from app.services.catalog import CatalogService
 from app.services.embedding_index import embedding_provider_configured
 from app.services.faiss_store import get_faiss_store
+from app.services.server_tools import tools_summary
 
 router = APIRouter(tags=["health"])
 
@@ -17,6 +19,39 @@ router = APIRouter(tags=["health"])
 @router.get("/health/live")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@router.get("/health/deep")
+async def deep_health(
+    session: Annotated[AsyncSession, Depends(get_session)], response: Response
+) -> dict[str, Any]:
+    """For an uptime monitor (docs/observability.md): 200 when the database answers, 503 when not.
+
+    It names no secret, no host and no row count, only whether each part works, plus the version.
+    """
+    settings = get_settings()
+    checks: dict[str, str] = {}
+    try:
+        await asyncio.wait_for(session.execute(text("SELECT 1")), timeout=4.0)
+        checks["database"] = "ok"
+    except (TimeoutError, Exception):
+        checks["database"] = "down"
+    checks["recording_storage"] = (
+        "configured"
+        if settings.recording_storage_backend.lower() == "s3" and settings.recording_s3_bucket
+        else settings.recording_storage_backend.lower()
+    )
+    healthy = checks["database"] == "ok"
+    if not healthy:
+        response.status_code = 503
+    return {
+        "status": "ok" if healthy else "down",
+        "version": settings.app_version,
+        "environment": settings.app_env,
+        "checks": checks,
+        # yes/no per helper program (ffmpeg, fpcalc, ClamAV, tzdata); details: /admin/server-tools
+        "tools": tools_summary(settings),
+    }
 
 
 @router.get("/health/readiness")

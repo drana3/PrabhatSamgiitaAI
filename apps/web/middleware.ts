@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { adminGateCookieOptions, buildAdminGateToken, ADMIN_GATE_COOKIE } from "@/lib/admin-gate"
 import { memberSessionIsAdmin } from "@/lib/member-admin-proxy"
 import { memberPrincipalFor } from "@/lib/member-request"
+import { authorGoneResponse, authorSlugFromPath, probeAuthorStatus } from "@/lib/author-status"
 import { apexToWwwRedirectUrl, publicRedirectUrl } from "@/lib/site-origin"
 
 function unauthorizedApi() {
@@ -17,6 +18,16 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl
+
+  const authorSlug = authorSlugFromPath(pathname)
+  if (authorSlug) {
+    const decision = await probeAuthorStatus(authorSlug)
+    if (decision.kind === "redirect") {
+      return NextResponse.redirect(publicRedirectUrl(request, `/author/${encodeURIComponent(decision.slug)}`), 308)
+    }
+    if (decision.kind === "status") return authorGoneResponse(decision.status)
+    return NextResponse.next()
+  }
 
   if (!pathname.startsWith("/admin") && !pathname.startsWith("/api/admin")) {
     return NextResponse.next()

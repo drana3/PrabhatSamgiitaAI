@@ -86,9 +86,15 @@ def is_protected_admin(member: UserAccount, settings: Settings | None = None) ->
 
 
 async def require_admin_member(session: AsyncSession, member: UserAccount) -> UserAccount:
+    if getattr(member, "plain_member_only", False):
+        # came in through the old shared key that ships inside every app: never admin
+        raise HTTPException(status_code=403, detail="Admin access is required")
     was_admin = member.is_admin
-    ensure_ephemeral_smoke_admin(member)
-    apply_default_admin(member)
+    if not getattr(member, "database_roles_only", False):
+        # A signed session never promotes by e-mail or name here: the sign-in did that once, after
+        # the provider vouched for the address. From then on only the database decides.
+        ensure_ephemeral_smoke_admin(member)
+        apply_default_admin(member)
     if member.is_admin and not was_admin:
         await session.commit()
         await session.refresh(member)

@@ -1,0 +1,7 @@
+Piano samples: "Salamander Grand Piano V2" (Yamaha C5), recorded by Alexander Holm.
+Licence: Creative Commons Attribution 3.0 Unported (CC BY 3.0), https://creativecommons.org/licenses/by/3.0/
+Source: https://github.com/sfzinstruments/SalamanderGrandPiano (the original archive: archive.org).
+These 14 files (A2 to C6, every minor third) are the MP3 copies of the Tone.js audio repository,
+https://github.com/Tonejs/audio/tree/master/salamander , taken unchanged. Other notes are made by
+playing the nearest sample faster or slower.
+The credit is shown in the app: About, "Piano sound".

@@ -1,0 +1,121 @@
+import type { TodayRecommendations } from "@prabhat/core"
+
+import { formatDate, t } from "@/lib/i18n"
+
+/**
+ * What kind of day Today is (prototype `DAYS`, Main.dc.html around line 2950):
+ * - date: the songs Bábá gave on this calendar day
+ * - fest: a festival falls today and its songs replace the daily ones
+ * - season: the songs of the season of the year
+ * Pure logic, no React.
+ */
+export type TodayDayKind = "date" | "fest" | "season"
+
+export type TodayDay = {
+  kind: TodayDayKind
+  /** "Sunday · 1 November" (the screen prints it in capitals) */
+  dateLabel: string
+  /** text of the coloured chip under the date */
+  kindLabel: string
+  /** one sentence under the heading; empty on an ordinary day */
+  note: string
+  /** small tag on the photograph */
+  tag: string
+  /** label of the extra "also composed on" card, or null */
+  alsoLabel: string | null
+}
+
+/** "Sunday · 1 November". */
+export function formatDayLine(now: Date): string {
+  return `${formatDate(now, "weekday")} · ${formatDate(now, "dayMonthLong")}`
+}
+
+/** "Sun · 1 November" / "вс · 1 ноября": for a narrow phone, where the full weekday would crowd the chip beside it. */
+export function formatDayLineShort(now: Date): string {
+  return `${formatDate(now, "weekdayShort")} · ${formatDate(now, "dayMonthLong")}`
+}
+
+function clean(value: string | null | undefined): string {
+  return (value ?? "").trim()
+}
+
+/**
+ * The day from the API context. A festival wins; "season" is used only when the API says the
+ * recommendations are seasonal; every other day is "Composed on this day".
+ */
+export function buildTodayDay(today: TodayRecommendations | null | undefined, now: Date): TodayDay {
+  const dateLabel = formatDayLine(now)
+  const context = today?.context
+  const festival = clean(context?.festival) || clean(context?.observance)
+  const mode = clean(context?.recommendation_mode)
+
+  if (festival || mode === "strict_festival") {
+    const name = festival || t("today.festivalDefault")
+    return {
+      kind: "fest",
+      dateLabel,
+      kindLabel: t("today.kind.festival", { name }),
+      note: t("today.note.festival"),
+      tag: t("today.tag.festival", { name }),
+      alsoLabel: t("today.also", { date: formatDate(now, "dayMonthLong") }),
+    }
+  }
+  const season = clean(context?.season)
+  if (season && /season/i.test(mode)) {
+    return {
+      kind: "season",
+      dateLabel,
+      kindLabel: t("today.kind.season", { season }),
+      note: t("today.note.season"),
+      tag: t("today.tag.season"),
+      alsoLabel: t("today.also", { date: formatDate(now, "dayMonthLong") }),
+    }
+  }
+  return {
+    kind: "date",
+    dateLabel,
+    kindLabel: t("today.kind.date"),
+    note: "",
+    tag: t("today.tag.date"),
+    alsoLabel: null,
+  }
+}
+
+/** The prototype's sample Today days. They exist in the demo preview only. */
+export type SampleDay = "date" | "fest" | "season"
+
+/**
+ * Which sample day Today starts on. Real build: none, whatever the link says (`?day=` cannot open
+ * invented content). Demo preview: the requested one, else the plain date.
+ */
+export function sampleDayStart(demo: boolean, param: string | undefined): SampleDay | null {
+  if (!demo) return null
+  return param === "date" || param === "fest" || param === "season" ? param : "date"
+}
+
+/** "1:12 of 5:00" for the resume card; just the number when the length is unknown. */
+export function resumeLine(input: { number: number | string; position: number; duration: number }): string {
+  const head = `PS ${input.number}`
+  if (!(input.duration > 0) || !(input.position > 0)) return head
+  const clock = (seconds: number) => {
+    const s = Math.max(0, Math.floor(seconds))
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
+  }
+  return `${head} · ${t("today.resume.of", { position: clock(input.position), duration: clock(input.duration) })}`
+}
+
+/** The three ways to search on Today (prototype `quick`): each opens search with an example. */
+export const TODAY_QUICK_SEARCHES = [
+  { id: "number", get label() { return t("today.quick.number") }, example: "3", query: "3" },
+  { id: "words", get label() { return t("today.quick.words") }, example: "bandhu he niye calo", query: "bandhu" },
+  { id: "feeling", get label() { return t("today.quick.feeling") }, example: "peaceful devotion", query: "peaceful devotion" },
+] as const
+
+export function todayQuickIntro(): string {
+  return t("today.quick.intro")
+}
+
+/** Search route that opens with the query filled in. */
+export function searchHref(query: string): string {
+  return `/search-v2?q=${encodeURIComponent(query)}`
+}

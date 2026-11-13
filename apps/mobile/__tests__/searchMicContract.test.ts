@@ -9,21 +9,13 @@ function read(relativePath: string) {
 }
 
 describe("search mic UX contract", () => {
-  it("defaults SearchBar mic to visible", () => {
-    expect(read("components/common/SearchBar.tsx")).toMatch(/showMic\s*=\s*true/)
-  })
-
-  it("keeps a mic entry point on Home, Songs, Search, Collections, and AI", () => {
-    expect(read("app/(tabs)/index.tsx")).toMatch(/HomeHeroSearch|Mic/)
-    expect(read("app/(tabs)/songs.tsx")).toMatch(/showMic/)
-    expect(read("app/search/index.tsx")).toMatch(/showMic/)
-    expect(read("app/collections/index.tsx")).toMatch(/showMic/)
-    expect(read("components/ai/AIComposer.tsx")).toMatch(/Mic/)
+  it("keeps a mic entry point on the search screen", () => {
+    expect(read("components/search-v2/BrowseBlocks.tsx")).toMatch(/Mic/)
+    expect(read("app/search-v2.tsx")).toMatch(/onMic=/)
   })
 
   it("uses inline voice search on the search screen", () => {
-    expect(read("app/search/index.tsx")).toMatch(/useVoiceSearch/)
-    expect(read("app/search/index.tsx")).toMatch(/searchSongsByVoice/)
-    expect(read("app/search/index.tsx")).toMatch(/params\.listen/)
+    expect(read("app/search-v2.tsx")).toMatch(/useVoiceSearch/)
+    expect(read("app/search-v2.tsx")).toMatch(/parsed\.listen/)
   })
 })

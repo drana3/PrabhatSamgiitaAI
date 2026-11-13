@@ -1,0 +1,355 @@
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { StyleSheet, Text, View } from "react-native"
+import {
+  Check,
+  EyeOff,
+  ListEnd,
+  ListMinus,
+  ListPlus,
+  ListStart,
+  Music2,
+  Plus,
+  Share2,
+  Trash2,
+} from "lucide-react-native"
+
+import { DownloadMenuRow } from "@/components/offline/DownloadMenuRow"
+import { SaveMark } from "@/components/save/SaveMark"
+import { BottomSheet } from "@/components/songs-v2/BottomSheet"
+import { BackGlyph } from "@/components/songs-v2/Glyphs"
+import { SongCover } from "@/components/songs-v2/ListParts"
+import { Press } from "@/components/songs-v2/Press"
+import { RowStyleControl } from "@/components/songs-v2/RowStyleControl"
+import type { SongsTheme } from "@/constants/tokens/amSongs"
+import { amFonts } from "@/constants/tokens/amTypography"
+import { songDownloadItem } from "@/lib/offline/downloadItems"
+import { formatDuration, type CatalogEntry } from "@/lib/songsV2/entry"
+import { LIST_SORTS, type ListSortKey } from "@/lib/songsV2/listPage"
+import { removeFooter, removeRowLabel, type RowRemoval } from "@/lib/songsV2/rowMenu"
+import { useT } from "@/lib/i18n"
+
+const ICON = 24
+const STROKE = 1.75
+
+export type MenuPlaylist = { id: string; name: string; meta: string; has: boolean }
+
+/* ---------------------------------------------------------------- song menu */
+
+type SongMenuProps = {
+  open: boolean
+  theme: SongsTheme
+  entry: CatalogEntry | null
+  listName: string
+  saved: boolean
+  playlists: readonly MenuPlaylist[]
+  /** what the last row does: hide from a catalogue list, or remove from the listener's own playlist */
+  removal: RowRemoval
+  onPlayNext: (entry: CatalogEntry) => void
+  onQueue: (entry: CatalogEntry) => void
+  onToggleSave: (entry: CatalogEntry) => void
+  onTogglePlaylist: (entry: CatalogEntry, id: string, has: boolean) => void
+  onNewPlaylist: (entry: CatalogEntry) => void
+  onShare: (entry: CatalogEntry) => void
+  onOpenSong: (entry: CatalogEntry) => void
+  onRemove: (entry: CatalogEntry) => void
+  onClose: () => void
+}
+
+/**
+ * The menu of a song row (the three dots, or a 500ms press): the song on top, then one 52px row
+ * per action, in the look of the Player's More sheet. "Add to playlist" opens a second view in the
+ * same sheet; every other row acts and closes. The last row depends on the list: "Hide from this list"
+ * (private, on this phone, with a footer line saying so) or, in the listener's own playlist, "Remove from this playlist".
+ */
+export function SongMenuSheet(props: SongMenuProps) {
+  const t = useT()
+  const { open, theme, entry, listName, saved, playlists } = props
+  // keep the last song while the sheet slides out, so its title does not vanish mid-exit
+  const last = useRef<CatalogEntry | null>(null)
+  if (entry) last.current = entry
+  const shown = entry ?? last.current
+  const [view, setView] = useState<"menu" | "playlists">("menu")
+  useEffect(() => {
+    if (open) setView("menu")
+  }, [open, entry?.number])
+
+  const act = (fn: (e: CatalogEntry) => void) => () => {
+    if (shown) fn(shown)
+    props.onClose()
+  }
+  const act2 = (fn: () => void) => () => {
+    fn()
+    props.onClose()
+  }
+  const duration = shown ? formatDuration(shown.durationSeconds) : null
+  const subtitle = shown ? `${listName} · PS ${shown.number}${duration ? ` · ${duration}` : ""}` : ""
+
+  return (
+    <BottomSheet
+      open={open && Boolean(entry)}
+      onClose={props.onClose}
+      theme={theme}
+      eyebrow={view === "playlists" ? t("songs.menu.addTo") : t("songs.menu.more")}
+      accessibilityLabel={t("songs.menu.actions")}
+      flush
+    >
+      {shown ? (
+        <View style={styles.head}>
+          <SongCover number={shown.number} size={56} radius={10} tint={theme.inner} />
+          <View style={styles.headText}>
+            <Text style={[styles.headTitle, { color: theme.textHeading }]} numberOfLines={1}>
+              {shown.title}
+            </Text>
+            <Text style={[styles.headSub, { color: theme.textBody }]} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+      <View style={[styles.rule, { backgroundColor: theme.line }]} />
+      {view === "menu" ? (
+        <View>
+          <Row theme={theme} label={t("songs.menu.playNext")} icon={<ListStart size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onPlayNext)} />
+          <Row theme={theme} label={t("songs.menu.addQueue")} icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onQueue)} />
+          <Row
+            theme={theme}
+            label={saved ? t("songs.menu.saved") : t("songs.menu.saveTo")}
+            meta={saved ? t("songs.menu.savedHint") : undefined}
+            icon={<SaveMark on={saved} size={ICON} color={theme.textHeading} />}
+            onPress={act(props.onToggleSave)}
+          />
+          <Row
+            theme={theme}
+            label={t("songs.menu.addTo")}
+            icon={<ListPlus size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
+            onPress={() => setView("playlists")}
+          />
+          <Row theme={theme} label={t("songs.menu.share")} icon={<Share2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onShare)} />
+          <Row theme={theme} label={t("songs.menu.openSong")} icon={<Music2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(props.onOpenSong)} />
+          <DownloadMenuRow item={shown ? songDownloadItem(shown.number, { title: shown.title, seconds: shown.durationSeconds || undefined }) : null} color={theme.textHeading}>
+            {(row) => <Row theme={theme} label={row.label} icon={row.icon} onPress={act2(row.onPress)} />}
+          </DownloadMenuRow>
+          <Row
+            theme={theme}
+            label={removeRowLabel(props.removal)}
+            icon={
+              props.removal.kind === "playlist" ? (
+                <ListMinus size={ICON} strokeWidth={STROKE} color={theme.textHeading} />
+              ) : (
+                <EyeOff size={ICON} strokeWidth={STROKE} color={theme.textHeading} />
+              )
+            }
+            onPress={act(props.onRemove)}
+          />
+          {removeFooter(props.removal) ? (
+            <Text style={[styles.footer, { color: theme.textBody }]}>{removeFooter(props.removal)}</Text>
+          ) : null}
+        </View>
+      ) : (
+        <View>
+          <Row
+            theme={theme}
+            label={t("common.back")}
+            icon={<BackGlyph size={ICON} color={theme.textHeading} />}
+            onPress={() => setView("menu")}
+          />
+          {playlists.map((p) => (
+            <Row
+              key={p.id}
+              theme={theme}
+              label={p.name}
+              meta={p.meta}
+              icon={
+                <View style={[styles.ring, p.has ? { backgroundColor: theme.brand, borderColor: theme.brand } : { borderColor: theme.ink300 }]}>
+                  {p.has ? <Check size={14} strokeWidth={3} color="#FFFFFF" /> : null}
+                </View>
+              }
+              onPress={() => shown && props.onTogglePlaylist(shown, p.id, p.has)}
+            />
+          ))}
+          <Row
+            theme={theme}
+            label={t("songs.mine.newPlaylist")}
+            icon={<Plus size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
+            onPress={() => {
+              if (shown) props.onNewPlaylist(shown)
+              props.onClose()
+            }}
+          />
+        </View>
+      )}
+    </BottomSheet>
+  )
+}
+
+function Row({
+  theme,
+  label,
+  meta,
+  icon,
+  disabled,
+  onPress,
+}: {
+  theme: SongsTheme
+  label: string
+  meta?: string
+  icon: ReactNode
+  disabled?: boolean
+  onPress: () => void
+}) {
+  return (
+    <Press
+      accessibilityRole="button"
+      accessibilityLabel={meta ? `${label}, ${meta}` : label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      disabled={disabled}
+      onPress={onPress}
+      pressedScale={0.98}
+      style={[styles.row, disabled && { opacity: 0.5 }]}
+    >
+      <View style={styles.rowIcon}>{icon}</View>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowLabel, { color: theme.textHeading }]} numberOfLines={1}>
+          {label}
+        </Text>
+        {meta ? (
+          <Text style={[styles.rowMeta, { color: theme.textBody }]} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
+      </View>
+    </Press>
+  )
+}
+
+/* --------------------------------------------------------------- sort sheet */
+
+/** Sort by Number (default), A to Z, Duration or Recently played; a tap picks and closes. */
+export function ListSortSheet({
+  open,
+  theme,
+  value,
+  onPick,
+  onClose,
+}: {
+  open: boolean
+  theme: SongsTheme
+  value: ListSortKey
+  onPick: (key: ListSortKey) => void
+  onClose: () => void
+}) {
+  const t = useT()
+  return (
+    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={t("songs.menu.sortBy")} accessibilityLabel={t("songs.menu.sort")} flush>
+      <View style={[styles.group, { backgroundColor: theme.card, borderColor: theme.line }]} accessibilityRole="radiogroup">
+        {LIST_SORTS.map((option, index) => {
+          const selected = option.key === value
+          return (
+            <Press
+              key={option.key}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`${option.title}. ${option.subtitle}`}
+              onPress={() => onPick(option.key)}
+              pressedScale={0.99}
+              style={[styles.sortRow, { borderBottomColor: theme.line, borderBottomWidth: index === LIST_SORTS.length - 1 ? 0 : 1 }]}
+            >
+              <View style={styles.rowText}>
+                <Text style={[styles.rowLabel, { color: theme.textHeading }]}>{option.title}</Text>
+                <Text style={[styles.rowMeta, { color: theme.textBody }]}>{option.subtitle}</Text>
+              </View>
+              <View style={[styles.radio, selected ? { backgroundColor: theme.brand, borderColor: theme.brand } : { borderColor: theme.ink300 }]}>
+                {selected ? <View style={styles.radioDot} /> : null}
+              </View>
+            </Press>
+          )
+        })}
+      </View>
+    </BottomSheet>
+  )
+}
+
+/* --------------------------------------------------------------- list menu */
+
+/** The three dots of the action row: whole-list actions. */
+export function ListMenuSheet({
+  open,
+  theme,
+  name,
+  hiddenCount,
+  downloadedCount,
+  onQueueAll,
+  onRemoveDownloads,
+  onShowHidden,
+  onClose,
+}: {
+  open: boolean
+  theme: SongsTheme
+  name: string
+  hiddenCount: number
+  downloadedCount: number
+  onQueueAll: () => void
+  onRemoveDownloads: () => void
+  onShowHidden: () => void
+  onClose: () => void
+}) {
+  const t = useT()
+  const act = (fn: () => void) => () => {
+    fn()
+    onClose()
+  }
+  return (
+    <BottomSheet open={open} onClose={onClose} theme={theme} eyebrow={name} accessibilityLabel={t("songs.menu.listOptions")} flush>
+      <View style={{ paddingBottom: 8 }}>
+        <RowStyleControl theme={theme} />
+        <View style={[styles.rule, { backgroundColor: theme.line }]} />
+        <Row theme={theme} label={t("songs.menu.addAll")} icon={<ListEnd size={ICON} strokeWidth={STROKE} color={theme.textHeading} />} onPress={act(onQueueAll)} />
+        {downloadedCount > 0 ? (
+          <Row
+            theme={theme}
+            label={t("songs.menu.removeDownloads")}
+            meta={t("songs.menu.onPhone", { count: downloadedCount })}
+            icon={<Trash2 size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
+            onPress={act(onRemoveDownloads)}
+          />
+        ) : null}
+        {hiddenCount > 0 ? (
+          <Row
+            theme={theme}
+            label={t("songs.menu.showHidden", { count: hiddenCount })}
+            icon={<EyeOff size={ICON} strokeWidth={STROKE} color={theme.textHeading} />}
+            onPress={act(onShowHidden)}
+          />
+        ) : null}
+      </View>
+    </BottomSheet>
+  )
+}
+
+const styles = StyleSheet.create({
+  head: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingBottom: 16 },
+  headText: { flex: 1, minWidth: 0, gap: 2 },
+  headTitle: { fontFamily: amFonts.semi, fontSize: 17, lineHeight: 22 },
+  headSub: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  footer: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
+  rule: { height: StyleSheet.hairlineWidth, marginHorizontal: 20, marginBottom: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: 16, minHeight: 52, paddingVertical: 8, paddingHorizontal: 20 },
+  rowIcon: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
+  rowText: { flex: 1, minWidth: 0 },
+  rowLabel: { fontFamily: amFonts.semi, fontSize: 16, lineHeight: 21 },
+  rowMeta: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 17 },
+  ring: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  group: { marginHorizontal: 10, borderRadius: 20, borderWidth: 1, overflow: "hidden" },
+  sortRow: {
+    minHeight: 56,
+    paddingVertical: 6,
+    paddingLeft: 20,
+    paddingRight: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFFFFF" },
+})

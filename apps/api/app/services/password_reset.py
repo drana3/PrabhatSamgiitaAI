@@ -100,4 +100,10 @@ async def complete_password_reset(session: AsyncSession, token: str, password: s
 
     credential.password_hash = _hash_password(password)
     row.used_at = datetime.now(UTC)
+    # a new password signs the account out on every device (whoever knew the old one is out too)
+    from app.services.member_tokens import revoke_all_sessions
+
+    await revoke_all_sessions(
+        session, row.user_id, reason="password was reset", commit=False
+    )
     await session.commit()
