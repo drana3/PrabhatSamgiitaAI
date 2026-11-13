@@ -4,15 +4,15 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router"
 
 import { AccountBar, topInset } from "@/components/account/AccountUi"
 import { AuthorRow } from "@/components/authors/AuthorRow"
-import { AuthorsCountLine, AuthorsFilterRow, FilterSheet } from "@/components/authors/AuthorsFilters"
+import { AuthorsCountLine, AuthorsFilterRow, FilterSheet, FiltersSheet } from "@/components/authors/AuthorsFilters"
 import { DemoNote, LoadingRows, PillButton, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { authorsApi } from "@/lib/authors/api"
-import { BECOME_AUTHOR_HREF, DIRECTORY_PAGE, MY_AUTHOR_HREF, PROFILE_LANGUAGES, authorHref } from "@/lib/authors/constants"
+import { BECOME_AUTHOR_HREF, DIRECTORY_PAGE, DIRECTORY_ROLE_FILTER_LIVE, MY_AUTHOR_HREF, PROFILE_LANGUAGES, authorHref } from "@/lib/authors/constants"
 import { say } from "@/lib/authors/text"
-import { DIRECTORY_KINDS, type AuthorCardData, type DirectoryKind, type DirectorySort } from "@/lib/authors/types"
+import { DIRECTORY_KINDS, DIRECTORY_ROLES, type AuthorCardData, type DirectoryKind, type DirectoryRole, type DirectorySort } from "@/lib/authors/types"
 import { useT } from "@/lib/i18n"
 import { kindLabel } from "@/lib/kirtan/kind"
 import { errorKeyOf, useAuthorStore } from "@/stores/authorStore"
@@ -30,7 +30,7 @@ export default function AuthorsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const bottom = useScrollBottomInset()
-  const params = useLocalSearchParams<{ q?: string; kind?: string; language?: string }>()
+  const params = useLocalSearchParams<{ q?: string; kind?: string; language?: string; role?: string }>()
   const api = authorsApi()
   const mine = useAuthorStore((s) => s.mine)
   const mineLoad = useAuthorStore((s) => s.load)
@@ -40,7 +40,10 @@ export default function AuthorsScreen() {
   const [sort, setSort] = useState<DirectorySort>("listeners")
   const [kind, setKind] = useState<DirectoryKind | undefined>(DIRECTORY_KINDS.find((k) => k === params.kind))
   const [language, setLanguage] = useState<string | undefined>(PROFILE_LANGUAGES.find((l) => l === params.language))
-  const [sheet, setSheet] = useState<"kind" | "language" | null>(null)
+  // the Role filter needs the server's answer: shown in the preview, hidden against the real server until it has the parameter (lib/authors/constants.ts)
+  const roleOffered = api.demo || DIRECTORY_ROLE_FILTER_LIVE
+  const [role, setRole] = useState<DirectoryRole | undefined>(roleOffered ? DIRECTORY_ROLES.find((r) => r === params.role) : undefined)
+  const [sheet, setSheet] = useState<"kind" | "language" | "filters" | null>(null)
   const [items, setItems] = useState<AuthorCardData[]>([])
   const [total, setTotal] = useState(0)
   const [state, setState] = useState<"loading" | "ready" | "error" | "more">("loading")
@@ -61,7 +64,7 @@ export default function AuthorsScreen() {
   const load = (offset: number) => {
     const mineTicket = ++ticket.current
     setState(offset ? "more" : "loading")
-    api.directory({ q: query, sort, kind, language, offset, limit: DIRECTORY_PAGE }).then(
+    api.directory({ q: query, sort, kind, language, role, offset, limit: DIRECTORY_PAGE }).then(
       (page) => {
         if (mineTicket !== ticket.current) return
         setItems((old) => (offset ? [...old, ...page.items] : page.items))
@@ -78,12 +81,14 @@ export default function AuthorsScreen() {
   useEffect(() => {
     load(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, sort, kind, language])
+  }, [query, sort, kind, language, role])
 
   const clearFilters = () => {
     setKind(undefined)
     setLanguage(undefined)
+    setRole(undefined)
   }
+  const filtered = Boolean(kind || language || role)
   const open = (slug: string) => router.push(href(authorHref(slug)))
   const back = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
 
@@ -113,11 +118,12 @@ export default function AuthorsScreen() {
         onKind={() => setSheet("kind")}
         onLanguage={() => setSheet("language")}
         onSort={setSort}
+        combined={roleOffered ? { chosen: (kind ? 1 : 0) + (role ? 1 : 0), onPress: () => setSheet("filters") } : undefined}
       />
       <AuthorsCountLine
         theme={theme}
         count={(state === "ready" || state === "more") && items.length ? t("authors.count.authors", { count: total }) : ""}
-        filtered={Boolean(kind || language) && items.length > 0}
+        filtered={filtered && items.length > 0}
         onClear={clearFilters}
       />
     </View>
@@ -127,13 +133,13 @@ export default function AuthorsScreen() {
   if (state === "loading") empty = <LoadingRows theme={theme} rows={5} />
   else if (state === "error") empty = <StateBlock theme={theme} tone="error" title={t("authors.dir.errorTitle")} body={say(t, errorKey)} action={t("common.tryAgain")} onAction={() => load(0)} />
   else if (!items.length)
-    empty = query || kind || language ? (
+    empty = query || filtered ? (
       <StateBlock
         theme={theme}
         title={query ? t("authors.dir.noMatch", { query }) : t("authors.dir.noMatchFilter")}
         body={query ? t("authors.dir.noMatchBody") : t("authors.dir.noMatchFilterBody")}
-        action={kind || language ? t("authors.dir.clearFilters") : undefined}
-        onAction={kind || language ? clearFilters : undefined}
+        action={filtered ? t("authors.dir.clearFilters") : undefined}
+        onAction={filtered ? clearFilters : undefined}
       />
     ) : (
       <StateBlock theme={theme} title={t("authors.dir.empty.title")} body={t("authors.dir.empty.body")} action={t("authors.cta.become")} onAction={() => router.push(href(BECOME_AUTHOR_HREF))} />
@@ -176,6 +182,15 @@ export default function AuthorsScreen() {
         value={kind}
         onPick={(id) => setKind(DIRECTORY_KINDS.find((k) => k === id))}
         onClose={() => setSheet(null)}
+      />
+      <FiltersSheet
+        visible={sheet === "filters"}
+        theme={theme}
+        onClose={() => setSheet(null)}
+        groups={[
+          { key: "kind", title: t("authors.dir.filter.kind"), options: DIRECTORY_KINDS.map((k) => ({ id: k, label: kindLabel(k) })), value: kind, onPick: (id) => setKind(DIRECTORY_KINDS.find((k) => k === id)) },
+          { key: "role", title: t("authors.dir.filter.role"), options: DIRECTORY_ROLES.map((r) => ({ id: r, label: t(`authors.dir.role.${r}`) })), value: role, onPick: (id) => setRole(DIRECTORY_ROLES.find((r) => r === id)) },
+        ]}
       />
       <FilterSheet
         visible={sheet === "language"}

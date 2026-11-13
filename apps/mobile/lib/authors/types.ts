@@ -25,7 +25,10 @@ export type DirectorySort = "listeners" | "new" | "name"
 /** The recording kinds the directory can filter by (the server's list). */
 export const DIRECTORY_KINDS = ["kiirtan", "bhajan", "prabhat_samgiita", "spiritual_song", "dance_song", "other_mantra"] as const
 export type DirectoryKind = (typeof DIRECTORY_KINDS)[number]
-export type DirectoryQuery = { q?: string; sort?: DirectorySort; kind?: DirectoryKind; language?: string; offset?: number; limit?: number }
+/** What a person does on recordings, for the directory filter: writes (words or melody) or performs. The server has no such filter yet (lib/authors/constants.ts, DIRECTORY_ROLE_FILTER_LIVE). */
+export const DIRECTORY_ROLES = ["writes", "performs"] as const
+export type DirectoryRole = (typeof DIRECTORY_ROLES)[number]
+export type DirectoryQuery = { q?: string; sort?: DirectorySort; kind?: DirectoryKind; language?: string; role?: DirectoryRole; offset?: number; limit?: number }
 
 export type AuthorLink = { kind: LinkKind; url: string }
 export type PublicLink = AuthorLink & { rel: string }

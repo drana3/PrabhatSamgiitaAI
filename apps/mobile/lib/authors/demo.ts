@@ -38,7 +38,7 @@ const RESERVED = new Set([
 ])
 const NOW = "2026-11-01T10:00:00Z"
 
-function toRemote(id: string, kind: string, title: string, author: string, type: string, durationSec: number | null, plays: number, addedBy: string): RemoteRecording {
+function toRemote(id: string, kind: string, title: string, author: string, type: string, durationSec: number | null, plays: number, addedBy: string, byAuthor: boolean): RemoteRecording {
   return {
     id,
     kind: kind as RemoteRecording["kind"],
@@ -47,7 +47,7 @@ function toRemote(id: string, kind: string, title: string, author: string, type:
     author,
     added_by: addedBy,
     author_id: null,
-    by_author: true,
+    by_author: byAuthor,
     status: "published",
     duration_sec: durationSec,
     plays,
@@ -58,9 +58,19 @@ function toRemote(id: string, kind: string, title: string, author: string, type:
   }
 }
 
+/**
+ * Who wrote what in the preview, so every state of the person page can be seen: Arun Deva wrote all of his (one tab, "Wrote"),
+ * Priya Devi wrote one in three of hers (both tabs), the others only perform (one tab, "Performs").
+ */
+function demoWrote(authorText: string, index: number): boolean {
+  if (authorText === "Arun Deva") return true
+  if (authorText === "Priya Devi") return index % 3 === 0
+  return false
+}
+
 function recordingsOfText(authorText: string): RemoteRecording[] {
-  return KIRTAN_FIXTURES.filter((k) => k.author === authorText && k.status === "published").map((k) =>
-    toRemote(k.id, k.kind, k.title, k.author, k.type, k.durationSec, k.plays ?? 0, k.addedBy),
+  return KIRTAN_FIXTURES.filter((k) => k.author === authorText && k.status === "published").map((k, i) =>
+    toRemote(k.id, k.kind, k.title, k.author, k.type, k.durationSec, k.plays ?? 0, k.addedBy, demoWrote(authorText, i)),
   )
 }
 
@@ -292,10 +302,12 @@ export function createDemoApi(): DemoAuthorsApi {
     async myStats(days) {
       return demoStats(days, statsMode)
     },
-    async directory({ q, sort = "listeners", kind, language, offset = 0, limit = 20 }: DirectoryQuery): Promise<AuthorList> {
+    async directory({ q, sort = "listeners", kind, language, role, offset = 0, limit = 20 }: DirectoryQuery): Promise<AuthorList> {
       const needle = (q ?? "").trim().toLowerCase()
       const everyone = mine && mine.status === "published" ? [...authors, { authorText: "", profile: { ...publicOf(mine), kinds: [] } }] : authors
-      const shownAuthors = everyone.filter((a) => (!kind || a.profile.kinds.some((k) => k.kind === kind)) && (!language || a.profile.languages.includes(language)))
+      // the server has no role filter yet; the preview answers it from the sample recordings: "writes" = at least one recording by the author, "performs" = at least one other
+      const hasRole = (text: string) => (role ? recordingsOfText(text).some((r) => (role === "writes") === r.by_author) : true)
+      const shownAuthors = everyone.filter((a) => (!kind || a.profile.kinds.some((k) => k.kind === kind)) && (!language || a.profile.languages.includes(language)) && hasRole(a.authorText))
       let list = shownAuthors.map((a) => card(a.profile)).filter((c) => !needle || c.display_name.toLowerCase().includes(needle) || c.slug.includes(needle))
       if (sort === "listeners") list = list.sort((a, b) => (b.monthly_listeners ?? -1) - (a.monthly_listeners ?? -1))
       if (sort === "name") list = list.sort((a, b) => a.display_name.localeCompare(b.display_name))

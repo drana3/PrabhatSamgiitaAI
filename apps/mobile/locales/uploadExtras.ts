@@ -31,7 +31,7 @@ export const uploadExtrasEn = {
   "ux.role.wroteHint": "Saved with the recording as “By the author”.",
   "ux.role.performs": "I perform or play on this recording",
   "ux.role.performsHint": "Puts your name in the performer line if it is empty.",
-  "ux.role.page": "Both go on the same page: your author page lists every recording you upload, whether you wrote it or perform on it. It does not tell the two apart yet. A recording someone else uploaded with your name on it you can claim with “Find my recordings” on your author page.",
+  "ux.role.page": "On your author page, recordings with the first tick are under “Wrote” and all the others under “Performs”. The second tick is not saved on the server yet, so a recording with both ticks shows under “Wrote”. A recording someone else uploaded with your name on it you can claim with “Find my recordings” on your author page.",
 } as const
 
 export const uploadExtrasRu: Record<keyof typeof uploadExtrasEn, string> = {
@@ -61,7 +61,7 @@ export const uploadExtrasRu: Record<keyof typeof uploadExtrasEn, string> = {
   "ux.role.wroteHint": "Сохраняется вместе с записью как «От автора».",
   "ux.role.performs": "Я исполняю или играю в этой записи",
   "ux.role.performsHint": "Подставит ваше имя в строку исполнителя, если она пуста.",
-  "ux.role.page": "Обе отметки ведут на одну страницу: ваша страница автора показывает каждую загруженную вами запись, написали вы её или исполняете. Пока она не различает эти два случая. Запись, которую загрузил кто-то другой с вашим именем, можно забрать через «Найти мои записи» на странице автора.",
+  "ux.role.page": "На вашей странице автора записи с первой отметкой лежат во вкладке «Написал», все остальные во вкладке «Исполняет». Вторая отметка пока не сохраняется на сервере, поэтому запись с обеими отметками показывается во вкладке «Написал». Запись, которую загрузил кто-то другой с вашим именем, можно забрать через «Найти мои записи» на странице автора.",
 }
 
 export const uploadExtrasEs: Record<keyof typeof uploadExtrasEn, string> = {
@@ -91,5 +91,5 @@ export const uploadExtrasEs: Record<keyof typeof uploadExtrasEn, string> = {
   "ux.role.wroteHint": "Se guarda con la grabación como «Del autor».",
   "ux.role.performs": "Interpreto o toco en esta grabación",
   "ux.role.performsHint": "Pone tu nombre en la línea del intérprete si está vacía.",
-  "ux.role.page": "Las dos van a la misma página: tu página de autor muestra cada grabación que subes, la hayas escrito o la interpretes. Todavía no distingue entre las dos. Una grabación que subió otra persona con tu nombre puedes reclamarla con «Buscar mis grabaciones» en tu página de autor.",
+  "ux.role.page": "En tu página de autor, las grabaciones con la primera marca están en «Escribió» y todas las demás en «Interpreta». La segunda marca aún no se guarda en el servidor, así que una grabación con las dos marcas aparece en «Escribió». Una grabación que subió otra persona con tu nombre puedes reclamarla con «Buscar mis grabaciones» en tu página de autor.",
 }

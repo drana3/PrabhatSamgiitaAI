@@ -135,8 +135,8 @@ export function createAuthorsApi(cfg: RemoteConfig): AuthorsApi {
     myRecordings: (offset = 0) => json<{ items: OwnerRecording[]; total: number }>(cfg, `/authors/me/recordings${query({ limit: 100, offset })}`),
     setShown: (id, shown) => nothing(cfg, `/authors/me/recordings/${encodeURIComponent(id)}`, { method: "PUT", body: { shown } }),
     myStats: (days: StatsPeriod) => json<OwnerStats>(cfg, `/authors/me/stats${query({ days })}`),
-    directory: ({ q, sort, kind, language, offset = 0, limit = 20 }: DirectoryQuery) =>
-      json<AuthorList>(cfg, `/authors${query({ q: q?.trim(), sort, kind, language, offset, limit })}`),
+    directory: ({ q, sort, kind, language, role, offset = 0, limit = 20 }: DirectoryQuery) =>
+      json<AuthorList>(cfg, `/authors${query({ q: q?.trim(), sort, kind, language, role, offset, limit })}`),
     profile: (slug) => lookup(cfg, slug),
     recordings: (slug, { kind, collectionId, exclude, offset = 0, limit = 50 }) =>
       json<RecordingPage>(cfg, `/authors/${encodeURIComponent(slug)}/recordings${query({ kind, collection_id: collectionId, exclude, offset, limit })}`),
