@@ -15,6 +15,7 @@ vi.mock("@react-native-async-storage/async-storage", () => {
   }
 })
 vi.mock("@/lib/kirtan/uploadRunner", () => ({ runUpload: vi.fn(), cancelSimilar: vi.fn(async () => undefined) }))
+vi.mock("@/lib/kirtan/formExtras", () => ({ flushFormExtras: vi.fn(), forgetFormExtras: vi.fn() }))
 vi.mock("@/stores/recordingChordsPendingStore", () => ({ useRecordingChordsPendingStore: { getState: () => ({ flush: vi.fn(async () => undefined), forget: vi.fn() }) } }))
 
 import { hasNonLatinLetters, cleanRecordingInfo, infoTags, isAiRecording, kindAllowsAi, kindHasPerformance, kindHasTempo, kindRequiresRecordingType, PERFORMANCES, RECORDING_TYPES, normalizeRecordingType, recordingTypeMissing, recordingTypesFor, TEMPO_IDS, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"

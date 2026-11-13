@@ -20,6 +20,7 @@ vi.mock("@/lib/kirtan/uploadRunner", () => ({
   runUpload: (...args: unknown[]) => runUpload(...args),
   cancelSimilar: async () => undefined,
 }))
+vi.mock("@/lib/kirtan/formExtras", () => ({ flushFormExtras: vi.fn(), forgetFormExtras: vi.fn() }))
 vi.mock("@/stores/recordingChordsPendingStore", () => ({
   useRecordingChordsPendingStore: { getState: () => ({ flush: async () => undefined, forget: () => undefined }) },
 }))

@@ -30,6 +30,11 @@ vi.mock("@/stores/recordingChordsPendingStore", () => ({
   useRecordingChordsPendingStore: { getState: () => ({ flush: flushChords, forget: forgetChords }) },
 }))
 
+// The chords and notes typed on the form itself (components/kirtan/add/ChordsSection.tsx) are sent by lib/kirtan/formExtras.ts; its calls are watched here.
+const flushFormExtras = vi.fn()
+const forgetFormExtras = vi.fn()
+vi.mock("@/lib/kirtan/formExtras", () => ({ flushFormExtras: (...args: unknown[]) => flushFormExtras(...args), forgetFormExtras: () => forgetFormExtras() }))
+
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { EMPTY_DRAFT, useUploadQueueStore, yearOf } from "@/stores/uploadQueueStore"
 
@@ -42,6 +47,8 @@ beforeEach(() => {
   cancelSimilar.mockClear()
   flushChords.mockClear()
   forgetChords.mockClear()
+  flushFormExtras.mockClear()
+  forgetFormExtras.mockClear()
   useKirtanStore.getState().reset()
   queue().reset()
   queue().setDraft({ performer: "Priya Devi", styles: ["indian"], recordingType: "studio", performance: "solo" })
@@ -104,6 +111,51 @@ describe("uploading the queue", () => {
     await queue().start()
     expect(flushChords).toHaveBeenCalledTimes(1)
     expect(flushChords).toHaveBeenCalledWith(queue().items[0]!.id, expect.any(String), "a")
+  })
+
+  it("sends the chords and piano notes typed on the form itself with the FIRST file only, once it is published", async () => {
+    pick("a.mp3", "b.mp3")
+    runUpload.mockResolvedValue({ status: "published" })
+    await queue().start()
+    expect(flushFormExtras).toHaveBeenCalledTimes(1)
+    expect(flushFormExtras).toHaveBeenCalledWith(expect.any(String), "a")
+  })
+
+  it("keeps the form's chords back when the first file failed, so they go with it on 'Try again'", async () => {
+    pick("a.mp3", "b.mp3")
+    runUpload.mockResolvedValueOnce({ status: "failed", failure: { code: "network" } }).mockResolvedValueOnce({ status: "published" })
+    await queue().start()
+    expect(flushFormExtras).not.toHaveBeenCalled()
+    runUpload.mockResolvedValueOnce({ status: "published" })
+    await queue().retry(queue().items[0]!.id)
+    expect(flushFormExtras).toHaveBeenCalledTimes(1)
+  })
+
+  it("never sends the form's chords for Dance music or Baba's Audio", async () => {
+    queue().setDraft({ kind: "dance_song", dance: "tandava" })
+    pick("a.mp3")
+    runUpload.mockResolvedValueOnce({ status: "published" })
+    await queue().start()
+    expect(flushFormExtras).not.toHaveBeenCalled()
+  })
+
+  it("drops the form's chords with a reset, with a finished batch and with leftovers of an earlier visit", () => {
+    pick("a.mp3")
+    forgetFormExtras.mockClear()
+    queue().openFresh()
+    expect(forgetFormExtras).toHaveBeenCalledTimes(1)
+    queue().clearFinished()
+    expect(forgetFormExtras).toHaveBeenCalledTimes(2)
+    queue().reset()
+    expect(forgetFormExtras).toHaveBeenCalledTimes(3)
+  })
+
+  it("starts with both roles off and keeps them apart", () => {
+    expect(EMPTY_DRAFT).toMatchObject({ byAuthor: false, performs: false })
+    queue().setDraft({ kind: "bhajan", byAuthor: true })
+    expect(queue().draft).toMatchObject({ byAuthor: true, performs: false })
+    queue().setDraft({ performs: true })
+    expect(queue().draft).toMatchObject({ byAuthor: true, performs: true })
   })
 
   it("sends no chords for a Dance music or a Baba's Audio Discourse, even if some were typed first", async () => {

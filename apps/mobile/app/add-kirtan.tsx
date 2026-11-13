@@ -8,7 +8,8 @@ import Svg, { Path } from "react-native-svg"
 import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
-import { AuthorTick } from "@/components/kirtan/add/AuthorTick"
+import { ChordsSection } from "@/components/kirtan/add/ChordsSection"
+import { RoleTicks } from "@/components/kirtan/add/RoleTicks"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { MantraField } from "@/components/kirtan/add/MantraField"
 import { KindField } from "@/components/kirtan/add/KindField"
@@ -24,6 +25,7 @@ import { fixKiirtanSpelling } from "@/lib/kirtan/kiirtanSpelling"
 import { kindHasMood } from "@/lib/kirtan/moods"
 import { kindHasStyle } from "@/lib/kirtan/styles"
 import { effectiveRecordingType, kindHasPerformance, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
+import { formOffersChords, performsPatch } from "@/lib/kirtan/uploadChords"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { offersVideoLink } from "@/lib/recordingVideos/uploadLink"
 import { videoFailureText } from "@/lib/recordingVideos/words"
@@ -542,8 +544,8 @@ export function AddRecordingForm() {
               {form.error("performer") ? <FieldError theme={theme} text={form.error("performer")!} /> : null}
               {items.length > 1 ? <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.shared.hint")}</Text> : null}
               </View>
-              {/* "I am the author of this recording" sits with the performer; Prabhat Samgiita has one author, so it has no tick */}
-              <AuthorTick theme={theme} kind={kind} on={draft.byAuthor} onChange={(byAuthor) => store().setDraft({ byAuthor })} disabled={locked} />
+              {/* the two roles, independent: "I wrote this" (the API's by_author; not for Prabhat Samgiita) and "I perform or play on this recording" (kept on the form) */}
+              <RoleTicks theme={theme} kind={kind} wrote={draft.byAuthor} performs={draft.performs} onWrote={(byAuthor) => store().setDraft({ byAuthor })} onPerforms={(on) => store().setDraft(performsPatch(draft, on, displayName))} disabled={locked} />
             </Reveal>
             ) : null}
 
@@ -658,6 +660,13 @@ export function AddRecordingForm() {
                   {form.error(`row-${item.id}`) ? <FieldError theme={theme} text={form.error(`row-${item.id}`)!} /> : null}
                   </View>
                 ))}
+              </View>
+            ) : null}
+
+            {/* chords and piano notes: always there for the kinds that take them, never required (components/kirtan/add/ChordsSection.tsx) */}
+            {formOffersChords(kind) ? (
+              <View style={styles.field}>
+                <ChordsSection theme={theme} kind={kind} locked={locked} title={items[0] ? items[0].title || items[0].fileName : ""} multi={items.length > 1} />
               </View>
             ) : null}
 

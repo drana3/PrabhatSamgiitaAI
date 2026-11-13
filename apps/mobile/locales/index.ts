@@ -5,6 +5,7 @@ import { ko } from "@/locales/ko"
 import { ptBR } from "@/locales/ptBR"
 import { ru } from "@/locales/ru"
 import { zhTW } from "@/locales/zhTW"
+import { uploadExtrasEn, uploadExtrasEs, uploadExtrasRu } from "@/locales/uploadExtras"
 import type { Language } from "@/lib/i18n/registry"
 
 /** A dictionary is a flat map. Plural groups use the suffixes `_one`, `_few`, `_many`, `_other`. */
@@ -15,9 +16,9 @@ export type Dictionary = Readonly<Record<string, string>>
  * language has no entry. A stub is an empty dictionary (everything falls back to English).
  */
 export const dictionaries = {
-  en,
-  ru,
-  es,
+  en: { ...en, ...uploadExtrasEn } as Dictionary,
+  ru: { ...ru, ...uploadExtrasRu } as Dictionary,
+  es: { ...es, ...uploadExtrasEs } as Dictionary,
   hi,
   "zh-TW": zhTW,
   "pt-BR": ptBR,

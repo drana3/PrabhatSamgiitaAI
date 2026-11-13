@@ -3,7 +3,7 @@ import { cleanInstrument, OTHER_INSTRUMENT } from "@/lib/kirtan/instruments"
 import { cleanRecordingInfo, kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
 import { kindHasMood } from "@/lib/kirtan/moods"
 import { kindHasStyle } from "@/lib/kirtan/styles"
-import { kindHasCredits, kindHasDance, kindHasDiscourse, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
+import { kindHasCredits, kindHasDance, kindHasPerformer, kindHasDiscourse, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 
 /**
@@ -44,6 +44,8 @@ type TypeFields = {
   leadInstrumentOther?: string
   /** the tick "I am the author of the recording" (not offered for Prabhat Samgiita or Baba's Audio Discourses) */
   byAuthor?: boolean
+  /** the tick "I perform or play on this recording" (kept on the form; no field on the server); not offered for Baba's Audio Discourses */
+  performs?: boolean
   /** Others only: which one it is (lib/kirtan/types.ts MANTRA_TYPES; null until chosen) and, for "other" (Something else), its name; forms without it leave it out */
   mantraType?: string | null
   mantraOther?: string
@@ -100,6 +102,8 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
   if ("mantraOther" in next && (next.kind !== "other_mantra" || (next as TypeFields).mantraType !== "other")) (next as TypeFields).mantraOther = ""
   // the author tick is not offered for Prabhat Samgiita or Baba's Audio Discourses
   if ("byAuthor" in next && !kindHasByAuthor(next.kind)) (next as TypeFields).byAuthor = false
+  // a Baba's Audio Discourse names no performer, so nobody performs on it
+  if ("performs" in next && !kindHasPerformer(next.kind)) (next as TypeFields).performs = false
   return next
 }
 

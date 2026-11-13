@@ -9,6 +9,7 @@ import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/typ
 import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { fixKiirtanSpelling, fixKiirtanSpellingIn } from "@/lib/kirtan/kiirtanSpelling"
 import { useKirtanStore } from "@/stores/kirtanStore"
+import { flushFormExtras, forgetFormExtras } from "@/lib/kirtan/formExtras"
 import { useRecordingChordsPendingStore } from "@/stores/recordingChordsPendingStore"
 
 /**
@@ -52,13 +53,15 @@ export type QueueDraft = {
   leadInstrument: string | null
   leadInstrumentOther: string
   byAuthor: boolean
+  /** "I perform or play on this recording": kept on the form only (the API has no field for it); it fills the performer line with the person's own name (lib/kirtan/uploadChords.ts performsPatch) */
+  performs: boolean
   /** Others: which one it is (null until chosen: there is no default; "other" = Something else); no other kind has it */
   mantraType: string | null
   /** Others, "Something else": the name the person wrote (2 to 40 characters, the team checks it) */
   mantraOther: string
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, mantraType: null, mantraOther: "" }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, performs: false, mantraType: null, mantraOther: "" }
 
 type QueueState = {
   items: QueueItem[]
@@ -111,9 +114,12 @@ function outcomeOf(result: Awaited<ReturnType<typeof runUpload>>, submissionId: 
 }
 
 /** The chords typed on a row go to the recording once it is up (docs/recording-extras.md). Never throws, never changes the upload's result. */
-function sendChords(rowKey: string, submissionId: string, title: string): void {
+function sendChords(rowKey: string, submissionId: string, title: string, first = false): void {
   const mine = useKirtanStore.getState().submissions.find((k) => k.id === submissionId)
-  void useRecordingChordsPendingStore.getState().flush(rowKey, mine?.serverId ?? submissionId, title)
+  const recordingId = mine?.serverId ?? submissionId
+  void useRecordingChordsPendingStore.getState().flush(rowKey, recordingId, title)
+  // the chords and piano notes typed on the form itself belong to the FIRST file (lib/kirtan/uploadChords.ts)
+  if (first) flushFormExtras(recordingId, title)
 }
 
 export const useUploadQueueStore = create<QueueState>()((set, get) => {
@@ -164,7 +170,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
     // A row that failed lives in the queue (with "Try again"), not in the person's list.
     if (result.status === "failed") useKirtanStore.getState().withdraw(added.id)
     const outcome = outcomeOf(result, added.id)
-    if (outcome.status === "published" && kindHasChords(draft.kind)) sendChords(item.id, added.id, item.title || item.fileName)
+    if (outcome.status === "published" && kindHasChords(draft.kind)) sendChords(item.id, added.id, item.title || item.fileName, get().items[0]?.id === item.id)
     return outcome
   }
 
@@ -203,6 +209,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       const { items, running } = get()
       if (!isLeftoverDraft(items, running)) return
       for (const item of items) useRecordingChordsPendingStore.getState().forget(item.id)
+      forgetFormExtras()
       set({ items: [], draft: EMPTY_DRAFT, stopped: null })
     },
     addFiles: (files) => {
@@ -248,10 +255,17 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       if (result.status === "failed") useKirtanStore.getState().withdraw(submissionId)
       const outcome = outcomeOf(result, submissionId)
       patch(id, applyOutcome(outcome).patch)
-      if (outcome.status === "published" && kindHasChords(get().draft.kind)) sendChords(id, submissionId, row.title || row.fileName)
+      if (outcome.status === "published" && kindHasChords(get().draft.kind)) sendChords(id, submissionId, row.title || row.fileName, get().items[0]?.id === id)
     },
-    clearFinished: () => set({ items: withoutFinished(get().items), stopped: null }),
-    reset: () => set({ items: [], draft: EMPTY_DRAFT, running: false, stopped: null, forBroadcast: null }),
+    clearFinished: () => {
+      // a new batch starts without the old batch's chords: their "sent" lines would otherwise stop the next ones from going
+      forgetFormExtras()
+      set({ items: withoutFinished(get().items), stopped: null })
+    },
+    reset: () => {
+      forgetFormExtras()
+      set({ items: [], draft: EMPTY_DRAFT, running: false, stopped: null, forBroadcast: null })
+    },
   }
 })
 

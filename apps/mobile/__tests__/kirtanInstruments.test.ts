@@ -17,6 +17,7 @@ vi.mock("@react-native-async-storage/async-storage", () => {
   }
 })
 vi.mock("@/lib/kirtan/uploadRunner", () => ({ runUpload: vi.fn(), cancelSimilar: vi.fn(async () => undefined) }))
+vi.mock("@/lib/kirtan/formExtras", () => ({ flushFormExtras: vi.fn(), forgetFormExtras: vi.fn() }))
 vi.mock("@/stores/recordingChordsPendingStore", () => ({ useRecordingChordsPendingStore: { getState: () => ({ flush: vi.fn(async () => undefined), forget: vi.fn() }) } }))
 
 import { dictionaries } from "@/locales"

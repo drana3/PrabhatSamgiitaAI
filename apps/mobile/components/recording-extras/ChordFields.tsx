@@ -24,6 +24,7 @@ export function ChordFields({
   problem,
   disabled,
   review,
+  compact,
 }: {
   theme: SongsTheme
   draft: SheetDraft
@@ -34,14 +35,17 @@ export function ChordFields({
   disabled?: boolean
   /** say that a new chart waits for the team (members), not for team members who publish at once */
   review?: boolean
+  /** the instrument is already chosen by the caller (the Add Recording form's chips): no introduction, no instrument chips */
+  compact?: boolean
 }) {
   const t = useT()
   const set = (patch: Partial<SheetDraft>) => onChange({ ...draft, ...patch })
   const webField = Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null
   return (
     <View style={s.root}>
-      <Hint theme={theme}>{t("recChordsForm.intro")}</Hint>
+      {compact ? null : <Hint theme={theme}>{t("recChordsForm.intro")}</Hint>}
 
+      {compact ? null : (
       <View style={s.group}>
         <Label theme={theme}>{t("recChordsForm.instrument")}</Label>
         <View style={s.row} accessibilityRole="radiogroup">
@@ -50,6 +54,7 @@ export function ChordFields({
           ))}
         </View>
       </View>
+      )}
 
       <View style={s.group}>
         <Label theme={theme}>{t("recChordsForm.key")}</Label>
