@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react"
-import { FlatList, ScrollView, StyleSheet, Text, TextInput, View } from "react-native"
+import { FlatList, StyleSheet, TextInput, View } from "react-native"
 import { Stack, useLocalSearchParams, useRouter } from "expo-router"
 
 import { AccountBar, topInset } from "@/components/account/AccountUi"
 import { AuthorRow } from "@/components/authors/AuthorRow"
-import { Chip, DemoNote, LoadingRows, PillButton, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
+import { AuthorsCountLine, AuthorsFilterRow, FilterSheet } from "@/components/authors/AuthorsFilters"
+import { DemoNote, LoadingRows, PillButton, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
@@ -18,8 +19,9 @@ import { errorKeyOf, useAuthorStore } from "@/stores/authorStore"
 import { href } from "@/utils/href"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-const SORTS: DirectorySort[] = ["listeners", "new", "name"]
 const DELAY_MS = 300
+/** The sung languages a person can filter by ("other" is a catch-all, not a language to look for). */
+const LANGUAGE_CHOICES = PROFILE_LANGUAGES.filter((l) => l !== "other")
 
 /** All authors: search, sort by listeners / new / name, a way into "Become an author", and every empty/error state. */
 export default function AuthorsScreen() {
@@ -38,6 +40,7 @@ export default function AuthorsScreen() {
   const [sort, setSort] = useState<DirectorySort>("listeners")
   const [kind, setKind] = useState<DirectoryKind | undefined>(DIRECTORY_KINDS.find((k) => k === params.kind))
   const [language, setLanguage] = useState<string | undefined>(PROFILE_LANGUAGES.find((l) => l === params.language))
+  const [sheet, setSheet] = useState<"kind" | "language" | null>(null)
   const [items, setItems] = useState<AuthorCardData[]>([])
   const [total, setTotal] = useState(0)
   const [state, setState] = useState<"loading" | "ready" | "error" | "more">("loading")
@@ -77,6 +80,10 @@ export default function AuthorsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, sort, kind, language])
 
+  const clearFilters = () => {
+    setKind(undefined)
+    setLanguage(undefined)
+  }
   const open = (slug: string) => router.push(href(authorHref(slug)))
   const back = () => (router.canGoBack() ? router.back() : router.replace(href("/v2/kiirtan")))
 
@@ -97,38 +104,22 @@ export default function AuthorsScreen() {
           style={[styles.search, { backgroundColor: theme.card, borderColor: theme.line, color: theme.textHeading }]}
         />
       </View>
-      <View style={styles.sorts} accessibilityRole="tablist">
-        {SORTS.map((s) => (
-          <Chip key={s} theme={theme} label={t(`authors.dir.sort.${s}`)} active={sort === s} onPress={() => setSort(s)} />
-        ))}
-      </View>
-      <Text style={[styles.filterLabel, { color: theme.textMuted }]}>{t("authors.dir.filter.kind")}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} accessibilityRole="tablist">
-        <Chip theme={theme} label={t("authors.dir.filter.all")} active={!kind} onPress={() => setKind(undefined)} />
-        {DIRECTORY_KINDS.map((k) => (
-          <Chip key={k} theme={theme} label={kindLabel(k)} active={kind === k} onPress={() => setKind(kind === k ? undefined : k)} />
-        ))}
-      </ScrollView>
-      <Text style={[styles.filterLabel, { color: theme.textMuted }]}>{t("authors.dir.filter.language")}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters} accessibilityRole="tablist">
-        <Chip theme={theme} label={t("authors.dir.filter.all")} active={!language} onPress={() => setLanguage(undefined)} />
-        {PROFILE_LANGUAGES.filter((l) => l !== "other").map((l) => (
-          <Chip key={l} theme={theme} label={say(t, `authors.language.${l}`)} active={language === l} onPress={() => setLanguage(language === l ? undefined : l)} />
-        ))}
-      </ScrollView>
-      {state === "ready" || state === "more" ? (
-        <Text style={[styles.count, { color: theme.textMuted }]} accessibilityLiveRegion="polite">
-          {items.length ? t("authors.count.authors", { count: total }) : ""}
-        </Text>
-      ) : null}
-      <View style={styles.pad}>
-        <PillButton
-          theme={theme}
-          tone="line"
-          label={mine ? t("authors.cta.mine") : t("authors.cta.become")}
-          onPress={() => router.push(href(mine ? MY_AUTHOR_HREF : BECOME_AUTHOR_HREF))}
-        />
-      </View>
+      <AuthorsFilterRow
+        theme={theme}
+        kindLabel={kind ? (kind === "prabhat_samgiita" ? t("authors.dir.kindShort.prabhat_samgiita") : kindLabel(kind)) : undefined}
+        kindFull={kind ? kindLabel(kind) : undefined}
+        languageLabel={language ? say(t, `authors.language.${language}`) : undefined}
+        sort={sort}
+        onKind={() => setSheet("kind")}
+        onLanguage={() => setSheet("language")}
+        onSort={setSort}
+      />
+      <AuthorsCountLine
+        theme={theme}
+        count={(state === "ready" || state === "more") && items.length ? t("authors.count.authors", { count: total }) : ""}
+        filtered={Boolean(kind || language) && items.length > 0}
+        onClear={clearFilters}
+      />
     </View>
   )
 
@@ -140,9 +131,9 @@ export default function AuthorsScreen() {
       <StateBlock
         theme={theme}
         title={query ? t("authors.dir.noMatch", { query }) : t("authors.dir.noMatchFilter")}
-        body={t("authors.dir.noMatchBody")}
+        body={query ? t("authors.dir.noMatchBody") : t("authors.dir.noMatchFilterBody")}
         action={kind || language ? t("authors.dir.clearFilters") : undefined}
-        onAction={kind || language ? () => { setKind(undefined); setLanguage(undefined) } : undefined}
+        onAction={kind || language ? clearFilters : undefined}
       />
     ) : (
       <StateBlock theme={theme} title={t("authors.dir.empty.title")} body={t("authors.dir.empty.body")} action={t("authors.cta.become")} onAction={() => router.push(href(BECOME_AUTHOR_HREF))} />
@@ -161,13 +152,39 @@ export default function AuthorsScreen() {
         ItemSeparatorComponent={() => <View style={styles.sep} />}
         renderItem={({ item }) => <AuthorRow theme={theme} author={item} onOpen={open} />}
         ListFooterComponent={
-          items.length < total && state !== "loading" && state !== "error" ? (
-            <View style={styles.pad}>
+          <View style={styles.footer}>
+            {items.length < total && state !== "loading" && state !== "error" ? (
               <PillButton theme={theme} tone="line" busy={state === "more"} label={t("authors.dir.more")} onPress={() => load(items.length)} />
-            </View>
-          ) : null
+            ) : null}
+            {state === "ready" && items.length ? (
+              <PillButton
+                theme={theme}
+                tone="line"
+                label={mine ? t("authors.cta.mine") : t("authors.cta.become")}
+                onPress={() => router.push(href(mine ? MY_AUTHOR_HREF : BECOME_AUTHOR_HREF))}
+              />
+            ) : null}
+          </View>
         }
         contentContainerStyle={{ paddingBottom: bottom + 24 }}
+      />
+      <FilterSheet
+        visible={sheet === "kind"}
+        theme={theme}
+        title={t("authors.dir.filter.kind")}
+        options={DIRECTORY_KINDS.map((k) => ({ id: k, label: kindLabel(k) }))}
+        value={kind}
+        onPick={(id) => setKind(DIRECTORY_KINDS.find((k) => k === id))}
+        onClose={() => setSheet(null)}
+      />
+      <FilterSheet
+        visible={sheet === "language"}
+        theme={theme}
+        title={t("authors.dir.filter.language")}
+        options={LANGUAGE_CHOICES.map((l) => ({ id: l, label: say(t, `authors.language.${l}`) }))}
+        value={language}
+        onPick={(id) => setLanguage(LANGUAGE_CHOICES.find((l) => l === id))}
+        onClose={() => setSheet(null)}
       />
     </View>
   )
@@ -175,12 +192,9 @@ export default function AuthorsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { gap: 14, paddingBottom: 14 },
+  header: { gap: 12, paddingBottom: 8 },
   pad: { paddingHorizontal: SIDE },
-  search: { height: 52, borderRadius: 26, borderWidth: 1, paddingHorizontal: 20, fontFamily: amFonts.medium, fontSize: 16 },
-  sorts: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE, flexWrap: "wrap" },
-  filterLabel: { fontFamily: amFonts.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: SIDE, marginBottom: -6 },
-  filters: { flexDirection: "row", gap: 8, paddingHorizontal: SIDE },
-  count: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingHorizontal: SIDE, marginTop: -4 },
+  search: { height: 48, borderRadius: 24, borderWidth: 1, paddingHorizontal: 20, fontFamily: amFonts.medium, fontSize: 16 },
   sep: { height: 8 },
+  footer: { gap: 12, paddingHorizontal: SIDE, paddingTop: 16 },
 })
