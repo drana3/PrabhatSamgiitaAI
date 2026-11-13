@@ -4,7 +4,7 @@ import { StyleSheet, Text, TextInput, View } from "react-native"
 import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
-import { groupLanguages } from "@/lib/songPdf/languages"
+import { groupLanguages } from "@/lib/songPage/languages"
 import type { LyricLanguage } from "@/lib/songPage/lyricLanguages"
 import type { PageT } from "@/lib/songPage/pageCopy"
 
@@ -15,7 +15,7 @@ const SEARCH_FROM = 8
  * THE LANGUAGE LIST of the language menu: one row per language, many can be on. A chosen row carries its place in the
  * order (1, 2, 3: the order the languages stack under a word and sit on the page). The languages the song has come first,
  * the chosen ones on top of them; the languages it does not have yet follow, dimmed and not selectable, so the person sees
- * the list of languages is wider than this one song. It is the body of two sheets (the text options and the PDF).
+ * the list of languages is wider than this one song. It is the body of two sheets (the text options).
  */
 export function LanguageList({ t, tr, available, chosen, onToggle }: { t: SpTheme; tr: PageT; available: readonly string[]; chosen: readonly string[]; onToggle: (code: string) => void }) {
   const [query, setQuery] = useState("")

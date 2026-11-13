@@ -11,10 +11,10 @@ import { activeLineKind, lineKinds, type LineKind } from "@/lib/songTranslations
 import { scriptName, usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import type { ScriptId } from "@/lib/songPage/scripts"
 
-import { summaryOf } from "@/lib/songPdf/languages"
-import { useSongPdfStore } from "@/stores/songPdfStore"
+import { summaryOf } from "@/lib/songPage/languages"
+import { useSongLanguagesStore } from "@/stores/songLanguagesStore"
 
-import { effectiveWordLanguages } from "./PdfSheet"
+import { effectiveWordLanguages } from "./LanguagesSheet"
 import { PronunciationRow } from "./Pronunciation"
 import type { PageUi, TextScaleIndex } from "./state"
 import { Segmented, type SegItem } from "./ui"
@@ -122,7 +122,7 @@ function LineTranslationRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model
  * list of languages takes no room here. Shown when the song has word meanings or the page asked for it.
  */
 function WordLanguageRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi }) {
-  const chosen = useSongPdfStore((s) => s.wordLanguages)
+  const chosen = useSongLanguagesStore((s) => s.wordLanguages)
   if (model.wordLanguages.length === 0) return null
   const { names, more } = summaryOf(effectiveWordLanguages(chosen, model))
   const open = () => {

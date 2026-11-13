@@ -5,7 +5,7 @@
  */
 import { hmGuideEn, hmGuideEs, hmGuideRu } from "./hmGuide"
 import { infoChordsEn, infoChordsEs, infoChordsRu } from "./infoChords"
-import { songPdfEn, songPdfEs, songPdfRu } from "./songPdf"
+import { songLanguagesEn, songLanguagesEs, songLanguagesRu } from "./songLanguages"
 import { songTabsEn, songTabsEs, songTabsRu } from "./songTabs"
 
 const songPageBaseEn = {
@@ -167,7 +167,7 @@ const songPageBaseEn = {
 } as const
 
 /** The song page's strings: its base set plus locales/songTabs.ts (tabs, the row of icons, Learn, chords rows). */
-export const songPageEn = { ...songPageBaseEn, ...songTabsEn, ...songPdfEn, ...hmGuideEn, ...infoChordsEn } as const
+export const songPageEn = { ...songPageBaseEn, ...songTabsEn, ...songLanguagesEn, ...hmGuideEn, ...infoChordsEn } as const
 
 const songPageBaseRu: Readonly<Record<string, string>> = {
   "songPage.back": "Назад",
@@ -327,7 +327,7 @@ const songPageBaseRu: Readonly<Record<string, string>> = {
   "songPage.about.photo.note": "{credit}. Подобрано по номеру песни, снято не для этой песни.",
 }
 
-export const songPageRu: Readonly<Record<string, string>> = { ...songPageBaseRu, ...songTabsRu, ...songPdfRu, ...hmGuideRu, ...infoChordsRu }
+export const songPageRu: Readonly<Record<string, string>> = { ...songPageBaseRu, ...songTabsRu, ...songLanguagesRu, ...hmGuideRu, ...infoChordsRu }
 
 const songPageBaseEs: Record<keyof typeof songPageBaseEn, string> = {
   "songPage.back": "Atrás",
@@ -487,4 +487,4 @@ const songPageBaseEs: Record<keyof typeof songPageBaseEn, string> = {
   "songPage.about.photo.note": "{credit}. Elegida por el número de la canción, no hecha para esta canción.",
 }
 
-export const songPageEs: Record<keyof typeof songPageEn, string> = { ...songPageBaseEs, ...songTabsEs, ...songPdfEs, ...hmGuideEs, ...infoChordsEs }
+export const songPageEs: Record<keyof typeof songPageEn, string> = { ...songPageBaseEs, ...songTabsEs, ...songLanguagesEs, ...hmGuideEs, ...infoChordsEs }

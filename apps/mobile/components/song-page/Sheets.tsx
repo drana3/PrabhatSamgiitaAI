@@ -4,7 +4,7 @@ import type { SpTheme } from "@/constants/tokens/amSong"
 
 import { ChordSheets } from "./ChordSheets"
 import { songTitle } from "./Hero"
-import { LanguagesSheet } from "./PdfSheet"
+import { LanguagesSheet } from "./LanguagesSheet"
 import { PronunciationSheet } from "./Pronunciation"
 import { TextOptionsPopover } from "./TextOptions"
 import type { PageUi } from "./state"
