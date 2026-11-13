@@ -17,16 +17,5 @@ audio 10 KB.
   over the words, scrolls sideways) with its capo as the document writes it. When a chord-sheet PDF also exists for the
   song, its chord lines are a second card with the PDF's own capo; if capo or chords differ, one line says so and both
   are shown, never merged. A song with no chord symbols in the archives shows nothing new.
-- **Audio:** not shown. `lib/psColleagues/audio.ts` only lists the recordings per song.
-
-## What audio needs before it can play (not done, by decision: no database, API or server writes)
-
-The 69 files are in the private R2 bucket `am-site-books-private`, keys `audio-extractor/ps-audio/<number> <English title>.<ext>`
-(`audio.json`). To make them play:
-
-1. a row per file in the catalogue's `media` table (`song_number`, `kind` audio, `provider`, `title`, `url`) so that
-   `songDetailToMockSong` lists it (that is where `audioRecordings` comes from); the old links stay, the file with
-   `is_current` goes first;
-2. a way for the phone to get a playable link: the bucket is private, so either an API route that signs a short-lived GET
-   for an `r2_key`, or a public domain in front of the bucket (a decision about access);
-3. no migration is needed if `media` rows are used.
+- **Audio:** the 69 recordings by Gunavati play, from the catalogue's `media` rows: see `docs/ps-audio.md` (repository root).
+  `lib/psColleagues/audio.ts` keeps the list of what the archives brought; it is a record, not what plays.

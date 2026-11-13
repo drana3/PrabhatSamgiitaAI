@@ -269,6 +269,7 @@ def to_media_item_response(item: Media, *, latest_url: str | None = None) -> Med
         notes=item.notes,
         external_id=metadata.get("external_id"),
         channel_name=metadata.get("channel_name"),
+        performer=metadata.get("performer") if is_audio else None,
         source_status=metadata.get("source_status"),
         rights_status=metadata.get("rights_status"),
         availability_status=metadata.get("availability_status"),

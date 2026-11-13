@@ -68,14 +68,14 @@ export function versionsFromSong(song: SongVersionSource): PlayerVersion[] {
   // Web preview with prototype data: the six sample versions of the design.
   if (MOCKUP_DATA && isDemoUrl(song.audioUrl)) return demoVersions(song.number)
   const seen = new Set<string>()
-  const rows: Array<{ title: string; url: string }> = []
-  const push = (title: string, url: string | null | undefined) => {
+  const rows: Array<{ title: string; url: string; performer?: string }> = []
+  const push = (title: string, url: string | null | undefined, performer?: string) => {
     const clean = (url ?? "").trim()
     if (!clean || seen.has(clean)) return
     seen.add(clean)
-    rows.push({ title, url: clean })
+    rows.push({ title, url: clean, ...(performer?.trim() ? { performer: performer.trim() } : {}) })
   }
-  for (const item of song.audioRecordings ?? []) push(item.title, item.url)
+  for (const item of song.audioRecordings ?? []) push(item.title, item.url, item.performer)
   // The playing URL may be an offline copy or not in the list: keep it reachable.
   if (!rows.length) push("", song.audioUrl)
 
@@ -85,7 +85,8 @@ export function versionsFromSong(song: SongVersionSource): PlayerVersion[] {
       id: `ps-${song.number}-v${index + 1}`,
       songNumber: song.number,
       instrument,
-      performer: performerFor(row.title, index),
+      // a colleague's recording names its singer; the archive's own files are named by their title
+      performer: row.performer ?? performerFor(row.title, index),
       lengthSeconds: null,
       bytes: null,
       url: row.url,

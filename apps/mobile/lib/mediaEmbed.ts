@@ -80,6 +80,7 @@ type MediaLike = {
   url: string
   embed_url?: string | null
   verification_status: string
+  performer?: string | null
   is_latest?: boolean
   loudness_lufs?: number | null
   true_peak_db?: number | null
@@ -89,6 +90,8 @@ export type PlayableAudio = {
   title: string
   url: string
   provider: string
+  /** Who sang it, when the catalogue says (the colleagues' recordings); absent for the archive's own files. */
+  performer?: string
   /** The API marks exactly one audio file per song as the best (`is_latest`). Absent when it does not. */
   isLatest?: boolean
   /** Measured loudness of this file (volume leveling); absent when the server has not measured it. */
@@ -120,11 +123,16 @@ export function listPlayableAudio(media: MediaLike[]): PlayableAudio[] {
       title: item.title?.trim() || "Recording",
       url,
       provider: item.provider,
+      ...(item.performer?.trim() ? { performer: item.performer.trim() } : {}),
       ...(item.is_latest ? { isLatest: true } : {}),
       ...(typeof item.loudness_lufs === "number" ? { loudnessLufs: item.loudness_lufs } : {}),
       ...(typeof item.true_peak_db === "number" ? { truePeakDb: item.true_peak_db } : {}),
     })
   }
+  // The API's choice (`is_latest`, the colleagues' current recording where there is one) is listed first and plays
+  // by default; the rest keep their order. Without this a song with many archive links could cut it off the list.
+  const best = items.findIndex((item) => item.isLatest)
+  if (best > 0) items.unshift(...items.splice(best, 1))
   return items
 }
 

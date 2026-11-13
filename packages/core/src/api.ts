@@ -41,6 +41,8 @@ export const songDetailSchema = songSummarySchema.extend({
         url: z.string(),
         embed_url: z.string().nullable().optional(),
         verification_status: z.string(),
+        // Who sang a recording (the colleagues' PS audio); absent for the archive's own files.
+        performer: z.string().nullable().optional(),
         is_latest: z.boolean().optional().default(false),
         is_older: z.boolean().optional().default(false),
         is_low_quality: z.boolean().optional().default(false),

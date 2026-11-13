@@ -26,6 +26,8 @@ class MediaItemResponse(BaseModel):
     notes: str | None = None
     external_id: str | None = None
     channel_name: str | None = None
+    # Who sang a recording (the colleagues' PS audio); absent for the archive's own files.
+    performer: str | None = None
     source_status: str | None = None
     rights_status: str | None = None
     availability_status: str | None = None

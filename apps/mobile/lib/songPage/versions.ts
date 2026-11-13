@@ -14,7 +14,7 @@ export type SongVersion = {
   tag: "Best" | "Verified" | "Community" | "Instrumental" | null
 }
 
-type Recording = { title: string; url: string; provider: string; isLatest?: boolean }
+type Recording = { title: string; url: string; provider: string; performer?: string; isLatest?: boolean }
 
 export function inferInstrument(title: string): VersionInstrument {
   const t = title.toLowerCase()
@@ -52,7 +52,9 @@ export function buildVersions(
   return (recordings ?? []).map((recording, index) => {
     const label = audioRecordingLabel(recording, index)
     const instrument = inferInstrument(label)
+    // the catalogue names the singer of a colleague's recording; otherwise the performer is read out of the title
     const performer =
+      recording.performer?.trim() ||
       label.replace(/\b(guitar|harmonium|instrumental|voice|group)\b/gi, "").replace(/^[\s\-–·:]+|[\s\-–·:]+$/g, "") ||
       fallbackPerformer
     return {

@@ -22,6 +22,7 @@ from app.api.v1.members import router as members_router
 from app.api.v1.notation import router as notation_router
 from app.api.v1.piano_sheets import router as piano_sheets_router
 from app.api.v1.play_flags import router as play_flags_router
+from app.api.v1.ps_audio import router as ps_audio_router
 from app.api.v1.push import router as push_router
 from app.api.v1.quiz_events import router as quiz_events_router
 from app.api.v1.recommendations import router as recommendations_router
@@ -56,6 +57,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(health_router)
 router.include_router(songs_router)
 router.include_router(media_router)
+router.include_router(ps_audio_router)
 router.include_router(search_router)
 router.include_router(recommendations_router)
 router.include_router(inventory_router)

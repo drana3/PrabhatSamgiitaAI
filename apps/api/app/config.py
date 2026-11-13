@@ -147,6 +147,17 @@ class Settings(BaseSettings):
         default=None, alias="RECORDING_S3_SECRET_ACCESS_KEY"
     )
     recording_public_base_url: str | None = Field(default=None, alias="RECORDING_PUBLIC_BASE_URL")
+    # The colleagues' PS recordings (docs/ps-audio.md): files in a PRIVATE bucket, played through a
+    # short-lived signed link from `GET /api/v1/ps-audio/{file}`. The endpoint and keys fall back to
+    # the RECORDING_S3_* ones (one Cloudflare account), so only the bucket name is needed when the
+    # same token can read that bucket.
+    ps_audio_s3_bucket: str = Field(default="am-site-books-private", alias="PS_AUDIO_S3_BUCKET")
+    ps_audio_s3_endpoint: str | None = Field(default=None, alias="PS_AUDIO_S3_ENDPOINT")
+    ps_audio_s3_access_key_id: str | None = Field(default=None, alias="PS_AUDIO_S3_ACCESS_KEY_ID")
+    ps_audio_s3_secret_access_key: str | None = Field(
+        default=None, alias="PS_AUDIO_S3_SECRET_ACCESS_KEY"
+    )
+    ps_audio_link_seconds: int = Field(default=3600, alias="PS_AUDIO_LINK_SECONDS", ge=60, le=86400)
     # Account for Apple / Google store reviewers (docs/store-review-account.md). OFF by default.
     # While enabled, one ordinary member (never admin) with this e-mail and password is kept.
     store_reviewer_enabled: bool = Field(default=False, alias="STORE_REVIEWER_ENABLED")

@@ -17,9 +17,9 @@ export type ColleagueRecording = {
 }
 
 /**
- * THE BRIDGE to the colleagues' audio. Only a list: it gives, for a song, the recordings the archives brought, current
- * one first. Nothing is played from it yet: the bucket is private, so a phone needs a signed link from the API, and the
- * catalogue (`media` rows) does not know these files (docs/ps-colleagues.md says what is needed).
+ * The colleagues' audio as the archives brought it: for a song, its recordings, current one first. This is the record
+ * of what came, not what plays: the recordings play from the catalogue's `media` rows (provider `ps_colleagues`, singer in
+ * `performer`), whose address is the API's signed-link route; docs/ps-audio.md says how they got there.
  */
 export function colleagueRecordingsOf(wire: WireAudio | null | undefined, songNumber: number | null | undefined): ColleagueRecording[] {
   if (!wire || songNumber == null) return []
