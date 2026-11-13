@@ -63,7 +63,7 @@ import { deckLine } from "@/lib/learn/scopeText"
  * counters (Not started, Learning, Learned) and a shelf of songs with their steps (Words, Quiz, Chords), then
  * "I want to learn this" (choose a new song, search all 5018), then Practice (word cards, the quiz over all words,
  * word of the day). Below the chain stay the blocks that were there before: Play along (Harmonium, Chords), the raga
- * and tala index, how to play the harmonium, Stories. The full list is the "See all" screen (/learn/songs).
+ * and tala index, Stories. The full list is the "See all" screen (/learn/songs).
  */
 export default function LearnScreen() {
   const t = useT()
@@ -340,12 +340,8 @@ export default function LearnScreen() {
                     onPress={() => go(indexHref("tala"))}
                   />
                 ) : null}
-                <ExploreRow
-                  p={p}
-                  title={t("learn.page.harmoniumHow")}
-                  subtitle={t("learn.page.harmoniumHow.sub")}
-                  onPress={() => go(HUB_LINKS.harmonium)}
-                />
+                {/* "How to play the harmonium" was a second door to the Harmonium page, whose own "How it works" says the same
+                    (Dada, 13 November 2026): the Harmonium tile above is the one entry. The strings stay in locales/learnPage.ts. */}
                 <ExploreRow p={p} title={t("learn.stories")} onPress={() => go(HUB_LINKS.stories)} />
                 {/* hidden for now, Dada 2026-11-05: <ExploreRow p={p} title="Certificates" subtitle="Live quiz · none yet" onPress={() => go(HUB_LINKS.certificates)} /> */}
               </View>
