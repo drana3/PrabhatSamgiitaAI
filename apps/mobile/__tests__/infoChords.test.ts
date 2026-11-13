@@ -43,13 +43,21 @@ describe("colleague chord pages as chord letters over words", () => {
       const rows = pairsOfChart(chart)
       const words = rows.flatMap((r) => r.tokens.map((t) => t.word)).filter(Boolean)
       const chords = rows.flatMap((r) => r.tokens.flatMap((t) => t.chord.split(" "))).filter(Boolean)
-      const chordSet = new Set(chart.chordLines)
-      const expectWords = chart.lines.filter((_, i) => !chordSet.has(i)).flatMap((l) => l.trim().split(/\s+/)).filter(Boolean)
-      const expectChords = chart.chordLines.flatMap((i) => (chart.lines[i] as string).trim().split(/\s+/)).filter(Boolean)
-      expect(words, `words of song ${number}`).toEqual(expectWords)
-      expect(chords.slice().sort(), `chords of song ${number}`).toEqual(expectChords.slice().sort())
+      // every piece of text of the page is kept once, as a word or as a chord symbol (the importer misses some chord lines; they are read as chords, not lost)
+      const expectAll = chart.lines.flatMap((l) => l.trim().split(/\s+/)).filter(Boolean)
+      expect([...words, ...chords].sort(), `text of song ${number}`).toEqual(expectAll.sort())
     }
     expect(pages).toBe(73)
+  })
+
+  it("reads a chord line the importer missed (a Cyrillic С, or typed at the end of the words line above) as chords, and changes no letter", () => {
+    const wide = " ".repeat(12)
+    const rows = pairsOfChart({ lines: ["С      F", "ONE TWO", `THREE FOUR${wide}C  G`, "FIVE SIX"], chordLines: [] })
+    expect(rows[0].tokens).toEqual([{ chord: "С", word: "ONE" }, { chord: "F", word: "TWO" }])
+    expect(rows[1].tokens.map((t) => t.word)).toEqual(["THREE", "FOUR"])
+    expect(rows[1].tokens.every((t) => t.chord === "")).toBe(true)
+    expect(rows[2].tokens.flatMap((t) => t.chord.split(" ").filter(Boolean))).toEqual(["C", "G"])
+    expect(rows[2].tokens.map((t) => t.word)).toEqual(["FIVE", "SIX"])
   })
 
   it("writes a line set in capitals as sentence case, leaves the x2 marks, and leaves lines that already have lower case", () => {

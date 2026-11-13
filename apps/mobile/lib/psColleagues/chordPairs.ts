@@ -82,12 +82,53 @@ export function softCaseLine(line: string): string {
   })
 }
 
+/** A chord symbol the way the pages write it (C, F#m, G7, Bb, Am/C, Dsus4). The Cyrillic С some documents type for C counts as the letter it looks like. */
+const CHORD = /^[A-G][#b♯♭]?(?:m|maj|min|dim|aug|sus|add)?\d*(?:\/[A-G][#b♯♭]?)?$/
+const isChordSymbol = (token: string) => CHORD.test(token.replace(/\u0421/g, "C"))
+
+/**
+ * The importer finds a chord line only where it could place a chord on a word, so some pages hold chord lines it did
+ * not mark: a line of chord symbols alone (typed with a Cyrillic С), or a chord line typed at the end of the words
+ * line above it, after a wide gap. Both are read as the chord lines they are; no letter is changed.
+ */
+function repairedLines(chart: Pick<ColleagueChart, "lines" | "chordLines">): { lines: string[]; chordLines: Set<number> } {
+  const known = new Set(chart.chordLines)
+  const lines: string[] = []
+  const chordLines = new Set<number>()
+  chart.lines.forEach((line, i) => {
+    const parts = pieces(line)
+    if (known.has(i)) {
+      chordLines.add(lines.length)
+      lines.push(line)
+      return
+    }
+    if (parts.length && parts.every((p) => isChordSymbol(p.text))) {
+      chordLines.add(lines.length)
+      lines.push(line)
+      return
+    }
+    let tail = parts.length
+    while (tail > 0 && isChordSymbol((parts[tail - 1] as Piece).text)) tail--
+    const start = (parts[tail] as Piece | undefined)?.start
+    const before = (parts[tail - 1] as Piece | undefined)?.end
+    if (tail > 0 && tail < parts.length && start !== undefined && before !== undefined && start - before >= 8) {
+      lines.push(line.slice(0, before))
+      chordLines.add(lines.length)
+      lines.push(" ".repeat(start) + line.slice(start))
+      return
+    }
+    lines.push(line)
+  })
+  return { lines, chordLines }
+}
+
 /** The whole page as rows of tokens. A chord line with no words line under it (or in a PDF page) is a row of chords alone. */
 export function pairsOfChart(chart: Pick<ColleagueChart, "lines" | "chordLines">, words: (line: string) => string = (line) => line): PairRow[] {
-  const isChord = new Set(chart.chordLines)
+  const repaired = repairedLines(chart)
+  const isChord = repaired.chordLines
   const rows: PairRow[] = []
   let gap = false
-  const lines = chart.lines
+  const lines = repaired.lines
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] as string
     if (!line.trim()) {

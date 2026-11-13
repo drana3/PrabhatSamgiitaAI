@@ -14,6 +14,15 @@ export const infoChordsEn = {
   "songChords.script.a11y": "Script of the words",
   "songChords.script.roman": "Roman",
   "songChords.script.devanagari": "Devanagari",
+
+  // Chords tab: the switch between versions of the chords (the song's own, the colleagues', each member's)
+  "songChords.version.a11y": "Version of the chords",
+  "songChords.version.main": "Main",
+  "songChords.version.colleagues": "Colleagues",
+  "songChords.version.colleaguesPdf": "Colleagues · PDF",
+  "songChords.version.offer": "Offer chords",
+  "songChords.apart.title": "Chords as a separate list",
+  "songChords.apart.note": "These chords could not be laid over the lines of the song without guessing, so they are shown as the document wrote them.",
 } as const
 
 export const infoChordsRu: Readonly<Record<string, string>> = {
@@ -25,6 +34,14 @@ export const infoChordsRu: Readonly<Record<string, string>> = {
   "songChords.script.a11y": "Письмо слов",
   "songChords.script.roman": "Roman",
   "songChords.script.devanagari": "Devanagari",
+
+  "songChords.version.a11y": "Версия аккордов",
+  "songChords.version.main": "Основная",
+  "songChords.version.colleagues": "Коллеги",
+  "songChords.version.colleaguesPdf": "Коллеги · PDF",
+  "songChords.version.offer": "Предложить аккорды",
+  "songChords.apart.title": "Аккорды отдельным списком",
+  "songChords.apart.note": "Эти аккорды нельзя честно положить на строки песни без догадок, поэтому они показаны так, как их написал документ.",
 }
 
 export const infoChordsEs: Record<keyof typeof infoChordsEn, string> = {
@@ -36,4 +53,12 @@ export const infoChordsEs: Record<keyof typeof infoChordsEn, string> = {
   "songChords.script.a11y": "Escritura de las palabras",
   "songChords.script.roman": "Roman",
   "songChords.script.devanagari": "Devanagari",
+
+  "songChords.version.a11y": "Versión de los acordes",
+  "songChords.version.main": "Principal",
+  "songChords.version.colleagues": "Colegas",
+  "songChords.version.colleaguesPdf": "Colegas · PDF",
+  "songChords.version.offer": "Ofrecer acordes",
+  "songChords.apart.title": "Acordes en una lista aparte",
+  "songChords.apart.note": "Estos acordes no se pueden poner sobre las líneas de la canción sin adivinar, así que se muestran como los escribió el documento.",
 }

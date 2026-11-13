@@ -30,6 +30,8 @@ export function CommunityChords({
   romanLines,
   wordFont,
   cards = false,
+  selectedId,
+  onChoose,
 }: {
   t: SpTheme
   songNumber: number
@@ -37,13 +39,24 @@ export function CommunityChords({
   wordFont?: string
   /** the song page's window "Chords by members": one card for each chart (who, instrument, key and capo), a tap opens the chart under its card */
   cards?: boolean
+  /**
+   * the Chords tab's version switch picks the chart: this one is drawn alone, with no chart chooser, no title and no
+   * "Offer chords" button of its own (the switch has them). `onChoose` says when a chart's "based on" link opens another.
+   */
+  selectedId?: string
+  onChoose?: (id: string) => void
 }) {
   const tr = useT()
   const router = useRouter()
   const { status, items, remove, report } = useCommunityChords(songNumber)
   const [chosen, setChosen] = useState<string | null>(null)
   const [shown, setShown] = useState(!cards)
-  const current = items.find((p) => p.id === chosen) ?? (cards ? null : (items[0] ?? null))
+  const single = selectedId !== undefined
+  const current = single ? (items.find((p) => p.id === selectedId) ?? null) : (items.find((p) => p.id === chosen) ?? (cards ? null : (items[0] ?? null)))
+  const choose = (id: string) => {
+    setChosen(id)
+    onChoose?.(id)
+  }
 
   const [reporting, setReporting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -69,7 +82,7 @@ export function CommunityChords({
                 {current.mine ? tr("chordSong.byYou") : current.author ? tr("chordSong.by", { name: current.author.name }) : tr("chordSong.anonymous")}
               </Text>
               {/* linked to the original when it is on this page; plain words when it is not (deleted, or another instrument's tab) */}
-              <ChartCreditLine t={t} chart={current} onOpenOriginal={items.some((p) => p.id === current.basedOn?.id) ? setChosen : undefined} />
+              <ChartCreditLine t={t} chart={current} onOpenOriginal={items.some((p) => p.id === current.basedOn?.id) ? choose : undefined} />
               <ChartMeta t={t} chart={current} />
               {current.status === "pending" ? <Text style={[s.pending, { color: t.accentText }]}>{tr("chordSong.pending")}</Text> : null}
               {current.status === "rejected" ? <Text style={[s.pending, { color: t.danger }]}>{tr("chordOffer.status.rejected")}</Text> : null}
@@ -162,8 +175,8 @@ export function CommunityChords({
   ) : null
 
   return (
-    <View style={s.root}>
-      {cards ? null : (
+    <View style={[s.root, single && s.rootSingle]}>
+      {cards || single ? null : (
         <Eyebrow t={t} style={s.pad}>
           {tr("chordSong.title")}
         </Eyebrow>
@@ -171,7 +184,7 @@ export function CommunityChords({
       {status === "loading" && items.length === 0 ? <Text style={[s.note, s.pad, { color: t.ink500 }]}>{tr("chordSong.loading")}</Text> : null}
       {status === "error" ? <Text style={[s.note, s.pad, { color: t.ink500 }]}>{tr("chordSong.error")}</Text> : null}
 
-      {!cards && items.length > 1 ? (
+      {!cards && !single && items.length > 1 ? (
         <View style={[s.chips, s.pad]} accessibilityRole="radiogroup" accessibilityLabel={tr("chordSong.versions.a11y")}>
           {items.map((p) => {
             const on = p.id === current?.id
@@ -211,13 +224,15 @@ export function CommunityChords({
       ) : null}
       {!cards && current ? (
         Detail
-      ) : status === "ready" && items.length === 0 ? (
+      ) : status === "ready" && items.length === 0 && !single ? (
         <Text style={[s.note, s.pad, { color: t.ink500 }]}>{tr("chordSong.offer.empty")}</Text>
       ) : null}
 
-      <View style={[s.pad, s.row]}>
-        <SpPill t={t} variant="sand" icon="plus" label={tr("chordSong.offer")} onPress={() => router.push(offerHref)} />
-      </View>
+      {single ? null : (
+        <View style={[s.pad, s.row]}>
+          <SpPill t={t} variant="sand" icon="plus" label={tr("chordSong.offer")} onPress={() => router.push(offerHref)} />
+        </View>
+      )}
       {items.some((p) => p.mine) ? (
         <View style={s.pad}>
           <SpPress accessibilityLabel={tr("chordSong.mine.link")} onPress={() => router.push(href("/upload"))} style={s.link}>
@@ -267,6 +282,7 @@ function MemberCard({ t, chart, open, onPress }: { t: SpTheme; chart: ChordPropo
 
 const s = StyleSheet.create({
   root: { gap: 12, paddingTop: 20 },
+  rootSingle: { paddingTop: 0 },
   pad: { paddingHorizontal: 20, gap: 8 },
   body: { gap: 12 },
   cards: { gap: 10 },
