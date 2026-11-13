@@ -3,7 +3,9 @@ import { ShareSheet } from "@/components/player-v2/ShareSheet"
 import type { SpTheme } from "@/constants/tokens/amSong"
 
 import { ChordSheets } from "./ChordSheets"
+import { VariantSheet } from "./ColleagueTranslation"
 import { songTitle } from "./Hero"
+import { LineTranslationSheet } from "./LineTranslationSheet"
 import { LanguagesSheet } from "./PdfSheet"
 import { PronunciationSheet } from "./Pronunciation"
 import { TextOptionsPopover } from "./TextOptions"
@@ -41,6 +43,8 @@ export function PageSheets({ t, model, ui }: { t: SpTheme; model: SongPageModel;
       <ChordSheets t={t} model={model} ui={ui} />
       <PronunciationSheet t={t} model={model} ui={ui} />
       <LanguagesSheet t={t} model={model} ui={ui} />
+      <LineTranslationSheet t={t} model={model} ui={ui} />
+      <VariantSheet t={t} model={model} ui={ui} />
     </>
   )
 }

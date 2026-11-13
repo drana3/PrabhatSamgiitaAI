@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { StyleSheet, useWindowDimensions, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import Animated, { FadeIn, useAnimatedRef, useReducedMotion } from "react-native-reanimated"
 
@@ -60,7 +60,6 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
   const ui = usePageUi()
   const bar = useBarHeight()
   const reduce = useReducedMotion()
-  const { height: windowHeight } = useWindowDimensions()
   // "somebody replied to your comment" opens this page with `?comment=`: the comments end every tab, so scroll to the end
   const { comment: openedFromReply, tab: tabParam } = useLocalSearchParams<{ comment?: string | string[]; tab?: string | string[] }>()
   const fromReply = typeof openedFromReply === "string" && openedFromReply !== ""
@@ -84,7 +83,7 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
     (tab: SongTab) => {
       ui.closeOptions()
       setActive(tab)
-      // the header folds away so the tab's content starts right under the switch; a reader already lower stays there
+      // the tab's content starts right under the switch, and since the page is only as tall as the tab, the page goes back to that line
       const to = scrollOnSelect(scrollY.current, heroH.current - bar)
       if (to !== null) scroller()?.scrollTo({ y: to, animated: true })
     },
@@ -126,7 +125,8 @@ function LoadedSongPage({ t, model }: { t: SpTheme; model: SongPageModel }) {
         </>
       }
     >
-      <Animated.View key={active} entering={reduce ? undefined : FadeIn.duration(180)} style={{ minHeight: Math.max(320, windowHeight - bar - TAB_STRIP_HEIGHT) }}>
+      {/* the tab is exactly as tall as what it holds: no minimum height, so the comments follow the text of the chosen tab */}
+      <Animated.View key={active} entering={reduce ? undefined : FadeIn.duration(180)}>
         {active === "lyrics" ? <LyricsTab t={t} model={model} ui={ui} onOpenWords={() => select("meaning")} /> : null}
         {active === "meaning" ? <MeaningTab t={t} model={model} ui={ui} /> : null}
         {active === "chords" ? <ChordsTab t={t} model={model} ui={ui} /> : null}
