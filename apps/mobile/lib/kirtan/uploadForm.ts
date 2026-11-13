@@ -3,7 +3,8 @@ import { cleanInstrument, OTHER_INSTRUMENT } from "@/lib/kirtan/instruments"
 import { cleanRecordingInfo, kindHasByAuthor } from "@/lib/kirtan/recordingInfo"
 import { kindHasMood } from "@/lib/kirtan/moods"
 import { kindHasStyle } from "@/lib/kirtan/styles"
-import { kindHasCredits, kindHasDance, kindHasPerformer, kindHasDiscourse, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
+import { kindHasDance, kindHasPerformer, kindHasDiscourse, kindHasLanguage, kindLanguageRule, kindRequiresLanguage } from "@/lib/kirtan/kind"
+import { roleAfterKind, type UploadRole } from "@/lib/kirtan/uploadRole"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
 
 /**
@@ -46,6 +47,8 @@ type TypeFields = {
   byAuthor?: boolean
   /** the tick "I perform or play on this recording" (kept on the form; no field on the server); not offered for Baba's Audio Discourses */
   performs?: boolean
+  /** "Who are you for this recording?": the required answer (lib/kirtan/uploadRole.ts); byAuthor and performs follow it; forms without it leave it out */
+  role?: UploadRole | null
   /** Others only: which one it is (lib/kirtan/types.ts MANTRA_TYPES; null until chosen) and, for "other" (Something else), its name; forms without it leave it out */
   mantraType?: string | null
   mantraOther?: string
@@ -57,7 +60,7 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
   if (!kindHasLanguage(next.kind)) next.language = null
   if (next.language !== OTHER_LANGUAGE) next.languageOther = ""
   if (!kindHasDance(next.kind)) next.dance = null
-  if (!kindHasCredits(next.kind)) next.credits = ""
+  // the comment under "Who are you for this recording?" is the credits text, and every kind has it (so it is never cleared with the kind)
   // the place is asked for every kind; the discourse name or number only for Baba's Audio
   if (!kindHasDiscourse(next.kind)) next.discourse = ""
   if (next.kind !== "prabhat_samgiita") next.psSong = null
@@ -104,13 +107,23 @@ export function draftWithPatch<T extends TypeFields>(draft: T, patch: Partial<T>
   if ("byAuthor" in next && !kindHasByAuthor(next.kind)) (next as TypeFields).byAuthor = false
   // a Baba's Audio Discourse names no performer, so nobody performs on it
   if ("performs" in next && !kindHasPerformer(next.kind)) (next as TypeFields).performs = false
+  // the answer to "who are you for this recording" is kept only where the new kind offers it; its flags follow it
+  if ("role" in next && next.kind !== draft.kind) {
+    const after = roleAfterKind(next.kind, (next as TypeFields).role)
+    // an unanswered form with a kind that decides nothing keeps the flags it was given
+    if (after.role || (next as TypeFields).role) {
+      ;(next as TypeFields).role = after.role
+      if ("byAuthor" in next) (next as TypeFields).byAuthor = after.byAuthor
+      if ("performs" in next) (next as TypeFields).performs = after.performs
+    }
+  }
   return next
 }
 
-/** Which optional fields "More details" shows for a type (a language that is REQUIRED sits above it, not in it). */
+/** Which optional fields "More details" shows for a type (a language that is REQUIRED sits above it, not in it; the credits text moved to the comment of "Who are you for this recording?"). */
 export function moreDetailsFor(kind: RecordingKind): { language: boolean; credits: boolean; discourse: boolean; place: boolean } {
   // the place where it was recorded or performed is asked for every kind (Dada, 9 Nov 2026)
-  return { language: kindLanguageRule(kind) === "optional", credits: kindHasCredits(kind), discourse: kindHasDiscourse(kind), place: true }
+  return { language: kindLanguageRule(kind) === "optional", credits: false, discourse: kindHasDiscourse(kind), place: true }
 }
 
 /** The key of the one-line hint under the closed "More details" header, in the words of the type. */

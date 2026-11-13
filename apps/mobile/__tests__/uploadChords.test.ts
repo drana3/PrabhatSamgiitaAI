@@ -89,10 +89,4 @@ describe("the words of the section", () => {
       expect(names(uploadExtrasEs[key])).toBe(names(uploadExtrasEn[key]))
     }
   })
-
-  it("say the truth about the page: the first tick puts a recording under Wrote, the rest under Performs, the second tick is not saved yet", () => {
-    expect(uploadExtrasEn["ux.role.page"]).toMatch(/first tick are under “Wrote”/)
-    expect(uploadExtrasEn["ux.role.page"]).toMatch(/second tick is not saved on the server yet/)
-    expect(uploadExtrasEn["ux.role.performsHint"]).not.toMatch(/page/i)
-  })
 })

@@ -10,6 +10,7 @@ import { cancelSimilar, runUpload } from "@/lib/kirtan/uploadRunner"
 import { fixKiirtanSpelling, fixKiirtanSpellingIn } from "@/lib/kirtan/kiirtanSpelling"
 import { useKirtanStore } from "@/stores/kirtanStore"
 import { flushFormExtras, forgetFormExtras } from "@/lib/kirtan/formExtras"
+import type { UploadRole } from "@/lib/kirtan/uploadRole"
 import { useRecordingChordsPendingStore } from "@/stores/recordingChordsPendingStore"
 
 /**
@@ -55,13 +56,15 @@ export type QueueDraft = {
   byAuthor: boolean
   /** "I perform or play on this recording": kept on the form only (the API has no field for it); it fills the performer line with the person's own name (lib/kirtan/uploadChords.ts performsPatch) */
   performs: boolean
+  /** the required answer to "Who are you for this recording?" (lib/kirtan/uploadRole.ts); null until answered. byAuthor and performs follow it. */
+  role?: UploadRole | null
   /** Others: which one it is (null until chosen: there is no default; "other" = Something else); no other kind has it */
   mantraType: string | null
   /** Others, "Something else": the name the person wrote (2 to 40 characters, the team checks it) */
   mantraOther: string
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, performs: false, mantraType: null, mantraOther: "" }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, performs: false, role: null, mantraType: null, mantraOther: "" }
 
 type QueueState = {
   items: QueueItem[]

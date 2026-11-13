@@ -36,7 +36,7 @@ describe("the language field", () => {
     expect(kindHasLanguage("baba_audio")).toBe(true)
     expect(kindHasLanguage(undefined)).toBe(false) // an unknown kind is a Kiirtan
     expect(moreDetailsFor("kiirtan")).toEqual({ language: false, credits: false, discourse: false, place: true })
-    expect(moreDetailsFor("bhajan")).toEqual({ language: false, credits: true, discourse: false, place: true }) // its language is REQUIRED: asked above "More details"
+    expect(moreDetailsFor("bhajan")).toEqual({ language: false, credits: false, discourse: false, place: true }) // its language is REQUIRED: asked above "More details"
     expect(moreDetailsFor("prabhat_samgiita")).toEqual({ language: true, credits: false, discourse: false, place: true })
     expect(moreDetailsFor("dance_song")).toEqual({ language: true, credits: false, discourse: false, place: true })
     expect(moreDetailsFor("spiritual_song")).toEqual({ language: false, credits: false, discourse: false, place: true })
@@ -50,13 +50,13 @@ describe("the language field", () => {
   it("is cleared when the type changes to one that hides it", () => {
     const toKiirtan = draftWithPatch(FULL, { kind: "kiirtan" })
     expect(toKiirtan.language).toBeNull()
-    expect(toKiirtan.credits).toBe("")
+    expect(toKiirtan.credits).toBe("Words and music by A. Sen") // the comment under "Who are you for this recording?" belongs to every type
     expect(toKiirtan.year).toBe("1998") // year and note are common to every type
     expect(toKiirtan.notes).toBe("n")
-    // Bhajan to Prabhat Samgiita keeps the language (both ask for it) and drops the credits
+    // Bhajan to Prabhat Samgiita keeps the language (both ask for it) and the comment
     const toPs = draftWithPatch(FULL, { kind: "prabhat_samgiita" })
     expect(toPs.language).toBe("bn")
-    expect(toPs.credits).toBe("")
+    expect(toPs.credits).toBe("Words and music by A. Sen")
     // the song number belongs to Prabhat Samgiita only
     const withSong = draftWithPatch(FULL, { kind: "prabhat_samgiita", psSong: { number: 12, title: "x" } })
     expect(withSong.psSong).toEqual({ number: 12, title: "x" })

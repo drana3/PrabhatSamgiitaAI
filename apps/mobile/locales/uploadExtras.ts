@@ -27,11 +27,6 @@ export const uploadExtrasEn = {
   "ux.notes.sent": "Piano notes added to “{title}”.",
   "ux.notes.failed": "The piano notes were not sent: {reason}",
   "ux.notes.retry": "Send the notes again",
-  "ux.role.wrote": "I wrote this (words or melody)",
-  "ux.role.wroteHint": "Saved with the recording as “By the author”.",
-  "ux.role.performs": "I perform or play on this recording",
-  "ux.role.performsHint": "Puts your name in the performer line if it is empty.",
-  "ux.role.page": "On your author page, recordings with the first tick are under “Wrote” and all the others under “Performs”. The second tick is not saved on the server yet, so a recording with both ticks shows under “Wrote”. A recording someone else uploaded with your name on it you can claim with “Find my recordings” on your author page.",
 } as const
 
 export const uploadExtrasRu: Record<keyof typeof uploadExtrasEn, string> = {
@@ -57,11 +52,6 @@ export const uploadExtrasRu: Record<keyof typeof uploadExtrasEn, string> = {
   "ux.notes.sent": "Ноты для пианино добавлены к «{title}».",
   "ux.notes.failed": "Ноты для пианино не отправились: {reason}",
   "ux.notes.retry": "Отправить ноты снова",
-  "ux.role.wrote": "Я написал(а) это (слова или мелодию)",
-  "ux.role.wroteHint": "Сохраняется вместе с записью как «От автора».",
-  "ux.role.performs": "Я исполняю или играю в этой записи",
-  "ux.role.performsHint": "Подставит ваше имя в строку исполнителя, если она пуста.",
-  "ux.role.page": "На вашей странице автора записи с первой отметкой лежат во вкладке «Написал», все остальные во вкладке «Исполняет». Вторая отметка пока не сохраняется на сервере, поэтому запись с обеими отметками показывается во вкладке «Написал». Запись, которую загрузил кто-то другой с вашим именем, можно забрать через «Найти мои записи» на странице автора.",
 }
 
 export const uploadExtrasEs: Record<keyof typeof uploadExtrasEn, string> = {
@@ -87,9 +77,4 @@ export const uploadExtrasEs: Record<keyof typeof uploadExtrasEn, string> = {
   "ux.notes.sent": "Notas de piano añadidas a «{title}».",
   "ux.notes.failed": "Las notas de piano no se enviaron: {reason}",
   "ux.notes.retry": "Enviar las notas otra vez",
-  "ux.role.wrote": "Escribí esto (letra o melodía)",
-  "ux.role.wroteHint": "Se guarda con la grabación como «Del autor».",
-  "ux.role.performs": "Interpreto o toco en esta grabación",
-  "ux.role.performsHint": "Pone tu nombre en la línea del intérprete si está vacía.",
-  "ux.role.page": "En tu página de autor, las grabaciones con la primera marca están en «Escribió» y todas las demás en «Interpreta». La segunda marca aún no se guarda en el servidor, así que una grabación con las dos marcas aparece en «Escribió». Una grabación que subió otra persona con tu nombre puedes reclamarla con «Buscar mis grabaciones» en tu página de autor.",
 }

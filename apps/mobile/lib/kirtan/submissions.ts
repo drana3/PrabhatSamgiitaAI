@@ -1,5 +1,6 @@
 import { cleanInstrument } from "@/lib/kirtan/instruments"
 import { cleanMantra } from "@/lib/kirtan/mantra"
+import { roleMissing, type UploadRole } from "@/lib/kirtan/uploadRole"
 import { isTypeOfKind, kindHasDance, kindHasDiscourse, kindHasLanguage, kindHasPerformer, normalizeKind } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, normalizeLanguageCode, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
 import type { RemoteRecording } from "@/lib/kirtan/remote"
@@ -58,7 +59,10 @@ export type SubmissionInput = {
   recordedOn?: string | null
   /** the live broadcast this is the recording of */
   broadcastId?: string | null
-  /** words and music by, optional */
+  /** "Who are you for this recording?": the add form passes the answer and `askRole` so that no answer blocks it (lib/kirtan/uploadRole.ts); other callers leave both out */
+  role?: UploadRole | null
+  askRole?: boolean
+  /** words and music by, optional; on the add form it is the comment under "Who are you for this recording?" */
   credits?: string
   /** where it was recorded or performed (every kind, optional), and Baba's Audio Discourses only: the name or number of the discourse */
   place?: string
@@ -96,7 +100,7 @@ export type SubmissionInput = {
   termsAccepted?: boolean
 }
 
-export type SubmissionError = "file" | FileProblem | "title" | "titleEnglish" | "author" | "language" | "languageName" | "dance" | "song" | "style" | "recordingType" | "performance" | "instrument" | "mantra" | "mantraName" | "year" | "terms"
+export type SubmissionError = "file" | FileProblem | "title" | "titleEnglish" | "author" | "role" | "language" | "languageName" | "dance" | "song" | "style" | "recordingType" | "performance" | "instrument" | "mantra" | "mantraName" | "year" | "terms"
 
 /** Is this a song number of the Prabhat Samgiita catalogue (a whole number from 1 to 5018)? */
 export function isPsSongNumber(value: unknown): value is number {
@@ -119,6 +123,7 @@ export function validateSubmission(input: SubmissionInput): SubmissionError | nu
   if (!input.title.trim()) return "title"
   if (titleNeedsEnglish(input.kind, input.title)) return "titleEnglish"
   if (kindHasPerformer(input.kind) && !input.author.trim()) return "author"
+  if (input.askRole && roleMissing(input.kind, input.role)) return "role"
   const missing = missingKindFields({ kind: normalizeKind(input.kind), language: input.language, languageOther: input.languageOther, dance: input.dance })
   if (missing.length) return missing[0]!
   if (normalizeKind(input.kind) === "prabhat_samgiita" && !isPsSongNumber(input.psSong)) return "song"

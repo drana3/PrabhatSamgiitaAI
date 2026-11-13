@@ -9,7 +9,7 @@ import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { ChordsSection } from "@/components/kirtan/add/ChordsSection"
-import { RoleTicks } from "@/components/kirtan/add/RoleTicks"
+import { RoleBlock } from "@/components/kirtan/add/RoleBlock"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { MantraField } from "@/components/kirtan/add/MantraField"
 import { KindField } from "@/components/kirtan/add/KindField"
@@ -25,7 +25,9 @@ import { fixKiirtanSpelling } from "@/lib/kirtan/kiirtanSpelling"
 import { kindHasMood } from "@/lib/kirtan/moods"
 import { kindHasStyle } from "@/lib/kirtan/styles"
 import { effectiveRecordingType, kindHasPerformance, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
-import { formOffersChords, performsPatch } from "@/lib/kirtan/uploadChords"
+import { formOffersChords } from "@/lib/kirtan/uploadChords"
+import { useUx } from "@/lib/kirtan/useUx"
+import { effectiveRole, rolePatch } from "@/lib/kirtan/uploadRole"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { offersVideoLink } from "@/lib/recordingVideos/uploadLink"
 import { videoFailureText } from "@/lib/recordingVideos/words"
@@ -94,6 +96,7 @@ export default function AddKirtanScreen() {
  */
 export function AddRecordingForm() {
   const t = useT()
+  const ux = useUx()
   const router = useRouter()
   const theme = useSongsTheme()
   const insets = useSafeAreaInsets()
@@ -292,6 +295,7 @@ export function AddRecordingForm() {
   const messageFor = (code: SubmissionError): string => {
     if (code === "format" || code === "size") return fileProblemText(code)
     if (code === "language") return (t as (key: string) => string)(languageErrorKey(kind))
+    if (code === "role") return ux("ux.who.error")
     return t(`ugc.form.error.${code}`)
   }
   /** Shows the problem and jumps to the field it is about: scrolls there, puts the cursor in it, says which one. */
@@ -343,6 +347,8 @@ export function AddRecordingForm() {
       mantraType: draft.mantraType,
       mantraOther: draft.mantraOther,
       byAuthor: draft.byAuthor,
+      role: draft.role,
+      askRole: true,
       addedBy: "You",
       termsAccepted: rulesOk || agree,
       title: "x",
@@ -544,10 +550,24 @@ export function AddRecordingForm() {
               {form.error("performer") ? <FieldError theme={theme} text={form.error("performer")!} /> : null}
               {items.length > 1 ? <Text style={[styles.hint, { color: theme.textBody }]}>{t("rec.shared.hint")}</Text> : null}
               </View>
-              {/* the two roles, independent: "I wrote this" (the API's by_author; not for Prabhat Samgiita) and "I perform or play on this recording" (kept on the form) */}
-              <RoleTicks theme={theme} kind={kind} wrote={draft.byAuthor} performs={draft.performs} onWrote={(byAuthor) => store().setDraft({ byAuthor })} onPerforms={(on) => store().setDraft(performsPatch(draft, on, displayName))} disabled={locked} />
             </Reveal>
             ) : null}
+
+            {/* "Who are you for this recording?": REQUIRED for every kind (author, performer, both or only sharing) and a comment (the credits text) */}
+            <Reveal index={3}>
+              <View {...form.field("role")}>
+                <RoleBlock
+                  theme={theme}
+                  kind={kind}
+                  role={effectiveRole(kind, draft.role)}
+                  comment={draft.credits}
+                  onRole={(next) => { form.clear(); store().setDraft(rolePatch(draft, next, displayName)) }}
+                  onComment={(credits) => store().setDraft({ credits })}
+                  error={form.error("role") ?? (formError === "role" && !effectiveRole(kind, draft.role) ? ux("ux.who.error") : null)}
+                  disabled={locked}
+                />
+              </View>
+            </Reveal>
 
             {/* Kiirtan only: the Avarta tick is optional and covers the whole queue (the style is asked in "How it sounds") */}
             {kind === "kiirtan" ? (
