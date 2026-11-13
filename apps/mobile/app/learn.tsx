@@ -16,7 +16,6 @@ import {
   HubTopRow,
   SeeAllCard,
   SongShelfCard,
-  WordOfDayRow,
 } from "@/components/learn-v2/LearnHub"
 import { ChooseRow, SearchAllRow, StatusCounters } from "@/components/learn-v2/LearnChain"
 import { useLearnTopInset } from "@/components/learn-v2/ui"
@@ -31,7 +30,7 @@ import { useLearnSongs } from "@/hooks/useLearnSongs"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { useNotificationItems } from "@/hooks/useNotificationItems"
 import { useOpenProfileSheet } from "@/components/nav-v2/useOpenProfileSheet"
-import { INDEX_SUMMARY, LEARN_SUGGESTED_NUMBERS, MOCKUP_LEARN, learnSongTitle } from "@/lib/fixtures/learn"
+import { INDEX_SUMMARY, LEARN_SUGGESTED_NUMBERS, learnSongTitle } from "@/lib/fixtures/learn"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { learnWordList, learnWordsAvailable } from "@/lib/learn/verified"
 import {
@@ -46,13 +45,12 @@ import {
 } from "@/lib/learn/hub"
 import { PS_SONG_COUNT } from "@/lib/learn/learnSongs"
 import { nextOpenQuizLevel, type LearningSong } from "@/lib/learn/progress"
-import { LEARN_ROUTES, indexHref, wordsHref } from "@/lib/learn/routes"
+import { LEARN_ROUTES, indexHref } from "@/lib/learn/routes"
 import { songStatusCounts, songsToSettle, type SongStatus } from "@/lib/learn/songStatus"
 import { songFactsFor } from "@/lib/learn/songQuiz"
 import { dueCardCount, wordsLearnedCount } from "@/lib/learn/srs"
-import { sessionDeck, songNumbersFromIds, wordOfTheDay, wordsForSong } from "@/lib/learn/words"
+import { wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
-import { usePreferencesStore } from "@/stores/preferencesStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
 import { useStudyScope } from "@/hooks/useStudyScope"
@@ -61,8 +59,7 @@ import { deckLine } from "@/lib/learn/scopeText"
 /**
  * Learn tab, variant A (Dada, 10 November 2026): one page, one chain. Continue, then My songs with the three
  * counters (Not started, Learning, Learned) and a shelf of songs with their steps (Words, Quiz, Chords), then
- * "I want to learn this" (choose a new song, search all 5018), then Practice (word cards, the quiz over all words,
- * word of the day). Below the chain stay the blocks that were there before: Play along (Harmonium, Chords), the raga
+ * "I want to learn this" (choose a new song, search all 5018), then Practice (word cards, the quiz over all words). Below the chain stay the blocks that were there before: Play along (Harmonium, Chords), the raga
  * and tala index, Stories. The full list is the "See all" screen (/learn/songs).
  */
 export default function LearnScreen() {
@@ -88,7 +85,6 @@ export default function LearnScreen() {
   const songs = useLearnStore((s) => s.songs)
   const paths = useLearnStore((s) => s.paths)
   const quizBest = useLearnStore((s) => s.quizBest)
-  const savedSongIds = usePreferencesStore((s) => s.savedSongIds)
 
   const studyScope = useStudyScope()
 
@@ -155,18 +151,6 @@ export default function LearnScreen() {
     [fullShelf, statusFilter],
   )
   const choices = useMemo(() => buildChoices(songs, LEARN_SUGGESTED_NUMBERS, learnSongTitle), [songs])
-
-  const deck = useMemo(
-    () => sessionDeck(wordList, [...songs.map((song) => song.number), ...songNumbersFromIds(savedSongIds)]),
-    [wordList, songs, savedSongIds],
-  )
-  const wordOfDay = useMemo(
-    () =>
-      MOCKUP_DATA
-        ? (wordList.find((word) => word.roman === MOCKUP_LEARN.wordOfDay) ?? null)
-        : wordOfTheDay(deck.filter((word) => word.roman.length > 3), new Date(now)),
-    [deck, now, wordList],
-  )
 
   const nothingYet = counts.total === 0 && words === 0
   const stats = statsLine(counts.learned, counts.learning, words)
@@ -292,15 +276,6 @@ export default function LearnScreen() {
                         onPress={() => go(quizTarget(quizLevel))}
                       />
                     </View>
-                    {wordOfDay ? (
-                      <WordOfDayRow
-                        p={p}
-                        word={wordOfDay.roman}
-                        meaning={wordOfDay.meaning}
-                        songNumber={wordOfDay.songNumber}
-                        onPress={() => go(wordsHref({ song: wordOfDay.songNumber }))}
-                      />
-                    ) : null}
                   </>
                 ) : (
                   <HubEmpty p={p} text={t("learn.gate.hub")} />
