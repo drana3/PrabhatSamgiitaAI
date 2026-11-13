@@ -86,6 +86,15 @@ describe("Most played variants", () => {
   it("the page draws variant A until Dada picks another", () => {
     expect(MOST_PLAYED_VARIANT).toBe("A")
   })
+
+  it("designs D, E and F draw no line, border or shadow (Dada, 13 Nov 2026)", () => {
+    const src = source("components/kirtan/hub/MostPlayedCard.tsx")
+    const free = src.slice(src.indexOf("D, E, F: no lines"), src.indexOf("const styles = StyleSheet.create")).replace(/\/\*[\s\S]*?\*\//g, "")
+    expect(free.length).toBeGreaterThan(500)
+    expect(free).not.toMatch(/borderWidth|borderTop|borderBottom|borderColor|shadow/i)
+    const types = source("lib/kirtan/mostPlayedVariant.ts")
+    for (const v of ['"D"', '"E"', '"F"']) expect(types).toContain(v)
+  })
 })
 
 describe("kiirtan blocks strings", () => {
