@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, StyleSheet, View } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useFocusEffect, useRouter } from "expo-router"
-import { Guitar, KeyboardMusic, Layers, CircleQuestionMark, Music4, Piano } from "lucide-react-native"
+import { Layers, CircleQuestionMark } from "lucide-react-native"
 
 import {
   ContinueCard,
@@ -51,7 +51,6 @@ import { songFactsFor } from "@/lib/learn/songQuiz"
 import { dueCardCount, wordsLearnedCount } from "@/lib/learn/srs"
 import { wordsForSong } from "@/lib/learn/words"
 import { useLearnStore } from "@/stores/learnStore"
-import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 import { useT } from "@/lib/i18n"
 import { useStudyScope } from "@/hooks/useStudyScope"
@@ -60,7 +59,7 @@ import { deckLine } from "@/lib/learn/scopeText"
 /**
  * Learn tab, variant A (Dada, 10 November 2026): one page, one chain. Continue, then My songs with the three
  * counters (Not started, Learning, Learned) and a shelf of songs with their steps (Words, Quiz, Chords), then
- * "I want to learn this" (choose a new song, search all 5018), then Practice (word cards, the quiz over all words). Below the chain stay the blocks that were there before: Play along (Harmonium, Chords), the raga
+ * "I want to learn this" (choose a new song, search all 5018), then Practice (word cards, the quiz over all words). Below the chain stay the blocks that were there before (the Instruments block was taken off, Dada 13 Nov 2026): the raga
  * and tala index, Stories. The full list is the "See all" screen (/learn/songs).
  */
 export default function LearnScreen() {
@@ -90,13 +89,6 @@ export default function LearnScreen() {
   const studyScope = useStudyScope()
 
   const go = (path: string) => router.push(href(path))
-  // Guitar and Piano are taught on a real song: the practice song's chords card on Guitar, its piano notes
-  const setInstrument = useSongPageStore((state) => state.setInstrument)
-  const openGuitar = () => {
-    setInstrument("guitar")
-    go(HUB_LINKS.guitar)
-  }
-  const openPiano = () => go(HUB_LINKS.piano)
 
   // taking a song off the list (the small x on its card): Undo for a few seconds, progress stays saved
   const songsTheme = useSongsTheme()
@@ -292,46 +284,6 @@ export default function LearnScreen() {
             </Reveal>
 
             <Reveal index={6} style={styles.section}>
-              <HubSectionHead p={p} eyebrow={t("learn.inst.eyebrow")} first={t("learn.inst.first")} second={t("learn.inst.second")} />
-              {/* One block, one tile for each instrument the app really teaches. Guitar and Piano open the practice song
-                  (PS 1): its chords card on Guitar, its piano notes. A new instrument gets a tile only when it has a lesson. */}
-              <View style={styles.pad}>
-                <View style={styles.tiles}>
-                  <HubTile
-                    p={p}
-                    icon={<KeyboardMusic size={22} color={iconColor} strokeWidth={1.9} />}
-                    title={t("learn.inst.harmonium")}
-                    subtitle={t("learn.inst.harmonium.sub")}
-                    onPress={() => go(HUB_LINKS.harmonium)}
-                  />
-                  <HubTile
-                    p={p}
-                    icon={<Music4 size={22} color={iconColor} strokeWidth={1.9} />}
-                    title={t("learn.inst.chords")}
-                    subtitle={t("learn.inst.chords.sub")}
-                    onPress={() => go(HUB_LINKS.chords)}
-                  />
-                </View>
-                <View style={styles.tiles}>
-                  <HubTile
-                    p={p}
-                    icon={<Guitar size={22} color={iconColor} strokeWidth={1.9} />}
-                    title={t("learn.inst.guitar")}
-                    subtitle={t("learn.inst.guitar.sub")}
-                    onPress={openGuitar}
-                  />
-                  <HubTile
-                    p={p}
-                    icon={<Piano size={22} color={iconColor} strokeWidth={1.9} />}
-                    title={t("learn.inst.piano")}
-                    subtitle={t("learn.inst.piano.sub")}
-                    onPress={openPiano}
-                  />
-                </View>
-              </View>
-            </Reveal>
-
-            <Reveal index={7} style={styles.section}>
               <HubSectionHead p={p} eyebrow={t("learn.sect.deeper")} first={t("learn.sect.deeper.first")} second={t("learn.sect.deeper.second")} />
               <View style={[styles.pad, styles.rows]}>
                 {/* The raga and tala index is prototype content (invented song counts); the catalog has no raga data yet. */}
