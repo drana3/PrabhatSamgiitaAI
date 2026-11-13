@@ -3,6 +3,7 @@ import { Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 
 import { LiveMark } from "@/components/broadcasts/LiveMark"
+import { AudioOnlyStage } from "@/components/photos/AudioOnlyStage"
 import { RecordingBlock } from "@/components/broadcasts/RecordingBlock"
 import { SheetTopBar } from "@/components/common/SheetTopBar"
 import { KPress } from "@/components/kirtan/KPress"
@@ -171,27 +172,22 @@ export default function BroadcastScreen() {
         ) : null}
 
         <Reveal index={2} style={s.stack}>
-          {watching && embed ? (
-            <>
+          {embed && phase !== "ended" ? (
+            <AudioOnlyStage seed={item.id} title={item.title} width={videoWidth} height={Math.round((videoWidth * 9) / 16)} radius={20} listening={watching} onToggle={() => (watching ? watch.close() : watch.open(item.id))}>
               <VideoEmbed embed={embed} title={t("bc.p.video.a11y")} width={videoWidth} height={Math.round((videoWidth * 9) / 16)} radius={20} />
-              <ActionButton theme={theme} tone="quiet" label={t("bc.f.close")} onPress={watch.close} />
-            </>
-          ) : (
+            </AudioOnlyStage>
+          ) : null}
+          {!embed && item.provider === "youtube" ? <Hint theme={theme}>{t("bc.p.noEmbed")}</Hint> : null}
+          {phase !== "ended" || !embed ? (
             <>
-              {embed && phase !== "ended" ? <Join theme={theme} label={t("bc.p.watch")} onPress={() => watch.open(item.id)} /> : null}
-              {!embed && item.provider === "youtube" ? <Hint theme={theme}>{t("bc.p.noEmbed")}</Hint> : null}
-              {phase !== "ended" || !embed ? (
-                <>
-                  {embed ? (
-                    <ActionButton theme={theme} tone="quiet" label={`${t("bc.p.open")} · ${providerName}`} onPress={() => void open(item.url)} />
-                  ) : (
-                    <Join theme={theme} label={`${t("bc.p.open")} · ${providerName}`} onPress={() => void open(item.url)} />
-                  )}
-                  <Hint theme={theme}>{item.provider === "zoom" ? t("bc.p.open.zoom") : t("bc.p.open.note", { host: item.host })}</Hint>
-                </>
-              ) : null}
+              {embed ? (
+                <ActionButton theme={theme} tone="quiet" label={`${t("bc.p.open")} · ${providerName}`} onPress={() => void open(item.url)} />
+              ) : (
+                <Join theme={theme} label={`${t("bc.p.open")} · ${providerName}`} onPress={() => void open(item.url)} />
+              )}
+              <Hint theme={theme}>{item.provider === "zoom" ? t("bc.p.open.zoom") : t("bc.p.open.note", { host: item.host })}</Hint>
             </>
-          )}
+          ) : null}
           {item.liveSource === "youtube" && phase === "now" ? <Hint theme={theme}>{t("bc.p.viaYoutube")}</Hint> : null}
           {item.linkStatus === "unavailable" ? <Hint theme={theme} tone="danger">{t("bc.p.unavailable")}</Hint> : null}
           {note ? <Hint theme={theme}>{note}</Hint> : null}

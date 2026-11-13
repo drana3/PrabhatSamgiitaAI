@@ -10,9 +10,9 @@ import { YOUTUBE_EMBED_REFERER, youtubeEmbedWebSource } from "@/lib/mediaEmbed"
  * extraction of the stream. Native: the embed page inside react-native-webview (already a dependency).
  * The web version is LiveEmbed.web.tsx (an iframe).
  */
-export function LiveEmbed({ youtubeId, title, width, height, radius }: { youtubeId: string; title: string; width: number; height: number; radius: number }) {
+export function LiveEmbed({ youtubeId, title, width, height, radius, autoplay = false }: { youtubeId: string; title: string; width: number; height: number; radius: number; autoplay?: boolean }) {
   // one source object per broadcast, so a re-render does not reload the player
-  const source = useMemo(() => youtubeEmbedWebSource(youtubeEmbedUrl(youtubeId)), [youtubeId])
+  const source = useMemo(() => youtubeEmbedWebSource(autoplay ? `${youtubeEmbedUrl(youtubeId)}&autoplay=1` : youtubeEmbedUrl(youtubeId)), [youtubeId, autoplay])
   return (
     <View style={[styles.box, { width, height, borderRadius: radius }]} accessible accessibilityLabel={`${title}, live video`}>
       <WebView
@@ -27,7 +27,7 @@ export function LiveEmbed({ youtubeId, title, width, height, radius }: { youtube
           return url.startsWith("about:") || url.startsWith("data:") || /youtube(-nocookie)?\.com\/embed|googlevideo\.com|ytimg\.com|google\.com\/recaptcha/i.test(url) || url === YOUTUBE_EMBED_REFERER
         }}
         allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction
+        mediaPlaybackRequiresUserAction={!autoplay}
         allowsFullscreenVideo
         scrollEnabled={false}
         style={styles.fill}

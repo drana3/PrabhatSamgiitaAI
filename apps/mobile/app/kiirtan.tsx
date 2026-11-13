@@ -11,6 +11,7 @@ import { AuthorsShelf } from "@/components/authors/AuthorsShelf"
 import { BroadcastsShelf } from "@/components/broadcasts/BroadcastsShelf"
 import { BroadcastNowStrip } from "@/components/kirtan/hub/BroadcastNowStrip"
 import { KindCards } from "@/components/kirtan/hub/KindCards"
+import { KindShelf, SHELF_KINDS } from "@/components/kirtan/hub/KindShelf"
 import { MineTiles } from "@/components/kirtan/hub/MineTiles"
 import { MostPlayedCard } from "@/components/kirtan/hub/MostPlayedCard"
 import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
@@ -38,7 +39,7 @@ import { useScrollBottomInset } from "@/hooks/useScrollBottomInset"
 import { useSongsTheme } from "@/hooks/useSongsTheme"
 import { sampleResume } from "@/lib/fixtures/kirtanGate"
 import { chartHref } from "@/lib/kirtan/charts"
-import { addRecordingHref, kiirtanListHref, kindCards, listAddressOfFilter, savedWithDownloads } from "@/lib/kirtan/hub"
+import { addRecordingHref, kiirtanListHref, kindCards, listAddressOfFilter, savedWithDownloads, shelfRecordings } from "@/lib/kirtan/hub"
 import { filterByKind, kindDayA11y, kindDayLabel, kindHeading, kindLabel, kindLabelPlural } from "@/lib/kirtan/kind"
 import { phaseNow, shelfOrder } from "@/lib/broadcasts/rules"
 import { LENGTH_BUCKETS, longKirtans, type LengthBucketId } from "@/lib/kirtan/length"
@@ -411,6 +412,14 @@ export default function KiirtanTabScreen() {
           </ScrollView>
         </Reveal>
       ) : null}
+
+      {kind === "all"
+        ? SHELF_KINDS.map(({ kind: shelfKind, first, second }) => (
+            <Reveal key={shelfKind} index={next()} style={styles.section}>
+              <KindShelf p={p} kind={shelfKind} first={first} second={second} items={shelfRecordings(allPlayable, shelfKind)} onSeeAll={() => router.push(href(kiirtanListHref({ mode: "category", kind: shelfKind })))} onPlay={(k) => play(k, filterByKind(allPlayable, shelfKind))} />
+            </Reveal>
+          ))
+        : null}
 
       {mineTiles()}
     </>

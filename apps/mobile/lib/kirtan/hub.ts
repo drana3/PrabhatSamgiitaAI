@@ -14,6 +14,17 @@ import { t } from "@/lib/i18n"
  */
 export const HUB_KINDS: readonly RecordingKind[] = ["kiirtan", "bhajan", "spiritual_song", "dance_song", "baba_audio", "other_mantra"]
 
+/** How many recordings a kind's shelf on the page shows before "See all". */
+export const SHELF_SIZE = 12
+
+/** The newest recordings of a kind, for its shelf on the page (Discourses, Dance music, Spiritual songs). Does not change the list given. */
+export function shelfRecordings<T extends Pick<Kirtan, "kind" | "addedAt">>(list: readonly T[], kind: RecordingKind, size = SHELF_SIZE): T[] {
+  return list
+    .filter((k) => k.kind === kind)
+    .sort((a, b) => b.addedAt - a.addedAt)
+    .slice(0, size)
+}
+
 export type KindCard = { kind: RecordingKind; count: number; empty: boolean }
 
 /** One card per kind with its real count. A kind with no recording is "empty": the card is drawn pale. */

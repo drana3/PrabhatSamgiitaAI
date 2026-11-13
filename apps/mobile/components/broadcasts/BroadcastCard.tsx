@@ -3,13 +3,15 @@ import Svg, { Circle, Path } from "react-native-svg"
 
 import { KPress } from "@/components/kirtan/KPress"
 import { LiveMark } from "@/components/broadcasts/LiveMark"
-import { VideoThumb } from "@/components/video/VideoThumb"
+import { PhotoSurface } from "@/components/photos/PhotoSurface"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useLanguage, useT } from "@/lib/i18n"
-import { liveDay, phaseNow, safeThumbnail } from "@/lib/broadcasts/rules"
+import { liveDay, phaseNow } from "@/lib/broadcasts/rules"
 import type { Broadcast } from "@/lib/broadcasts/types"
 import { whenLine } from "@/lib/broadcasts/when"
+import { photoForSeed } from "@/lib/photos/catalog"
+import { broadcastPhotoMood, broadcastPhotoSeed } from "@/lib/photos/defaultPhoto"
 
 /** A broadcast with nothing to show: a camera-less "on air" glyph (a dot and two arcs). */
 export const AirGlyph = ({ color, size = 32 }: { color: string; size?: number }) => (
@@ -19,16 +21,21 @@ export const AirGlyph = ({ color, size = 32 }: { color: string; size?: number })
   </Svg>
 )
 
+/** Every card of the shelf and the list has this size: the same picture, the same three text rows, whatever the broadcast says. */
+export const BROADCAST_CARD = { picture: 120, height: 288 } as const
+
 /**
- * One broadcast as a card: the picture (YouTube's own thumbnail when the server found one, else a glyph), the phase
- * mark, the title and the line of time. `width` makes it a shelf card; without it it fills a column.
+ * One broadcast as a card: a photo of the app's own library (never a frame of the stream: our broadcasts are audio only, so no video and no
+ * YouTube picture is ever shown; the system picks the photo by the broadcast's id, lib/photos/defaultPhoto.ts), the phase mark, the title
+ * and the line of time. "On the air" and "Coming up" are one size (Dada, 13 Nov 2026): a fixed height, the title always has two rows and
+ * the time line two rows of room, so a short title does not make a short card. `width` makes it a shelf card; without it it fills a column.
  */
 export function BroadcastCard({ item, theme, onPress, width }: { item: Broadcast; theme: SongsTheme; onPress: () => void; width?: number }) {
   const t = useT()
   const language = useLanguage()
   const phase = phaseNow(item)
   const line = whenLine(item, t as never, language)
-  const thumbnail = safeThumbnail(item.thumbnailUrl)
+  const photo = photoForSeed(broadcastPhotoSeed(item.id), broadcastPhotoMood(item.title), { size: "small" })
   return (
     <KPress
       accessibilityRole="button"
@@ -39,18 +46,8 @@ export function BroadcastCard({ item, theme, onPress, width }: { item: Broadcast
       style={[s.card, { backgroundColor: theme.card, borderColor: theme.line }]}
     >
       <View style={[s.picture, { backgroundColor: theme.peach }]}>
-        {thumbnail ? (
-          <VideoThumb
-            video={{ provider: "youtube", url: item.url, thumbnailUrl: thumbnail }}
-            fill
-            radius={0}
-            background={theme.peach}
-            placeholder={<AirGlyph color={theme.accent} />}
-            testID={`broadcast-thumb-${item.id}`}
-          />
-        ) : (
-          <AirGlyph color={theme.accent} />
-        )}
+        <PhotoSurface photo={photo} scrim={0.45} />
+        <AirGlyph color="rgba(255,255,255,0.92)" />
       </View>
       <View style={s.text}>
         <LiveMark phase={phase} theme={theme} day={liveDay(item)} />
@@ -67,9 +64,9 @@ export function BroadcastCard({ item, theme, onPress, width }: { item: Broadcast
 
 const s = StyleSheet.create({
   fill: { alignSelf: "stretch" },
-  card: { borderRadius: 20, borderWidth: 1.5, overflow: "hidden" },
-  picture: { height: 120, alignItems: "center", justifyContent: "center" },
+  card: { height: BROADCAST_CARD.height, borderRadius: 20, borderWidth: 1.5, overflow: "hidden" },
+  picture: { height: BROADCAST_CARD.picture, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   text: { padding: 16, gap: 8 },
-  title: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22 },
-  when: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20 },
+  title: { fontFamily: amFonts.bold, fontSize: 17, lineHeight: 22, minHeight: 44 },
+  when: { fontFamily: amFonts.medium, fontSize: 14, lineHeight: 20, minHeight: 40 },
 })

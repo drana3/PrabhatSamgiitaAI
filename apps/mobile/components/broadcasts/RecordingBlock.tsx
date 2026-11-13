@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 
+import { AudioOnlyStage } from "@/components/photos/AudioOnlyStage"
 import { VideoEmbed } from "@/components/recording-extras/VideoEmbed"
 import type { VideoWatch } from "@/components/recording-extras/useVideoWatch"
 import { ActionButton, Hint } from "@/components/song-chords/parts"
@@ -65,18 +66,13 @@ export function RecordingBlock({
         const watching = embed !== null && watch.openId === `rec:${r.id}`
         return (
           <View key={r.id} style={s.row}>
-            {watching && embed ? (
-              <>
+            {embed ? (
+              <AudioOnlyStage seed={`${item.id}:${r.id}`} title={item.title} width={width} height={Math.round((width * 9) / 16)} radius={20} listening={watching} onToggle={() => (watching ? watch.close() : watch.open(`rec:${r.id}`))}>
                 <VideoEmbed embed={embed} title={t("bc.rec.video.a11y")} width={width} height={Math.round((width * 9) / 16)} radius={20} />
-                <ActionButton theme={theme} tone="quiet" label={t("bc.f.close")} onPress={watch.close} />
-              </>
-            ) : (
-              <>
-                {embed ? <ActionButton theme={theme} label={t("bc.rec.watch")} onPress={() => watch.open(`rec:${r.id}`)} /> : null}
-                {r.url ? <ActionButton theme={theme} tone={embed ? "quiet" : "primary"} label={`${t("bc.p.open")} · ${providerName(r)}`} onPress={() => onOpen(r.url as string)} /> : null}
-                {r.source === "youtube" ? <Hint theme={theme}>{t("bc.rec.fromYoutube")}</Hint> : null}
-              </>
-            )}
+              </AudioOnlyStage>
+            ) : null}
+            {r.url ? <ActionButton theme={theme} tone={embed ? "quiet" : "primary"} label={`${t("bc.p.open")} · ${providerName(r)}`} onPress={() => onOpen(r.url as string)} /> : null}
+            {r.source === "youtube" ? <Hint theme={theme}>{t("bc.rec.fromYoutube")}</Hint> : null}
             {r.mine || item.recordingAction === "add" ? <ActionButton theme={theme} tone="quiet" label={t("bc.rec.remove")} onPress={() => onRemove(r)} /> : null}
           </View>
         )

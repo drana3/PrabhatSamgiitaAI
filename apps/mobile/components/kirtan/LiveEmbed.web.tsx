@@ -7,11 +7,11 @@ import { youtubeEmbedUrl } from "@/lib/kirtan/live"
  * The official YouTube IFrame embed of a live broadcast (web). Only the embed address is used: no
  * downloading, no extraction of the stream.
  */
-export function LiveEmbed({ youtubeId, title, width, height, radius }: { youtubeId: string; title: string; width: number; height: number; radius: number }) {
+export function LiveEmbed({ youtubeId, title, width, height, radius, autoplay = false }: { youtubeId: string; title: string; width: number; height: number; radius: number; autoplay?: boolean }) {
   return (
     <View style={[styles.box, { width, height, borderRadius: radius }]}>
       {createElement("iframe", {
-        src: youtubeEmbedUrl(youtubeId),
+        src: autoplay ? `${youtubeEmbedUrl(youtubeId)}&autoplay=1` : youtubeEmbedUrl(youtubeId),
         title,
         allow: "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture",
         allowFullScreen: true,

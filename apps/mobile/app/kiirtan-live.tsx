@@ -6,6 +6,7 @@ import { Copy, ExternalLink, Share2 } from "lucide-react-native"
 
 import { LiveBadge, LiveGlyph, LivePhoto, liveTone } from "@/components/kirtan/LiveCard"
 import { LiveEmbed } from "@/components/kirtan/LiveEmbed"
+import { AudioOnlyStage } from "@/components/photos/AudioOnlyStage"
 import { ChevronGlyph } from "@/components/kirtan/KirtanParts"
 import { KPress } from "@/components/kirtan/KPress"
 import { Toast } from "@/components/songs-v2/Toast"
@@ -40,6 +41,8 @@ export default function KiirtanLiveScreen() {
   const item = params.id ? byId.get(params.id) : undefined
   const [toast, setToast] = useState<string | null>(null)
   const [pausedQueue, setPausedQueue] = useState(false)
+  // our broadcasts are audio only: the embed plays under a photo only while the person listens
+  const [listening, setListening] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const top = useScreenTop()
 
@@ -108,7 +111,9 @@ export default function KiirtanLiveScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingTop: top + 64 }]}>
         <View style={{ paddingHorizontal: gutter }}>
           {item.platform === "youtube" && item.youtubeId ? (
-            <LiveEmbed youtubeId={item.youtubeId} title={item.title} width={boxW} height={boxH} radius={24} />
+            <AudioOnlyStage seed={item.id} title={item.title} width={boxW} height={boxH} radius={24} listening={listening} onToggle={() => setListening((on) => !on)}>
+              <LiveEmbed youtubeId={item.youtubeId} title={item.title} width={boxW} height={boxH} radius={24} autoplay />
+            </AudioOnlyStage>
           ) : (
             <View style={[styles.zoomHero, { width: boxW, height: boxH }]}>
               <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />

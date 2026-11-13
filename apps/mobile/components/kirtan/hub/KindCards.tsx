@@ -1,17 +1,20 @@
+import { useMemo } from "react"
 import { StyleSheet, Text, View } from "react-native"
-import { LinearGradient } from "expo-linear-gradient"
 
 import { HOME_INSET } from "@/components/home/HomeBlocks"
 import { WaveGlyph } from "@/components/kirtan/KiirtanCover"
 import { KPress } from "@/components/kirtan/KPress"
-import { amColors } from "@/constants/tokens/amColors"
+import { PhotoSurface } from "@/components/photos/PhotoSurface"
+import { amColors, amDarkSurface } from "@/constants/tokens/amColors"
 import { amFonts } from "@/constants/tokens/amTypography"
 import type { AmProto } from "@/constants/tokens/amToday"
-import { kindCardA11y, kindCardLine, type KindCard } from "@/lib/kirtan/hub"
+import { HUB_KINDS, kindCardA11y, kindCardLine, type KindCard } from "@/lib/kirtan/hub"
 import { kindLabel } from "@/lib/kirtan/kind"
 import { kiirtanTone } from "@/lib/kirtan/tone"
 import type { RecordingKind } from "@/lib/kirtan/types"
 import { useLanguage } from "@/lib/i18n"
+import { STOCK_PHOTOS } from "@/lib/photos/catalog"
+import { pickKindPhotos } from "@/lib/photos/defaultPhoto"
 
 const GAP = 12
 
@@ -24,17 +27,21 @@ function cardTone(kind: RecordingKind): readonly [string, string] {
 const TILE_H = [176, 128, 120, 176, 144, 136] as const
 
 /**
- * "Browse all": one tile per kind of recording, each with its colour, a round mark and the real number in small type (Dada, 12 Nov 2026:
- * the vertical list of cards was dropped for a mosaic of two columns of tiles of different heights; the sideways shelf of tall tiles was
- * the other option and lost: it hides four of the six kinds behind a swipe). A tile of a kind with no
- * recording is pale and says "No recordings yet": it still opens the list, which says the same and offers Add. A tap opens the FULL
- * list of the category (app/kiirtan-list.tsx).
+ * "Browse all": one tile per kind of recording, a mosaic of two columns of tiles of different heights (Dada, 12 Nov 2026). Every tile is
+ * the SAME kind of surface (Dada, 13 Nov 2026: the last four were pale and melted into the page): a photo of the app's own library that the system
+ * picks for the kind (a different one for each kind, the same every time, lib/photos/defaultPhoto.ts), the colour of the kind washed over it
+ * and a dark scrim under the text, so the white name and count read at 4.5:1 or better on any picture. A kind with no recording looks the
+ * same and says "No recordings yet" in the count line: it still opens the list, which says the same and offers Add. In Dark the tile also
+ * has a light outline (3.3:1 on the page), because its dark lower edge would meet the dark page. A tap opens the FULL list of the category
+ * (app/kiirtan-list.tsx).
  */
 export function KindCards({ p, cards, onOpen }: { p: AmProto; cards: readonly KindCard[]; onOpen: (kind: RecordingKind) => void }) {
   useLanguage() // the names and counts come from lib/kirtan: draw again when the language changes
+  const photos = useMemo(() => pickKindPhotos(STOCK_PHOTOS, HUB_KINDS), [])
   const tile = (card: KindCard, w: number | undefined, h: number) => {
     const [from, to] = cardTone(card.kind)
     const name = kindLabel(card.kind)
+    const photo = photos.get(card.kind)
     return (
       <KPress
         key={card.kind}
@@ -43,17 +50,17 @@ export function KindCards({ p, cards, onOpen }: { p: AmProto; cards: readonly Ki
         onPress={() => onOpen(card.kind)}
         pressedScale={0.96}
         outerStyle={w ? { width: w } : styles.fill}
-        style={[styles.tile, { height: h, backgroundColor: card.empty ? p.white : to, borderColor: card.empty ? p.sand300 : "transparent" }]}
+        style={[styles.tile, { height: h, backgroundColor: amColors.ink900, borderColor: p.dark ? amDarkSurface.lineStrong : "transparent" }]}
       >
-        <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { opacity: card.empty ? 0.13 : 1 }]} />
-        <View style={[styles.disc, { backgroundColor: card.empty ? p.sand200 : "rgba(255,255,255,0.22)" }]}>
-          <WaveGlyph size={22} color={card.empty ? p.ink300 : amColors.white} />
+        {photo ? <PhotoSurface photo={photo} wash={[from, to]} washOpacity={0.45} mid={0.82} scrim={0.94} /> : null}
+        <View style={styles.disc}>
+          <WaveGlyph size={22} color={amColors.white} />
         </View>
         <View>
-          <Text style={[styles.label, { color: card.empty ? p.ink800 : amColors.white }]} numberOfLines={2}>
+          <Text style={styles.label} numberOfLines={2}>
             {name}
           </Text>
-          <Text style={[styles.count, { color: card.empty ? p.ink500 : "rgba(255,255,255,0.86)" }]} numberOfLines={1}>
+          <Text style={styles.count} numberOfLines={1}>
             {kindCardLine(card)}
           </Text>
         </View>
@@ -79,7 +86,7 @@ const styles = StyleSheet.create({
   column: { flex: 1, gap: GAP },
   fill: { alignSelf: "stretch" },
   tile: { borderRadius: 24, borderWidth: 1.5, overflow: "hidden", padding: 14, justifyContent: "space-between" },
-  disc: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  label: { fontFamily: amFonts.display, fontSize: 17, lineHeight: 18, textTransform: "uppercase", letterSpacing: -0.2 },
-  count: { fontFamily: amFonts.medium, fontSize: 12.5, lineHeight: 16, marginTop: 3 },
+  disc: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(10,14,8,0.42)" },
+  label: { fontFamily: amFonts.display, fontSize: 17, lineHeight: 18, textTransform: "uppercase", letterSpacing: -0.2, color: amColors.white },
+  count: { fontFamily: amFonts.medium, fontSize: 12.5, lineHeight: 16, marginTop: 3, color: "rgba(255,255,255,0.92)" },
 })

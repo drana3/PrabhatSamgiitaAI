@@ -56,8 +56,10 @@ describe("a posted link is only ever opened by a person, outside the app", () =>
     expect(link).not.toMatch(/\.(?:test|exec|match)\(|\.replace\(\//)
   })
 
-  it("loads a thumbnail only from YouTube's own image host", () => {
-    expect(read("components/broadcasts/BroadcastCard.tsx")).toContain("safeThumbnail(item.thumbnailUrl)")
+  it("loads no picture from the link at all: a broadcast is audio only, its tile is a photo of the app's own (13 Nov 2026)", () => {
+    const card = read("components/broadcasts/BroadcastCard.tsx")
+    expect(card).not.toContain("thumbnailUrl")
+    expect(card).not.toContain("safeThumbnail")
   })
 })
 

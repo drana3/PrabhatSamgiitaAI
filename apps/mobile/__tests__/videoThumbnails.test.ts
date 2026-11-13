@@ -223,10 +223,11 @@ describe("every place that shows a video picture uses the one loader", () => {
     expect(read("components/kirtan/add/VideoLinkField.tsx")).toContain("<VideoLinkPreview")
     expect(read("components/recording-extras/AddVideoSheet.tsx")).toContain("<VideoLinkPreview")
   })
-  it("a broadcast tile keeps its safe-host check and loads through the loader", () => {
+  it("a broadcast tile shows no video picture at all: our broadcasts are audio only, the tile is a photo of the app's own (13 Nov 2026)", () => {
     const card = read("components/broadcasts/BroadcastCard.tsx")
-    expect(card).toContain("safeThumbnail(item.thumbnailUrl)")
-    expect(card).toContain("<VideoThumb")
+    expect(card).not.toContain("<VideoThumb")
+    expect(card).not.toContain("thumbnailUrl")
+    expect(card).toContain("<PhotoSurface")
   })
   it("the PS song page video card (the team's) shows the real thumbnail, with its old picture as the placeholder", () => {
     const card = read("components/player/WatchVideoCard.tsx")
