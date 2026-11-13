@@ -36,11 +36,13 @@ export const TAB_STRIP_HEIGHT = 48
 
 /**
  * Where the page scrolls to when a tab is tapped: the header folds away and the strip pins under the bar, so the tab's
- * content starts right under the switch. A reader who is already further down stays where they are. Null: do not move.
+ * content starts right under the switch. The page is only as tall as the tab (no minimum height), so a reader who was
+ * further down on a long tab goes back to that line too, instead of the page shrinking under their finger. Null: already
+ * there, do not move.
  */
 export function scrollOnSelect(scrollY: number, heroHeight: number): number | null {
   const fold = Math.max(0, Math.round(heroHeight))
-  return scrollY < fold - 1 ? fold : null
+  return fold > 0 && Math.abs(scrollY - fold) > 1 ? fold : null
 }
 
 /** The two pages inside the Meaning tab. */

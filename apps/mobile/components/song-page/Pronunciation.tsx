@@ -13,8 +13,9 @@ import { clipKind, playClip, stopClip, usePlayingClip } from "@/lib/pronunciatio
 import { buildCheatSheet, firstSentence, type CheatGroup, type CheatRow } from "@/lib/pronunciation/cheatSheet"
 import { songPronLanguage } from "@/lib/pronunciation/songLanguage"
 
+import { OptionRow, OptionValue } from "./OptionRow"
 import type { PageUi } from "./state"
-import { ChevronRow, Segmented } from "./ui"
+import { Segmented } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
 /**
@@ -41,20 +42,21 @@ function useSay(): Say {
   return (key, params) => (t as unknown as (k: MessageKey | string, p?: Record<string, string | number>) => string)(key, params)
 }
 
-/** The small row that opens the memo: in the Aa options and in the About area. */
-export function PronunciationRow({ t, ui, onOpen, last }: { t: SpTheme; ui: PageUi; onOpen?: () => void; last?: boolean }) {
+/** The small row that opens the memo, in the Aa window: the same grid as its other rows (name left, arrow right). */
+export function PronunciationRow({ t, ui, onOpen }: { t: SpTheme; ui: PageUi; onOpen?: () => void }) {
   const say = useSay()
   return (
-    <ChevronRow
+    <OptionRow
       t={t}
-      title={say("pron.entry")}
-      subtitle={say("pron.entry.sub")}
-      last={last}
+      label={say("pron.entry")}
+      a11y={`${say("pron.entry")}. ${say("pron.entry.sub")}`}
       onPress={() => {
         onOpen?.()
         ui.setSheet("pronounce")
       }}
-    />
+    >
+      <OptionValue t={t} text="" />
+    </OptionRow>
   )
 }
 
