@@ -84,7 +84,7 @@ describe("shelves of Discourses, Dance music and Spiritual songs", () => {
 
 describe("Most played variants", () => {
   it("the page draws variant A until Dada picks another", () => {
-    expect(MOST_PLAYED_VARIANT).toBe("A")
+    expect(MOST_PLAYED_VARIANT).toBe("E")
   })
 
   it("designs D, E and F draw no line, border or shadow (Dada, 13 Nov 2026)", () => {
