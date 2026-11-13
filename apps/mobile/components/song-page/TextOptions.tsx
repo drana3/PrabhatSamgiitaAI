@@ -8,6 +8,7 @@ import { amSpring } from "@/constants/tokens/amMotion"
 import { amFonts } from "@/constants/tokens/amTypography"
 import { useCoverWhile } from "@/lib/sheetCover"
 import { activeLineKind, lineKinds, type LineKind } from "@/lib/songTranslations/derive"
+import { estimateCardHeight, placePopover, type PopoverPlacement } from "@/lib/songPage/optionsPlacement"
 import { scriptName, usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import type { ScriptId } from "@/lib/songPage/scripts"
 
@@ -15,20 +16,26 @@ import { summaryOf } from "@/lib/songPage/languages"
 import { useSongLanguagesStore } from "@/stores/songLanguagesStore"
 
 import { effectiveWordLanguages } from "./LanguagesSheet"
+import { OptionRow, OptionValue } from "./OptionRow"
 import { PronunciationRow } from "./Pronunciation"
 import type { PageUi, TextScaleIndex } from "./state"
 import { Segmented, type SegItem } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
 /**
- * THE TEXT OPTIONS (board 2, variant 1). One small "Aa" button in the header row of the text block and, under
- * it, a compact popover: text size, script, and the translation under each lyric line (Off, Literal or Poetic, only
- * the kinds the song has; Off is the default). It takes no room in the page. Like a sheet it registers with lib/sheetCover.ts (the mini-player slides away while it is
+ * THE TEXT OPTIONS (board 2, variant 1). One small "Aa" button in the header row of the text block and, next to
+ * it, a compact card of equal rows (OptionRow.tsx): text size, script, the translation under each lyric line (its value
+ * and an arrow; the choice, Off, Literal or Poetic, opens in a sheet, only the kinds the song has; Off is the default),
+ * the word language when the page asks, and how to pronounce. The card hangs under the button, or opens upwards when
+ * there is no room below (lib/songPage/optionsPlacement.ts). It takes no room in the page. Like a sheet it registers with lib/sheetCover.ts (the mini-player slides away while it is
  * open), the Android back button and Escape close it, and a tap outside closes it.
  */
 
 const REDUCED_MS = 150
-const POPOVER_WIDTH = 318
+/** The round "Aa" button is 44 high; the card keeps this far below the status bar when it opens upwards. */
+const ANCHOR_HEIGHT = 44
+const TOP_INSET = 64
+const POPOVER_WIDTH = 344
 const SCRIPT_ORDER: ScriptId[] = ["roman", "devanagari", "bengali"]
 
 /** The round "Aa" button. It measures itself on press so the popover opens right under it. */
@@ -59,14 +66,14 @@ export function TextOptionsButton({ t, ui, wordLanguage = false }: { t: SpTheme;
   )
 }
 
+/** Text size: one pill, the same height as the script switch: small A, three dots, large A. */
 function SizeRow({ t, tr, ui }: { t: SpTheme; tr: PageT; ui: PageUi }) {
   const index = ui.scaleIndex
   const step = (delta: -1 | 1) => ui.setScaleIndex(Math.max(0, Math.min(2, index + delta)) as TextScaleIndex)
   return (
-    <View style={styles.row}>
-      <Text style={[styles.label, { color: t.ink800 }]}>{tr("songPage.options.size")}</Text>
-      <View style={styles.step}>
-        <SpPress onPress={() => step(-1)} disabled={index === 0} accessibilityLabel={tr("songPage.options.size.smaller")} pressedScale={0.94} style={[styles.stepBtn, { backgroundColor: t.white, borderColor: t.sand400 }, index === 0 && styles.dim]}>
+    <OptionRow t={t} label={tr("songPage.options.size")}>
+      <View style={[styles.step, { backgroundColor: t.white, borderColor: t.sand400 }]}>
+        <SpPress onPress={() => step(-1)} disabled={index === 0} accessibilityLabel={tr("songPage.options.size.smaller")} pressedScale={0.92} style={[styles.stepBtn, index === 0 && styles.dim]}>
           <Text style={[styles.stepText, { color: t.ink900, fontSize: 14 }]}>A</Text>
         </SpPress>
         <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -74,11 +81,11 @@ function SizeRow({ t, tr, ui }: { t: SpTheme; tr: PageT; ui: PageUi }) {
             <View key={i} style={[styles.dot, { backgroundColor: i <= index ? t.action : t.sand400 }]} />
           ))}
         </View>
-        <SpPress onPress={() => step(1)} disabled={index === 2} accessibilityLabel={tr("songPage.options.size.bigger")} pressedScale={0.94} style={[styles.stepBtn, { backgroundColor: t.white, borderColor: t.sand400 }, index === 2 && styles.dim]}>
+        <SpPress onPress={() => step(1)} disabled={index === 2} accessibilityLabel={tr("songPage.options.size.bigger")} pressedScale={0.92} style={[styles.stepBtn, index === 2 && styles.dim]}>
           <Text style={[styles.stepText, { color: t.ink900, fontSize: 21 }]}>A</Text>
         </SpPress>
       </View>
-    </View>
+    </OptionRow>
   )
 }
 
@@ -92,27 +99,40 @@ function ScriptRow({ t, tr, model }: { t: SpTheme; tr: PageT; model: SongPageMod
     disabled: !model.scripts.includes(id),
   }))
   return (
-    <View style={styles.row}>
-      <Text style={[styles.label, { color: t.ink800 }]}>{tr("songPage.options.script")}</Text>
-      <Segmented t={t} items={items} value={model.lines.primaryScript} onChange={(id) => model.setScript(id)} label={tr("songPage.options.script")} role="radio" fit />
-    </View>
+    <OptionRow t={t} label={tr("songPage.options.script")}>
+      <Segmented t={t} items={items} value={model.lines.primaryScript} onChange={(id) => model.setScript(id)} label={tr("songPage.options.script")} role="radio" />
+    </OptionRow>
   )
 }
 
+/** The names of the choices of the translation under each line, for the row's value and for its sheet. */
+export function lineChoiceLabel(tr: PageT, id: "off" | LineKind): string {
+  return id === "off" ? tr("songPage.options.translation.off") : tr(id === "literal" ? "songPage.translation.literal" : "songPage.translation.poetic")
+}
+
+/**
+ * The translation under each lyric line, in the same grid as the rows around it: the name, then the chosen value and an
+ * arrow. The three choices (Off, and Literal or Poetic when the song has them; Official is a whole text, not a line
+ * setting) open in a sheet. A song with neither says so in one small line under the name and the value stays Off.
+ */
 function LineTranslationRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi }) {
-  // Off is always there; Literal and Poetic only when this song has them (Official is a whole text, not a line setting)
   const kinds = lineKinds(model.translations.kinds)
   const value = activeLineKind(ui.lineTranslation, model.translations.kinds) ?? "off"
-  const label: Record<LineKind, "songPage.translation.literal" | "songPage.translation.poetic"> = { literal: "songPage.translation.literal", poetic: "songPage.translation.poetic" }
-  const items: Array<SegItem<"off" | LineKind>> = [{ id: "off", label: tr("songPage.options.translation.off") }, ...kinds.map((id) => ({ id, label: tr(label[id]) }))]
+  if (!kinds.length) {
+    return (
+      <OptionRow t={t} label={tr("songPage.options.translation")} hint={tr("songPage.options.translation.none")}>
+        <OptionValue t={t} text={lineChoiceLabel(tr, "off")} muted arrow={false} />
+      </OptionRow>
+    )
+  }
+  const open = () => {
+    ui.closeOptions()
+    ui.setSheet("lineTranslation")
+  }
   return (
-    <View style={styles.stack}>
-      <View style={styles.labelCol}>
-        <Text style={[styles.label, { color: t.ink800 }]}>{tr("songPage.options.translation")}</Text>
-        {kinds.length ? null : <Text style={[styles.hint, { color: t.ink500 }]}>{tr("songPage.options.translation.none")}</Text>}
-      </View>
-      {kinds.length ? <Segmented t={t} items={items} value={value} onChange={ui.setLineTranslation} label={tr("songPage.options.translation")} role="radio" fit /> : null}
-    </View>
+    <OptionRow t={t} label={tr("songPage.options.translation")} a11y={`${tr("songPage.options.translation")}. ${lineChoiceLabel(tr, value)}`} onPress={open}>
+      <OptionValue t={t} text={lineChoiceLabel(tr, value)} />
+    </OptionRow>
   )
 }
 
@@ -130,17 +150,9 @@ function WordLanguageRow({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: S
     ui.setSheet("languages")
   }
   return (
-    <>
-      <SpPress onPress={open} accessibilityLabel={`${tr("songWords.language.title")}. ${names}`} pressedScale={0.985} style={styles.row}>
-        <Text style={[styles.label, { color: t.ink800 }]}>{tr("songWords.language.title")}</Text>
-        <View style={styles.value}>
-          <Text style={[styles.valueText, { color: t.ink900 }]} numberOfLines={1}>{names}</Text>
-          {more ? <Text style={[styles.valueMore, { color: t.ink500 }]}>{tr("lang.more", { count: more })}</Text> : null}
-          <Text style={[styles.chev, { color: t.ink500 }]}>›</Text>
-        </View>
-      </SpPress>
-      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
-    </>
+    <OptionRow t={t} label={tr("songWords.language.title")} a11y={`${tr("songWords.language.title")}. ${names}`} onPress={open}>
+      <OptionValue t={t} text={names} more={more ? tr("lang.more", { count: more }) : null} />
+    </OptionRow>
   )
 }
 
@@ -148,13 +160,10 @@ function Card({ t, tr, model, ui, withWordLanguage }: { t: SpTheme; tr: PageT; m
   return (
     <>
       <SizeRow t={t} tr={tr} ui={ui} />
-      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
       <ScriptRow t={t} tr={tr} model={model} />
-      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
       <LineTranslationRow t={t} tr={tr} model={model} ui={ui} />
-      <View style={[styles.rule, { backgroundColor: t.sand300 }]} />
       {withWordLanguage ? <WordLanguageRow t={t} tr={tr} model={model} ui={ui} /> : null}
-      <PronunciationRow t={t} ui={ui} onOpen={ui.closeOptions} last />
+      <PronunciationRow t={t} ui={ui} onOpen={ui.closeOptions} />
     </>
   )
 }
@@ -212,24 +221,40 @@ export function TextOptionsPopover({ t, model, ui }: { t: SpTheme; model: SongPa
     }
   }, [open])
 
+  // the card opens away from the button: down when it fits below, up when the button is low on the screen
+  const wordLanguage = last.current?.wordLanguage ?? false
+  const noKinds = lineKinds(model.translations.kinds).length === 0
+  const rows = 4 + (wordLanguage ? 1 : 0)
+  const place: PopoverPlacement = placePopover({
+    anchorBottom: last.current?.top ?? 120,
+    anchorHeight: ANCHOR_HEIGHT,
+    windowHeight: height,
+    cardHeight: estimateCardHeight(rows, noKinds ? 1 : 0),
+    topInset: TOP_INSET,
+  })
+  const rise = place.placement === "above" ? 1 : -1
   const style = useAnimatedStyle(() =>
     reduce
       ? { opacity: progress.value }
-      : { opacity: Math.min(1, progress.value * 1.4), transform: [{ translateY: (1 - progress.value) * -8 }, { scale: 0.94 + 0.06 * progress.value }] },
+      : { opacity: Math.min(1, progress.value * 1.4), transform: [{ translateY: (1 - progress.value) * 8 * rise }, { scale: 0.94 + 0.06 * progress.value }] },
   )
 
   if (!mounted) return null
-  const top = (last.current?.top ?? 120) + 8
   const w = Math.min(POPOVER_WIDTH, width - 32)
   return (
     <View style={styles.root} pointerEvents="box-none" accessibilityViewIsModal>
       <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel={tr("songPage.sheet.close")} onPress={close} />
       <Animated.View
         accessibilityLabel={tr("songPage.options.title")}
-        style={[styles.pop, { top, width: w, maxHeight: Math.max(240, height - top - 24), backgroundColor: t.dark ? t.sand100 : t.white, borderColor: t.sand400 }, style]}
+        style={[
+          styles.pop,
+          place.top !== null ? { top: place.top } : { bottom: place.bottom ?? 0 },
+          { width: w, maxHeight: place.maxHeight, transformOrigin: place.placement === "above" ? "bottom right" : "top right", backgroundColor: t.dark ? t.sand100 : t.white, borderColor: t.sand400 },
+          style,
+        ]}
       >
         <ScrollView showsVerticalScrollIndicator={false} bounces={false} keyboardShouldPersistTaps="handled">
-          <Card t={t} tr={tr} model={model} ui={ui} withWordLanguage={last.current?.wordLanguage ?? false} />
+          <Card t={t} tr={tr} model={model} ui={ui} withWordLanguage={wordLanguage} />
         </ScrollView>
       </Animated.View>
     </View>
@@ -241,21 +266,11 @@ const styles = StyleSheet.create({
   aaText: { fontFamily: amFonts.bold, fontSize: 19, lineHeight: 24, letterSpacing: -0.4 },
   aaSmall: { fontSize: 13 },
   root: { ...StyleSheet.absoluteFillObject, zIndex: 50 },
-  pop: { position: "absolute", right: 16, borderRadius: 28, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 8, overflow: "hidden", transformOrigin: "top right" },
-  stack: { paddingVertical: 12, gap: 10 },
-  row: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  rule: { height: StyleSheet.hairlineWidth },
-  label: { fontFamily: amFonts.bold, fontSize: 12, lineHeight: 16, letterSpacing: 0.96, textTransform: "uppercase" },
-  labelCol: { flex: 1, gap: 2 },
-  hint: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
-  step: { flexDirection: "row", alignItems: "center", gap: 10 },
-  stepBtn: { width: 44, height: 44, borderRadius: 9999, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  pop: { position: "absolute", right: 16, borderRadius: 28, borderWidth: 1, paddingHorizontal: 20, paddingVertical: 8, overflow: "hidden" },
+  step: { flexDirection: "row", alignItems: "center", padding: 2, borderRadius: 9999, borderWidth: 1 },
+  stepBtn: { width: 44, height: 44, borderRadius: 9999, alignItems: "center", justifyContent: "center" },
   stepText: { fontFamily: amFonts.bold },
   dim: { opacity: 0.4 },
-  value: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
-  valueText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20, flexShrink: 1 },
-  valueMore: { fontFamily: amFonts.bold, fontSize: 13, lineHeight: 18 },
-  chev: { fontFamily: amFonts.bold, fontSize: 22, lineHeight: 24 },
-  dots: { flexDirection: "row", alignItems: "center", gap: 4 },
+  dots: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 6 },
   dot: { width: 6, height: 6, borderRadius: 3 },
 })

@@ -57,12 +57,13 @@ describe("the five tabs of the song page", () => {
     expect(DEFAULT_WORDS_MODE).toBe("translation")
   })
 
-  it("a tap on a tab folds the header away, and leaves a reader who is already lower where they are", () => {
+  it("a tap on a tab brings its content under the switch, from above or from further down the page", () => {
     expect(TAB_STRIP_HEIGHT).toBe(48)
     expect(scrollOnSelect(0, 420)).toBe(420)
     expect(scrollOnSelect(300, 420)).toBe(420)
     expect(scrollOnSelect(419, 420)).toBe(null)
-    expect(scrollOnSelect(900, 420)).toBe(null)
+    expect(scrollOnSelect(900, 420)).toBe(420)
+    expect(scrollOnSelect(420, 420)).toBe(null)
     expect(scrollOnSelect(0, -10)).toBe(null)
   })
 })
