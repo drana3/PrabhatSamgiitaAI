@@ -91,7 +91,19 @@ for (const [number, song] of Object.entries(read("audio.json").songs)) {
   if (list.length) audio[number] = list
 }
 
+/** The date line each document writes under the title ("March 2, 1984, Jammu"): the only place the archives name where a song was written. Copied as it is. */
+const dates = {}
+for (const [number, song] of Object.entries(read("translations.json").songs)) {
+  const entry = {}
+  for (const lang of LANGS) {
+    const line = clean(song.translations?.[lang]?.date_line)
+    if (line) entry[lang] = line.trim()
+  }
+  if (Object.keys(entry).length) dates[number] = entry
+}
+
 write("translations.json", translations)
+write("dates.json", dates)
 write("chords.json", { docx, pdf })
 write("audio.json", audio)
 console.log(

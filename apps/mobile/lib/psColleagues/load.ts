@@ -1,4 +1,4 @@
-import type { WireAudio, WireChords, WireTranslations } from "./types"
+import type { WireAudio, WireChords, WireDates, WireTranslations } from "./types"
 
 /**
  * Lazy loaders for the colleagues' data. Each file is read once, the first time a screen asks (a dynamic `import()`,
@@ -9,6 +9,7 @@ import type { WireAudio, WireChords, WireTranslations } from "./types"
 let translations: Promise<WireTranslations> | null = null
 let chords: Promise<WireChords> | null = null
 let audio: Promise<WireAudio> | null = null
+let dates: Promise<WireDates> | null = null
 
 function once<T>(slot: Promise<T> | null, make: () => Promise<{ default: unknown }>, set: (p: Promise<T> | null) => void): Promise<T> {
   if (slot) return slot
@@ -28,4 +29,8 @@ export function loadColleagueChords(): Promise<WireChords> {
 
 export function loadColleagueAudio(): Promise<WireAudio> {
   return once(audio, () => import("@/data/psColleagues/audio.json"), (p) => (audio = p))
+}
+
+export function loadColleagueDates(): Promise<WireDates> {
+  return once(dates, () => import("@/data/psColleagues/dates.json"), (p) => (dates = p))
 }

@@ -1,9 +1,17 @@
+import { useMemo } from "react"
 import { StyleSheet, Text, View } from "react-native"
+import { useRouter } from "expo-router"
 
+import { SpPress } from "@/components/song-v2/SpUi"
 import type { SpTheme } from "@/constants/tokens/amSong"
 import { amFonts } from "@/constants/tokens/amTypography"
+import { allCollections } from "@/data/collections"
+import { useColleagueDateLines } from "@/hooks/useColleagueData"
+import { PS_ALL } from "@/lib/psCollections/data"
 import type { AboutRow } from "@/lib/songPage/aboutFacts"
+import { collectionsOfSong, colleagueDateRow, type SongCollection } from "@/lib/songPage/infoFacts"
 import { formatDate, useLanguage } from "@/lib/i18n"
+import { href } from "@/utils/href"
 import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
 
 import { Eyebrow, SectionTitle } from "./ui"
@@ -80,10 +88,31 @@ export function PhotoCredit({ t, model }: { t: SpTheme; model: SongPageModel }) 
   )
 }
 
+type InfoRow = { label: string; value?: string; note?: string; chips?: SongCollection[] }
+
+/** A collection as a round chip that opens its list. */
+function CollectionChip({ t, tr, item }: { t: SpTheme; tr: PageT; item: SongCollection }) {
+  const router = useRouter()
+  return (
+    <SpPress
+      onPress={() => router.push(href(item.href))}
+      accessibilityRole="link"
+      accessibilityLabel={tr("songInfo.collection.a11y", { name: item.label })}
+      pressedScale={0.96}
+      style={[styles.chip, { backgroundColor: t.sand100, borderColor: t.sand400 }]}
+    >
+      <Text style={[styles.chipText, { color: t.ink900 }]}>{item.label}</Text>
+    </SpPress>
+  )
+}
+
 export function AboutBody({ t, model, withPhoto = true }: { t: SpTheme; model: SongPageModel; withPhoto?: boolean }) {
   const tr = usePageT()
-  useLanguage()
-  const rows: Array<{ label: string; value: string }> = model.about.map((row: AboutRow) => {
+  const language = useLanguage()
+  const number = model.song?.number
+  const dateLines = useColleagueDateLines(number)
+  const collections = useMemo(() => (number === undefined ? [] : collectionsOfSong(number, PS_ALL, allCollections)), [number])
+  const rows: InfoRow[] = model.about.map((row: AboutRow): InfoRow => {
     switch (row.id) {
       case "words":
         return { label: tr("songPage.about.words"), value: row.value }
@@ -99,12 +128,28 @@ export function AboutBody({ t, model, withPhoto = true }: { t: SpTheme; model: S
         return { label: tr("songPage.about.source"), value: tr("songPage.about.source.value") }
     }
   })
+  // where and when it was written, as the colleagues' documents say (only when they say more than the date, or the date is missing or differs), and the collections: right after the composition date
+  const official = model.about.find((r): r is Extract<AboutRow, { id: "composed" }> => r.id === "composed")?.date ?? null
+  const extra: InfoRow[] = []
+  const written = colleagueDateRow(dateLines, language, official)
+  if (written) extra.push({ label: tr("songInfo.datePlace"), value: written.text, note: tr("songInfo.datePlace.source") })
+  if (collections.length) extra.push({ label: tr("songInfo.collections"), chips: collections })
+  const at = Math.max(0, model.about.findIndex((r) => r.id === "composed")) + 1
+  rows.splice(at, 0, ...extra)
   return (
     <View style={styles.body}>
       {rows.map((row, i) => (
         <View key={row.label} style={[styles.row, { borderTopColor: t.sand400, borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth }]}>
           <Eyebrow t={{ ...t, ink800: t.ink500 }}>{row.label}</Eyebrow>
-          <Text style={[styles.value, { color: t.ink900 }]}>{row.value}</Text>
+          {row.value ? <Text style={[styles.value, { color: t.ink900 }]}>{row.value}</Text> : null}
+          {row.note ? <Text style={[styles.note, { color: t.ink500 }]}>{row.note}</Text> : null}
+          {row.chips ? (
+            <View style={styles.chips}>
+              {row.chips.map((c) => (
+                <CollectionChip key={c.key} t={t} tr={tr} item={c} />
+              ))}
+            </View>
+          ) : null}
         </View>
       ))}
       {withPhoto ? <PhotoCredit t={t} model={model} /> : null}
@@ -122,5 +167,9 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 20 },
   row: { paddingVertical: 14, gap: 4 },
   value: { fontFamily: amFonts.bold, fontSize: 18, lineHeight: 26 },
+  note: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 4 },
+  chip: { minHeight: 44, borderRadius: 9999, borderWidth: 1, paddingHorizontal: 16, justifyContent: "center" },
+  chipText: { fontFamily: amFonts.semi, fontSize: 15, lineHeight: 20 },
   photo: { fontFamily: amFonts.medium, fontSize: 13, lineHeight: 18, paddingTop: 12, paddingBottom: 4 },
 })

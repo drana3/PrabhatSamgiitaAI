@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 
 import { colleagueChartsOf, type ColleagueChart } from "@/lib/psColleagues/chords"
-import { loadColleagueChords, loadColleagueTranslations } from "@/lib/psColleagues/load"
+import { loadColleagueChords, loadColleagueDates, loadColleagueTranslations } from "@/lib/psColleagues/load"
 import { colleagueTextsOf, type ColleagueText } from "@/lib/psColleagues/translations"
-import type { WireChords, WireTranslations } from "@/lib/psColleagues/types"
+import type { WireChords, WireDates, WireTranslations } from "@/lib/psColleagues/types"
 
 function useLoaded<T>(load: () => Promise<T>, enabled: boolean): T | null {
   const [data, setData] = useState<T | null>(null)
@@ -35,4 +35,10 @@ export function useColleagueTexts(songNumber: number | undefined, enabled = true
 export function useColleagueCharts(songNumber: number | undefined, enabled = true): ColleagueChart[] {
   const wire = useLoaded<WireChords>(loadColleagueChords, enabled && songNumber !== undefined)
   return useMemo(() => colleagueChartsOf(wire, songNumber), [wire, songNumber])
+}
+
+/** The date lines the colleagues' documents write for a song, per language (empty while the file loads, and for a song they have none for). */
+export function useColleagueDateLines(songNumber: number | undefined, enabled = true): NonNullable<WireDates[string]> {
+  const wire = useLoaded<WireDates>(loadColleagueDates, enabled && songNumber !== undefined)
+  return useMemo(() => (wire && songNumber !== undefined ? (wire[String(songNumber)] ?? {}) : {}), [wire, songNumber])
 }

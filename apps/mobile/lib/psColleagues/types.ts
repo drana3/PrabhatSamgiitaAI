@@ -21,3 +21,6 @@ export type WireChords = { docx: Record<string, WireDocxChart>; pdf: Record<stri
 /** One recording file in the bucket: file name, key, current flag, size, upload status. */
 export type WireRecording = { f: string; k: string; cur: boolean; b: number; st: string }
 export type WireAudio = Record<string, WireRecording[]>
+
+/** The date line of each document under the title, per language, as written ("March 2, 1984, Jammu"): the one place the archives name where a song was written. */
+export type WireDates = Record<string, Partial<Record<ColleagueLang, string>>>

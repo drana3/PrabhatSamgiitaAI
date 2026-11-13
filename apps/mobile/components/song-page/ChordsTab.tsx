@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
 
@@ -13,6 +13,7 @@ import { usePianoSheets } from "@/hooks/usePianoSheets"
 import { columnsInScript, layoutChart, type WordColumn } from "@/lib/songPage/chordChart"
 import { capoBadgeKey, easierCapo, membersRowKey, pianoRowKey, soundsInKey } from "@/lib/songPage/chordsTab"
 import { requestKey } from "@/lib/songPage/honest"
+import type { ScriptId } from "@/lib/songPage/scripts"
 import { usePageT, type PageT } from "@/lib/songPage/pageCopy"
 import { harmoniumChord, keyLabel, shapeCards, spShape, strumNote, swaraAt, swaraRow, uniqueChords } from "@/lib/songPage/spChords"
 import { pianoEditHref, pianoHref } from "@/lib/pianoNotes/links"
@@ -20,15 +21,22 @@ import { useSongPageStore } from "@/stores/songPageStore"
 import { href } from "@/utils/href"
 
 import { ColleagueChords } from "./ColleagueChords"
-import { TuneGlyph } from "./Glyphs"
 import { SheetRow } from "./Rows"
 import type { PageUi } from "./state"
+import { TunePill } from "./TunePill"
 import { DemoTag, Eyebrow, Segmented } from "./ui"
 import type { SongPageModel } from "./useSongPageModel"
 
-/** The letters of the chart laid over the lyric words, in the script the page shows. */
-function useChordTokens(model: SongPageModel): SpChordToken[] {
-  const { chart, lines, sources } = model
+/** The scripts the chord letters can sit over here: Roman always, Devanagari when the song has a Devanagari text. */
+type ChordScript = Extract<ScriptId, "roman" | "devanagari">
+
+/**
+ * The letters of the chart laid over the lyric words. The script is this tab's own choice (Roman until the reader picks
+ * Devanagari with the small switch here), never the Lyrics tab's: a line whose Devanagari text has another number of
+ * words than the Roman one stays Roman (no guessing).
+ */
+function useChordTokens(model: SongPageModel, script: ChordScript): SpChordToken[] {
+  const { chart, sources } = model
   const instrument = useSongPageStore((s) => s.instrument)
   const capo = useSongPageStore((s) => s.capo)
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
@@ -38,28 +46,16 @@ function useChordTokens(model: SongPageModel): SpChordToken[] {
     const showChord = (chord: string) => (instrument === "harmonium" ? harmoniumChord(chord, chart.baseKey, harmoniumKey) : spShape(chord, capo))
     const laid = layoutChart(sources.roman, chart, showChord, true)
     const out: SpChordToken[] = []
-    lines.primary.forEach((line, li) => {
-      const base = laid[li] ?? []
-      const columns: WordColumn[] = lines.primaryScript === "roman" ? base : (columnsInScript(base, line) ?? base)
+    laid.forEach((base, li) => {
+      const other = script === "devanagari" ? sources.devanagari[li] : undefined
+      const columns: WordColumn[] = other ? (columnsInScript(base, other) ?? base) : base
       columns.forEach((column, wi) =>
         out.push({ key: `${li}-${wi}`, chord: column.chord ?? "", word: column.word, swara: instrument === "harmonium" ? swaraAt(li, wi) : "" }),
       )
       out.push({ key: `br-${li}`, chord: "", word: "", swara: "", lineBreak: true })
     })
     return out
-  }, [chart, sources.roman, lines, instrument, capo, harmoniumKey])
-}
-
-/** One small pill that opens the capo sheet: "C · No capo", "D · Capo 2", or "Sa on C" for the harmonium. It sits at the right of "Shapes to play". */
-function TunePill({ t, text, a11y, onPress }: { t: SpTheme; text: string; a11y: string; onPress: () => void }) {
-  return (
-    <SpPress onPress={onPress} accessibilityLabel={a11y} pressedScale={0.96} hitSlop={4} style={[styles.pill, { backgroundColor: t.sand100, borderColor: t.sand400 }]}>
-      <TuneGlyph size={16} color={t.ink800} />
-      <Text style={[styles.pillText, { color: t.ink900 }]} numberOfLines={1}>
-        {text}
-      </Text>
-    </SpPress>
-  )
+  }, [chart, sources.roman, sources.devanagari, script, instrument, capo, harmoniumKey])
 }
 
 /**
@@ -70,7 +66,9 @@ function TunePill({ t, text, a11y, onPress }: { t: SpTheme; text: string; a11y: 
  */
 function ChordsCard({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPageModel; ui: PageUi }) {
   const chart = model.chart
-  const tokens = useChordTokens(model)
+  const [script, setScript] = useState<ChordScript>("roman")
+  const tokens = useChordTokens(model, script)
+  const hasDevanagari = model.sources.devanagari.length > 0
   const instrument = useSongPageStore((s) => s.instrument)
   const capo = useSongPageStore((s) => s.capo)
   const harmoniumKey = useSongPageStore((s) => s.harmoniumKey)
@@ -87,7 +85,7 @@ function ChordsCard({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPa
   const saText = tr("songChords.sa", { key: keyLabel(harmoniumKey) })
   const pillText = guitar ? `${key ?? "?"} · ${capoText}` : saText
   const pillSpoken = guitar ? [soundsText, capoText].filter(Boolean).join(", ") : saText
-  const wordFont = model.lines.primaryScript === "devanagari" ? amFonts.devanagari : model.lines.primaryScript === "bengali" ? amFonts.bengali : amFonts.medium
+  const wordFont = script === "devanagari" ? amFonts.devanagari : amFonts.medium
   return (
     <View style={[styles.card, { backgroundColor: t.white, borderColor: t.sand300 }]}>
       <Segmented
@@ -136,7 +134,24 @@ function ChordsCard({ t, tr, model, ui }: { t: SpTheme; tr: PageT; model: SongPa
       </View>
 
       <View style={styles.block}>
-        <Eyebrow t={t}>{tr("songChords.lines")}</Eyebrow>
+        <View style={styles.linesHead}>
+          <Eyebrow t={t} style={styles.linesTitle}>
+            {tr("songChords.lines")}
+          </Eyebrow>
+          {hasDevanagari ? (
+            <Segmented
+              t={t}
+              compact
+              items={[
+                { id: "roman", label: tr("songChords.script.roman") },
+                { id: "devanagari", label: tr("songChords.script.devanagari") },
+              ]}
+              value={script}
+              onChange={setScript}
+              label={tr("songChords.script.a11y")}
+            />
+          ) : null}
+        </View>
         <Text style={[styles.strum, { color: t.ink500 }]}>{strumNote(instrument, chart.strum)}</Text>
         <SpChordTokens t={t} tokens={tokens} wordFont={wordFont} />
       </View>
@@ -211,7 +226,7 @@ export function ChordsTab({ t, model, ui }: { t: SpTheme; model: SongPageModel; 
       )}
       {colleagueCharts.length > 0 ? (
         <View style={styles.pad}>
-          <ColleagueChords t={t} charts={colleagueCharts} scale={ui.scale} />
+          <ColleagueChords t={t} charts={colleagueCharts} />
         </View>
       ) : null}
       <View style={styles.pad}>
@@ -226,8 +241,8 @@ const styles = StyleSheet.create({
   pad: { paddingHorizontal: 20 },
   card: { borderRadius: 28, borderWidth: 1, padding: 16, gap: 16 },
   shapesHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  pill: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, borderRadius: 9999, borderWidth: 1 },
-  pillText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18, flexShrink: 1 },
+  linesHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 },
+  linesTitle: { flexShrink: 1 },
   hint: { minHeight: 36, alignSelf: "flex-start", borderRadius: 18, paddingHorizontal: 14, justifyContent: "center" },
   hintText: { fontFamily: amFonts.bold, fontSize: 14, lineHeight: 18 },
   block: { gap: 8 },
