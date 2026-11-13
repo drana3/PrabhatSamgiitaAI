@@ -44,7 +44,7 @@ export default function HarmoniumV2Screen() {
 
   const practise = (number: number) => {
     setInstrument("harmonium")
-    router.push(href(`/song-v2/ps-${number}?section=chords`))
+    router.push(href(`/song-v2/ps-${number}?tab=chords`))
   }
 
   return (

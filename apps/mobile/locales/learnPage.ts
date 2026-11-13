@@ -4,6 +4,8 @@
  * mirror it key for key. Spread into learnScreens.ts, which the main dictionaries already spread.
  * No plural forms on purpose: counts are written as "Words in this song: 12".
  */
+import { learnInstrumentsEn, learnInstrumentsEs, learnInstrumentsRu } from "./learnInstruments"
+
 export const learnPageEn = {
   "learn.step.quiz": "Quiz",
   "learn.step.chords": "Chords",
@@ -78,6 +80,7 @@ export const learnPageEn = {
   "learn.quiz.song.noQuestions.title": "No questions yet",
   "learn.quiz.song.noQuestions.text": "There are no checked words to ask about yet.",
   "learn.quiz.backToSong": "Back to the song",
+  ...learnInstrumentsEn,
 } as const
 
 export const learnPageEs = {
@@ -154,6 +157,7 @@ export const learnPageEs = {
   "learn.quiz.song.noQuestions.title": "Aún no hay preguntas",
   "learn.quiz.song.noQuestions.text": "Todavía no hay palabras revisadas sobre las que preguntar.",
   "learn.quiz.backToSong": "Volver a la canción",
+  ...learnInstrumentsEs,
 } as const
 
 export const learnPageRu = {
@@ -230,4 +234,5 @@ export const learnPageRu = {
   "learn.quiz.song.noQuestions.title": "Вопросов пока нет",
   "learn.quiz.song.noQuestions.text": "Проверенных слов, о которых можно спросить, пока нет.",
   "learn.quiz.backToSong": "Назад к песне",
+  ...learnInstrumentsRu,
 } as const

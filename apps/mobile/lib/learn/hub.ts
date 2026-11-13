@@ -9,7 +9,9 @@ import {
 import { LEARN_ROUTES, quizHref, songPathHref, wordsHref } from "@/lib/learn/routes"
 import { QUIZ_LEVELS, type LearnQuizLevel } from "@/lib/learn/quiz"
 import { songStatus, type SongStatus } from "@/lib/learn/songStatus"
+import { PRACTISE_SONGS } from "@/lib/fixtures/harmonium"
 import { t } from "@/lib/i18n"
+import { pianoHref } from "@/lib/pianoNotes/links"
 
 /**
  * Logic of the Learn hub (the Learn tab): which song to continue, what the next step is
@@ -34,6 +36,9 @@ export const HUB_LINKS = {
   wordCards: LEARN_ROUTES.words,
   harmonium: LEARN_ROUTES.harmonium,
   chords: LEARN_ROUTES.harmoniumChords,
+  /** Guitar and Piano are taught on the practice song (PS 1): its chords card, its piano notes */
+  guitar: `/song-v2/ps-${PRACTISE_SONGS[0].number}?tab=chords`,
+  piano: pianoHref({ kind: "song", number: PRACTISE_SONGS[0].number }, PRACTISE_SONGS[0].title),
   stories: LEARN_ROUTES.stories,
   index: LEARN_ROUTES.ragaTalaIndex,
   /** "Search all 5018 songs": the picker where any song is added */

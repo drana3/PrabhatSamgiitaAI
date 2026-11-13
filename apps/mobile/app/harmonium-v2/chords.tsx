@@ -55,7 +55,7 @@ export default function HarmoniumChordsScreen() {
 
   const openSong = () => {
     setInstrument("harmonium")
-    router.push(href("/song-v2/ps-1?section=chords"))
+    router.push(href("/song-v2/ps-1?tab=chords"))
   }
 
   return (
