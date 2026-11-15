@@ -43,6 +43,10 @@ class Settings(BaseSettings):
         default="https://prabhatasamgiita.net",
         alias="CONTENT_SOURCE_URL",
     )
+    # Public base URL of our own copy of the official archive mp3s (R2 bucket `ps-audio`, keys
+    # `official/<path on prabhatasamgiita.net>`). When set, clients are given this address instead
+    # of the archive's; empty keeps the archive links.
+    ps_audio_mirror_base_url: str = Field(default="", alias="PS_AUDIO_MIRROR_BASE_URL")
     content_cache_dir: str = Field(default="./data/generated/cache", alias="CONTENT_CACHE_DIR")
     public_site_url: str = Field(default="http://localhost:3000", alias="PUBLIC_SITE_URL")
     next_public_api_base_url: str = Field(
