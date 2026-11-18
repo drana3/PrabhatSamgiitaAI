@@ -27,7 +27,12 @@ from app.core.security import require_admin
 from app.models import Base, UserAccount
 from app.models.announcements import PasswordResetToken
 from app.models.app_telemetry import AppEvent
-from app.models.author_profiles import PlayEvent
+from app.models.author_profiles import (
+    AuthorClaim,
+    AuthorClaimEvent,
+    AuthorClaimProof,
+    PlayEvent,
+)
 from app.models.member import PhoneVerificationCode
 from app.models.member_session import MemberSession
 from app.models.rate_limit import RateLimitCounter
@@ -64,6 +69,9 @@ TABLES = (
     AppEvent,
     MemberNotice,
     Recording,
+    AuthorClaim,  # the claim clock (services/author_proofs.py) reads these three
+    AuthorClaimEvent,
+    AuthorClaimProof,
 )
 
 

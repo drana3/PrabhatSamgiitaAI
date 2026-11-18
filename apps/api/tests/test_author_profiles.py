@@ -30,6 +30,7 @@ from app.models.author_profiles import (
     AuthorAlias,
     AuthorClaim,
     AuthorClaimEvent,
+    AuthorClaimProof,
     AuthorProfile,
     AuthorProfilePhoto,
     AuthorRecordingLink,
@@ -169,6 +170,7 @@ async def world() -> AsyncIterator[World]:
             AuthorSuspension,
             AuthorClaim,
             AuthorClaimEvent,
+            AuthorClaimProof,
             AuthorAlias,
             MemberNotice,
         )

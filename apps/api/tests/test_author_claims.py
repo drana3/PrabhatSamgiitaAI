@@ -229,7 +229,10 @@ async def test_a_protected_a_famous_and_a_taken_name_go_to_the_team(
         CLAIMS, headers=AS["a"], json={"recording_ids": [str(first), str(second)]}
     )
     outcomes = {x["recording_id"]: x["team_reason"] for x in r.json()["results"]}
-    assert outcomes[str(first)] == "taken_by_other"
+    # the second page is told nothing about the first one (Dada, 2026-11-18); the team still sees it
+    assert outcomes[str(first)] is None
+    desk = (await world.client.get(DESK, headers=AS_TEAM)).json()
+    assert any(i["team_reason"] == "taken_by_other" for i in desk["items"])
 
 
 async def test_a_protected_name_credit_always_goes_to_the_team(world: World) -> None:

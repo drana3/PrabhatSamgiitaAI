@@ -316,6 +316,63 @@ class AuthorClaim(Base, TimestampMixin):
     decided_by: Mapped[str | None] = mapped_column(String(255))
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     decision_note: Mapped[str | None] = mapped_column(Text)
+    # For an "alike" or title match: what the person says the other name is (written by the owner,
+    # read only by the team).
+    person_note: Mapped[str | None] = mapped_column(String(300))
+
+
+class AuthorClaimProof(Base, TimestampMixin):
+    """One proof that a page's owner is the person they say (docs/author-profiles.md, "Proof of
+    identity"). It belongs to the PAGE, not to a recording: one proof serves every claim of the
+    page. A name alone is never a proof.
+
+    `kind`: `link` (a channel or social page that shows the name and links back to the page),
+    `email` (the address listed on that channel; the team sends a one-time code to it), `voice` (a
+    voice or video note, only when there is no public page), `team` (a team member who knows the
+    person, named by the owner; counts for two), `request` (made by the team when it asks for more
+    and there is nothing to attach it to; carries no proof).
+    `clock_at` is the last time either side moved this proof: the 3-day target, the 5-day team
+    reminder and the 14-day close all count from it.
+    """
+
+    __tablename__ = "author_claim_proofs"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('link', 'email', 'voice', 'team', 'request')", name="ck_author_proofs_kind"
+        ),
+        CheckConstraint(
+            "status IN ('waiting', 'code_sent', 'ok', 'declined', 'more_needed', 'withdrawn')",
+            name="ck_author_proofs_status",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    profile_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("author_profiles.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)
+    # the channel link, the e-mail address, a short description of the note, or the team member's name
+    value: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    note: Mapped[str | None] = mapped_column(String(500))
+    status: Mapped[str] = mapped_column(
+        String(12), default="waiting", server_default="waiting", index=True, nullable=False
+    )
+    # one-time code for `email` proofs: only a hash is kept
+    code_hash: Mapped[str | None] = mapped_column(String(64))
+    code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    code_tries: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    code_confirmed: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    # what the team wrote to the person (a reason, or what else it needs)
+    team_note: Mapped[str | None] = mapped_column(Text)
+    decided_by: Mapped[str | None] = mapped_column(String(255))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    clock_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AuthorClaimEvent(Base):

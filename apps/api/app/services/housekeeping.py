@@ -246,6 +246,15 @@ async def clean_read_notices(session: AsyncSession, now: datetime, cfg: Housekee
     )
 
 
+async def run_claim_timers(session: AsyncSession, now: datetime, cfg: HousekeepingConfig) -> int:
+    """The clock of "claim my recordings" (services/author_proofs.py): remind the team of requests
+    that waited more than 5 days, close a request the person did not answer for 14 days. Not a
+    deletion: the number is how many requests or reminders it touched."""
+    from app.services.author_proofs import run_timers
+
+    return await run_timers(session, now)
+
+
 def _local_storage_dir() -> Path | None:
     """The folder of the local disk storage, or None when the audio lives in a bucket."""
     from app.config import get_settings
@@ -330,6 +339,7 @@ CLEANUPS: tuple[tuple[str, CleanupFn], ...] = (
     ("play_events", clean_play_events),
     ("app_events", clean_app_events),
     ("read_notices", clean_read_notices),
+    ("claim_timers", run_claim_timers),
     ("orphan_uploads", clean_orphan_uploads),
 )
 

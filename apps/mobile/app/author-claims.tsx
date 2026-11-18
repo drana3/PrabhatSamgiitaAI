@@ -4,6 +4,7 @@ import { useRouter } from "expo-router"
 
 import { AccountField, InlineError } from "@/components/account/AccountUi"
 import { AddButton, ClaimResultCard, ClaimRow, ClaimsFrame, useClaimPicker } from "@/components/authors/ClaimParts"
+import { RequestCard } from "@/components/authors/ProofParts"
 import { KPress } from "@/components/kirtan/KPress"
 import { Chip, LoadingRows, PillButton, SectionTitle, SIDE, StateBlock } from "@/components/authors/AuthorsUi"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
@@ -39,10 +40,12 @@ function Body({ mine }: { mine: AuthorProfileOwner }) {
   const api = authorsApi()
   const found = useAuthorRequest(() => api.claimSuggestions(), [])
   const requests = useAuthorRequest(() => api.myClaims(), [])
+  const proof = useAuthorRequest(() => api.claimRequest(), [])
   const reload = useCallback(() => {
     found.reload()
     requests.reload()
-  }, [found, requests])
+    proof.reload()
+  }, [found, requests, proof])
   const picker = useClaimPicker(reload)
 
   const same = found.data?.same ?? []
@@ -61,6 +64,8 @@ function Body({ mine }: { mine: AuthorProfileOwner }) {
             <Text style={[styles.note, { color: theme.textMuted }]}>{t("authors.claims.uploaderNote")}</Text>
           </View>
         ) : null}
+
+        {proof.data && !proof.data.verified ? <RequestCard theme={theme} state={proof.data} onOpen={() => router.push(href("/claim-request"))} /> : null}
 
         {found.loading && !found.data ? <LoadingRows theme={theme} rows={3} /> : null}
         {found.error ? <StateBlock theme={theme} tone="error" title={t("authors.page.errorTitle")} body={say(t, found.error)} action={t("common.tryAgain")} onAction={found.reload} /> : null}

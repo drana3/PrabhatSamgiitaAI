@@ -133,6 +133,11 @@ describe("claim my recordings, remote client", () => {
     await api.myClaims("pending")
     await api.aliases()
     await api.addAlias("Priya D.")
+    await api.claimRequest()
+    await api.sendProof({ kind: "link", value: " https://youtube.com/@priya ", note: "  " })
+    await api.enterProofCode("p/1", " 123456 ")
+    await api.withdrawProof("p/1")
+    await api.createClaims(["c"], " the other Priya is a dancer ")
     expect(s.calls.map((c) => `${c.method} ${c.url.replace("https://api.example/api/v1", "")}`)).toEqual([
       "GET /authors/me/claims/summary",
       "GET /authors/me/claims/suggestions",
@@ -141,7 +146,15 @@ describe("claim my recordings, remote client", () => {
       "GET /authors/me/claims?status=pending",
       "GET /authors/me/aliases",
       "POST /authors/me/aliases",
+      "GET /authors/me/claims/request",
+      "POST /authors/me/claims/proofs",
+      "POST /authors/me/claims/proofs/p%2F1/code",
+      "DELETE /authors/me/claims/proofs/p%2F1",
+      "POST /authors/me/claims",
     ])
+    expect(JSON.parse(s.calls[8]!.body!)).toEqual({ kind: "link", value: " https://youtube.com/@priya " })
+    expect(JSON.parse(s.calls[9]!.body!)).toEqual({ code: "123456" })
+    expect(JSON.parse(s.calls[11]!.body!)).toEqual({ recording_ids: ["c"], note: "the other Priya is a dancer" })
     expect(JSON.parse(s.calls[3]!.body!)).toEqual({ recording_ids: ["a", "b"] })
     expect(JSON.parse(s.calls[6]!.body!)).toEqual({ alias: "Priya D." })
   })

@@ -1,4 +1,4 @@
-import type { ClaimRecording, MatchLevel, TeamReason } from "@/lib/authors/types"
+import type { ClaimRecording, MatchLevel, ProofOut, RequestStage, TeamReason } from "@/lib/authors/types"
 
 /**
  * The team's desk for "claim my recordings" (apps/api `/admin/authors/claims`; docs/author-profiles.md, "The team desk").
@@ -26,6 +26,10 @@ export type DeskClaim = {
   created_at: string
   decided_by: string | null
   decision_note: string | null
+  /** what the person wrote about a look-alike name (only the team reads it); absent from an older server */
+  person_note?: string | null
+  /** other pages that asked for the same recording; the team may put it on both */
+  also_claimed_by?: { profile_id: string; profile_slug: string; profile_name: string }[]
 }
 
 export type DeskList = { items: DeskClaim[]; total: number }
@@ -37,9 +41,47 @@ export type DeskSummary = {
   revoked: number
   /** the waiting ones per reason; `other` for a request that has none */
   by_reason: Record<string, number>
+  /** proofs waiting for an answer, and how many of them are past the 3 days (absent from an older server) */
+  proofs_waiting?: number
+  overdue?: number
 }
 
 export const EMPTY_SUMMARY: DeskSummary = { pending: 0, approved: 0, rejected: 0, revoked: 0, by_reason: {} }
+
+/** A proof as the team sees it: the page it is for, who decided, and whether it waited past the 3 days. */
+export type DeskProof = ProofOut & {
+  profile_id: string
+  profile_slug: string
+  profile_name: string
+  decided_by: string | null
+  overdue: boolean
+}
+export type DeskProofList = { items: DeskProof[]; total: number }
+export type ProofAction = "ok" | "decline" | "more"
+
+export type DeskPage = {
+  profile_id: string
+  slug: string
+  name: string
+  author_type: "solo" | "group"
+  status: string
+  verified: boolean
+  claimed_name: string | null
+  country: string | null
+  city: string | null
+  bio: string
+  links: { kind: string; url: string }[]
+  names: string[]
+  created_at: string
+  stage: RequestStage
+  required: number
+  have: number
+  why_required: "one" | "famous" | "group"
+  proofs: DeskProof[]
+  pending: number
+  approved: number
+  rejected: number
+}
 
 export interface ClaimsDesk {
   readonly demo: boolean
@@ -47,6 +89,14 @@ export interface ClaimsDesk {
   summary(): Promise<DeskSummary>
   /** one decision for any number of requests (also from several pages); returns how many changed */
   decide(ids: readonly string[], action: DeskAction, note?: string): Promise<number>
+  /** the proofs of identity of one status (waiting by default), oldest first */
+  proofs(status?: string): Promise<DeskProofList>
+  page(profileId: string): Promise<DeskPage>
+  /** accept (`ok`, with `approveWaiting` also the page's waiting requests), decline, or ask for more */
+  decideProof(proofId: string, action: ProofAction, input?: { note?: string; approveWaiting?: boolean }): Promise<void>
+  /** the team e-mails the code; `sent: false` when e-mail is not set up on the server */
+  sendCode(proofId: string): Promise<{ sent: boolean }>
+  askMore(profileId: string, note: string): Promise<void>
 }
 
 export type DeskFailure = "denied" | "network" | "conflict" | "server"
@@ -108,4 +158,18 @@ export function setMany(selection: ReadonlySet<string>, ids: readonly string[], 
 /** The words key for a reason; `taken_by_other` ends in `_other`, which the dictionaries read as a plural form, so it is stored as `taken`. */
 export function deskReasonKey(reason: string): string {
   return `claimsDesk.reason.${reason === "taken_by_other" ? "taken" : reason}`
+}
+
+/** The proofs that wait longest come first; overdue ones lead. */
+export function proofOrder(items: readonly DeskProof[]): DeskProof[] {
+  return [...items].sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.created_at.localeCompare(b.created_at))
+}
+
+/** What the team can do with a proof in this state. A code is only for an e-mail proof that has none confirmed. */
+export function proofActions(proof: DeskProof): readonly (ProofAction | "code")[] {
+  if (proof.status === "ok" || proof.status === "declined" || proof.status === "withdrawn") return []
+  const actions: (ProofAction | "code")[] = []
+  if (proof.kind === "email" && !proof.code_confirmed) actions.push("code")
+  actions.push("ok", "decline", "more")
+  return actions
 }

@@ -172,6 +172,8 @@ export type DemoControl = {
   setClaimLibrary(mode: "some" | "none"): void
   /** the person's claims, by recording id and status */
   setClaims(rows: Parameters<DemoClaims["setClaims"]>[0]): void
+  /** the person's proofs of identity (the preview, a screenshot script or a test) */
+  setProofs(rows: Parameters<DemoClaims["setProofs"]>[0]): void
 }
 
 export type DemoAuthorsApi = AuthorsApi & { control: DemoControl }
@@ -391,6 +393,9 @@ export function createDemoApi(): DemoAuthorsApi {
     },
     setClaims(rows) {
       claims.setClaims(rows)
+    },
+    setProofs(rows) {
+      claims.setProofs(rows)
     },
   }
 

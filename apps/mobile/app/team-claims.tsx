@@ -157,6 +157,9 @@ export default function TeamClaimsScreen() {
           </Text>
         </View>
         <Hint theme={theme}>{t("claimsDesk.lead")}</Hint>
+        <View style={s.chips}>
+          <Chip theme={theme} role="button" label={summary.proofs_waiting ? t("teamProof.link", { count: summary.proofs_waiting }) : t("teamProof.linkNone")} on={Boolean(summary.proofs_waiting)} onPress={() => router.push(href("/team-proofs"))} />
+        </View>
 
         <View style={s.chips} accessibilityRole="tablist" accessibilityLabel={t("claimsDesk.tabs.a11y")}>
           {DESK_TABS.map((id) => {

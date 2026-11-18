@@ -265,6 +265,42 @@ export type ClaimOut = {
 export type ClaimList = { items: ClaimOut[]; total: number }
 export type Alias = { alias: string; key: string }
 
+// ---- proof of identity (apps/api/app/schemas/author_proofs.py): one proof per PAGE, not per recording
+
+export type ProofKind = "link" | "email" | "voice" | "team"
+export type ProofStatus = "waiting" | "code_sent" | "ok" | "declined" | "more_needed" | "withdrawn"
+/** Where a request stands: no_proof (nothing sent), code (enter the code), with_team, need_more, verified, closed. */
+export type RequestStage = "no_proof" | "code" | "with_team" | "need_more" | "verified" | "closed"
+
+export type ProofOut = {
+  id: string
+  kind: ProofKind | "request"
+  value: string
+  note: string | null
+  status: ProofStatus
+  code_sent: boolean
+  code_confirmed: boolean
+  /** what the team wrote to the person */
+  team_note: string | null
+  created_at: string
+  decided_at: string | null
+}
+
+export type RequestState = {
+  stage: RequestStage
+  verified: boolean
+  /** proofs needed: 1, or 2 for a famous name or a group */
+  required: number
+  have: number
+  why_required: "one" | "famous" | "group"
+  proofs: ProofOut[]
+  pending_claims: number
+  approved_claims: number
+  /** the team answers within 3 days; the request closes 14 days after the person's last move */
+  answer_by: string | null
+  closes_at: string | null
+}
+
 /** The one thing the screens talk to: the real client or, in the preview, the demo. */
 export interface AuthorsApi {
   /** true: invented data (the preview). Screens show a "Demo" label. */
@@ -290,9 +326,14 @@ export interface AuthorsApi {
   claimSummary(): Promise<ClaimSummary>
   claimSuggestions(): Promise<ClaimSuggestions>
   claimSearch(query: string, offset?: number): Promise<ClaimSearch>
-  createClaims(recordingIds: string[]): Promise<ClaimsCreated>
+  /** `note`: for a look-alike name, what the other name is (kept for the team) */
+  createClaims(recordingIds: string[], note?: string): Promise<ClaimsCreated>
   myClaims(status?: ClaimStatus): Promise<ClaimList>
   withdrawClaim(claimId: string): Promise<void>
+  claimRequest(): Promise<RequestState>
+  sendProof(input: { kind: ProofKind; value: string; note?: string }): Promise<ProofOut>
+  enterProofCode(proofId: string, code: string): Promise<ProofOut>
+  withdrawProof(proofId: string): Promise<void>
   aliases(): Promise<Alias[]>
   addAlias(alias: string): Promise<Alias[]>
   removeAlias(key: string): Promise<void>
