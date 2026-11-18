@@ -10,7 +10,7 @@ describe("Shuffle and Repeat show no pop-up text", () => {
   it("the screen never shows a toast for repeat or shuffle", () => {
     const repeat = screen.slice(screen.indexOf("const onRepeat"), screen.indexOf("const onShuffle"))
     expect(repeat).not.toMatch(/toast\./)
-    const shuffle = screen.slice(screen.indexOf("const onShuffle"), screen.indexOf("const onShuffle") + 200)
+    const shuffle = screen.slice(screen.indexOf("const onShuffle"), screen.indexOf("const onPlayMode"))
     expect(shuffle).not.toMatch(/toast\./)
     expect(screen).not.toMatch(/repeatMessage\(/)
   })

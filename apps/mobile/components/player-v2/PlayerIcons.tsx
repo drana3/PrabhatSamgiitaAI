@@ -9,7 +9,6 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 export type PlayerIconName =
   | "chevronDown"
   | "chevronSmall"
-  | "aa"
   | "versions"
   | "shuffle"
   | "prev"
@@ -69,12 +68,6 @@ export function PlayerIcon({ name, size, color, filled, strokeWidth }: Props) {
         {name === "chevronDown" ? <Path {...stroke} d="M7 10l5 5 5-5" /> : null}
         {name === "chevronSmall" ? (
           <Path {...stroke} strokeWidth={strokeWidth ?? 2.4} d="M6 9l6 6 6-6" />
-        ) : null}
-        {name === "aa" ? (
-          <>
-            <Path {...stroke} d="M3 18l5-12 5 12M5 14h6" />
-            <Path {...stroke} d="M15 18v-6a3 3 0 016 0v6M15 15h6" />
-          </>
         ) : null}
         {name === "versions" ? (
           <Path

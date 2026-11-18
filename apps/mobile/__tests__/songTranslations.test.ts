@@ -193,7 +193,7 @@ describe("reading the server's answer", () => {
   })
 
   it("drops what the app cannot show: an unknown kind, an empty text", () => {
-    expect(translationFromWire(wire({ kind: "karaoke" }))).toBeNull()
+    expect(translationFromWire(wire({ kind: "unknown" }))).toBeNull()
     expect(translationFromWire(wire({ text: " ", segments: [] }))).toBeNull()
   })
 

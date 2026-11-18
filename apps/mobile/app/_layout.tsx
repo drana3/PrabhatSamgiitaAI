@@ -78,7 +78,7 @@ export default function RootLayout() {
     Roboto_700Bold,
     Roboto_800ExtraBold,
   })
-  // Devanagari lyrics (Player karaoke, Song page). Not awaited: the text shows in a fallback first.
+  // Devanagari lyrics (Player, Song page). Not awaited: the text shows in a fallback first.
   useDevanagari({ NotoSansDevanagari_400Regular, NotoSansDevanagari_600SemiBold, NotoSansDevanagari_700Bold })
   const [fontWaitExpired, setFontWaitExpired] = useState(false)
   const fontsReady = (interLoaded && loraLoaded && robotoLoaded) || fontWaitExpired

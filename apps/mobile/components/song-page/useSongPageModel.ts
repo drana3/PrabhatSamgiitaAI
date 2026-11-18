@@ -79,7 +79,7 @@ export type RecordingRow = { id: string; url: string; title: string; subtitle: s
 /**
  * Everything the song page draws, from the real data hooks: the song, its lyrics in the chosen script with their
  * stanza structure, the meaning in one language with where it comes from, real videos, the story, recordings,
- * About facts, the photo, and the actions (play, share, more, karaoke). One hook, so the sections can not
+ * About facts, the photo, and the actions (play, share, more, open the player). One hook, so the sections can not
  * disagree about a fact.
  * Sample content (word meanings, chords) is returned only for the preview's demo songs (`demo`).
  */
@@ -358,9 +358,9 @@ export function useSongPageModel(songId: string | undefined) {
       player.playOrToggle(next, queue)
     }
   }
-  const openKaraoke = () => {
+  const openPlayer = () => {
     if (!song) return
-    // The Player opens on its word-by-word view; nothing starts to play, the song is only put in it.
+    // The Player opens with the song in it; nothing starts to play.
     if (!isCurrent) {
       if (demo) {
         usePlayerStore.getState().loadSong(playable(selectedVersion), queue, "default")
@@ -484,7 +484,7 @@ export function useSongPageModel(songId: string | undefined) {
     // meaning
     meaning, meaningRows, setMeaningLanguage: setPrimaryTranslation, align,
     // watch and listen
-    videos, story, notationUrl, recordingRows, versions, selectedVersion, showPause, handlePlay, playRecording, openKaraoke, playing,
+    videos, story, notationUrl, recordingRows, versions, selectedVersion, showPause, handlePlay, playRecording, openPlayer, playing,
     // actions
     saveItem, downloadItem, sheet, setSheet, actionRows, onAction, onShareTarget, sharePayload, sendNote, am, toast, showToast,
     // about

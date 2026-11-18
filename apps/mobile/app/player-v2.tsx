@@ -23,7 +23,6 @@ import { ActionsSheet } from "@/components/player-v2/ActionsSheet"
 import { CrossfadeGradient } from "@/components/player-v2/CrossfadeGradient"
 import { DriveControls } from "@/components/player-v2/DriveControls"
 import { KiirtanCover, kiirtanTone } from "@/components/kirtan/KiirtanCover"
-import { LyricsOptionsSheet } from "@/components/player-v2/LyricsOptionsSheet"
 import { LyricsPanel } from "@/components/player-v2/LyricsPanel"
 import { PlaybackSheet } from "@/components/player-v2/PlaybackSheet"
 import { PlayerIcon } from "@/components/player-v2/PlayerIcons"
@@ -56,7 +55,7 @@ import { apiIdOf, recordingPageHref } from "@/lib/recordingExtras/links"
 import { withRecordingExtras } from "@/lib/recordingExtras/playerRows"
 import { useSaveState } from "@/hooks/useSaveState"
 import { sampleArtists } from "@/lib/fixtures/kirtanGate"
-import { SAMPLE_GLOSS_LANGUAGES, sampleGloss, sampleTranslationLines } from "@/lib/fixtures/player"
+import { sampleTranslationLines } from "@/lib/fixtures/player"
 import { t, useLanguage } from "@/lib/i18n"
 import { playerErrorKey } from "@/lib/playback/playerError"
 import { storedMeaningForLanguage } from "@/lib/songMap"
@@ -71,7 +70,7 @@ import {
   pickShown,
   resolveLyricChoice,
 } from "@/lib/songPage/lyricLanguages"
-import { gapText, playerGlossRows, playerSampleKey } from "@/lib/songPage/honest"
+import { gapText, playerSampleKey } from "@/lib/songPage/honest"
 import { artistForAuthor } from "@/lib/kirtan/artists"
 import { moodForText, photoWithoutPeople } from "@/lib/photos/catalog"
 import { recordingMood } from "@/lib/photos/recordingPhoto"
@@ -83,7 +82,7 @@ import { kindHasChords, kindLabel, kindSubtitle, kindTag } from "@/lib/kirtan/ki
 import { isKiirtanNumber, isKiirtanSong, recordingKindOfSong } from "@/lib/kirtan/track"
 import { flattenRoutes, rubberBand, songPageInStack } from "@/lib/navV2"
 import { formatClock } from "@/lib/playerV2/transportState"
-import { DEMO_LINE_SECONDS, demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
+import { demoSeconds, demoTitle } from "@/lib/fixtures/playerDemo"
 import { mockupSong } from "@/lib/fixtures/songMockup"
 import { MOCKUP_DATA } from "@/lib/mockupMode"
 import { skipToNextSong, skipToPreviousSong } from "@/lib/playerV2/transport"
@@ -97,16 +96,10 @@ import {
   playVersion,
 } from "@/lib/playerV2/controller"
 import {
-  activeLineIndex,
-  activeWordIndex,
-  lyricsAreSynced,
   alignTranslation,
   buildLyricLines,
-  lineTimings,
-  seekTargetForLine,
   sentenceCaseLine,
   splitLines,
-  splitWords,
 } from "@/lib/playerV2/lyricsSync"
 import { hexAlpha, tintForSong } from "@/lib/playerV2/coverTint"
 import {
@@ -161,16 +154,16 @@ import { usePreferencesStore } from "@/stores/preferencesStore"
 import { openSaveSheet } from "@/stores/saveSheetStore"
 import { href } from "@/utils/href"
 
-type SheetName = null | "versions" | "queue" | "lyrics" | "playback" | "speed" | "sleep" | "mix" | "source" | "playlist" | "actions" | "share" | "about"
+type SheetName = null | "versions" | "queue" | "playback" | "speed" | "sleep" | "mix" | "source" | "playlist" | "actions" | "share" | "about"
 
 /**
  * Player (prototype PLAYER, Main.dc.html). Dark forest ground in both themes, the
  * photograph fading in from the top, the playing-from header, version chip and
- * title, the "Play: This version | All N versions" switch, the word-by-word
- * karaoke card, the waveform, the transport and the utility bar; Drive mode swaps
+ * title, the "Play: This version | All N versions" switch, the
+ * lyrics card, the waveform, the transport and the utility bar; Drive mode swaps
  * the lyrics and transport for big controls. One audio engine: this screen only
  * renders playerStore state and sends commands to it.
- * A Prabhat Samgiita song shows the karaoke card, versions, Aa and About. A Kiirtan (an uploaded audio
+ * A Prabhat Samgiita song shows the lyrics card, versions and About. A Kiirtan (an uploaded audio
  * file in the same queue) shows a large cover, its title and "Kiirtan · artist" (or "Bhajan · artist"), the same scrubber and
  * transport, and none of those. Dragging the header or the cover down closes the player.
  */
@@ -376,7 +369,6 @@ export default function PlayerV2Screen() {
   // word meanings. A saved "follow the app" resolves to the app language here, at the point of use.
   const appLanguage = useLanguage()
   const translationChoice = resolveLyricChoice(v2.translation, appLanguage)
-  const wordChoice = resolveLyricChoice(v2.wordLanguage, appLanguage)
 
   // Invented sample content (PS 1 / PS 3 word meanings, Russian lines) exists only in the demo preview
   // and only for those two songs. A real song has none of it and says so.
@@ -398,27 +390,9 @@ export default function PlayerV2Screen() {
   const translationLines = translationPick?.shown ? (translationByLanguage[translationPick.shown] ?? null) : null
   const showTranslation = translationLines != null
 
-  const glossesByLanguage = useMemo(
-    () =>
-      playerGlossRows({
-        sampleKey,
-        languages: SAMPLE_GLOSS_LANGUAGES,
-        scriptLines,
-        romanLines,
-        useDevanagari,
-        splitWords,
-        englishGloss: sampleGloss,
-      }),
-    [sampleKey, scriptLines, romanLines, useDevanagari],
-  )
-  const hasWordMeaningsIn = useCallback((code: string) => glossesByLanguage[code] != null, [glossesByLanguage])
-  const wordPick = wordChoice === OFF ? null : pickShown(wordChoice, hasWordMeaningsIn)
-  const glosses = wordPick?.shown ? (glossesByLanguage[wordPick.shown] ?? null) : null
-  const showGloss = glosses != null
-
   // Asked-for languages the song lacks: the sheet and the panel say so and offer Request.
   const [requestedLanguages, setRequestedLanguages] = useState<string[]>([])
-  const gaps = lyricGaps({ translation: translationChoice, wordLanguage: wordChoice, hasTranslationIn, hasWordMeaningsIn })
+  const gaps = lyricGaps({ translation: translationChoice, wordLanguage: OFF, hasTranslationIn, hasWordMeaningsIn: () => false })
   const requestLanguage = (code: string) => {
     // TODO(api): send the request to the catalogue; for now it is remembered on this screen only (as on the song page)
     setRequestedLanguages((list) => (list.includes(code) ? list : [...list, code]))
@@ -427,44 +401,17 @@ export default function PlayerV2Screen() {
   const panelNotice = gaps.length
     ? (() => {
         const wanted = [...new Set(gaps.map((gap) => gap.wanted))]
-        const text = gaps.length > 1 && wanted.length > 1
-          ? gaps.map((gap) => `${gap.kind === "translation" ? "Translation" : "Word meanings"}: ${gapText(gap)}`).join(" ")
-          : gapText(gaps[0]!)
         const single = wanted.length === 1 ? wanted[0]! : null
         const asked = single != null && requestedLanguages.includes(single)
         return {
-          text,
-          action: asked ? REQUESTED_LABEL : single ? `${REQUEST_LABEL} ${lyricLanguageName(single)}` : "Options",
-          onAction: asked ? undefined : single ? () => requestLanguage(single) : () => setSheet("lyrics"),
+          text: gapText(gaps[0]!),
+          action: asked ? REQUESTED_LABEL : single ? `${REQUEST_LABEL} ${lyricLanguageName(single)}` : "",
+          onAction: asked || !single ? undefined : () => requestLanguage(single),
         }
       })()
     : null
 
-  const lyricLines = useMemo(
-    () => buildLyricLines(scriptLines, translationLines, showGloss ? glosses : null),
-    [scriptLines, translationLines, glosses, showGloss],
-  )
-  // The prototype steps the karaoke highlight one line every 7 seconds and loops, so the preview does the same.
-  const timings = useMemo(
-    () =>
-      MOCKUP_DATA
-        ? scriptLines.map((_, i) => ({ start: i * DEMO_LINE_SECONDS, end: (i + 1) * DEMO_LINE_SECONDS }))
-        : lineTimings(scriptLines, knownLength ?? 0),
-    [scriptLines, knownLength],
-  )
-  const loopSlot = Math.floor(position / DEMO_LINE_SECONDS)
-  const activeLine =
-    MOCKUP_DATA && scriptLines.length ? loopSlot % scriptLines.length : activeLineIndex(timings, position)
-  const activeWord =
-    activeLine < 0
-      ? -1
-      : activeWordIndex(
-          splitWords(scriptLines[activeLine] ?? ""),
-          MOCKUP_DATA
-            ? { start: loopSlot * DEMO_LINE_SECONDS, end: (loopSlot + 1) * DEMO_LINE_SECONDS }
-            : timings[activeLine]!,
-          position,
-        )
+  const lyricLines = useMemo(() => buildLyricLines(scriptLines, translationLines), [scriptLines, translationLines])
 
   const playableOrUnknown = useCallback((n: number) => hasPlayableAudio(n), [])
 
@@ -534,17 +481,10 @@ export default function PlayerV2Screen() {
   const onShuffle = () => {
     queueActions.toggleShuffle()
   }
-  const onSeekLine = (index: number) => {
-    const target = seekTargetForLine(timings, index)
-    if (target != null) seekTo(target)
-  }
   const onPlayMode = (next: "this" | "all") => {
     v2.setPlayMode(next)
     toast.show(next === "this" ? "Playing this version only" : `Playing all ${versions.length} versions in a row`)
   }
-
-  // Lyrics display: each row steps through its options.
-  const onCycleScript = () => v2.setScript(v2.script === "roman" ? "devanagari" : "roman")
 
   // Play songs from
   const sourceChoices = useMemo(
@@ -1012,16 +952,10 @@ export default function PlayerV2Screen() {
                     <LyricsPanel
                       lines={lyricLines}
                       devanagari={useDevanagari}
-                      activeLine={activeLine}
-                      activeWord={activeWord}
-                      synced={lyricsAreSynced(MOCKUP_DATA)}
-                      showGloss={showGloss}
                       showTranslation={showTranslation}
                       notice={panelNotice}
                       demoTag={sampleKey !== null}
-                      onSeekToLine={onSeekLine}
                       emptyText="Lyrics are not available for this song yet."
-                      onOptions={() => setSheet("lyrics")}
                     />
                   </Reveal>
                 )}
@@ -1143,24 +1077,6 @@ export default function PlayerV2Screen() {
         }}
         onClose={() => setSheet(null)}
       />
-      {!isK ? (
-      <LyricsOptionsSheet
-        visible={sheet === "lyrics"}
-        theme={theme}
-        script={v2.script}
-        translation={translationChoice}
-        wordLanguage={wordChoice}
-        hasDevanagari={devanagariLines.length > 0}
-        hasTranslationIn={hasTranslationIn}
-        hasWordMeaningsIn={hasWordMeaningsIn}
-        requested={requestedLanguages}
-        onCycleScript={onCycleScript}
-        onPickTranslation={v2.setTranslation}
-        onPickWordLanguage={v2.setWordLanguage}
-        onRequest={requestLanguage}
-        onClose={() => setSheet(null)}
-      />
-      ) : null}
       <PlaybackSheet
         visible={sheet === "playback"}
         theme={theme}

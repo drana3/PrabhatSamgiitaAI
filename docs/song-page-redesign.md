@@ -60,7 +60,7 @@ Feeling split of the draft: nearness 1028, longing 752, surrender 583, sorrow_ho
 | Tab / block | What a user sees today | Truth |
 |---|---|---|
 | Lyrics | real lyrics | real |
-| Brown "Lyrics" card | same lyrics again, opens the karaoke player | duplicate block |
+| Brown "Lyrics" card | same lyrics again, opens the player | duplicate block |
 | Words | glosses for some words, French or Russian chips | FAKE for 5016 of 5018 songs (see 2.3) |
 | Meaning | English text (or whichever language the shared state holds) | real text, not line-aligned for 97%, no label |
 | Explain | shown only when `explanation` exists | real, 40 songs |
@@ -106,7 +106,7 @@ listed under Phase 0 and not done here.
 
 ## 3. B. Plain-words explanations
 
-**Why two lyric blocks?** The brown card is a "sing along" door to the karaoke player. It prints the lyrics so that it looks
+**Why two lyric blocks?** The brown card is a "sing along" door to the player. It prints the lyrics so that it looks
 like a preview. The Lyrics tab prints them again for reading. Same text, two jobs, one page. The redesign keeps one block
 and puts a Play button next to the title.
 

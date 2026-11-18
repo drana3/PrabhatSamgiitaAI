@@ -13,7 +13,7 @@ export const playerSize = {
   topBar: 56,
   topBarInsetLeft: 20,
   topBarInsetRight: 10,
-  /** srcchip and Aa button */
+  /** srcchip */
   topButton: 44,
   topIcon: 26,
   chevron: 18,
@@ -31,7 +31,7 @@ export const playerSize = {
   scopeHeight: 40,
   scopePad: 4,
   scopeIcon: 15,
-  /** karaoke panel */
+  /** lyrics panel */
   panelMarginTop: 16,
   panelRadius: 30,
   /** thin seek line: touch area, track, dot (grows while dragging) */
@@ -84,7 +84,7 @@ export const playerColors = {
   scopeEdge: "rgba(255, 255, 255, 0.24)",
   scopeText: "rgba(255, 255, 255, 0.84)",
   scopeLabel: "rgba(255, 255, 255, 0.7)",
-  /** karaoke panel */
+  /** lyrics panel */
   panelFill: "rgba(18, 17, 16, 0.78)",
   panelEdge: "rgba(255, 255, 255, 0.16)",
   /** the fade over the photograph */
@@ -102,20 +102,10 @@ export const playerColors = {
   maskClear: "rgba(18, 17, 16, 0)",
 } as const
 
-/** Karaoke word / translation colours by state (.kw, .kw.past, .kl-on, .sung, .now, .ktr). */
-export const karaokeColors = {
-  word: {
-    coming: "rgba(255, 255, 255, 0.62)",
-    past: "rgba(255, 255, 255, 0.7)",
-    onLine: "rgba(255, 255, 255, 0.8)",
-    sung: "#FFFFFF",
-    now: amColors.gold300,
-  },
-  translation: {
-    coming: "rgba(255, 255, 255, 0.68)",
-    past: "rgba(255, 255, 255, 0.68)",
-    onLine: "rgba(255, 255, 255, 0.92)",
-  },
+/** Lyrics panel text: the line and its translation. */
+export const lyricColors = {
+  line: "rgba(255, 255, 255, 0.92)",
+  translation: "rgba(255, 255, 255, 0.68)",
 } as const
 
 /** Queue sheet rows (.qrow). */

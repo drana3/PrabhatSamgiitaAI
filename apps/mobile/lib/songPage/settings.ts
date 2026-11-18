@@ -7,9 +7,8 @@ import { MAX_TRANSLATIONS } from "./translations"
 import { TRANSLATION_KINDS, type TranslationKind } from "@/lib/songTranslations/types"
 
 /**
- * Reading and playing settings of the song page. The spec stores them per user
- * and shares them with the Player karaoke view; here they are stored per device
- * until the account sync (API-16) exists.
+ * Reading and playing settings of the song page. The spec stores them per user;
+ * here they are stored per device until the account sync (API-16) exists.
  */
 export type TextSize = 0 | 1 | 2
 

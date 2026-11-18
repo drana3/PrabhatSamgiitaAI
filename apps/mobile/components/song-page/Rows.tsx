@@ -28,7 +28,7 @@ export function RecordingsRow({ t, model }: { t: SpTheme; model: SongPageModel }
   if (!count) return null
   const label = tr("songRec.row", { count })
   return (
-    <SpPress onPress={model.openKaraoke} accessibilityLabel={`${label}. ${tr("songRec.open")}`} style={styles.rec} pressedScale={0.99}>
+    <SpPress onPress={model.openPlayer} accessibilityLabel={`${label}. ${tr("songRec.open")}`} style={styles.rec} pressedScale={0.99}>
       <WaveGlyph size={20} color={t.ink500} />
       <Text style={[styles.recText, { color: t.ink500 }]} numberOfLines={1}>
         <Text style={[styles.recCount, { color: t.ink900 }]}>{label}</Text>

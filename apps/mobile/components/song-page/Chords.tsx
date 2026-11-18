@@ -317,7 +317,7 @@ export function ChordsSection({
           variant="sand"
           icon="play"
           label={tr("songPage.chords.sing")}
-          onPress={model.openKaraoke}
+          onPress={model.openPlayer}
         />
       </View>
     </View>

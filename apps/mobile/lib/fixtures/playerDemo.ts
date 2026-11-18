@@ -14,8 +14,6 @@ export const DEMO_CATALOG_COUNT = 5018
 /** The prototype opens on PS 3 at 1:12, paused. */
 export const DEMO_START_NUMBER = 3
 export const DEMO_START_POSITION = 72
-/** The prototype moves the karaoke highlight to the next line every 7 seconds and loops. */
-export const DEMO_LINE_SECONDS = 7
 export const DEMO_SAVED_NUMBERS = [1, 3]
 export const DEMO_PLAYLISTS: Array<{ id: string; name: string; songs: number[] }> = [
   { id: "demo-pl-0", name: "Morning meditation", songs: [1, 3, 5] },

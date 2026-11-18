@@ -38,7 +38,6 @@ type SongPageState = SongPageSettings & {
 
 /**
  * Reading and playing settings of the redesigned song page (SCR-16, 25, 26).
- * The Player karaoke view reads the same store so the two stay in step.
  */
 export const useSongPageStore = create<SongPageState>()(
   persist(

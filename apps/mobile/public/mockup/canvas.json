@@ -319,7 +319,7 @@
    "y": 11096,
    "w": 390,
    "h": 844,
-   "title": "Player, karaoke with word meanings",
+   "title": "Player",
    "is_interactive": true
   },
   "PlayerRep.dc.html": {
@@ -354,14 +354,6 @@
    "title": "Player, Drive on",
    "is_interactive": true
   },
-  "PlayerLyr.dc.html": {
-   "x": 2350,
-   "y": 11096,
-   "w": 390,
-   "h": 844,
-   "title": "Player, Lyrics display sheet",
-   "is_interactive": true
-  },
   "PlayerMore.dc.html": {
    "x": 0,
    "y": 12070,
@@ -376,22 +368,6 @@
    "w": 390,
    "h": 844,
    "title": "Player, queue from the chosen list",
-   "is_interactive": true
-  },
-  "KaraokeRu.dc.html": {
-   "x": 940,
-   "y": 12070,
-   "w": 390,
-   "h": 844,
-   "title": "Player, karaoke, Russian",
-   "is_interactive": true
-  },
-  "KaraokeDeva.dc.html": {
-   "x": 1410,
-   "y": 12070,
-   "w": 390,
-   "h": 844,
-   "title": "Player, karaoke, Devanagari",
    "is_interactive": true
   },
   "PlayerVA.dc.html": {
@@ -1254,7 +1230,7 @@
    "x": 0,
    "y": 10906,
    "w": 2300,
-   "text": "A calm player: the lyrics panel, the waveform, the transport row and one quiet icon row (heart, add to playlist, queue, Drive, more). The top bar says what is playing from (All songs, a playlist, Today) and opens a sheet to change it. The Aa button at the top right opens Lyrics display: Script (Roman or Devanagari), Translation (which language shows under each line) and Word meanings (a small gloss under each word). These replace the three white buttons of the earlier version. The three dots open Playback: speed, sleep timer, Drive. Repeat sits on the transport row with three states: off, the whole list, one song. Round 18: the version chip (Voice, Performer A) moved up and has more air between it and the song title.",
+   "text": "A calm player: the lyrics panel, the waveform, the transport row and one quiet icon row (heart, add to playlist, queue, Drive, more). The top bar says what is playing from (All songs, a playlist, Today) and opens a sheet to change it. The lyrics panel shows the song text as plain lines, with the translation under each line. It does not follow the song by time. The three dots open Playback: speed, sleep timer, Drive. Repeat sits on the transport row with three states: off, the whole list, one song. Round 18: the version chip (Voice, Performer A) moved up and has more air between it and the song title.",
    "size": "s"
   },
   "n13": {
@@ -1352,7 +1328,7 @@
    "x": 0,
    "y": 30390,
    "w": 3000,
-   "text": "Left to right: iPhone lock screen, iPhone with lyrics expanded, iPhone with the app closed; Android lock screen, notification shade, lock screen with a lyrics line. The two lyrics boards show the ideal. The system draws the real controls, so a full karaoke list on the lock screen is not possible for a third-party app. One current line is.",
+   "text": "Left to right: iPhone lock screen, iPhone with lyrics expanded, iPhone with the app closed; Android lock screen, notification shade, lock screen with a lyrics line. The two lyrics boards show the ideal. The system draws the real controls, so a full lyrics list on the lock screen is not possible for a third-party app. One current line is.",
    "size": "s"
   },
   "n27": {
@@ -1499,11 +1475,8 @@
   "PlayerSrc.dc.html",
   "PlayerPl.dc.html",
   "Drive.dc.html",
-  "PlayerLyr.dc.html",
   "PlayerMore.dc.html",
   "Queue.dc.html",
-  "KaraokeRu.dc.html",
-  "KaraokeDeva.dc.html",
   "Learn.dc.html",
   "Quiz.dc.html",
   "QuizDone.dc.html",
