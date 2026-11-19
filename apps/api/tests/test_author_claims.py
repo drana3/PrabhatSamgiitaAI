@@ -194,6 +194,15 @@ async def test_my_own_name_inside_a_group_credit_is_decided_per_person(world: Wo
     assert result["results"][0]["outcome"] == "approved"
 
 
+async def test_my_name_beside_a_protected_name_still_goes_to_the_team(world: World) -> None:
+    """Nobody gets in beside a protected name by claim, even when their own name is in the credit."""
+    await verified_page(world)
+    rid = await world.recording(
+        MEMBER_B, title="x", author="Madhu Vrata & Bhajans By Shrii Anandamurti"
+    )
+    assert (await claim(world, [rid]))["results"][0]["team_reason"] == "group_credit"
+
+
 async def test_a_page_the_team_has_not_verified_goes_to_the_team(world: World) -> None:
     await world.create()
     rid = await world.recording(MEMBER_B, author="Madhu Vrata")

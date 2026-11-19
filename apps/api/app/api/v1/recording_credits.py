@@ -137,10 +137,16 @@ async def recording_credits(
     )
     credits = await service.credits_of(session, recording_id)
     visible = [c for c in credits if manage or c.status != "removed"]
+    # the public never learns that somebody was asked or left: its summary counts confirmed only
+    summary = (
+        _summary(credits)
+        if manage
+        else CreditSummary(confirmed=sum(1 for c in credits if c.status == "accepted"), waiting=0)
+    )
     return CreditList(
         credits=await _out(session, visible, full=manage),
         can_manage=manage,
-        summary=_summary(credits),
+        summary=summary,
     )
 
 

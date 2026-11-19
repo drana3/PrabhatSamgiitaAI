@@ -368,6 +368,7 @@ async def test_the_public_sees_text_or_confirmed_only(world: World) -> None:
     shown = anon.json()["credits"]
     assert [c["status"] for c in shown] == ["text"]  # waiting looks like a plain name
     assert shown[0]["page"] is None
+    assert anon.json()["summary"]["waiting"] == 0  # the count never tells that somebody was asked
     manager = (await world.client.get(credits_url(rid), headers=AS["a"])).json()
     assert manager["can_manage"] is True
     assert [c["status"] for c in manager["credits"]] == ["invited"]

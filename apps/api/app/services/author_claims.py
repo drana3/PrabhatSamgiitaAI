@@ -265,7 +265,15 @@ class Ladder:
                     )
                 )
             ).all()
-            if any(match.same_name(text, credit) for text in held):
+            # An older claim may have matched the whole credit ("A & B") or kept no text: it holds
+            # every name in it, so it blocks every part. Only a claim that clearly matched a
+            # different person in the credit leaves this one free.
+            if any(
+                not (text or "").strip()
+                or match.same_name(text, whole or credit)
+                or any(match.same_name(piece, credit) for piece in match.split_credit(text))
+                for text in held
+            ):
                 reason = "taken_by_other"
         self._famous[(key, whole_key)] = reason
         return reason
@@ -291,8 +299,21 @@ class Ladder:
         own_part = (
             level == "same" and bool(part) and match.level_of(part, self.trusted)[0] == "same"
         )
-        if match.is_group_credit(credit) and not own_part:
-            reasons.add("group_credit")
+        if match.is_group_credit(credit):
+            if not own_part:
+                reasons.add("group_credit")
+            else:
+                # the claimant's own name is one of them, but the team still looks when the credit
+                # also carries a protected, staff or famous name: nobody gets in beside one by claim
+                for other in match.split_credit(credit):
+                    if match.same_name(other, part):
+                        continue
+                    if await self._famous_reason(other, credit.strip()) in (
+                        "protected_name",
+                        "famous_name",
+                    ):
+                        reasons.add("group_credit")
+                        break
         if level != "same":
             reasons.add("not_same_name")
         elif match.level_of(credit, self.trusted)[0] != "same":
