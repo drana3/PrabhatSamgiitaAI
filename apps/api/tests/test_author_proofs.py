@@ -383,7 +383,7 @@ async def test_a_second_page_asking_for_the_same_name_sees_nothing_about_the_fir
     out = await pworld.client.post(CLAIMS, headers=AS["a"], json={"recording_ids": [str(first)]})
     assert out.status_code == 201
     assert out.json()["results"][0]["outcome"] == "pending"
-    assert out.json()["results"][0]["team_reason"] is None
+    assert out.json()["results"][0]["team_reason"] == "review_flag"
     mine = (await pworld.client.get(CLAIMS, headers=AS["a"])).json()
     assert "taken_by_other" not in str(mine) and "chitra-songs" not in str(mine)
     # the team does see it
@@ -483,3 +483,46 @@ async def test_housekeeping_runs_the_claim_clock(pworld: World) -> None:
     async with pworld.sessions() as session:
         cfg = housekeeping.HousekeepingConfig.from_env()
         assert await housekeeping.run_claim_timers(session, datetime.now(UTC), cfg) == 0
+
+
+# --------------------------------------------------------------------------- proofs belong to the page as it was
+
+
+async def _accept_one_proof(world: World) -> None:
+    proof = (await send(world)).json()["id"]
+    assert (await decide(world, proof, "ok")).status_code == 200
+    assert (await state(world))["verified"] is True
+
+
+async def test_a_new_name_makes_the_accepted_proofs_count_no_more(pworld: World) -> None:
+    await unverified_page(pworld)
+    await _accept_one_proof(pworld)
+    r = await pworld.client.patch(
+        "/api/v1/authors/me", headers=AS["a"], json={"display_name": "Madhu V."}
+    )
+    assert r.status_code == 200, r.text
+    body = await state(pworld)
+    assert body["verified"] is False and body["have"] == 0
+    assert {p.status for p in await proof_rows(pworld)} == {"withdrawn"}
+    # one fresh proof for the new name verifies it again, an old one cannot do it alone
+    fresh = (await send(pworld, "link", "https://youtube.com/@madhu-v")).json()["id"]
+    assert (await state(pworld))["verified"] is False
+    await decide(pworld, fresh, "ok")
+    assert (await state(pworld))["verified"] is True
+
+
+async def test_a_page_that_becomes_a_group_is_asked_for_proof_again(pworld: World) -> None:
+    await unverified_page(pworld)
+    await _accept_one_proof(pworld)
+    r = await pworld.client.patch("/api/v1/authors/me", headers=AS["a"], json={"author_type": "group"})
+    assert r.status_code == 200, r.text
+    body = await state(pworld)
+    assert body["verified"] is False and body["required"] == 2 and body["have"] == 0
+
+
+async def test_taking_the_check_back_takes_the_proofs_back_too(pworld: World) -> None:
+    pid = await unverified_page(pworld)
+    await _accept_one_proof(pworld)
+    await pworld.client.post(f"{ADMIN}/{pid}/unverify", headers=AS_TEAM)
+    body = await state(pworld)
+    assert body["verified"] is False and body["have"] == 0
