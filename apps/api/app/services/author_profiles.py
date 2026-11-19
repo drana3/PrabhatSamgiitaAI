@@ -26,13 +26,14 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import String, and_, case, cast, delete, func, or_, select
+from sqlalchemy import String, and_, case, cast, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.models import UserAccount
 from app.models.author_profiles import (
     AuthorClaim,
+    AuthorClaimProof,
     AuthorProfile,
     AuthorProfilePhoto,
     AuthorRecordingLink,
@@ -42,6 +43,7 @@ from app.models.author_profiles import (
     AuthorSuspension,
     PlayDaily,
 )
+from app.models.recording_credits import RecordingCredit
 from app.models.recordings import AuthorBlock, Recording, public_kind, stored_kinds
 from app.schemas.author_profiles import (
     AdminAuthorOut,
@@ -160,6 +162,19 @@ def attribution(profile: AuthorProfile) -> Any:
             )
         )
     )
+    # 4. Recordings where this page was named as a performer and said yes (docs/co-performers.md);
+    #    the owner can still switch one off for the page.
+    options.append(
+        and_(
+            Recording.id.in_(
+                select(RecordingCredit.recording_id).where(
+                    RecordingCredit.profile_id == profile.id,
+                    RecordingCredit.status == "accepted",
+                )
+            ),
+            Recording.id.not_in(excluded),
+        )
+    )
     return and_(Recording.status.in_(VISIBLE), or_(*options))
 
 
@@ -267,9 +282,22 @@ async def set_shown(
     session: AsyncSession, profile: AuthorProfile, recording_id: UUID, shown: bool
 ) -> None:
     recording = await session.get(Recording, recording_id)
-    if recording is None or recording.author_id != profile.member_id:
+    if recording is None:
         raise AuthorError("recording_not_yours", 404, "Recording not found")
     chosen = profile.include_uploads == "chosen"
+    if recording.author_id != profile.member_id:
+        # A recording of somebody else that this page confirmed (docs/co-performers.md): it can be
+        # hidden from the page; hiding is an "exclude" row whatever the page's upload rule is.
+        credited = await session.scalar(
+            select(RecordingCredit.id).where(
+                RecordingCredit.recording_id == recording_id,
+                RecordingCredit.profile_id == profile.id,
+                RecordingCredit.status == "accepted",
+            )
+        )
+        if credited is None:
+            raise AuthorError("recording_not_yours", 404, "Recording not found")
+        chosen = False
     wanted_mode = "include" if chosen else "exclude"
     want_row = shown if chosen else not shown
     existing = await session.scalar(
@@ -307,7 +335,12 @@ async def _switch_include_mode(session: AsyncSession, profile: AuthorProfile, ne
             ).all()
         )
         await session.execute(
-            delete(AuthorRecordingLink).where(AuthorRecordingLink.profile_id == profile.id)
+            delete(AuthorRecordingLink).where(
+                AuthorRecordingLink.profile_id == profile.id,
+                AuthorRecordingLink.recording_id.in_(
+                    select(Recording.id).where(Recording.author_id == profile.member_id)
+                ),
+            )
         )
         own = (
             await session.scalars(
@@ -324,8 +357,14 @@ async def _switch_include_mode(session: AsyncSession, profile: AuthorProfile, ne
                     )
                 )
     else:
+        # (rows for a credited recording of somebody else are hides that outlive the rule)
         await session.execute(
-            delete(AuthorRecordingLink).where(AuthorRecordingLink.profile_id == profile.id)
+            delete(AuthorRecordingLink).where(
+                AuthorRecordingLink.profile_id == profile.id,
+                AuthorRecordingLink.recording_id.in_(
+                    select(Recording.id).where(Recording.author_id == profile.member_id)
+                ),
+            )
         )
     profile.include_uploads = new
 
@@ -1079,6 +1118,14 @@ async def update_profile(
         profile.verified = False  # a new claim is a new question for the team
         profile.verified_at = None
         profile.verified_by = None
+    if "author_type" in fields and fields["author_type"] != profile.author_type:
+        # a group needs more proofs than one person: the check is asked again
+        identity_changed = True
+        profile.verified = False
+        profile.verified_at = None
+        profile.verified_by = None
+    if identity_changed:
+        await withdraw_accepted_proofs(session, profile)
     for key, value in fields.items():
         setattr(profile, key, value)
     if include is not None:
@@ -1391,12 +1438,25 @@ async def admin_approve(session: AsyncSession, profile: AuthorProfile, by: str) 
     return profile
 
 
+async def withdraw_accepted_proofs(session: AsyncSession, profile: AuthorProfile) -> None:
+    """Accepted proofs were given for the page as the team saw it. When the name, the address or the
+    kind of the page changes, or the team takes the check back, they no longer count: the person
+    proves the new page again."""
+    await session.execute(
+        update(AuthorClaimProof)
+        .where(AuthorClaimProof.profile_id == profile.id, AuthorClaimProof.status == "ok")
+        .values(status="withdrawn")
+    )
+
+
 async def admin_verify(
     session: AsyncSession, profile: AuthorProfile, by: str, verified: bool
 ) -> AuthorProfile:
     profile.verified = verified
     profile.verified_at = now_utc() if verified else None
     profile.verified_by = by if verified else None
+    if not verified:
+        await withdraw_accepted_proofs(session, profile)
     if verified:  # clears the name-check flag only; a report flag stays until approve
         profile.review_needed = False
         profile.review_reason = None

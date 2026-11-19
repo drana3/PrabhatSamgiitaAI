@@ -15,6 +15,7 @@ from app.models.recordings import (
     PS_SONG_COUNT,
     public_kind,
 )
+from app.schemas.recording_credits import PerformerIn
 from app.services.recording_info import (
     TITLE_IN_ENGLISH,
     clean_info,
@@ -154,9 +155,7 @@ MANTRA_MESSAGE = (
 )
 
 
-def _split_own_words(
-    field: str, listed: list[str], own: list[str]
-) -> tuple[list[str], list[str]]:
+def _split_own_words(field: str, listed: list[str], own: list[str]) -> tuple[list[str], list[str]]:
     """The own words of a list field: a word that IS a listed value moves to the ids (and is
     never queued), the others are cleaned (2 to 40 characters) and stay words."""
     ids = list(listed)
@@ -197,6 +196,9 @@ class RecordingCreate(BaseModel):
     # too (the service then uses the uploader's name). Every other single upload names it.
     author: str = Field(default="", max_length=200)
     by_author: bool = False
+    # The other people on the recording (docs/co-performers.md): a named member is asked and the
+    # recording is on their page once they say yes; a name with no page stays text. At most 10.
+    performers: list[PerformerIn] | None = Field(default=None, max_length=10)
     terms_accepted: bool
     terms_version: str = Field(min_length=1, max_length=32)
     # Language: an ISO code, "other" (then `language_other`), or one of the five old words.

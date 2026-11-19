@@ -19,6 +19,7 @@ information notice once a claim is approved, without a button and without a ques
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -36,6 +37,7 @@ from app.models.recordings import MemberNotice, Recording, public_kind
 from app.schemas.author_claims import (
     AdminClaimOut,
     AliasOut,
+    AlsoClaimedBy,
     ClaimCandidate,
     ClaimOut,
     ClaimRecording,
@@ -48,6 +50,7 @@ from app.schemas.author_claims import (
 )
 from app.services import author_claim_rules as match
 from app.services import author_rules as rules
+from app.services import recording_credits as credits_service
 from app.services.author_profiles import (
     AuthorError,
     attribution,
@@ -73,6 +76,18 @@ SEARCH_MAX = 200
 SEARCH_MIN_CHARS = 2
 
 LIVE_STATUSES = ("pending", "approved")
+# A Prabhat Samgiita song number typed in the search box: "1042", "#1042", "PS 1042",
+# "Prabhat Samgiita 1042" (songs are numbered 1..5018).
+_SONG_NUMBER = re.compile(r"^(?:#|ps\s*|prabh?at\s+sa[nm]g[ie]+ta?\s*)?(\d{1,4})$", re.I)
+
+
+def public_reason(reason: str | None) -> str | None:
+    """The reason a PERSON is shown. `taken_by_other` is hidden behind the plain "waiting for a
+    check": a second page that asks for a name must see nothing about the first (Dada, 2026-11-18),
+    and a missing reason would give it away. The team still sees the real one."""
+    return "review_flag" if reason == "taken_by_other" else reason
+
+
 # Which reason is told when several apply (the first one in this list).
 REASON_ORDER = (
     "protected_name",
@@ -198,13 +213,16 @@ class Ladder:
         if profile.verified and profile.claimed_name:
             trusted.append(profile.claimed_name)
         self.trusted = [n for n in trusted if n and n.strip()]
-        self._famous: dict[str, str | None] = {}
+        self._famous: dict[tuple[str, str], str | None] = {}
 
-    async def _famous_reason(self, credit: str) -> str | None:
-        """`protected_name`, `famous_name`, `taken_by_other`, or None, for one credit text."""
+    async def _famous_reason(self, credit: str, whole: str | None = None) -> str | None:
+        """`protected_name`, `famous_name`, `taken_by_other`, or None, for ONE PERSON's name.
+        `whole` is the full credit the name sits in ("A & B"); `taken_by_other` is decided per
+        person (docs/co-performers.md): another page that holds A does not hold B."""
         key = credit.strip().lower()
-        if key in self._famous:
-            return self._famous[key]
+        whole_key = (whole if whole is not None else credit).strip().lower()
+        if (key, whole_key) in self._famous:
+            return self._famous[(key, whole_key)]
         reason: str | None = None
         if rules.protected_name_hit(credit) or rules.staff_hit(credit):
             reason = "protected_name"
@@ -236,19 +254,28 @@ class Ladder:
             ):
                 reason = "famous_name"
         if reason is None:
-            taken = await self.session.scalar(
-                select(func.count())
-                .select_from(AuthorClaim)
-                .join(Recording, Recording.id == AuthorClaim.recording_id)
-                .where(
-                    AuthorClaim.profile_id != self.profile.id,
-                    AuthorClaim.status.in_(LIVE_STATUSES),
-                    func.lower(Recording.author) == key,
+            held = (
+                await self.session.scalars(
+                    select(AuthorClaim.matched_text)
+                    .join(Recording, Recording.id == AuthorClaim.recording_id)
+                    .where(
+                        AuthorClaim.profile_id != self.profile.id,
+                        AuthorClaim.status.in_(LIVE_STATUSES),
+                        func.lower(Recording.author) == whole_key,
+                    )
                 )
-            )
-            if int(taken or 0):
+            ).all()
+            # An older claim may have matched the whole credit ("A & B") or kept no text: it holds
+            # every name in it, so it blocks every part. Only a claim that clearly matched a
+            # different person in the credit leaves this one free.
+            if any(
+                not (text or "").strip()
+                or match.same_name(text, whole or credit)
+                or any(match.same_name(piece, credit) for piece in match.split_credit(text))
+                for text in held
+            ):
                 reason = "taken_by_other"
-        self._famous[key] = reason
+        self._famous[(key, whole_key)] = reason
         return reason
 
     async def standing(self, recording: Recording, *, from_search: bool = False) -> Standing:
@@ -267,15 +294,32 @@ class Ladder:
             reasons.add("unverified_page")
         if profile.author_type == "group":
             reasons.add("group_page")
+        # Several names in one credit send a claim to the team only when this page's own name is
+        # not clearly one of them (docs/co-performers.md): "A & B" no longer makes B wait.
+        own_part = (
+            level == "same" and bool(part) and match.level_of(part, self.trusted)[0] == "same"
+        )
         if match.is_group_credit(credit):
-            reasons.add("group_credit")
+            if not own_part:
+                reasons.add("group_credit")
+            else:
+                # the claimant's own name is one of them, but the team still looks when the credit
+                # also carries a protected, staff or famous name: nobody gets in beside one by claim
+                for other in match.split_credit(credit):
+                    if match.same_name(other, part):
+                        continue
+                    if await self._famous_reason(other, credit.strip()) in (
+                        "protected_name",
+                        "famous_name",
+                    ):
+                        reasons.add("group_credit")
+                        break
         if level != "same":
             reasons.add("not_same_name")
         elif match.level_of(credit, self.trusted)[0] != "same":
             reasons.add("alias_match")
-        famous = await self._famous_reason(credit.strip()) if credit.strip() else None
-        if part and part != credit:
-            famous = famous or await self._famous_reason(part)
+        subject = (part or credit).strip()
+        famous = await self._famous_reason(subject, credit.strip()) if subject else None
         if famous:
             reasons.add(famous)
         for reason in REASON_ORDER:
@@ -327,7 +371,7 @@ async def _candidates(
                 level=standing.level,  # type: ignore[arg-type]
                 matched_text=standing.matched_text,
                 route=standing.route,  # type: ignore[arg-type]
-                team_reason=standing.team_reason,  # type: ignore[arg-type]
+                team_reason=public_reason(standing.team_reason),  # type: ignore[arg-type]
                 claim_status=claim.status if claim else None,  # type: ignore[arg-type]
                 claim_id=str(claim.id) if claim else None,
             )
@@ -388,6 +432,10 @@ async def search(
         func.lower(Recording.title).like(needle, escape="\\"),
         func.lower(Recording.author).like(needle, escape="\\"),
     )
+    song = _SONG_NUMBER.match(text)
+    if song and 1 <= int(song.group(1)) <= 5018:
+        # a song number: the recordings of that Prabhat Samgiita song, besides the text matches
+        like = or_(like, Recording.ps_song_number == int(song.group(1)))
     rows = (
         await session.scalars(
             select(Recording)
@@ -480,7 +528,11 @@ async def _tell_uploader(
 
 
 async def claim(
-    session: AsyncSession, member_id: UUID, profile: AuthorProfile, recording_ids: list[UUID]
+    session: AsyncSession,
+    member_id: UUID,
+    profile: AuthorProfile,
+    recording_ids: list[UUID],
+    note: str | None = None,
 ) -> ClaimsCreated:
     """Put a claim on each recording. Each gets its own outcome; the waiting-list rule stops the
     whole call. There is no daily number and no pause."""
@@ -495,6 +547,7 @@ async def claim(
         or 0
     )
     wanted = list(dict.fromkeys(recording_ids))
+    person_note = rules.clean_line(note, 300) or None
     names = await names_of(session, profile)
     ladder = Ladder(session, profile, names)
     recordings = {
@@ -540,6 +593,12 @@ async def claim(
         elif rid in on_page:
             results.append(ClaimResult(recording_id=str(rid), outcome="already_on_page"))
             continue
+        if await credits_service.accept_open_invite(session, profile, rid, member_id):
+            # The uploader named this page and the page asks for the recording: two people agree,
+            # the claim only accepts the invitation (docs/co-performers.md).
+            results.append(ClaimResult(recording_id=str(rid), outcome="approved"))
+            approved += 1
+            continue
         standing = await ladder.standing(recording)
         if standing.route == "team" and open_now >= OPEN_CLAIMS_MAX:
             raise AuthorError("claims_waiting", 429, "Too many claims are waiting")
@@ -556,6 +615,7 @@ async def claim(
         row.decided_by = "system" if status == "approved" else None
         row.decided_at = now_utc() if status == "approved" else None
         row.decision_note = None
+        row.person_note = person_note if standing.level != "same" else None
         await session.flush()
         await _log(session, row, actor, "claimed", standing.team_reason)
         if status == "approved":
@@ -570,7 +630,7 @@ async def claim(
                 recording_id=str(rid),
                 outcome=status,  # type: ignore[arg-type]
                 claim_id=str(row.id),
-                team_reason=standing.team_reason,  # type: ignore[arg-type]
+                team_reason=public_reason(standing.team_reason),  # type: ignore[arg-type]
             )
         )
     await session.commit()
@@ -587,7 +647,7 @@ def claim_out(row: AuthorClaim, recording: Recording) -> ClaimOut:
         matched_text=row.matched_text,
         route=row.route,  # type: ignore[arg-type]
         status=row.status,  # type: ignore[arg-type]
-        team_reason=row.team_reason,  # type: ignore[arg-type]
+        team_reason=public_reason(row.team_reason),  # type: ignore[arg-type]
         decision_note=row.decision_note,
         created_at=row.created_at,
         decided_at=row.decided_at,
@@ -660,7 +720,54 @@ def admin_claim_out(
         created_at=row.created_at,
         decided_by=row.decided_by,
         decision_note=row.decision_note,
+        person_note=row.person_note,
     )
+
+
+async def _also_claimed_by(session: AsyncSession, rows: list[AdminClaimOut]) -> None:
+    """Fill `also_claimed_by`: the other pages that ask for (or hold) the same recordings. Only the
+    team sees this."""
+    if not rows:
+        return
+    ids = [UUID(r.recording.id) for r in rows]
+    found = (
+        await session.execute(
+            select(
+                AuthorClaim.recording_id,
+                AuthorClaim.profile_id,
+                AuthorClaim.status,
+                AuthorProfile.slug,
+                AuthorProfile.display_name,
+            )
+            .join(AuthorProfile, AuthorProfile.id == AuthorClaim.profile_id)
+            .where(AuthorClaim.recording_id.in_(ids), AuthorClaim.status.in_(LIVE_STATUSES))
+        )
+    ).all()
+    by_recording: dict[str, list[tuple[str, str, str, str]]] = {}
+    for rid, pid, status, slug, name in found:
+        by_recording.setdefault(str(rid), []).append((str(pid), slug, name, status))
+    for row in rows:
+        row.also_claimed_by = [
+            AlsoClaimedBy(profile_id=pid, slug=slug, name=name, status=status)  # type: ignore[arg-type]
+            for pid, slug, name, status in by_recording.get(row.recording.id, [])
+            if pid != row.profile_id
+        ]
+
+
+async def approve_with_others(session: AsyncSession, claim_id: UUID) -> list[UUID]:
+    """The ids of the OTHER waiting claims on the same recording as `claim_id` ("put it on both
+    pages")."""
+    rid = await session.scalar(select(AuthorClaim.recording_id).where(AuthorClaim.id == claim_id))
+    if rid is None:
+        return []
+    others = await session.scalars(
+        select(AuthorClaim.id).where(
+            AuthorClaim.recording_id == rid,
+            AuthorClaim.id != claim_id,
+            AuthorClaim.status == "pending",
+        )
+    )
+    return list(others.all())
 
 
 async def admin_list(
@@ -693,7 +800,9 @@ async def admin_list(
             .offset(offset)
         )
     ).all()
-    return [admin_claim_out(c, r, p) for c, r, p in rows], total
+    out = [admin_claim_out(c, r, p) for c, r, p in rows]
+    await _also_claimed_by(session, out)
+    return out, total
 
 
 _NEXT = {

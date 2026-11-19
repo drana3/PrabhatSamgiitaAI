@@ -23,6 +23,7 @@ from app.api.v1.author_profiles import (
     errors,
     own_profile,
 )
+from app.models.author_profiles import AuthorClaim, AuthorProfile
 from app.schemas.author_claims import (
     AdminBulk,
     AdminBulkResult,
@@ -39,7 +40,21 @@ from app.schemas.author_claims import (
     DeskSummary,
     ShownOnPagesList,
 )
+from app.schemas.author_proofs import (
+    AdminProofList,
+    AdminProofOut,
+    AskMore,
+    CodeIn,
+    CodeSent,
+    PageDetail,
+    ProofDecision,
+    ProofIn,
+    ProofOut,
+    RequestState,
+)
 from app.services import author_claims as service
+from app.services import author_profiles as author_service
+from app.services import author_proofs as proofs
 from app.services.recordings import limiter
 
 router = APIRouter(prefix="/authors", tags=["authors"])
@@ -51,6 +66,8 @@ admin_router = APIRouter(prefix="/admin/authors/claims", tags=["admin"])
 SEARCHES_PER_MINUTE = 30
 CLAIM_CALLS_PER_HOUR = 40
 ALIAS_EDITS_PER_HOUR = 20
+PROOF_CALLS_PER_HOUR = 20
+CODE_TRIES_PER_HOUR = 20
 
 
 def _ids(raw: list[str]) -> list[UUID]:
@@ -119,7 +136,45 @@ async def make_claims(
     profile = await own_profile(session, member)
     limiter.hit("author-claim", str(member.id), limit=CLAIM_CALLS_PER_HOUR, window_seconds=3600)
     with errors():
-        return await service.claim(session, member.id, profile, _ids(payload.recording_ids))
+        return await service.claim(
+            session, member.id, profile, _ids(payload.recording_ids), payload.note
+        )
+
+
+# ---- proof of identity: "My request" (one proof per page, not per recording)
+
+
+@router.get("/me/claims/request", response_model=RequestState)
+async def my_request(session: DatabaseSession, member: Member) -> RequestState:
+    return await proofs.request_state(session, await own_profile(session, member))
+
+
+@router.post("/me/claims/proofs", response_model=ProofOut, status_code=status.HTTP_201_CREATED)
+async def send_proof(payload: ProofIn, session: DatabaseSession, member: Member) -> ProofOut:
+    profile = await own_profile(session, member)
+    limiter.hit("author-proof", str(member.id), limit=PROOF_CALLS_PER_HOUR, window_seconds=3600)
+    with errors():
+        return await proofs.submit(
+            session, profile, member.id, kind=payload.kind, value=payload.value, note=payload.note
+        )
+
+
+@router.post("/me/claims/proofs/{proof_id}/code", response_model=ProofOut)
+async def enter_code(
+    proof_id: UUID, payload: CodeIn, session: DatabaseSession, member: Member
+) -> ProofOut:
+    profile = await own_profile(session, member)
+    limiter.hit("author-proof-code", str(member.id), limit=CODE_TRIES_PER_HOUR, window_seconds=3600)
+    with errors():
+        return await proofs.confirm_code(session, profile, proof_id, payload.code)
+
+
+@router.delete("/me/claims/proofs/{proof_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def take_back_proof(proof_id: UUID, session: DatabaseSession, member: Member) -> Response:
+    profile = await own_profile(session, member)
+    with errors():
+        await proofs.withdraw_proof(session, profile, proof_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/me/claims/{claim_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -192,7 +247,87 @@ async def desk_list(
 
 @admin_router.get("/summary", response_model=DeskSummary)
 async def desk_summary(session: DatabaseSession, team: Team) -> DeskSummary:
-    return await service.desk_summary(session)
+    summary = await service.desk_summary(session)
+    summary.proofs_waiting, summary.overdue = await proofs.desk_counts(session)
+    return summary
+
+
+# ---- proofs on the team desk
+
+PROOF_STATUS = Literal["waiting", "code_sent", "ok", "declined", "more_needed", "withdrawn"]
+
+
+@admin_router.get("/proofs", response_model=AdminProofList)
+async def desk_proofs(
+    session: DatabaseSession,
+    team: Team,
+    status_filter: Annotated[PROOF_STATUS | None, Query(alias="status")] = "waiting",
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AdminProofList:
+    items, total = await proofs.admin_list_proofs(
+        session, status=status_filter, limit=limit, offset=offset
+    )
+    return AdminProofList(items=items, total=total)
+
+
+@admin_router.get("/pages/{profile_id}", response_model=PageDetail)
+async def desk_page(profile_id: UUID, session: DatabaseSession, team: Team) -> PageDetail:
+    with errors():
+        return await proofs.page_detail(session, profile_id)
+
+
+@admin_router.post("/pages/{profile_id}/ask-more", response_model=AdminBulkResult)
+async def desk_ask_more(
+    profile_id: UUID, payload: AskMore, session: DatabaseSession, team: Team
+) -> AdminBulkResult:
+    with errors():
+        await proofs.ask_more(session, profile_id, by=_by(team), note=payload.note)
+    return AdminBulkResult(changed=1)
+
+
+@admin_router.post("/proofs/{proof_id}/send-code", response_model=CodeSent)
+async def desk_send_code(proof_id: UUID, session: DatabaseSession, team: Team) -> CodeSent:
+    with errors():
+        return CodeSent(sent=await proofs.send_code(session, proof_id, _by(team)))
+
+
+async def _decide_proof(
+    session: DatabaseSession, team: Team, proof_id: UUID, action: str, payload: ProofDecision
+) -> AdminProofOut:
+    with errors():
+        row, _ = await proofs.decide_proof(
+            session,
+            proof_id,
+            action=action,
+            by=_by(team),
+            note=payload.note,
+            approve_waiting=payload.approve_waiting,
+        )
+    profile = await session.get(AuthorProfile, row.profile_id)
+    assert profile is not None
+    return proofs.admin_proof_out(row, profile)
+
+
+@admin_router.post("/proofs/{proof_id}/ok", response_model=AdminProofOut)
+async def desk_proof_ok(
+    proof_id: UUID, payload: ProofDecision, session: DatabaseSession, team: Team
+) -> AdminProofOut:
+    return await _decide_proof(session, team, proof_id, "ok", payload)
+
+
+@admin_router.post("/proofs/{proof_id}/decline", response_model=AdminProofOut)
+async def desk_proof_decline(
+    proof_id: UUID, payload: ProofDecision, session: DatabaseSession, team: Team
+) -> AdminProofOut:
+    return await _decide_proof(session, team, proof_id, "decline", payload)
+
+
+@admin_router.post("/proofs/{proof_id}/more", response_model=AdminProofOut)
+async def desk_proof_more(
+    proof_id: UUID, payload: ProofDecision, session: DatabaseSession, team: Team
+) -> AdminProofOut:
+    return await _decide_proof(session, team, proof_id, "more", payload)
 
 
 async def _decide(
@@ -227,7 +362,26 @@ async def desk_bulk(payload: AdminBulk, session: DatabaseSession, team: Team) ->
 async def desk_approve(
     claim_id: UUID, payload: AdminDecision, session: DatabaseSession, team: Team
 ) -> AdminBulkResult:
-    return await _decide(session, team, claim_id, "approve", payload.note)
+    result = await _decide(session, team, claim_id, "approve", payload.note)
+    if payload.with_others:
+        # the same recording on every page that waits for it ("both pages")
+        with errors():
+            others = await service.approve_with_others(session, claim_id)
+            if others:
+                result.changed += await service.admin_decide(
+                    session,
+                    others,
+                    profile_id=None,
+                    action="approve",
+                    by=_by(team),
+                    note=payload.note,
+                )
+    if payload.verify_page:
+        row = await session.get(AuthorClaim, claim_id)
+        profile = await session.get(AuthorProfile, row.profile_id) if row else None
+        if profile is not None and not profile.verified:
+            await author_service.admin_verify(session, profile, _by(team), True)
+    return result
 
 
 @admin_router.post("/{claim_id}/reject", response_model=AdminBulkResult)

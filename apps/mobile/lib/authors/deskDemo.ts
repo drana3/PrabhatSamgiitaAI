@@ -1,6 +1,6 @@
 import { RemoteError } from "@/lib/kirtan/remote"
 
-import type { ClaimsDesk, DeskAction, DeskClaim, DeskStatus, DeskSummary } from "./desk"
+import type { ClaimsDesk, DeskAction, DeskClaim, DeskPage, DeskProof, DeskStatus, DeskSummary, ProofAction } from "./desk"
 
 /**
  * The in-memory stand-in for the team desk, used ONLY in the web preview (`EXPO_PUBLIC_MOCKUP_DATA=1`) and in tests.
@@ -62,9 +62,21 @@ const NEXT: Record<DeskAction, { to: DeskClaim["status"]; from: readonly DeskCla
   reopen: { to: "pending", from: ["approved", "rejected", "revoked"] },
 }
 
+const PROOF_STATUS: Record<ProofAction, DeskProof["status"]> = { ok: "ok", decline: "declined", more: "more_needed" }
+
+function seedProofs(now: number): DeskProof[] {
+  const base = { note: null, code_sent: false, code_confirmed: false, team_note: null, decided_at: null, decided_by: null }
+  return [
+    { ...base, id: "pf1", kind: "link", value: "https://youtube.com/@priyadevi", status: "waiting", created_at: new Date(now - 30 * HOUR).toISOString(), overdue: false, ...PAGES.priya },
+    { ...base, id: "pf2", kind: "email", value: "priya@example.org", status: "code_sent", code_sent: true, created_at: new Date(now - 80 * HOUR).toISOString(), overdue: true, ...PAGES.priya },
+    { ...base, id: "pf3", kind: "team", value: "Ravi knows her from the Madrid retreat", status: "waiting", created_at: new Date(now - 5 * HOUR).toISOString(), overdue: false, ...PAGES.group },
+  ]
+}
+
 export function createDeskDemo(options: { team?: () => boolean; now?: () => number } = {}): ClaimsDesk {
   const team = options.team ?? (() => true)
   let rows = seed((options.now ?? Date.now)())
+  let proofs = seedProofs((options.now ?? Date.now)())
   const guard = (): void => {
     if (!team()) throw new RemoteError(403, "Team members only")
   }
@@ -80,7 +92,58 @@ export function createDeskDemo(options: { team?: () => boolean; now?: () => numb
       const by_reason: Record<string, number> = {}
       for (const r of rows) if (r.status === "pending") by_reason[r.team_reason ?? "other"] = (by_reason[r.team_reason ?? "other"] ?? 0) + 1
       const count = (s: DeskClaim["status"]) => rows.filter((r) => r.status === s).length
-      return { pending: count("pending"), approved: count("approved"), rejected: count("rejected"), revoked: count("revoked"), by_reason }
+      const waiting = proofs.filter((p) => p.status === "waiting" || p.status === "code_sent" || p.status === "more_needed")
+      return { pending: count("pending"), approved: count("approved"), rejected: count("rejected"), revoked: count("revoked"), by_reason, proofs_waiting: waiting.length, overdue: waiting.filter((p) => p.overdue).length }
+    },
+    async proofs(status = "waiting") {
+      guard()
+      const open = ["waiting", "code_sent", "more_needed"]
+      const items = proofs.filter((p) => (status === "waiting" ? open.includes(p.status) : p.status === status))
+      return { items, total: items.length }
+    },
+    async page(profileId: string): Promise<DeskPage> {
+      guard()
+      const own = proofs.filter((p) => p.profile_id === profileId)
+      const page = Object.values(PAGES).find((x) => x.profile_id === profileId) ?? PAGES.priya
+      const group = profileId === PAGES.group.profile_id
+      const have = own.filter((p) => p.status === "ok").length
+      const claimsOf = rows.filter((r) => r.profile_id === profileId)
+      return {
+        profile_id: page.profile_id,
+        slug: page.profile_slug,
+        name: page.profile_name,
+        author_type: group ? "group" : "solo",
+        status: "published",
+        verified: page.profile_verified,
+        claimed_name: null,
+        country: null,
+        city: null,
+        bio: "",
+        links: [],
+        names: [page.profile_name],
+        created_at: new Date(0).toISOString(),
+        stage: have >= (group ? 2 : 1) ? "verified" : own.length ? "with_team" : "no_proof",
+        required: group ? 2 : 1,
+        have,
+        why_required: group ? "group" : "one",
+        proofs: own,
+        pending: claimsOf.filter((r) => r.status === "pending").length,
+        approved: claimsOf.filter((r) => r.status === "approved").length,
+        rejected: claimsOf.filter((r) => r.status === "rejected").length,
+      }
+    },
+    async decideProof(proofId, action, input) {
+      guard()
+      proofs = proofs.map((p) => (p.id === proofId ? { ...p, status: PROOF_STATUS[action], decided_by: "team", decided_at: new Date().toISOString(), team_note: input?.note?.trim() || null } : p))
+    },
+    async sendCode(proofId) {
+      guard()
+      proofs = proofs.map((p) => (p.id === proofId ? { ...p, status: "code_sent", code_sent: true } : p))
+      return { sent: false }
+    },
+    async askMore(profileId, note) {
+      guard()
+      proofs = proofs.map((p) => (p.profile_id === profileId && p.status === "waiting" ? { ...p, status: "more_needed", team_note: note.trim() } : p))
     },
     async decide(ids, action, note) {
       guard()

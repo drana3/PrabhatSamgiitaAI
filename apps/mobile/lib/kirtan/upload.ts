@@ -10,6 +10,7 @@ import {
   type RemoteRecording,
 } from "@/lib/kirtan/remote"
 import { audioContentType, RULES_VERSION, validateAudioFile } from "@/lib/kirtan/rules"
+import type { PerformerPayload } from "@/lib/kirtan/credits"
 import type { RecordingKind, UploadFailure } from "@/lib/kirtan/types"
 
 /**
@@ -44,6 +45,8 @@ export type UploadSource = {
   /** the live broadcast this is the recording of */
   broadcastId?: string | null
   credits?: string
+  /** the other people on the recording (docs/co-performers.md) */
+  performers?: PerformerPayload[] | null
   notes?: string
   /** where it was recorded or performed (every kind, optional) */
   place?: string
@@ -136,6 +139,7 @@ export async function uploadSubmission(cfg: RemoteConfig, source: UploadSource, 
       recordedOn: source.recordedOn,
       broadcastId: source.broadcastId,
       credits: source.credits,
+      performers: source.performers,
       notes: source.notes,
       place: source.place,
       discourse: source.discourse,

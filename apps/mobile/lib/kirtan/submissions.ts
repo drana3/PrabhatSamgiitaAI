@@ -1,3 +1,4 @@
+import { kindHasPeople, MAX_PERFORMERS, type PerformerPayload } from "@/lib/kirtan/credits"
 import { cleanInstrument } from "@/lib/kirtan/instruments"
 import { cleanMantra } from "@/lib/kirtan/mantra"
 import { roleMissing, type UploadRole } from "@/lib/kirtan/uploadRole"
@@ -64,6 +65,8 @@ export type SubmissionInput = {
   askRole?: boolean
   /** words and music by, optional; on the add form it is the comment under "Who are you for this recording?" */
   credits?: string
+  /** the other people on the recording (docs/co-performers.md): a page by its id, a plain name by its name; none for Baba's Audio */
+  performers?: PerformerPayload[]
   /** where it was recorded or performed (every kind, optional), and Baba's Audio Discourses only: the name or number of the discourse */
   place?: string
   discourse?: string
@@ -233,6 +236,7 @@ export function buildSubmission(input: SubmissionInput, now: number): Kirtan {
     ...(input.recordedOn ? { recordedOn: input.recordedOn } : {}),
     ...(input.broadcastId ? { broadcastId: input.broadcastId } : {}),
     ...(tidy(input.credits ?? "") ? { credits: tidy(input.credits ?? "") } : {}),
+    ...(input.performers?.length && kindHasPeople(kind) ? { performers: input.performers.slice(0, MAX_PERFORMERS) } : {}),
     ...(tidy(input.place ?? "") ? { place: tidy(input.place ?? "") } : {}),
     ...(kindHasDiscourse(kind) && tidy(input.discourse ?? "") ? { discourse: tidy(input.discourse ?? "") } : {}),
     ...(tidy(input.notes ?? "") ? { notes: tidy(input.notes ?? "") } : {}),

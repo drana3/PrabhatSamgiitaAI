@@ -30,6 +30,7 @@ from app.models.author_profiles import (
     AuthorAlias,
     AuthorClaim,
     AuthorClaimEvent,
+    AuthorClaimProof,
     AuthorProfile,
     AuthorProfilePhoto,
     AuthorRecordingLink,
@@ -43,6 +44,11 @@ from app.models.author_profiles import (
 from app.models.base import Base
 from app.models.play_flag import PlayFlag
 from app.models.recording_collections import RecordingCollection
+from app.models.recording_credits import (
+    AuthorCreditBlock,
+    RecordingCredit,
+    RecordingCreditEvent,
+)
 from app.models.recordings import AuthorBlock, MemberNotice, Recording
 from app.models.song_plays import SongPlayDaily, SongPlayEvent
 from app.services import author_profiles as service
@@ -169,8 +175,12 @@ async def world() -> AsyncIterator[World]:
             AuthorSuspension,
             AuthorClaim,
             AuthorClaimEvent,
+            AuthorClaimProof,
             AuthorAlias,
             MemberNotice,
+            RecordingCredit,
+            RecordingCreditEvent,
+            AuthorCreditBlock,
         )
     ]
     async with engine.begin() as conn:

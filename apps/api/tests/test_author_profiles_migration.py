@@ -55,6 +55,11 @@ MODELS = (
 
 
 @pytest.fixture
+def m71() -> ModuleType:
+    return load("0071_recording_credits")
+
+
+@pytest.fixture
 def m33() -> ModuleType:
     return load("0033_author_profiles")
 
@@ -119,12 +124,18 @@ def test_upgrade_on_a_database_the_app_already_filled_with_create_all(
 
 
 def test_the_tables_match_the_models(
-    engine: sa.Engine, m33: ModuleType, m35: ModuleType, m38: ModuleType, m58: ModuleType
+    engine: sa.Engine,
+    m33: ModuleType,
+    m35: ModuleType,
+    m38: ModuleType,
+    m58: ModuleType,
+    m71: ModuleType,
 ) -> None:
     run(engine, m33.upgrade)
     run(engine, m35.upgrade)
     run(engine, m38.upgrade)
     run(engine, m58.upgrade)  # adds play_events.counted
+    run(engine, m71.upgrade)  # adds author_profiles.credit_invites
     inspector = sa.inspect(engine)
     for model in MODELS:
         table = cast(sa.Table, model.__table__)

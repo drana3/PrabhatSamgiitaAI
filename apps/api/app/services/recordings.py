@@ -993,6 +993,13 @@ async def create_recording(
             await words.register_use(
                 session, resolved, member_id=member_id, recording_id=recording.id
             )
+        if payload.performers and payload.kind != "baba_audio":
+            # late import: the credits service needs the author-profile service, which needs this one
+            from app.services import recording_credits as credits_service
+
+            await credits_service.add_at_upload(
+                session, recording, member_id, [p.model_dump() for p in payload.performers]
+            )
         await session.commit()
     except IntegrityError:
         # Two uploads of the same bytes at the same moment: the unique index let the other one win.

@@ -27,6 +27,7 @@ from app.models.author_profiles import (
 
 NEW_TABLES = {"author_claims", "author_claim_events", "author_aliases"}
 MODELS = (AuthorClaim, AuthorClaimEvent, AuthorAlias)
+LATER_COLUMNS = {"person_note"}
 
 
 @pytest.fixture
@@ -86,7 +87,8 @@ def test_the_tables_match_the_models(engine: sa.Engine, m45: ModuleType) -> None
     for model in MODELS:
         table = cast(sa.Table, model.__table__)
         built = {c["name"] for c in inspector.get_columns(table.name)}
-        assert built == {c.name for c in table.columns}, table.name
+        # `person_note` is added to author_claims by a later migration (0070_claim_proofs)
+        assert built == {c.name for c in table.columns} - LATER_COLUMNS, table.name
 
 
 def test_downgrade_drops_only_the_new_tables(engine: sa.Engine, m45: ModuleType) -> None:

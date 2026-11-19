@@ -65,6 +65,7 @@ export async function runUpload(
       recordedOn: item.recordedOn ?? null,
       broadcastId: item.broadcastId ?? null,
       credits: item.credits,
+      performers: item.performers ?? null,
       notes: item.notes,
       place: item.place,
       discourse: item.discourse,

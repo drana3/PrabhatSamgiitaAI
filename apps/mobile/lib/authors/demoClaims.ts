@@ -12,6 +12,9 @@ import type {
   ClaimsCreated,
   ClaimResult,
   MatchLevel,
+  ProofKind,
+  ProofOut,
+  RequestState,
   TeamReason,
 } from "@/lib/authors/types"
 import { RemoteError } from "@/lib/kirtan/remote"
@@ -85,6 +88,7 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
   let claims: Held[] = []
   let extra: Alias[] = []
   let counter = 0
+  let proofs: ProofOut[] = []
 
   const library = () => (mode === "none" ? [] : DEMO_LIBRARY)
   const names = (): string[] => {
@@ -125,6 +129,33 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
     return { names: list, same, alike, total: same.length + alike.length }
   }
 
+  let proofCounter = 100
+  function requestState(): RequestState {
+    const mine = getMine()
+    const required = mine?.author_type === "group" ? 2 : 1
+    const live = proofs.filter((p) => p.status !== "withdrawn" && p.status !== "declined")
+    const have = proofs.filter((p) => p.status === "ok").length
+    const pending = claims.filter((c) => c.status === "pending").length
+    const approved = claims.filter((c) => c.status === "approved").length
+    let stage: RequestState["stage"] = "no_proof"
+    if (have >= required) stage = "verified"
+    else if (proofs.some((p) => p.status === "more_needed")) stage = "need_more"
+    else if (proofs.some((p) => p.kind === "email" && p.status === "code_sent")) stage = "code"
+    else if (live.length > 0) stage = "with_team"
+    return {
+      stage,
+      verified: stage === "verified",
+      required,
+      have,
+      why_required: required === 2 ? "group" : "one",
+      proofs,
+      pending_claims: pending,
+      approved_claims: approved,
+      answer_by: stage === "with_team" ? "2026-11-04T10:00:00Z" : null,
+      closes_at: stage === "with_team" || stage === "need_more" || stage === "code" ? "2026-11-15T10:00:00Z" : null,
+    }
+  }
+
   const out = (c: Held): ClaimOut => {
     const recording = DEMO_LIBRARY.find((r) => r.id === c.recordingId) as ClaimRecording
     return { id: c.id, recording, level: c.level, matched_text: c.text, route: c.route, status: c.status, team_reason: c.reason, decision_note: c.note, created_at: c.createdAt, decided_at: c.decidedAt }
@@ -158,6 +189,23 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
       claims = []
       extra = []
       counter = 0
+      proofs = []
+    },
+    /** put the proofs of the person into a state (a screenshot script or a test) */
+    setProofs(rows: Partial<ProofOut>[]) {
+      proofs = rows.map((r, i) => ({
+        id: `demo-proof-${i + 1}`,
+        kind: "link",
+        value: "https://youtube.com/@priyadevi",
+        note: null,
+        status: "waiting",
+        code_sent: false,
+        code_confirmed: false,
+        team_note: null,
+        created_at: NOW,
+        decided_at: null,
+        ...r,
+      }))
     },
     api: {
       async claimSummary(): Promise<ClaimSummary> {
@@ -183,7 +231,7 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
         const page = items.slice(offset, offset + 30)
         return { query: q.trim(), items: page, total: items.length, has_more: offset + 30 < items.length }
       },
-      async createClaims(ids: string[]): Promise<ClaimsCreated> {
+      async createClaims(ids: string[], _note?: string): Promise<ClaimsCreated> {
         const results: ClaimResult[] = []
         let approved = 0
         let pending = 0
@@ -219,6 +267,42 @@ export function createDemoClaims(getMine: () => AuthorProfileOwner | null) {
         if (c.status !== "pending" && c.status !== "approved") throw new RemoteError(409, "This claim is already closed", { code: "claim_closed" })
         c.status = "withdrawn"
         c.decidedAt = NOW
+      },
+      async claimRequest(): Promise<RequestState> {
+        return requestState()
+      },
+      async sendProof(input: { kind: ProofKind; value: string; note?: string }): Promise<ProofOut> {
+        if (!input.value.trim()) throw new RemoteError(422, "Write the proof", { code: "proof_invalid" })
+        if (proofs.filter((p) => p.status !== "withdrawn" && p.status !== "declined").length >= 6) throw new RemoteError(422, "Too many proofs", { code: "proofs_limit" })
+        const email = input.kind === "email"
+        const proof: ProofOut = {
+          id: `demo-proof-${++proofCounter}`,
+          kind: input.kind,
+          value: input.value.trim(),
+          note: input.note?.trim() || null,
+          status: email ? "code_sent" : "waiting",
+          code_sent: email,
+          code_confirmed: false,
+          team_note: null,
+          created_at: NOW,
+          decided_at: null,
+        }
+        proofs = [...proofs, proof]
+        return proof
+      },
+      async enterProofCode(id: string, code: string): Promise<ProofOut> {
+        const p = proofs.find((x) => x.id === id)
+        if (!p) throw new RemoteError(404, "Proof not found", { code: "proof_not_found" })
+        // the demo accepts one code, 123456; the real code is e-mailed by the team
+        if (code.trim() !== "123456") throw new RemoteError(422, "That code is not right", { code: "code_wrong" })
+        p.code_confirmed = true
+        p.status = "waiting"
+        return p
+      },
+      async withdrawProof(id: string): Promise<void> {
+        const p = proofs.find((x) => x.id === id)
+        if (!p) throw new RemoteError(404, "Proof not found", { code: "proof_not_found" })
+        p.status = "withdrawn"
       },
       async aliases(): Promise<Alias[]> {
         return extra

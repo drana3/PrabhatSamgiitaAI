@@ -8,6 +8,7 @@ import { AuthorShareSheet } from "@/components/authors/AuthorShareSheet"
 import { AuthorAvatar, Chip, DemoNote, LoadingRows, PillButton, SIDE, StateBlock, WEB_THUMB } from "@/components/authors/AuthorsUi"
 import { BlockStack, Section } from "@/components/common/Layout"
 import { ClaimsCard } from "@/components/authors/ClaimsCard"
+import { CreditsCard } from "@/components/credits/CreditsCard"
 import { OwnerStatsView } from "@/components/authors/StatsViews"
 import { Toast } from "@/components/songs-v2/Toast"
 import { amFonts } from "@/constants/tokens/amTypography"
@@ -85,6 +86,7 @@ export default function MyAuthorScreen() {
         <RecordingsSection profile={mine} flash={flash} />
         <Manage profile={mine} flash={flash} onChange={setMine} />
       </ScrollView>
+        <CreditsCard />
       <AuthorShareSheet open={shareOpen} theme={theme} page={shareOpen ? mine : null} flash={flash} onClose={() => setShareOpen(false)} />
       <Toast message={toast} theme={theme} />
     </>,

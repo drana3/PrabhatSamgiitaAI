@@ -72,6 +72,8 @@ class ClaimSummary(BaseModel):
 
 class ClaimsCreate(BaseModel):
     recording_ids: list[str] = Field(min_length=1, max_length=50)
+    # for a look-alike name: what the other name is, in the person's words (kept for the team)
+    note: str | None = Field(default=None, max_length=300)
 
 
 class ClaimResult(BaseModel):
@@ -131,6 +133,13 @@ class AliasList(BaseModel):
 # --------------------------------------------------------------------------- the team desk
 
 
+class AlsoClaimedBy(BaseModel):
+    profile_id: str
+    slug: str
+    name: str
+    status: ClaimStatus
+
+
 class AdminClaimOut(BaseModel):
     id: str
     profile_id: str
@@ -146,6 +155,10 @@ class AdminClaimOut(BaseModel):
     created_at: datetime
     decided_by: str | None
     decision_note: str | None
+    # what the person says the look-alike name is (team only)
+    person_note: str | None = None
+    # other pages that also ask for this recording (team only; the person never sees this)
+    also_claimed_by: list[AlsoClaimedBy] = []
 
 
 class AdminClaimList(BaseModel):
@@ -155,6 +168,10 @@ class AdminClaimList(BaseModel):
 
 class AdminDecision(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
+    # approve only: also verify the page (it is the person), and/or put the recording on every page
+    # that waits for it ("both pages", a shared recording)
+    verify_page: bool = False
+    with_others: bool = False
 
 
 class AdminBulk(BaseModel):
@@ -176,6 +193,9 @@ class DeskSummary(BaseModel):
     revoked: int
     # the waiting ones per reason (`other` when a claim has none)
     by_reason: dict[str, int]
+    # proofs of identity the team has not looked at yet, and requests older than the reminder day
+    proofs_waiting: int = 0
+    overdue: int = 0
 
 
 class ShownPage(BaseModel):

@@ -22,7 +22,9 @@ import type {
   PatchInput,
   PlayBatchResult,
   PlayEventOut,
+  ProofOut,
   RecordingPage,
+  RequestState,
   ReportOutcome,
   ReportReason,
   SlugCheck,
@@ -153,9 +155,19 @@ export function createAuthorsApi(cfg: RemoteConfig): AuthorsApi {
     claimSummary: () => json<ClaimSummary>(cfg, "/authors/me/claims/summary"),
     claimSuggestions: () => json<ClaimSuggestions>(cfg, "/authors/me/claims/suggestions"),
     claimSearch: (q, offset = 0) => json<ClaimSearch>(cfg, `/authors/me/claims/search${query({ q: q.trim(), limit: 30, offset })}`),
-    createClaims: (recordingIds) => json<ClaimsCreated>(cfg, "/authors/me/claims", { method: "POST", body: { recording_ids: recordingIds } }),
+    createClaims: (recordingIds, note) =>
+      json<ClaimsCreated>(cfg, "/authors/me/claims", {
+        method: "POST",
+        body: { recording_ids: recordingIds, ...(note?.trim() ? { note: note.trim() } : {}) },
+      }),
     myClaims: (status?: ClaimStatus) => json<ClaimList>(cfg, `/authors/me/claims${query({ status })}`),
     withdrawClaim: (id) => nothing(cfg, `/authors/me/claims/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    claimRequest: () => json<RequestState>(cfg, "/authors/me/claims/request"),
+    sendProof: ({ kind, value, note }) =>
+      json<ProofOut>(cfg, "/authors/me/claims/proofs", { method: "POST", body: { kind, value, ...(note?.trim() ? { note: note.trim() } : {}) } }),
+    enterProofCode: (id, code) =>
+      json<ProofOut>(cfg, `/authors/me/claims/proofs/${encodeURIComponent(id)}/code`, { method: "POST", body: { code: code.trim() } }),
+    withdrawProof: (id) => nothing(cfg, `/authors/me/claims/proofs/${encodeURIComponent(id)}`, { method: "DELETE" }),
     aliases: async () => (await json<{ items: Alias[] }>(cfg, "/authors/me/aliases")).items,
     addAlias: async (alias) => (await json<{ items: Alias[] }>(cfg, "/authors/me/aliases", { method: "POST", body: { alias } })).items,
     removeAlias: (key) => nothing(cfg, `/authors/me/aliases/${encodeURIComponent(key)}`, { method: "DELETE" }),

@@ -9,6 +9,7 @@ import { PsSongChooser } from "@/components/kirtan/add/PsSongChooser"
 import { AVARTA } from "@/lib/kirtan/practice"
 import { useUploadExit } from "@/components/kirtan/useUploadExit"
 import { ChordsSection } from "@/components/kirtan/add/ChordsSection"
+import { PeopleBlock } from "@/components/kirtan/add/PeopleBlock"
 import { RoleBlock } from "@/components/kirtan/add/RoleBlock"
 import { InstrumentField } from "@/components/kirtan/add/InstrumentField"
 import { MantraField } from "@/components/kirtan/add/MantraField"
@@ -27,6 +28,7 @@ import { kindHasStyle } from "@/lib/kirtan/styles"
 import { effectiveRecordingType, kindHasPerformance, kindHasRecordingType, titleNeedsEnglish } from "@/lib/kirtan/recordingInfo"
 import { formOffersChords } from "@/lib/kirtan/uploadChords"
 import { useUx } from "@/lib/kirtan/useUx"
+import { kindHasPeople } from "@/lib/kirtan/credits"
 import { effectiveRole, rolePatch } from "@/lib/kirtan/uploadRole"
 import { useValueOptions } from "@/lib/kirtan/valueOptions"
 import { offersVideoLink } from "@/lib/recordingVideos/uploadLink"
@@ -568,6 +570,13 @@ export function AddRecordingForm() {
                 />
               </View>
             </Reveal>
+
+            {/* "Who else is on it?": the other singers and players (a page is asked first, a plain name stays text); never for Baba's Audio */}
+            {kindHasPeople(kind) ? (
+              <Reveal index={3}>
+                <PeopleBlock theme={theme} value={draft.performers ?? []} onChange={(performers) => store().setDraft({ performers })} disabled={locked} />
+              </Reveal>
+            ) : null}
 
             {/* Kiirtan only: the Avarta tick is optional and covers the whole queue (the style is asked in "How it sounds") */}
             {kind === "kiirtan" ? (

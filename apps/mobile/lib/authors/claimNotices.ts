@@ -13,7 +13,27 @@ import { useNotificationsStore } from "@/stores/notificationsStore"
  * The words are made here, in the person's language. A notice that cannot be made into an item is skipped. Notices of other
  * kinds are left alone (the reply notices have their own sync).
  */
-export const CLAIM_NOTICE_KINDS = ["claim_approved", "claim_rejected", "claim_revoked", "claim_on_your_recording"] as const
+export const CLAIM_NOTICE_KINDS = [
+  "claim_approved",
+  "claim_rejected",
+  "claim_revoked",
+  "claim_on_your_recording",
+  // proof of identity (docs/author-profiles.md, "Proof of identity"): to the page owner, and one reminder to the team
+  "claim_proof_ok",
+  "claim_proof_declined",
+  "claim_more_proof",
+  "claim_closed_no_proof",
+  "claim_team_reminder",
+] as const
+
+/** The proof notices: notice kind to the words and the screen they open. The team reminder opens the team's desk. */
+const PROOF_NOTICES = {
+  claim_proof_ok: { key: "proofOk", target: "/claim-request" },
+  claim_proof_declined: { key: "proofDeclined", target: "/claim-request" },
+  claim_more_proof: { key: "moreProof", target: "/claim-request" },
+  claim_closed_no_proof: { key: "closedNoProof", target: "/claim-request" },
+  claim_team_reminder: { key: "teamReminder", target: "/team-claims" },
+} as const
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/
 
@@ -43,6 +63,23 @@ export function claimItem(notice: RemoteNotice): AppNotification | null {
       title: t("claimNotice.title.onpage"),
       text: t("claimNotice.onpage", { title, page: name }),
       target: page,
+      firedAt: fired,
+    }
+  }
+
+  const proof = PROOF_NOTICES[notice.kind as keyof typeof PROOF_NOTICES]
+  if (proof) {
+    const note = text(payload.note)
+    const line =
+      proof.key === "teamReminder"
+        ? t("claimNotice.teamReminder", { count: count(payload.count) })
+        : t(`claimNotice.${proof.key}` as "claimNotice.proofOk")
+    return {
+      id: `claim:${notice.id}`,
+      kind: "claim",
+      title: t(`claimNotice.title.${proof.key}` as "claimNotice.title.proofOk"),
+      text: note ? `${line} ${t("claimNotice.note", { note })}` : line,
+      target: proof.target,
       firedAt: fired,
     }
   }
