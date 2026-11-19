@@ -47,6 +47,7 @@ import { pronunciationEn } from "./pronunciation"
 import { authorsEn } from "./authors"
 import { claimsDeskEn } from "./claimsDesk"
 import { claimProofEn } from "./claimProof"
+import { creditsEn } from "./credits"
 import { teamDesksEn } from "./teamDesks"
 import { moodSearchEn } from "./moodSearch"
 import { notificationCentreEn } from "./notificationCentre"
@@ -1343,6 +1344,7 @@ export const en = {
   ...authorsEn,
   ...claimsDeskEn,
   ...claimProofEn,
+  ...creditsEn,
   ...teamDesksEn,
   ...moodSearchEn,
   ...notificationCentreEn,

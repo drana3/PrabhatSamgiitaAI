@@ -48,6 +48,7 @@ import { pronunciationEs } from "./pronunciation"
 import { authorsEs } from "./authors"
 import { claimsDeskEs } from "./claimsDesk"
 import { claimProofEs } from "./claimProof"
+import { creditsEs } from "./credits"
 import { teamDesksEs } from "./teamDesks"
 import { moodSearchEs } from "./moodSearch"
 import { notificationCentreEs } from "./notificationCentre"
@@ -1337,6 +1338,7 @@ export const es: Dictionary = {
   ...authorsEs,
   ...claimsDeskEs,
   ...claimProofEs,
+  ...creditsEs,
   ...teamDesksEs,
   ...moodSearchEs,
   ...notificationCentreEs,

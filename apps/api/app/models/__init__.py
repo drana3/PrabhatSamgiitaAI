@@ -75,6 +75,11 @@ from app.models.piano_sheets import PianoSheet, PianoSheetReport
 from app.models.play_flag import PlayFlag
 from app.models.rate_limit import RateLimitCounter
 from app.models.recording_collections import RecordingCollection, RecordingCollectionCover
+from app.models.recording_credits import (
+    AuthorCreditBlock,
+    RecordingCredit,
+    RecordingCreditEvent,
+)
 from app.models.recording_extras import (
     RecordingChordReport,
     RecordingChordSheet,
@@ -122,6 +127,9 @@ __all__ = [
     "AuthorClaim",
     "AuthorClaimEvent",
     "AuthorClaimProof",
+    "AuthorCreditBlock",
+    "RecordingCredit",
+    "RecordingCreditEvent",
     "AuthorProfile",
     "AuthorProfilePhoto",
     "AuthorRecordingLink",

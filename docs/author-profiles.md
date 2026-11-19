@@ -245,7 +245,7 @@ Screen `app/team-claims.tsx` (parts in `components/authors/DeskParts.tsx`, rules
 
 ### Proof of identity
 
-Decided by Dada on 18 Nov 2026. One proof **per author page**, not per recording: a name alone is never enough. Code: `services/author_proofs.py`, `schemas/author_proofs.py`, `api/v1/author_claims.py`, table `author_claim_proofs` and column `author_claims.person_note` (migration `0070_claim_proofs`; `0070_recording_credits` of `docs/co-performers.md` must follow it, `down_revision`).
+Decided by Dada on 18 Nov 2026. One proof **per author page**, not per recording: a name alone is never enough. Code: `services/author_proofs.py`, `schemas/author_proofs.py`, `api/v1/author_claims.py`, table `author_claim_proofs` and column `author_claims.person_note` (migration `0070_claim_proofs`; `0071_recording_credits` of `docs/co-performers.md` follows it).
 
 - **Kinds.** `link` (the person's channel or social page, showing their name and a link back to the page here), `email` (the team e-mails a 6-digit code to an address listed on the channel; the person enters it; only a SHA-256 hash is stored, 48 hours, 5 tries), `voice` (a voice or video note, only when there is no public page), `team` (a team member who knows the person; counts as two). A **famous name** (more than 15 library recordings) or a **group** page needs **two** proofs, others one.
 - **Stages** of a request (`GET /authors/me/claims/request`): `no_proof`, `code`, `with_team`, `need_more`, `verified`, `closed`. The team answers within **3 days** (overdue is flagged), a reminder goes to the team on day **5**, and a request with no move from the person closes after **14 days** ("no proof"); it opens again when the person sends a proof. Timers run in the housekeeping pass `claim_timers` (`services/housekeeping.py`). The team reminder is a `MemberNotice` to admins (`UserAccount.is_admin`), not an e-mail.
@@ -317,3 +317,5 @@ Needs Dada (changes what people see):
 - The preview in the browser sometimes shows a red overlay from the audio player library (circular initialisation, `CAPABILITY_PLAY`). It also happens without the author screens; it is not caused by this feature.
 - The i18n coverage script reports 5 false positives in `authors` files (dynamic key families); the locale test (`authorLocales.test.ts`) checks them properly.
 - The full mobile suite has one failing test outside this feature (`kirtanSets.test.ts`, daily limit).
+
+Several performers on one recording (the uploader names people, each confirms, then it shows on their page; claims decide per person): see `docs/co-performers.md`.

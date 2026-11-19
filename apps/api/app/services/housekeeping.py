@@ -255,6 +255,14 @@ async def run_claim_timers(session: AsyncSession, now: datetime, cfg: Housekeepi
     return await run_timers(session, now)
 
 
+async def run_credit_expiry(session: AsyncSession, now: datetime, cfg: HousekeepingConfig) -> int:
+    """Invitations to be on a recording (docs/co-performers.md) that nobody answered for 60 days
+    go back to a plain name. Not a deletion: the number is how many credits it touched."""
+    from app.services.recording_credits import expire_old
+
+    return await expire_old(session, now)
+
+
 def _local_storage_dir() -> Path | None:
     """The folder of the local disk storage, or None when the audio lives in a bucket."""
     from app.config import get_settings
@@ -340,6 +348,7 @@ CLEANUPS: tuple[tuple[str, CleanupFn], ...] = (
     ("app_events", clean_app_events),
     ("read_notices", clean_read_notices),
     ("claim_timers", run_claim_timers),
+    ("credit_expiry", run_credit_expiry),
     ("orphan_uploads", clean_orphan_uploads),
 )
 

@@ -28,6 +28,8 @@ from app.api.v1.quiz_events import router as quiz_events_router
 from app.api.v1.recommendations import router as recommendations_router
 from app.api.v1.recording_chords import router as recording_chords_router
 from app.api.v1.recording_comments import router as recording_comments_router
+from app.api.v1.recording_credits import admin_router as recording_credits_admin_router
+from app.api.v1.recording_credits import router as recording_credits_router
 from app.api.v1.recording_moods import admin_router as recording_moods_admin_router
 from app.api.v1.recording_moods import router as recording_moods_router
 from app.api.v1.recording_sets import admin_router as recording_sets_admin_router
@@ -88,6 +90,9 @@ router.include_router(song_translations_admin_router)
 router.include_router(author_claims_router)
 router.include_router(author_claims_admin_router)
 router.include_router(author_claims_uploads_router)
+# before author_profiles_router: `/authors/me/...` must not be read as `/authors/{slug}`
+router.include_router(recording_credits_router)
+router.include_router(recording_credits_admin_router)
 router.include_router(author_profiles_router)
 router.include_router(author_plays_router)
 router.include_router(author_profiles_admin_router)

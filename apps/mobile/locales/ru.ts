@@ -48,6 +48,7 @@ import { pronunciationRu } from "./pronunciation"
 import { authorsRu } from "./authors"
 import { claimsDeskRu } from "./claimsDesk"
 import { claimProofRu } from "./claimProof"
+import { creditsRu } from "./credits"
 import { teamDesksRu } from "./teamDesks"
 import { moodSearchRu } from "./moodSearch"
 import { notificationCentreRu } from "./notificationCentre"
@@ -1423,6 +1424,7 @@ export const ru: Dictionary = {
   ...authorsRu,
   ...claimsDeskRu,
   ...claimProofRu,
+  ...creditsRu,
   ...teamDesksRu,
   ...moodSearchRu,
   ...notificationCentreRu,

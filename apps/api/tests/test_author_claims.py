@@ -170,7 +170,7 @@ async def test_the_plays_of_a_claimed_recording_count(world: World) -> None:
     ("credit", "title", "reason"),
     [
         ("Madhu Vrat", "x", "not_same_name"),
-        ("Madhu Vrata & friends", "x", "group_credit"),
+        ("Somebody & Others", "x", "group_credit"),
         ("Somebody Else", "Night kiirtan with Madhu Vrata", "not_same_name"),
     ],
 )
@@ -184,6 +184,14 @@ async def test_everything_that_is_not_clear_goes_to_the_team(
     assert result["results"][0]["team_reason"] == reason
     assert (await world.get("madhu-vrata", "/recordings")).json()["total"] == 0
     assert await notices(world, MEMBER_B) == []  # nothing is shown yet, so nothing to tell
+
+
+async def test_my_own_name_inside_a_group_credit_is_decided_per_person(world: World) -> None:
+    """docs/co-performers.md: "Madhu Vrata & friends" names me; the others in it do not block me."""
+    await verified_page(world)
+    rid = await world.recording(MEMBER_B, title="x", author="Madhu Vrata & friends")
+    result = await claim(world, [rid])
+    assert result["results"][0]["outcome"] == "approved"
 
 
 async def test_a_page_the_team_has_not_verified_goes_to_the_team(world: World) -> None:
@@ -230,7 +238,7 @@ async def test_a_protected_a_famous_and_a_taken_name_go_to_the_team(
     )
     outcomes = {x["recording_id"]: x["team_reason"] for x in r.json()["results"]}
     # the second page is told nothing about the first one (Dada, 2026-11-18); the team still sees it
-    assert outcomes[str(first)] is None
+    assert outcomes[str(first)] == "review_flag"
     desk = (await world.client.get(DESK, headers=AS_TEAM)).json()
     assert any(i["team_reason"] == "taken_by_other" for i in desk["items"])
 

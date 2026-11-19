@@ -108,6 +108,23 @@ const ERROR_KEYS: Record<string, string> = {
   claim_not_found: "authors.error.claim_gone",
   claim_closed: "authors.error.claim_gone",
   page_suspended: "authors.error.suspended",
+  // people named on a recording (docs/co-performers.md)
+  already_added: "credits.error.already_added",
+  invites_off: "credits.error.invites_off",
+  too_many: "credits.error.limit",
+  name_invalid: "credits.error.name_invalid",
+  role_invalid: "credits.error.name_invalid",
+  not_yours: "credits.error.not_yours",
+  no_longer_open: "credits.error.no_longer_open",
+  credit_not_found: "credits.error.no_longer_open",
+  link_not_valid: "credits.error.link_invalid",
+  confirmed_credit: "credits.error.confirmed_credit",
+  not_on_page: "credits.error.no_longer_open",
+  not_text: "credits.error.no_longer_open",
+  block_not_found: "credits.error.no_longer_open",
+  page_not_found: "credits.error.no_longer_open",
+  recording_not_found: "credits.error.no_longer_open",
+  setting_invalid: "authors.error.generic",
 }
 
 /** The sentence key for an API error: its `code`, a status, or "no network". */

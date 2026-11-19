@@ -3,6 +3,7 @@ import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 
 import { AuthorLine } from "@/components/authors/AuthorLine"
+import { CreditsLine } from "@/components/credits/CreditsLine"
 import { KiirtanCover } from "@/components/kirtan/KiirtanCover"
 import { useRecordingPhoto } from "@/components/kirtan/useRecordingPhoto"
 import type { SongsTheme } from "@/constants/tokens/amSongs"
@@ -41,6 +42,7 @@ export function RecordingHero({ theme, kirtan }: { theme: SongsTheme; kirtan: Ki
         </Text>
         {kirtan.author ? <Text style={[s.author, { color: theme.textHeading }]}>{kirtan.author}</Text> : null}
         <AuthorLine theme={theme} recordingId={kirtan.serverId ?? kirtan.id} />
+        <CreditsLine theme={theme} recordingId={kirtan.serverId ?? kirtan.id} author={kirtan.author} />
       </View>
     </View>
   )

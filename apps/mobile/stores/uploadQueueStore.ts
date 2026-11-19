@@ -3,6 +3,7 @@ import { create } from "zustand"
 import { addFiles, applyOutcome, applyToAll, effectiveFields, effectivePractice, incompleteRows, isLeftoverDraft, patchItem, queueCounts, removeItem, requeue, requeueAll, rowMissing, runQueue, setItemTitle, setRowFields, withoutFinished, withoutKindBoundChoices, type KindDefaults, type PickedFile, type QueueItem, type QueueStop, type RowFieldsPatch, type RowOutcome } from "@/lib/kirtan/queue"
 import { draftWithPatch } from "@/lib/kirtan/uploadForm"
 import { validateSubmission } from "@/lib/kirtan/submissions"
+import { performersPayload, type PerformerChip } from "@/lib/kirtan/credits"
 import { kindHasChords, kindHasLanguage } from "@/lib/kirtan/kind"
 import { effectiveRecordingType } from "@/lib/kirtan/recordingInfo"
 import type { DanceId, RecordingKind, RecordingLanguage } from "@/lib/kirtan/types"
@@ -32,6 +33,8 @@ export type QueueDraft = {
   /** Dance music: Tandava or Kaoshiki */
   dance: DanceId | null
   credits: string
+  /** the other people on the recording (docs/co-performers.md): "Who else is on it?" on the form; empty for Baba's Audio */
+  performers?: PerformerChip[]
   /** where it was recorded or performed (every kind, optional), and Baba's Audio Discourses: the name or number of the discourse */
   place: string
   discourse: string
@@ -64,7 +67,7 @@ export type QueueDraft = {
   mantraOther: string
 }
 
-export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, performs: false, role: null, mantraType: null, mantraOther: "" }
+export const EMPTY_DRAFT: QueueDraft = { kind: "kiirtan", performer: "", language: null, languageOther: "", dance: null, credits: "", performers: [], place: "", discourse: "", year: "", notes: "", psSong: null, styles: [], stylesOther: [], moods: [], moodsOther: [], practice: null, recordingType: null, tempo: null, performance: null, leadInstrument: null, leadInstrumentOther: "", byAuthor: false, performs: false, role: null, mantraType: null, mantraOther: "" }
 
 type QueueState = {
   items: QueueItem[]
@@ -148,6 +151,7 @@ export const useUploadQueueStore = create<QueueState>()((set, get) => {
       languageOther: kindHasLanguage(draft.kind) ? fields.languageOther : null,
       dance: fields.dance,
       credits: draft.credits,
+      performers: performersPayload(draft.performers, draft.kind),
       place: draft.place,
       discourse: draft.discourse,
       notes: draft.notes,

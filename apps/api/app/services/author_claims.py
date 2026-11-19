@@ -50,6 +50,7 @@ from app.schemas.author_claims import (
 )
 from app.services import author_claim_rules as match
 from app.services import author_rules as rules
+from app.services import recording_credits as credits_service
 from app.services.author_profiles import (
     AuthorError,
     attribution,
@@ -81,9 +82,10 @@ _SONG_NUMBER = re.compile(r"^(?:#|ps\s*|prabh?at\s+sa[nm]g[ie]+ta?\s*)?(\d{1,4})
 
 
 def public_reason(reason: str | None) -> str | None:
-    """The reason a PERSON is shown. `taken_by_other` is hidden: a second page that asks for a name
-    must see nothing about the first (Dada, 2026-11-18); the team still sees it."""
-    return None if reason == "taken_by_other" else reason
+    """The reason a PERSON is shown. `taken_by_other` is hidden behind the plain "waiting for a
+    check": a second page that asks for a name must see nothing about the first (Dada, 2026-11-18),
+    and a missing reason would give it away. The team still sees the real one."""
+    return "review_flag" if reason == "taken_by_other" else reason
 
 
 # Which reason is told when several apply (the first one in this list).
@@ -211,13 +213,16 @@ class Ladder:
         if profile.verified and profile.claimed_name:
             trusted.append(profile.claimed_name)
         self.trusted = [n for n in trusted if n and n.strip()]
-        self._famous: dict[str, str | None] = {}
+        self._famous: dict[tuple[str, str], str | None] = {}
 
-    async def _famous_reason(self, credit: str) -> str | None:
-        """`protected_name`, `famous_name`, `taken_by_other`, or None, for one credit text."""
+    async def _famous_reason(self, credit: str, whole: str | None = None) -> str | None:
+        """`protected_name`, `famous_name`, `taken_by_other`, or None, for ONE PERSON's name.
+        `whole` is the full credit the name sits in ("A & B"); `taken_by_other` is decided per
+        person (docs/co-performers.md): another page that holds A does not hold B."""
         key = credit.strip().lower()
-        if key in self._famous:
-            return self._famous[key]
+        whole_key = (whole if whole is not None else credit).strip().lower()
+        if (key, whole_key) in self._famous:
+            return self._famous[(key, whole_key)]
         reason: str | None = None
         if rules.protected_name_hit(credit) or rules.staff_hit(credit):
             reason = "protected_name"
@@ -249,19 +254,20 @@ class Ladder:
             ):
                 reason = "famous_name"
         if reason is None:
-            taken = await self.session.scalar(
-                select(func.count())
-                .select_from(AuthorClaim)
-                .join(Recording, Recording.id == AuthorClaim.recording_id)
-                .where(
-                    AuthorClaim.profile_id != self.profile.id,
-                    AuthorClaim.status.in_(LIVE_STATUSES),
-                    func.lower(Recording.author) == key,
+            held = (
+                await self.session.scalars(
+                    select(AuthorClaim.matched_text)
+                    .join(Recording, Recording.id == AuthorClaim.recording_id)
+                    .where(
+                        AuthorClaim.profile_id != self.profile.id,
+                        AuthorClaim.status.in_(LIVE_STATUSES),
+                        func.lower(Recording.author) == whole_key,
+                    )
                 )
-            )
-            if int(taken or 0):
+            ).all()
+            if any(match.same_name(text, credit) for text in held):
                 reason = "taken_by_other"
-        self._famous[key] = reason
+        self._famous[(key, whole_key)] = reason
         return reason
 
     async def standing(self, recording: Recording, *, from_search: bool = False) -> Standing:
@@ -280,15 +286,19 @@ class Ladder:
             reasons.add("unverified_page")
         if profile.author_type == "group":
             reasons.add("group_page")
-        if match.is_group_credit(credit):
+        # Several names in one credit send a claim to the team only when this page's own name is
+        # not clearly one of them (docs/co-performers.md): "A & B" no longer makes B wait.
+        own_part = (
+            level == "same" and bool(part) and match.level_of(part, self.trusted)[0] == "same"
+        )
+        if match.is_group_credit(credit) and not own_part:
             reasons.add("group_credit")
         if level != "same":
             reasons.add("not_same_name")
         elif match.level_of(credit, self.trusted)[0] != "same":
             reasons.add("alias_match")
-        famous = await self._famous_reason(credit.strip()) if credit.strip() else None
-        if part and part != credit:
-            famous = famous or await self._famous_reason(part)
+        subject = (part or credit).strip()
+        famous = await self._famous_reason(subject, credit.strip()) if subject else None
         if famous:
             reasons.add(famous)
         for reason in REASON_ORDER:
@@ -561,6 +571,12 @@ async def claim(
                 continue
         elif rid in on_page:
             results.append(ClaimResult(recording_id=str(rid), outcome="already_on_page"))
+            continue
+        if await credits_service.accept_open_invite(session, profile, rid, member_id):
+            # The uploader named this page and the page asks for the recording: two people agree,
+            # the claim only accepts the invitation (docs/co-performers.md).
+            results.append(ClaimResult(recording_id=str(rid), outcome="approved"))
+            approved += 1
             continue
         standing = await ladder.standing(recording)
         if standing.route == "team" and open_now >= OPEN_CLAIMS_MAX:

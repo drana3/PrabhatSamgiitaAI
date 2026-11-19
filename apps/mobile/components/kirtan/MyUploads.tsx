@@ -61,6 +61,11 @@ export function UploadRow({ theme, kirtan: k, onOpen, onMore, onOpenArtist }: Ro
             </KPress>
           ))
         : null}
+      {k.status === "published" && k.serverId ? (
+        <KPress accessibilityRole="link" accessibilityLabel={t("credits.uploads.people")} onPress={() => router.push(href(`/recording-people?id=${encodeURIComponent(k.serverId as string)}`))} pressedScale={0.97} style={styles.onPage}>
+          <Text style={[styles.note, { color: theme.accent }]}>{t("credits.uploads.people")}</Text>
+        </KPress>
+      ) : null}
       <AddLanguagePrompt theme={theme} kirtan={k} variant="inline" />
       {k.status === "uploading" ? <Text style={[styles.note, { color: theme.textBody }]}>{t("ugc.mine.uploading")}</Text> : null}
       {failed ? (

@@ -225,6 +225,8 @@ export type Kirtan = {
   broadcastId?: string
   /** words and music by, as the uploader wrote it (Bhajan) */
   credits?: string
+  /** the other people the uploader named on the form (docs/co-performers.md); kept with the submission until it is on the server */
+  performers?: import("@/lib/kirtan/credits").PerformerPayload[]
   /** a short note from the uploader */
   notes?: string
   /** Prabhat Samgiita recordings only: the number of the song (1 to 5018) this is a performance of */

@@ -277,6 +277,11 @@ export default function RootLayout() {
             <Stack.Screen name="author-edit" options={{ presentation: "card" }} />
             <Stack.Screen name="author-claims" options={{ presentation: "card" }} />
             <Stack.Screen name="author-find" options={{ presentation: "card" }} />
+            {/* People named on a recording (docs/co-performers.md): invitations, my credits, the uploader's list, an invite link. */}
+            <Stack.Screen name="credit-invites" options={{ presentation: "card" }} />
+            <Stack.Screen name="my-credits" options={{ presentation: "card" }} />
+            <Stack.Screen name="recording-people" options={{ presentation: "card" }} />
+            <Stack.Screen name="credit/[token]" options={{ presentation: "card" }} />
             {/* Upload: the hub of the tab bar's Upload button, offering chords for a song, and the team's review of them. */}
             <Stack.Screen name="upload" options={{ presentation: "modal" }} />
             <Stack.Screen name="upload-chords" options={{ presentation: "modal" }} />

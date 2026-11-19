@@ -1,3 +1,4 @@
+import { kindHasPeople, MAX_PERFORMERS, type PerformerPayload } from "@/lib/kirtan/credits"
 import { fixKiirtanSpelling } from "@/lib/kirtan/kiirtanSpelling"
 import { kindHasDance, kindHasDiscourse, kindHasLanguage } from "@/lib/kirtan/kind"
 import { cleanLanguageOther, OTHER_LANGUAGE } from "@/lib/kirtan/languages"
@@ -274,6 +275,8 @@ export type PublishPayload = {
   /** the live broadcast this is the recording of (its author and the team link it at once, anybody else suggests it) */
   broadcastId?: string | null
   credits?: string | null
+  /** the other people on the recording (docs/co-performers.md); the server asks the ones with an author page */
+  performers?: PerformerPayload[] | null
   notes?: string | null
   /** where it was recorded or performed (every kind, optional); the discourse is Baba's Audio Discourses only */
   place?: string | null
@@ -331,6 +334,7 @@ export async function publishRecording(cfg: RemoteConfig, payload: PublishPayloa
     ...(payload.recordedOn ? { recorded_on: payload.recordedOn } : {}),
     ...(payload.broadcastId ? { broadcast_id: payload.broadcastId } : {}),
     ...(payload.credits?.trim() ? { credits: payload.credits.trim() } : {}),
+    ...(payload.performers?.length && kindHasPeople(payload.kind) ? { performers: payload.performers.slice(0, MAX_PERFORMERS) } : {}),
     ...(payload.notes?.trim() ? { notes: payload.notes.trim() } : {}),
     ...(payload.place?.trim() ? { place: fixKiirtanSpelling(payload.place.trim()) } : {}),
     ...(payload.discourse?.trim() && kindHasDiscourse(payload.kind) ? { discourse: payload.discourse.trim() } : {}),

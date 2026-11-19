@@ -136,6 +136,11 @@ class AuthorProfile(Base, TimestampMixin):
     reports_count: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
+    # Who may add this page to a recording as a performer (docs/co-performers.md): "everyone" (they
+    # still have to confirm each one) or "nobody".
+    credit_invites: Mapped[str] = mapped_column(
+        String(8), default="everyone", server_default="everyone", nullable=False
+    )
 
     # Hash prefix of the stored photo (changes with every new picture); null when there is none.
     photo_version: Mapped[str | None] = mapped_column(String(16))

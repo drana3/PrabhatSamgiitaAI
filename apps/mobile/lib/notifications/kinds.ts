@@ -62,6 +62,8 @@ export const KIND_META = {
   reply: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: true, accountBound: true, channel: "replies", ios: "active", icon: "reply", tone: "sage", fallback: "/v2/songs", groupCount: "replies" },
   claim: { source: "server", tier: "reminder", keepDays: 90, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "active", icon: "check", tone: "sage", fallback: "/author-claims" },
   onpage: { source: "server", tier: "reminder", keepDays: 30, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "passive", icon: "music", tone: "sage", fallback: "/v2/kiirtan" },
+  // people named on a recording (docs/co-performers.md): an invitation to confirm, and the answers to the uploader
+  credit: { source: "server", tier: "reminder", keepDays: 90, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "active", icon: "check", tone: "sage", fallback: "/credit-invites" },
   upload: { source: "server", tier: "important", keepDays: 90, unreadKeepDays: 180, priority: 5, groupable: false, accountBound: true, channel: "notices", ios: "active", icon: "music", tone: "warn", fallback: "/v2/kiirtan" },
 } as const satisfies Record<string, KindMeta>
 
