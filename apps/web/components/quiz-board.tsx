@@ -29,7 +29,8 @@ export function QuizBoard() {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [currentIndex, setCurrentIndex] = useState(0)
   const [result, setResult] = useState<QuizSubmitResult | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [startingLevel, setStartingLevel] = useState<QuizLevel | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
 
   useEffect(() => {
@@ -45,10 +46,10 @@ export function QuizBoard() {
   )
 
   async function begin(level: QuizLevel) {
-    setBusy(true)
+    setStartingLevel(level)
     setError("")
     const quiz = await startQuiz(level)
-    setBusy(false)
+    setStartingLevel(null)
     if (!quiz) {
       setError("Could not start the quiz. Please sign in and try again.")
       return
@@ -67,7 +68,7 @@ export function QuizBoard() {
       setError(`Please answer all ${activeQuiz.questions.length} questions before submitting.`)
       return
     }
-    setBusy(true)
+    setSubmitting(true)
     setError("")
     const payload = {
       attempt_id: activeQuiz.attempt_id,
@@ -77,7 +78,7 @@ export function QuizBoard() {
       })),
     }
     const next = await submitQuiz(payload)
-    setBusy(false)
+    setSubmitting(false)
     if (!next) {
       setError("Could not submit your quiz. Please try again.")
       return
@@ -186,11 +187,11 @@ export function QuizBoard() {
           ) : (
             <button
               type="button"
-              disabled={busy}
+              disabled={submitting}
               onClick={() => void finish()}
               className="gold-button px-5 py-2.5 disabled:opacity-40"
             >
-              {busy ? <LoadingIndicator label="Submitting" compact /> : "Submit quiz"}
+              {submitting ? <LoadingIndicator label="Submitting" compact /> : "Submit quiz"}
             </button>
           )}
           <button type="button" onClick={() => setStep("levels")} className="text-sm font-semibold text-stone-500">
@@ -230,11 +231,15 @@ export function QuizBoard() {
                 </p>
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={startingLevel !== null}
                   onClick={() => void begin(level)}
                   className="gold-button mt-5 w-full justify-center py-2.5"
                 >
-                  {busy ? "Starting…" : certified ? "Retry level" : "Start quiz"}
+                  {startingLevel === level
+                    ? "Starting…"
+                    : certified
+                      ? "Retry level"
+                      : "Start quiz"}
                 </button>
               </article>
             )
