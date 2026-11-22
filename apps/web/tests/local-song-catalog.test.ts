@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { alignDevanagariStanzaGaps } from "@prabhat/core"
+
 import { coalesceSongDetail, localSongDetail, localTransposedNotation } from "@/lib/local-song-catalog"
 import type { SongDetail } from "@/lib/api"
 
@@ -63,6 +65,26 @@ describe("localSongDetail", () => {
     expect(merged?.first_line).toMatch(/VAJRA/i)
     expect(merged?.lyrics_original).toMatch(/^VAJRA/i)
     expect(merged?.lyrics_original).not.toMatch(/SAḾSKRTA|SAMSKRTA/i)
+  })
+
+  it("mirrors Roman stanza gaps when coalescing Devanagari from API + seed", () => {
+    const local = localSongDetail(5) as SongDetail
+    const flatDev = (local.lyrics_devanagari ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("\n")
+    const remote: SongDetail = {
+      ...local,
+      lyrics_devanagari: flatDev,
+      devanagari_status: "provisional",
+    }
+    const merged = coalesceSongDetail(remote, local)
+    expect(merged?.lyrics_original).toBeTruthy()
+    expect(merged?.lyrics_devanagari).toBe(
+      alignDevanagariStanzaGaps(merged!.lyrics_original!, flatDev),
+    )
+    expect((merged?.lyrics_devanagari ?? "").split("\n").some((line) => !line.trim())).toBe(true)
   })
 
   it("prefers approved API Devanagari over packaged seed text", () => {

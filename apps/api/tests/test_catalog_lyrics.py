@@ -54,6 +54,15 @@ def test_prepare_ps4404_heading() -> None:
     assert row["lyrics_original"].startswith("ESE CHILE")
 
 
+def test_align_devanagari_stanza_gaps_matches_roman() -> None:
+    from app.services.catalog_lyrics import align_devanagari_stanza_gaps
+
+    roman = "A\nB\n\nC"
+    dev = "अ\nब\nस"
+    aligned = align_devanagari_stanza_gaps(roman, dev)
+    assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
+
+
 def test_second_prepare_keeps_stanza_gaps() -> None:
     base = {
         "title": "ELO",

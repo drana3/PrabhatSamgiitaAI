@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  alignDevanagariStanzaGaps,
   inferStanzaBlankLines,
   isCorruptLyricPaddingLine,
   isCatalogLanguageLabelLine,
@@ -108,5 +109,13 @@ describe("catalogLyrics", () => {
 
   it("treats samskrta header without metadata sanskrit", () => {
     expect(isCatalogLanguageLabelLine("SAḾSKRTA", "Roman", [])).toBe(true)
+  })
+
+  it("aligns devanagari stanza gaps to roman", () => {
+    const roman = "REFRAIN\nLINE\n\nREFRAIN\nEND"
+    const dev = "रिफ्रेन\nलाइन\nरिफ्रेन\nएन्ड"
+    const aligned = alignDevanagariStanzaGaps(roman, dev)
+    expect(aligned.split("\n").filter((line) => !line.trim())).toHaveLength(1)
+    expect(aligned.startsWith("रिफ्रेन")).toBe(true)
   })
 })
