@@ -6,6 +6,7 @@ import {
   compareAudioQuality,
   prepareCatalogLyricsFields,
   alignDevanagariStanzaGaps,
+  languageLabelsFromMetadata,
   stripTrailingThemeFromDevanagari,
 } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
@@ -264,9 +265,13 @@ export function localSongDetail(number: number): SongDetail | null {
     song.lyrics_devanagari,
     officialTheme,
   )
+  const languageLabels = languageLabelsFromMetadata(meta as Record<string, unknown>)
   const lyricsDevanagari =
     strippedDevanagari?.trim() && romanClean
-      ? alignDevanagariStanzaGaps(romanClean, strippedDevanagari)
+      ? alignDevanagariStanzaGaps(romanClean, strippedDevanagari, {
+          language: song.language,
+          languageLabels,
+        })
       : strippedDevanagari
   const base = summary({
     ...song,
@@ -355,9 +360,13 @@ export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail 
     mergedDevanagari,
     officialTheme,
   )
+  const languageLabels = languageLabelsFromMetadata(metadata_json as Record<string, unknown>)
   const lyrics_devanagari =
     strippedDevanagari?.trim() && lyrics_original
-      ? alignDevanagariStanzaGaps(lyrics_original, strippedDevanagari)
+      ? alignDevanagariStanzaGaps(lyrics_original, strippedDevanagari, {
+          language: firstFilled(remote.language, local.language),
+          languageLabels,
+        })
       : strippedDevanagari
   return {
     ...remote,

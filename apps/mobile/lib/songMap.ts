@@ -1,5 +1,6 @@
 import {
   alignDevanagariStanzaGaps,
+  languageLabelsFromMetadata,
   prepareCatalogLyricsFields,
   stripTrailingThemeFromDevanagari,
   type SongDetail,
@@ -352,7 +353,10 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
           officialTheme,
         )
         if (!stripped?.trim() || !romanClean) return stripped
-        return alignDevanagariStanzaGaps(romanClean, stripped)
+        return alignDevanagariStanzaGaps(romanClean, stripped, {
+          language: detail.language,
+          languageLabels: languageLabelsFromMetadata(meta as Record<string, unknown>),
+        })
       })()
   const themes = [officialTheme || detail.theme, detail.mood, detail.occasion].filter(
     Boolean,

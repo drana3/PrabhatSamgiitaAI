@@ -19,6 +19,7 @@ from app.schemas.song import (
 from app.services.catalog import CatalogService
 from app.services.catalog_lyrics import (
     align_devanagari_stanza_gaps,
+    language_labels_from_metadata,
     prepare_catalog_lyrics_fields,
 )
 from app.services.localization import (
@@ -259,7 +260,14 @@ async def get_song(
         known_theme=known_theme,
     )
     if isinstance(lyrics_devanagari, str) and lyrics_devanagari.strip() and lyrics_original:
-        lyrics_devanagari = align_devanagari_stanza_gaps(lyrics_original, lyrics_devanagari)
+        lyrics_devanagari = align_devanagari_stanza_gaps(
+            lyrics_original,
+            lyrics_devanagari,
+            language=getattr(song, "language", None),
+            language_labels=language_labels_from_metadata(
+                meta if isinstance(meta, dict) else None
+            ),
+        )
     devanagari_status = getattr(song, "devanagari_status", None) or "none"
     hindi_meaning = song.hindi_meaning
     english_meaning = song.english_meaning

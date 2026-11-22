@@ -65,11 +65,24 @@ def test_prepare_ps4404_heading() -> None:
 
 
 def test_align_devanagari_stanza_gaps_matches_roman() -> None:
-    from app.services.catalog_lyrics import align_devanagari_stanza_gaps
-
     roman = "A\nB\n\nC"
     dev = "अ\nब\nस"
     aligned = align_devanagari_stanza_gaps(roman, dev)
+    assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
+
+
+def test_align_devanagari_follows_roman_stanzas_when_shorter() -> None:
+    roman = "Krsna:\nA\n\nKrsna:\nB"
+    dev = "क्र्ष्ण:\nअ\nब"
+    aligned = align_devanagari_stanza_gaps(roman, dev)
+    assert aligned.split("\n") == ["क्र्ष्ण:", "अ", "", "ब"]
+
+
+def test_align_devanagari_strips_samskrta_header() -> None:
+    roman = "VAJRA\nLINE\n\nEND"
+    dev = "संस्क्र्त\nवज्र\nलाइन\nएन्ड"
+    aligned = align_devanagari_stanza_gaps(roman, dev, language="Roman")
+    assert aligned.startswith("वज्र")
     assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
 
 

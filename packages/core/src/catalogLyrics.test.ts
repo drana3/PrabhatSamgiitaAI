@@ -112,6 +112,17 @@ describe("catalogLyrics", () => {
     expect(isCatalogLanguageLabelLine("SAḾSKRTA", "Roman", [])).toBe(true)
   })
 
+  it("aligns devanagari when roman has one more refrain line", () => {
+    const roman = "Krsna:\nA\n\nKrsna:\nB"
+    const dev = "क्र्ष्ण:\nअ\nब"
+    expect(alignDevanagariStanzaGaps(roman, dev).split("\n")).toEqual([
+      "क्र्ष्ण:",
+      "अ",
+      "",
+      "ब",
+    ])
+  })
+
   it("aligns devanagari stanza gaps to roman", () => {
     const roman = "REFRAIN\nLINE\n\nREFRAIN\nEND"
     const dev = "रिफ्रेन\nलाइन\nरिफ्रेन\nएन्ड"
