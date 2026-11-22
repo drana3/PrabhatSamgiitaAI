@@ -19,6 +19,11 @@ _LANGUAGE_ALIASES: dict[str, frozenset[str]] = {
     "roman": frozenset({"roman"}),
 }
 
+_ALL_LANGUAGE_LABEL_FOLDS: frozenset[str] = frozenset(
+    list(_LANGUAGE_ALIASES.keys())
+    + [alias for aliases in _LANGUAGE_ALIASES.values() for alias in aliases]
+)
+
 
 def _fold_label(value: str) -> str:
     import unicodedata
@@ -93,6 +98,10 @@ def is_catalog_language_label_line(
     words = text.split()
     if len(words) > 2:
         return False
+    # Official pages put language headers in the lyric block (e.g. SAMSKRTA) even when
+    # catalogue language is Roman and metadata lacks Sanskrit.
+    if len(words) == 1 and folded in _ALL_LANGUAGE_LABEL_FOLDS:
+        return True
     for candidate in folds:
         if folded == candidate:
             return True
@@ -100,6 +109,51 @@ def is_catalog_language_label_line(
             if folded.startswith(candidate) or candidate.startswith(folded):
                 return True
     return False
+
+
+def _max_consecutive_blank_run(lines: list[str]) -> int:
+    best = 0
+    index = 0
+    while index < len(lines):
+        if lines[index].strip():
+            index += 1
+            continue
+        run = 0
+        while index + run < len(lines) and not lines[index + run].strip():
+            run += 1
+        best = max(best, run)
+        index += run
+    return best
+
+
+def _needs_official_br_normalization(lines: list[str]) -> bool:
+    """Raw HTML scrape uses multi-<br> runs; already-normalized lyrics use single blank gaps."""
+    max_run = _max_consecutive_blank_run(lines)
+    if max_run >= 3:
+        return True
+    gap_count = sum(1 for line in lines if not line.strip())
+    # Pairs of <br> between lines plus stanza runs in large scrapes
+    return max_run >= 2 and gap_count >= 8
+
+
+def normalize_official_br_paragraph_gaps(lines: list[str]) -> list[str]:
+    """Pair &lt;br&gt; = line break; 3+ blanks = stanza gap (prabhatasamgiita.net)."""
+    out: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.strip():
+            out.append(line)
+            index += 1
+            continue
+        blank_run = 0
+        while index + blank_run < len(lines) and not lines[index + blank_run].strip():
+            blank_run += 1
+        if blank_run >= 3:
+            if out and out[-1].strip():
+                out.append("")
+        index += blank_run
+    return out
 
 
 def _has_preserved_stanza_gaps(lines: list[str]) -> bool:
@@ -215,7 +269,11 @@ def sanitize_catalog_lyrics_text(
         while lines and not lines[0].strip():
             lines.pop(0)
     lines = [line for line in lines if not line.strip() or not is_english_theme_line(line)]
-    if not any(not line.strip() for line in lines):
+    if _needs_official_br_normalization(lines):
+        lines = normalize_official_br_paragraph_gaps(lines)
+    elif any(not line.strip() for line in lines):
+        lines = list(lines)
+    else:
         lines = infer_stanza_blank_lines(lines)
     collapsed: list[str] = []
     for line in lines:

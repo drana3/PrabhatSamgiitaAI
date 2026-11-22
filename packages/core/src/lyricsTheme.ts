@@ -12,7 +12,11 @@ export function isEnglishThemeLine(line: string): boolean {
   if (!LATIN_LINE.test(text)) return false
   const words = text.split(/\s+/).filter(Boolean)
   if (words.length < 1 || words.length > 10) return false
-  return SONG_OF.test(text)
+  if (SONG_OF.test(text)) return true
+  const letters = [...text].filter((ch) => /[a-z]/i.test(ch))
+  if (!letters.length) return false
+  if (letters.filter((ch) => ch === ch.toUpperCase()).length / letters.length < 0.9) return false
+  return /\b(song|liberation|fulfilment|fulfillment|neohumanism|awakening)\b/i.test(text)
 }
 
 export function formatThemeLabel(raw: string): string {

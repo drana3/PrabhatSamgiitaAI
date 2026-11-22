@@ -15,6 +15,11 @@ const LANGUAGE_ALIASES: Record<string, readonly string[]> = {
   roman: ["roman"],
 }
 
+const ALL_LANGUAGE_LABEL_FOLDS = new Set<string>([
+  ...Object.keys(LANGUAGE_ALIASES),
+  ...Object.values(LANGUAGE_ALIASES).flat(),
+])
+
 function foldLabel(value: string): string {
   const decomposed = value.normalize("NFKD")
   let out = ""
@@ -82,6 +87,7 @@ export function isCatalogLanguageLabelLine(
   if (folded === "sanskrit" && folds.has("samskrta")) return true
   const words = text.split(/\s+/).filter(Boolean)
   if (words.length > 2) return false
+  if (words.length === 1 && ALL_LANGUAGE_LABEL_FOLDS.has(folded)) return true
   for (const candidate of folds) {
     if (folded === candidate) return true
     if (folded.length >= 4 && candidate.length >= 4) {
@@ -97,6 +103,57 @@ function trimmedLine(line: string): string {
 
 function hasPreservedStanzaGaps(lines: readonly string[]): boolean {
   return lines.some((line) => !line.trim())
+}
+
+function maxConsecutiveBlankRun(lines: readonly string[]): number {
+  let best = 0
+  let index = 0
+  while (index < lines.length) {
+    if (lines[index]!.trim()) {
+      index += 1
+      continue
+    }
+    let run = 0
+    while (index + run < lines.length && !lines[index + run]!.trim()) {
+      run += 1
+    }
+    best = Math.max(best, run)
+    index += run
+  }
+  return best
+}
+
+function needsOfficialBrNormalization(lines: readonly string[]): boolean {
+  const maxRun = maxConsecutiveBlankRun(lines)
+  if (maxRun >= 3) return true
+  const gapCount = lines.filter((line) => !line.trim()).length
+  return maxRun >= 2 && gapCount >= 8
+}
+
+/**
+ * prabhatasamgiita.net uses pairs of &lt;br&gt; between lines and longer runs between stanzas.
+ * Collapse 1–2 blank lines (line breaks); keep 3+ as a single stanza gap.
+ */
+export function normalizeOfficialBrParagraphGaps(lines: readonly string[]): string[] {
+  const out: string[] = []
+  let index = 0
+  while (index < lines.length) {
+    const line = lines[index]!
+    if (line.trim()) {
+      out.push(line)
+      index += 1
+      continue
+    }
+    let blankRun = 0
+    while (index + blankRun < lines.length && !lines[index + blankRun]!.trim()) {
+      blankRun += 1
+    }
+    if (blankRun >= 3) {
+      if (out.length && out[out.length - 1]!.trim()) out.push("")
+    }
+    index += blankRun
+  }
+  return out
 }
 
 /** Two consecutive lyric lines that repeat as a stanza boundary (e.g. PS 100 refrain couplet). */
@@ -215,7 +272,12 @@ export function sanitizeCatalogLyricsText(
   }
 
   lines = lines.filter((line) => !line.trim() || !isEnglishThemeLine(line))
-  if (!lines.some((line) => !line.trim())) {
+  // Mid-block theme labels from HTML must not appear as lyric lines.
+  if (needsOfficialBrNormalization(lines)) {
+    lines = normalizeOfficialBrParagraphGaps(lines)
+  } else if (hasPreservedStanzaGaps(lines)) {
+    lines = [...lines]
+  } else {
     lines = inferStanzaBlankLines(lines)
   }
 

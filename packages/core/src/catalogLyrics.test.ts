@@ -4,6 +4,7 @@ import {
   inferStanzaBlankLines,
   isCorruptLyricPaddingLine,
   isCatalogLanguageLabelLine,
+  normalizeOfficialBrParagraphGaps,
   prepareCatalogLyricsFields,
   sanitizeCatalogLyricsText,
 } from "./catalogLyrics"
@@ -72,7 +73,40 @@ describe("catalogLyrics", () => {
     expect(inferStanzaBlankLines(lines)).toEqual(lines)
   })
 
+  it("collapses official double-br line breaks and keeps stanza gaps (PS 5 style)", () => {
+    const scraped = [
+      "ELO, ANEK JUGER SEI AJANA PATHIK",
+      "",
+      "",
+      "CETANAR MADHURA TANE",
+      "",
+      "",
+      "TAI, JIIVAN AMAR BHARE GELO GANE",
+      "",
+      "",
+      "ELO, ANEK JUGER SEI AJANA PATHIK",
+      "",
+      "",
+      "",
+      "",
+      "SAB HARANOR VEDANATE",
+    ]
+    const normalized = normalizeOfficialBrParagraphGaps(scraped)
+    expect(normalized).toEqual([
+      "ELO, ANEK JUGER SEI AJANA PATHIK",
+      "CETANAR MADHURA TANE",
+      "TAI, JIIVAN AMAR BHARE GELO GANE",
+      "ELO, ANEK JUGER SEI AJANA PATHIK",
+      "",
+      "SAB HARANOR VEDANATE",
+    ])
+  })
+
   it("treats samskrta as sanskrit label", () => {
     expect(isCatalogLanguageLabelLine("SAḾSKRTA", "Roman", ["Sanskrit"])).toBe(true)
+  })
+
+  it("treats samskrta header without metadata sanskrit", () => {
+    expect(isCatalogLanguageLabelLine("SAḾSKRTA", "Roman", [])).toBe(true)
   })
 })
