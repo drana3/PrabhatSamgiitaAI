@@ -5,7 +5,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from app.services.lyrics_theme import extract_trailing_english_theme, is_english_theme_line
+from app.services.lyrics_theme import (
+    extract_trailing_english_theme,
+    is_english_theme_line,
+    looks_like_converted_theme_line,
+    strip_trailing_theme_from_devanagari,
+)
 
 _LANGUAGE_ALIASES: dict[str, frozenset[str]] = {
     "sanskrit": frozenset({"sanskrit", "samskrta", "samskrt", "samskrto"}),
@@ -305,6 +310,72 @@ def _align_devanagari_by_roman_stanzas(
             out.append(dev_content[dev_index])
             dev_index += 1
     return "\n".join(out).strip()
+
+
+def _is_devanagari_non_lyric_line(
+    line: str,
+    *,
+    language: str | None = None,
+    language_labels: list[str] | None = None,
+) -> bool:
+    text = (line or "").strip()
+    if not text:
+        return False
+    if looks_like_converted_theme_line(text) or is_english_theme_line(text):
+        return True
+    if is_catalog_language_label_line(text, language, language_labels):
+        return True
+    return is_devanagari_language_header_line(text)
+
+
+def sanitize_devanagari_catalog_text(
+    devanagari: str | None,
+    *,
+    roman: str | None = None,
+    language: str | None = None,
+    language_labels: list[str] | None = None,
+    known_theme: str | None = None,
+) -> str:
+    """Drop language headers, themes, and scrape padding from rule-converted Devanagari."""
+    if not (devanagari or "").strip():
+        return ""
+    ends_with_newline = devanagari.endswith("\n")
+    lines = [
+        line
+        for line in devanagari.split("\n")
+        if not is_corrupt_lyric_padding_line(line)
+    ]
+    while lines and lines[0].strip() and _is_devanagari_non_lyric_line(
+        lines[0], language=language, language_labels=language_labels
+    ):
+        lines.pop(0)
+        while lines and not lines[0].strip():
+            lines.pop(0)
+    lines = [
+        line
+        for line in lines
+        if not line.strip()
+        or not _is_devanagari_non_lyric_line(
+            line, language=language, language_labels=language_labels
+        )
+    ]
+    collapsed: list[str] = []
+    for line in lines:
+        if not line.strip() and collapsed and not collapsed[-1].strip():
+            continue
+        collapsed.append(line)
+    cleaned = "\n".join(collapsed).strip()
+    if not cleaned:
+        return ""
+    peeled = strip_trailing_theme_from_devanagari(
+        roman, cleaned, known_theme=known_theme
+    )
+    cleaned = (peeled or "").strip()
+    if not cleaned:
+        return ""
+    if ends_with_newline:
+        cleaned += "\n"
+    return cleaned
 
 
 def align_devanagari_stanza_gaps(

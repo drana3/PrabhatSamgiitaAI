@@ -5,6 +5,7 @@ from app.services.catalog_lyrics import (
     normalize_official_br_paragraph_gaps,
     prepare_catalog_lyrics_fields,
     sanitize_catalog_lyrics_text,
+    sanitize_devanagari_catalog_text,
 )
 
 
@@ -84,6 +85,17 @@ def test_align_devanagari_strips_samskrta_header() -> None:
     aligned = align_devanagari_stanza_gaps(roman, dev, language="Roman")
     assert aligned.startswith("वज्र")
     assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
+
+
+def test_sanitize_devanagari_drops_header_theme_and_padding() -> None:
+    roman = "VAJRA\nLINE"
+    dev = "संस्क्र्त\nवज्र\nलाइन\nआआआआआआआआआआ\nसोन् ऑफ् स्वेलेस्स्"
+    cleaned = sanitize_devanagari_catalog_text(
+        dev, roman=roman, language="Roman", known_theme="Song of Sweetness"
+    )
+    assert cleaned.split("\n") == ["वज्र", "लाइन"]
+    assert "संस्क्र्त" not in cleaned
+    assert "सोन्" not in cleaned
 
 
 def test_second_prepare_keeps_stanza_gaps() -> None:

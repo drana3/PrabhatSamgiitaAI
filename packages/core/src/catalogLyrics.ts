@@ -1,6 +1,8 @@
 import {
   extractTrailingEnglishTheme,
   isEnglishThemeLine,
+  looksLikeConvertedThemeLine,
+  stripTrailingThemeFromDevanagari,
 } from "./lyricsTheme"
 
 const LANGUAGE_ALIASES: Record<string, readonly string[]> = {
@@ -295,6 +297,53 @@ function alignDevanagariByRomanStanzas(romanLines: string[], devContent: string[
     }
   }
   return out.join("\n").trim()
+}
+
+function isDevanagariNonLyricLine(
+  line: string,
+  options: { language?: string | null; languageLabels?: string[] } = {},
+): boolean {
+  const text = line.trim()
+  if (!text) return false
+  if (looksLikeConvertedThemeLine(text) || isEnglishThemeLine(text)) return true
+  if (isCatalogLanguageLabelLine(text, options.language, options.languageLabels)) return true
+  return isDevanagariLanguageHeaderLine(text)
+}
+
+/** Drop language headers, themes, and scrape padding from rule-converted Devanagari. */
+export function sanitizeDevanagariCatalogText(
+  devanagari: string | null | undefined,
+  options: {
+    roman?: string | null
+    language?: string | null
+    languageLabels?: string[]
+    knownTheme?: string | null
+  } = {},
+): string {
+  if (!devanagari?.trim()) return ""
+  const endsWithNewline = devanagari.endsWith("\n")
+  let lines = devanagari.split("\n").filter((line) => !isCorruptLyricPaddingLine(line))
+  while (lines.length && lines[0]!.trim() && isDevanagariNonLyricLine(lines[0]!, options)) {
+    lines.shift()
+    while (lines.length && !lines[0]!.trim()) lines.shift()
+  }
+  lines = lines.filter((line) => !line.trim() || !isDevanagariNonLyricLine(line, options))
+  const collapsed: string[] = []
+  for (const line of lines) {
+    if (!line.trim() && collapsed.length && !collapsed[collapsed.length - 1]!.trim()) continue
+    collapsed.push(line)
+  }
+  let cleaned = collapsed.join("\n").trim()
+  if (!cleaned) return ""
+  const stripped = stripTrailingThemeFromDevanagari(
+    options.roman,
+    cleaned,
+    options.knownTheme,
+  )
+  cleaned = (stripped || "").trim()
+  if (!cleaned) return ""
+  if (endsWithNewline) cleaned += "\n"
+  return cleaned
 }
 
 /** Mirror Roman stanza gaps onto Devanagari (rule-converted lyrics). */

@@ -8,6 +8,7 @@ import {
   normalizeOfficialBrParagraphGaps,
   prepareCatalogLyricsFields,
   sanitizeCatalogLyricsText,
+  sanitizeDevanagariCatalogText,
 } from "./catalogLyrics"
 
 describe("catalogLyrics", () => {
@@ -129,5 +130,16 @@ describe("catalogLyrics", () => {
     const aligned = alignDevanagariStanzaGaps(roman, dev)
     expect(aligned.split("\n").filter((line) => !line.trim())).toHaveLength(1)
     expect(aligned.startsWith("रिफ्रेन")).toBe(true)
+  })
+
+  it("sanitize devanagari drops header theme and padding", () => {
+    const roman = "VAJRA\nLINE"
+    const dev = "संस्क्र्त\nवज्र\nलाइन\nआआआआआआआआआआ\nसोन् ऑफ् स्वेलेस्स्"
+    const cleaned = sanitizeDevanagariCatalogText(dev, {
+      roman,
+      language: "Roman",
+      knownTheme: "Song of Sweetness",
+    })
+    expect(cleaned.split("\n")).toEqual(["वज्र", "लाइन"])
   })
 })

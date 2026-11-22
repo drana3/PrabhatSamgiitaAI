@@ -2,7 +2,7 @@ import {
   alignDevanagariStanzaGaps,
   languageLabelsFromMetadata,
   prepareCatalogLyricsFields,
-  stripTrailingThemeFromDevanagari,
+  sanitizeDevanagariCatalogText,
   type SongDetail,
   type SongSummary,
 } from "@prabhat/core"
@@ -347,15 +347,17 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
   const lyricsDevanagari = englishSong
     ? null
     : (() => {
-        const stripped = stripTrailingThemeFromDevanagari(
-          romanClean,
-          detail.lyrics_devanagari,
-          officialTheme,
-        )
-        if (!stripped?.trim() || !romanClean) return stripped
-        return alignDevanagariStanzaGaps(romanClean, stripped, {
+        const labels = languageLabelsFromMetadata(meta as Record<string, unknown>)
+        const sanitized = sanitizeDevanagariCatalogText(detail.lyrics_devanagari, {
+          roman: romanClean,
           language: detail.language,
-          languageLabels: languageLabelsFromMetadata(meta as Record<string, unknown>),
+          languageLabels: labels,
+          knownTheme: officialTheme,
+        })
+        if (!sanitized?.trim() || !romanClean) return sanitized
+        return alignDevanagariStanzaGaps(romanClean, sanitized, {
+          language: detail.language,
+          languageLabels: labels,
         })
       })()
   const themes = [officialTheme || detail.theme, detail.mood, detail.occasion].filter(
