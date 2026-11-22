@@ -657,6 +657,46 @@ def write_json(path: Path, data: list[dict[str, Any]]) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+# Roman scrape rows omit generated Devanagari / transliteration enrichment.
+_PRESERVED_SONG_FIELDS = (
+    "lyrics_devanagari",
+    "devanagari_status",
+    "transliteration",
+)
+
+
+def preserve_catalog_enrichment(
+    rows: list[dict[str, Any]], existing_path: Path
+) -> list[dict[str, Any]]:
+    """Keep non-official enrichment when refreshing lyrics from prabhatasamgiita.net."""
+    if not existing_path.exists():
+        return rows
+    try:
+        previous = json.loads(existing_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return rows
+    by_number = {
+        item["number"]: item for item in previous if isinstance(item.get("number"), int)
+    }
+    for row in rows:
+        old = by_number.get(row.get("number"))
+        if not old:
+            continue
+        for key in _PRESERVED_SONG_FIELDS:
+            value = old.get(key)
+            if value is None:
+                continue
+            if isinstance(value, str) and not value.strip():
+                continue
+            row[key] = value
+        old_meta = old.get("metadata_json")
+        if isinstance(old_meta, dict) and old_meta.get("devanagari"):
+            meta = dict(row.get("metadata_json") or {})
+            meta.setdefault("devanagari", old_meta["devanagari"])
+            row["metadata_json"] = meta
+    return rows
+
+
 def sync_songs() -> list[SongRecord]:
     songs = parse_lyrics_page()
     parsed_numbers = {song.number for song in songs}
@@ -666,7 +706,10 @@ def sync_songs() -> list[SongRecord]:
         if song:
             songs.append(song)
     songs.sort(key=lambda item: item.number)
-    write_json(GENERATED_DIR / "songs.json", [asdict(item) for item in songs])
+    out_path = GENERATED_DIR / "songs.json"
+    rows = [asdict(item) for item in songs]
+    rows = preserve_catalog_enrichment(rows, out_path)
+    write_json(out_path, rows)
     return songs
 
 
