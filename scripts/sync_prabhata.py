@@ -149,9 +149,10 @@ def html_to_lines(fragment: str) -> list[str]:
     fragment = re.sub(r"<[^>]+>", "", fragment)
     lines: list[str] = []
     for raw_line in html.unescape(fragment).splitlines():
-        line = clean(raw_line)
-        if not line:
+        if not raw_line.strip():
+            lines.append("")
             continue
+        line = clean(raw_line)
         if re.fullmatch(r"\.+", line):
             continue
         lines.append(line)
@@ -203,6 +204,13 @@ def _split_central_idea(lines: list[str]) -> tuple[list[str], list[str]]:
     return lines, []
 
 
+def _next_nonempty_line(lines: list[str], start: int) -> int | None:
+    for index in range(start, len(lines)):
+        if lines[index].strip():
+            return index
+    return None
+
+
 def split_song_sections(
     paragraphs: list[list[str]],
 ) -> tuple[list[str], list[str], list[str], str | None]:
@@ -216,16 +224,14 @@ def split_song_sections(
         lines.extend(paragraph)
     content, central_idea = _split_central_idea(lines)
 
-    lyric_start = next(
-        (
-            index
-            for index, line in enumerate(content)
-            if is_roman_lyric_line(line)
-            and index + 1 < len(content)
-            and is_roman_lyric_line(content[index + 1])
-        ),
-        None,
-    )
+    lyric_start: int | None = None
+    for index, line in enumerate(content):
+        if not is_roman_lyric_line(line):
+            continue
+        next_index = _next_nonempty_line(content, index + 1)
+        if next_index is not None and is_roman_lyric_line(content[next_index]):
+            lyric_start = index
+            break
     if lyric_start is None:
         # Meaning may still contain a glued Central idea label.
         meaning, glued_idea = _split_central_idea(content)
@@ -234,7 +240,13 @@ def split_song_sections(
         return [], meaning, central_idea, None
 
     lyric_end = lyric_start
-    while lyric_end < len(content) and is_roman_lyric_line(content[lyric_end]):
+    while lyric_end < len(content):
+        line = content[lyric_end]
+        if not line.strip():
+            lyric_end += 1
+            continue
+        if not is_roman_lyric_line(line):
+            break
         lyric_end += 1
     lyrics = content[lyric_start:lyric_end]
     rest = content[:lyric_start] + content[lyric_end:]

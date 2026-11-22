@@ -44,6 +44,27 @@ describe("localSongDetail", () => {
     expect(merged?.notation_transposition_available).toBe(false)
   })
 
+  it("strips Sanskrit label lyrics from API when coalescing (PS 1565)", () => {
+    const base = localSongDetail(1) as SongDetail
+    const remote: SongDetail = {
+      ...base,
+      number: 1565,
+      title: "SAḾSKRTA",
+      first_line: "SAḾSKRTA",
+      language: "Sanskrit",
+      lyrics_original: "SAḾSKRTA\nVAJRA KAT́HORA KUSUMA KORAKA\nPINÁKA PÁŃAYE NAMO NAMASTE",
+    }
+    const local: SongDetail = {
+      ...remote,
+      lyrics_original: remote.lyrics_original,
+    }
+    const merged = coalesceSongDetail(remote, local)
+    expect(merged?.title).toMatch(/VAJRA/i)
+    expect(merged?.first_line).toMatch(/VAJRA/i)
+    expect(merged?.lyrics_original).toMatch(/^VAJRA/i)
+    expect(merged?.lyrics_original).not.toMatch(/SAḾSKRTA|SAMSKRTA/i)
+  })
+
   it("prefers approved API Devanagari over packaged seed text", () => {
     const local = localSongDetail(1) as SongDetail
     const remote = {

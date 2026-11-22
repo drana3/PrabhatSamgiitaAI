@@ -328,9 +328,24 @@ export function localTransposedNotation(number: number, scale = "C"): Transposed
 export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail | null): SongDetail | null {
   if (!remote) return local
   if (!local) return remote
+  const mergedLyrics = firstFilled(remote.lyrics_original, local.lyrics_original)
+  const metadata_json =
+    remote.metadata_json && Object.keys(remote.metadata_json).length > 0
+      ? remote.metadata_json
+      : (local.metadata_json ?? {})
+  const prepared = prepareCatalogLyricsFields({
+    lyrics_original: mergedLyrics,
+    title: firstFilled(remote.title, local.title),
+    first_line: firstFilled(remote.first_line, local.first_line),
+    language: firstFilled(remote.language, local.language),
+    metadata_json,
+  })
+  const lyrics_original = normalizeCatalogText(prepared.lyrics_original)
   return {
     ...remote,
-    lyrics_original: firstFilled(remote.lyrics_original, local.lyrics_original),
+    title: prepared.title ?? remote.title,
+    first_line: prepared.first_line ?? remote.first_line ?? local.first_line,
+    lyrics_original,
     transliteration: firstFilled(remote.transliteration, local.transliteration),
     // Prefer API Devanagari when approved/edited so packaged seed cannot mask Neon.
     lyrics_devanagari:
