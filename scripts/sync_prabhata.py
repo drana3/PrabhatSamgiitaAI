@@ -667,7 +667,7 @@ _PRESERVED_SONG_FIELDS = (
 
 def finalize_catalog_song_row(row: dict[str, Any]) -> dict[str, Any]:
     """One lyrics pipeline for every PS song: labels, themes, stanza gaps."""
-    from app.services.catalog_lyrics import prepare_catalog_lyrics_fields
+    from app.services.catalog_lyrics import align_devanagari_stanza_gaps, prepare_catalog_lyrics_fields
 
     meta = dict(row.get("metadata_json") or {})
     prepared = prepare_catalog_lyrics_fields(
@@ -689,6 +689,10 @@ def finalize_catalog_song_row(row: dict[str, Any]) -> dict[str, Any]:
         row["theme"] = peeled
         meta["official_theme_label"] = peeled
         row["metadata_json"] = meta
+    devanagari = row.get("lyrics_devanagari")
+    roman = row.get("lyrics_original")
+    if isinstance(devanagari, str) and devanagari.strip() and isinstance(roman, str) and roman.strip():
+        row["lyrics_devanagari"] = align_devanagari_stanza_gaps(roman, devanagari)
     return row
 
 

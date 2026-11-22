@@ -341,17 +341,31 @@ export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail 
     metadata_json,
   })
   const lyrics_original = normalizeCatalogText(prepared.lyrics_original)
+  const officialTheme =
+    (typeof metadata_json.official_theme_label === "string" && metadata_json.official_theme_label.trim()) ||
+    prepared.peeled_theme ||
+    firstFilled(remote.theme, local.theme)?.trim() ||
+    null
+  const mergedDevanagari =
+    remote.devanagari_status === "approved" && remote.lyrics_devanagari?.trim()
+      ? remote.lyrics_devanagari
+      : firstFilled(remote.lyrics_devanagari, local.lyrics_devanagari)
+  const strippedDevanagari = stripTrailingThemeFromDevanagari(
+    lyrics_original,
+    mergedDevanagari,
+    officialTheme,
+  )
+  const lyrics_devanagari =
+    strippedDevanagari?.trim() && lyrics_original
+      ? alignDevanagariStanzaGaps(lyrics_original, strippedDevanagari)
+      : strippedDevanagari
   return {
     ...remote,
     title: prepared.title ?? remote.title,
     first_line: prepared.first_line ?? remote.first_line ?? local.first_line,
     lyrics_original,
     transliteration: firstFilled(remote.transliteration, local.transliteration),
-    // Prefer API Devanagari when approved/edited so packaged seed cannot mask Neon.
-    lyrics_devanagari:
-      remote.devanagari_status === "approved" && remote.lyrics_devanagari?.trim()
-        ? remote.lyrics_devanagari
-        : firstFilled(remote.lyrics_devanagari, local.lyrics_devanagari),
+    lyrics_devanagari,
     devanagari_status:
       remote.devanagari_status && remote.devanagari_status !== "none"
         ? remote.devanagari_status
