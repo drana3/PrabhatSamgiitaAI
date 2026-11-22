@@ -21,8 +21,10 @@ sys.path.insert(0, str(_REPO / "apps" / "api"))
 
 from app.services.catalog_lyrics import (  # noqa: E402
     language_labels_from_metadata,
+    is_catalog_language_label_line,
     sanitize_catalog_lyrics_text,
 )
+from app.services.lyrics_theme import is_english_theme_line  # noqa: E402
 
 SONGS_JSON = _REPO / "data" / "generated" / "songs.json"
 
@@ -46,6 +48,8 @@ def main() -> None:
     already_gapped = 0
     still_flat = 0
     examples_flat: list[int] = []
+    theme_in_lyrics: list[int] = []
+    language_label_lines: list[int] = []
 
     for row in songs:
         raw = (row.get("lyrics_original") or "").strip()
@@ -68,6 +72,18 @@ def main() -> None:
             still_flat += 1
             if len(examples_flat) < 25:
                 examples_flat.append(int(row["number"]))
+        labels = language_labels_from_metadata(row.get("metadata_json"))
+        for line in (prepared or "").split("\n"):
+            if not line.strip():
+                continue
+            if is_english_theme_line(line):
+                if len(theme_in_lyrics) < 25:
+                    theme_in_lyrics.append(int(row["number"]))
+                break
+            if is_catalog_language_label_line(line, row.get("language"), labels):
+                if len(language_label_lines) < 25:
+                    language_label_lines.append(int(row["number"]))
+                break
 
     summary = {
         "songs_total": len(songs),
@@ -81,6 +97,8 @@ def main() -> None:
         if with_lyrics
         else 0.0,
         "examples_still_flat": examples_flat,
+        "theme_lines_in_lyrics": theme_in_lyrics,
+        "language_label_lines_in_lyrics": language_label_lines,
     }
 
     print(json.dumps(summary, indent=2, ensure_ascii=False))

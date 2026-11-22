@@ -665,6 +665,33 @@ _PRESERVED_SONG_FIELDS = (
 )
 
 
+def finalize_catalog_song_row(row: dict[str, Any]) -> dict[str, Any]:
+    """One lyrics pipeline for every PS song: labels, themes, stanza gaps."""
+    from app.services.catalog_lyrics import prepare_catalog_lyrics_fields
+
+    meta = dict(row.get("metadata_json") or {})
+    prepared = prepare_catalog_lyrics_fields(
+        {
+            "lyrics_original": row.get("lyrics_original"),
+            "title": row.get("title"),
+            "first_line": row.get("first_line"),
+            "language": row.get("language"),
+            "metadata_json": meta,
+        }
+    )
+    if prepared.get("lyrics_original") is not None:
+        row["lyrics_original"] = prepared["lyrics_original"]
+    if prepared.get("title"):
+        row["title"] = prepared["title"]
+        row["first_line"] = prepared.get("first_line") or row.get("first_line")
+    peeled = prepared.get("peeled_theme")
+    if peeled and not (row.get("theme") or "").strip():
+        row["theme"] = peeled
+        meta["official_theme_label"] = peeled
+        row["metadata_json"] = meta
+    return row
+
+
 def preserve_catalog_enrichment(
     rows: list[dict[str, Any]], existing_path: Path
 ) -> list[dict[str, Any]]:
@@ -707,8 +734,9 @@ def sync_songs() -> list[SongRecord]:
             songs.append(song)
     songs.sort(key=lambda item: item.number)
     out_path = GENERATED_DIR / "songs.json"
-    rows = [asdict(item) for item in songs]
+    rows = [finalize_catalog_song_row(asdict(item)) for item in songs]
     rows = preserve_catalog_enrichment(rows, out_path)
+    rows = [finalize_catalog_song_row(row) for row in rows]
     write_json(out_path, rows)
     return songs
 

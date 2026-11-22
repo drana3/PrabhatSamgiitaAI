@@ -340,7 +340,20 @@ class CatalogService:
         # In-memory catalogue can lag other Container App replicas after admin
         # edits or Neon backfills; prefer Neon content fields when present.
         merged = _detach_song(seeded)
-        if (db_song.lyrics_original or "").strip():
+
+        def _stanza_gap_count(text: str | None) -> int:
+            return sum(1 for line in (text or "").split("\n") if not line.strip())
+
+        seed_lyrics = (seeded.lyrics_original or "").strip()
+        db_lyrics = (db_song.lyrics_original or "").strip()
+        if seed_lyrics and db_lyrics:
+            if _stanza_gap_count(seeded.lyrics_original or "") > _stanza_gap_count(
+                db_song.lyrics_original or ""
+            ):
+                merged.lyrics_original = seeded.lyrics_original
+            else:
+                merged.lyrics_original = db_song.lyrics_original
+        elif db_lyrics:
             merged.lyrics_original = db_song.lyrics_original
         if (db_song.transliteration or "").strip():
             merged.transliteration = db_song.transliteration
