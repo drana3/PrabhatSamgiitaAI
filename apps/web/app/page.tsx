@@ -1,4 +1,4 @@
-import { todayReflectionFallback } from "@prabhat/core"
+import { COMPOSER_NAME, PRODUCT_NAME, todayReflectionFallback } from "@prabhat/core"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -35,7 +35,7 @@ export default async function HomePage() {
             <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-navy-950 p-2 shadow-[0_28px_70px_rgba(42,31,15,0.24)]">
               <Image
                 src="/brand/shrii-shrii-anandamurti-quote.png"
-                alt="Shrii Shrii Anandamurti ji"
+                alt={COMPOSER_NAME}
                 width={1536}
                 height={1024}
                 priority
@@ -45,7 +45,7 @@ export default async function HomePage() {
           </figure>
 
           <div className="order-1 w-full max-w-[42rem] lg:order-2 lg:justify-self-start lg:pl-4 xl:pl-8">
-            <p className="eyebrow">Prabhat Samgiita AI</p>
+            <p className="eyebrow">{PRODUCT_NAME}</p>
             <h1 className="mt-4 font-serif text-[3.4rem] leading-[0.9] tracking-[-0.035em] text-navy-950 sm:text-7xl lg:text-[5.4rem]">
               Music for
               <br />
@@ -92,7 +92,7 @@ export default async function HomePage() {
                 <p className="eyebrow">About Prabhat Samgiita</p>
                 <h2 className="mt-3 font-serif text-3xl leading-tight text-navy-950">Songs composed for a new human dawn</h2>
                 <p className="mt-3 text-sm leading-7 text-stone-700">
-                  Shrii Prabhat Rainjan Sarkar composed Prabhat Samgiita between 14 September 1982 and 20 October 1990. Its 5,018 songs bring together devotion, mysticism, humanism, nature, and the hope of collective welfare.
+                  {COMPOSER_NAME} composed {PRODUCT_NAME} between 14 September 1982 and 20 October 1990. Its 5,018 songs bring together devotion, mysticism, humanism, nature, and the hope of collective welfare.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold uppercase tracking-[0.12em] text-navy-800/75" aria-label="Ways to explore Prabhat Samgiita">
                   <span>Listen</span>
@@ -105,14 +105,14 @@ export default async function HomePage() {
                 <div className="overflow-hidden rounded-[1.35rem] border border-gold-500/25 bg-gold-50 p-1.5 shadow-[0_12px_30px_rgba(45,35,24,0.13)]">
                   <Image
                     src="/brand/shrii-shrii-anandamurti-portrait.jpeg"
-                    alt="Shrii Prabhat Rainjan Sarkar"
+                    alt={COMPOSER_NAME}
                     width={192}
                     height={262}
                     className="aspect-[192/262] w-full rounded-[1rem] object-cover object-top"
                   />
                 </div>
                 <figcaption className="mt-2 text-center text-xs leading-5 text-stone-700">
-                  <span className="block font-semibold text-navy-950">Shrii Prabhat Rainjan Sarkar</span>
+                  <span className="block font-semibold text-navy-950">{COMPOSER_NAME}</span>
                   Composer of Prabhat Samgiita
                 </figcaption>
               </figure>

@@ -90,8 +90,7 @@ def try_direct_answer(query: str, song: Song | None = None) -> DirectAnswer | No
         )
     if _contains(cleaned, "who composed", "composer", "who wrote", "who created"):
         return DirectAnswer(
-            "Prabhat Samgiita was composed by Shrii Shrii Anandamurti, also known as "
-            "Prabhat Ranjan Sarkar."
+            "Prabhat Samgiita was composed by Shrii Prabháta Raiṋjan Sarkar."
         )
     if _contains(cleaned, "when was", "date composed", "first given", "period"):
         return DirectAnswer(
@@ -101,7 +100,7 @@ def try_direct_answer(query: str, song: Song | None = None) -> DirectAnswer | No
     if _contains(cleaned, "what is prabhat", "about prabhat"):
         return DirectAnswer(
             "Prabhat Samgiita, meaning Songs of the New Dawn, is a collection of 5,018 songs "
-            "by Shrii Shrii Anandamurti. The songs explore devotion, mysticism, nature, "
+            "by Shrii Prabháta Raiṋjan Sarkar. The songs explore devotion, mysticism, nature, "
             "humanism, social awakening, and universal welfare."
         )
     if song and re.search(r"\b(?:title|first line|language|number)\b", cleaned):

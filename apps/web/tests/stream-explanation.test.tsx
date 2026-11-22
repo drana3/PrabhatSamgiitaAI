@@ -1,3 +1,4 @@
+import { COMPANION_FEATURE_NAME, PRODUCT_NAME } from "@prabhat/core"
 import React from "react"
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -45,8 +46,8 @@ describe("Prabhat Samgiita AI companion", () => {
     render(<StreamExplanation songNumber={135} />)
 
     expect(screen.getByRole("status", { name: /ready to help/i })).toBeVisible()
-    expect(screen.getByRole("img", { name: "Prabhat Samgiita AI" })).toBeVisible()
-    expect(screen.getByPlaceholderText("Ask Prabhat Samgiita AI about this song...")).toBeVisible()
+    expect(screen.getByRole("img", { name: PRODUCT_NAME })).toBeVisible()
+    expect(screen.getByPlaceholderText(`Ask the ${COMPANION_FEATURE_NAME} about this song...`)).toBeVisible()
     expect(screen.getByText(/Guest · 15 Deep AI/i)).toBeVisible()
   })
 

@@ -162,6 +162,10 @@ export default function DriveScreen() {
   }
 
   const handleNext = () => {
+    if (playbackMode === "random") {
+      next()
+      return
+    }
     if (!canGoNext) return
     next()
   }

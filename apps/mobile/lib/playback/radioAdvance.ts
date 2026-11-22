@@ -34,8 +34,10 @@ function isRemoteStreamUrl(url: string | null | undefined): boolean {
 export async function hydratePlayableSong(number: number, seed?: MockSong | null): Promise<MockSong | null> {
   let song = seed ?? null
 
-  const offline = await resolvePlaybackUri(number, song?.audioUrl)
-  if (offline?.local) {
+  // Song-number local first — explore/detail cache often has a different https than
+  // the recording the user saved; that must not block offline play.
+  const localAny = await resolvePlaybackUri(number, null)
+  if (localAny?.local) {
     const base =
       song ??
       songSummaryToMockSong({
@@ -43,7 +45,14 @@ export async function hydratePlayableSong(number: number, seed?: MockSong | null
         title: `Prabhat Samgiita ${number}`,
         is_verified: false,
       })
-    return { ...base, audioUrl: offline.uri, mediaHydrated: true }
+    if (isRemoteStreamUrl(song?.audioUrl)) {
+      // Exact local match, or stream unsaved alternate when online; else saved file.
+      const resolved = await resolvePlaybackUri(number, song!.audioUrl)
+      if (resolved) {
+        return { ...base, ...song, audioUrl: resolved.uri, mediaHydrated: true }
+      }
+    }
+    return { ...base, ...song, audioUrl: localAny.uri, mediaHydrated: true }
   }
 
   if (!isRemoteStreamUrl(song?.audioUrl)) {
@@ -62,6 +71,9 @@ export async function hydratePlayableSong(number: number, seed?: MockSong | null
   if (!song) return null
 
   const resolved = await resolvePlaybackUri(number, song.audioUrl)
+  if (resolved?.local) {
+    return { ...song, audioUrl: resolved.uri, mediaHydrated: true }
+  }
   const uri =
     resolved?.uri ||
     (isRemoteStreamUrl(song.audioUrl) ? song.audioUrl!.trim() : null)

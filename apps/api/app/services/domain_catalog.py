@@ -137,6 +137,48 @@ def time_of_day(hour: int) -> str:
     return "night"
 
 
+REVIEWED_FESTIVAL_DATES_2027 = {
+    (1, 1): "New Year's Day",
+    (3, 5): "Dadhicii Divas",
+    (3, 22): "Vasantotsava",
+    (4, 14): "Navavarsh",
+    (5, 20): "Ánanda Púrńimá",
+    (8, 17): "Shrávańii Púrńimá",
+    (10, 5): "Sharadotsava",
+    (10, 6): "Public Day",
+    (10, 7): "Fine Arts Day",
+    (10, 8): "Music Day",
+    (10, 9): "Vijayotsava",
+    (10, 15): "Navánna",
+    (10, 29): "Dipavali",
+    (10, 31): "Bhrátrdvitiiyá",
+}
+
+REVIEWED_FESTIVAL_COLLECTIONS_2027: dict[tuple[int, int], dict[str, str]] = {
+    (3, 22): {"season": "spring", "meditation_context": "Vasantotsava"},
+    (4, 14): {"festival": "New Year", "meditation_context": "Navavarsh"},
+    (5, 20): {"festival": "Bábá Birthday", "meditation_context": "Ánanda Púrńimá"},
+    (8, 17): {
+        "festival": "Shravanii Purnima Day",
+        "meditation_context": "Shrávańii Púrńimá",
+    },
+    (10, 5): {"season": "autumn", "theme": "Children"},
+    (10, 9): {"festival": "Victory Day", "meditation_context": "Vijayotsava"},
+    (10, 29): {
+        "festival": "Dipavali (Colour Festival) Day",
+        "meditation_context": "Dipavali",
+    },
+}
+
+REVIEWED_FESTIVAL_COLLECTION_LABELS_2027: dict[tuple[int, int], tuple[str, ...]] = {
+    (4, 14): ("New Year Songs",),
+    (5, 20): ("Bábá Birthday Songs",),
+    (8, 17): ("Shravanii Purnima Day Song",),
+    (10, 5): ("Children Songs",),
+    (10, 9): ("Victory Day Song",),
+    (10, 29): ("Dipavali (Colour Festival) Day Songs",),
+}
+
 REVIEWED_FESTIVAL_DATES_2026 = {
     (1, 25): "R.U. Day",
     (2, 12): "Niilakanth'a Divasa",
@@ -217,6 +259,8 @@ def fixed_reviewed_festival(month: int, day: int, year: int | None = None) -> st
     # year-specific because lunar and festival dates must never be guessed.
     if (month, day) == (5, 21):
         return "Bábá Birthday"
+    if year == 2027:
+        return REVIEWED_FESTIVAL_DATES_2027.get((month, day))
     if year == 2026:
         return REVIEWED_FESTIVAL_DATES_2026.get((month, day))
     return None
@@ -226,9 +270,14 @@ def reviewed_festival_context(month: int, day: int, year: int) -> dict[str, str]
     title = fixed_reviewed_festival(month, day, year)
     if not title:
         return {}
+    extra = {}
+    if year == 2027:
+        extra = REVIEWED_FESTIVAL_COLLECTIONS_2027.get((month, day), {})
+    elif year == 2026:
+        extra = REVIEWED_FESTIVAL_COLLECTIONS_2026.get((month, day), {})
     return {
         "title": title,
-        **REVIEWED_FESTIVAL_COLLECTIONS_2026.get((month, day), {}),
+        **extra,
     }
 
 
@@ -240,6 +289,8 @@ def reviewed_festival_collection_labels(
     fixed = FIXED_FESTIVAL_COLLECTION_LABELS.get((month, day))
     if fixed:
         return fixed
+    if year == 2027:
+        return REVIEWED_FESTIVAL_COLLECTION_LABELS_2027.get((month, day), ())
     if year == 2026:
         return REVIEWED_FESTIVAL_COLLECTION_LABELS_2026.get((month, day), ())
     return ()

@@ -1,5 +1,11 @@
 "use client"
 
+import {
+  COMPANION_CHAT_NAME,
+  COMPANION_FEATURE_NAME,
+  PRODUCT_NAME,
+  resolveExplainSongNumber,
+} from "@prabhat/core"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 
@@ -169,9 +175,10 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
       { role: "user", text: nextPrompt, createdAt: now },
       { role: "assistant", text: "", createdAt: now },
     ])
+    const resolvedSongNumber = resolveExplainSongNumber(nextPrompt, songNumber)
     let streamed = ""
     try {
-      await streamExplanation(songNumber, (chunk) => {
+      await streamExplanation(resolvedSongNumber, (chunk) => {
         // Paragraph frames are split server-side; rejoin with blank lines for Markdown.
         streamed = streamed ? `${streamed}\n\n${chunk}` : chunk
         setMessages((current) => {
@@ -224,7 +231,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <p className="eyebrow">Prabhat Samgiita AI Companion</p>
+              <p className="eyebrow">{COMPANION_FEATURE_NAME}</p>
               <p
                 role="status"
                 aria-label={companionStatus.ready ? "AI companion ready to help" : "Syncing your chat history"}
@@ -271,11 +278,11 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
             <div key={`${message.role}-${message.createdAt}-${index}`} className={`flex items-end gap-2.5 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
               {message.role === "assistant" ? (
                 <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-gold-500/25 bg-white shadow-sm">
-                  <Image src="/brand/prabhat-samgiita-emblem.png" alt="Prabhat Samgiita AI" width={23} height={23} className="h-5 w-5 object-contain" />
+                  <Image src="/brand/prabhat-samgiita-emblem.png" alt={PRODUCT_NAME} width={23} height={23} className="h-5 w-5 object-contain" />
                 </div>
               ) : null}
               <div className={`max-w-[88%] px-4 py-3 text-sm leading-7 sm:max-w-[82%] ${message.role === "user" ? "rounded-2xl rounded-br-md bg-navy-950 text-white shadow-sm" : "rounded-2xl rounded-bl-md border border-navy-900/10 bg-white text-stone-700 shadow-sm"}`}>
-                <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.16em] ${message.role === "user" ? "text-gold-200" : "text-gold-700"}`}>{message.role === "user" ? "You" : "Prabhat Samgiita AI"}</p>
+                <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.16em] ${message.role === "user" ? "text-gold-200" : "text-gold-700"}`}>{message.role === "user" ? "You" : COMPANION_CHAT_NAME}</p>
                 {loading && index === messages.length - 1 && !message.text ? (
                   <LoadingIndicator label="Reading the song and preparing your answer" />
                 ) : message.role === "assistant" ? (
@@ -330,7 +337,7 @@ export function StreamExplanation({ songNumber, prompt }: { songNumber: number; 
             value={query}
             onChange={(event) => { setQuery(event.target.value); if (inputError) setInputError(null) }}
             onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); if (!loading && !syncingHistory) void ask() } }}
-            placeholder="Ask Prabhat Samgiita AI about this song..."
+            placeholder={`Ask the ${COMPANION_FEATURE_NAME} about this song...`}
             rows={2}
             maxLength={800}
             disabled={syncingHistory}

@@ -1,3 +1,4 @@
+import { songShareCredit } from "@prabhat/core"
 import Constants from "expo-constants"
 
 const productionWeb = "https://www.prabhatasamgiita.org"
@@ -58,7 +59,7 @@ export function songShareMessage(
 ): string {
   const cleanTitle = title.trim() || `Prabhat Samgiita ${songNumber}`
   const lines: string[] = [
-    "Prabhat Samgiita AI",
+    songShareCredit(),
     "────────────────",
     `PS ${songNumber} · ${cleanTitle}`,
   ]

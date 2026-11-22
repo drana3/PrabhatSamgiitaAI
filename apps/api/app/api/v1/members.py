@@ -193,6 +193,9 @@ async def delete_playlist(
 ) -> Response:
     member = await current_member(request, session)
     playlist = await owned_playlist(session, member, playlist_id)
+    await session.execute(
+        delete(UserPlaylistSong).where(UserPlaylistSong.playlist_id == playlist.id)
+    )
     await session.delete(playlist)
     await session.commit()
     return Response(status_code=204)

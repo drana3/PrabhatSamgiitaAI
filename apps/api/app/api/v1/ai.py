@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
 from app.core.security import require_public_quota
@@ -26,12 +26,17 @@ from app.services.chat_history import cap_chat_history
 from app.services.chat_language import detect_response_language
 from app.services.conversation import try_conversation_answer, try_language_switch_acknowledgment
 from app.services.direct_answers import try_direct_answer
-from app.services.members import lookup_preferred_language, try_member_identity
+from app.services.explain_song import resolve_explain_song_number
+from app.services.members import MemberIdentity, lookup_preferred_language, try_member_identity
 from app.services.output_guard import sanitize_model_output
 from app.services.query_guard import assess_query
 from app.services.rag import RAGService
 from app.services.streaming import stream_text
-from app.services.structured_answers import is_deeper_question, try_structured_answer
+from app.services.structured_answers import (
+    is_deeper_question,
+    try_catalog_structured_answer,
+    try_structured_answer,
+)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 explanation_cache: AsyncTTLCache[list[str]] = AsyncTTLCache(ttl_seconds=86_400, maxsize=512)
@@ -60,7 +65,19 @@ async def explain(
     member = try_member_identity(request)
     quota_identity = member.subject if member else client_ip(request)
     catalog = CatalogService(session)
-    song = await catalog.get_song(payload.song_number)
+    resolved_number = resolve_explain_song_number(payload.song_number, payload.prompt)
+    if resolved_number is None:
+        return await _explain_catalog(
+            payload=payload,
+            request=request,
+            session=session,
+            catalog=catalog,
+            settings=settings,
+            member=member,
+            quota_identity=quota_identity,
+        )
+
+    song = await catalog.get_song(resolved_number)
     if not song:
         return StreamingResponse(stream_text(["Song not found."]), media_type="text/event-stream")
 
@@ -170,6 +187,122 @@ async def explain(
         )
 
     answer = sanitize_model_output(apply_output_guardrails(answer, song))
+    streamed = _stream_answer([answer])
+    await explanation_cache.set(cache_key, streamed)
+    return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+
+async def _explain_catalog(
+    *,
+    payload: ExplanationRequest,
+    request: Request,
+    session: AsyncSession,
+    catalog: CatalogService,
+    settings: Settings,
+    member: MemberIdentity | None,
+    quota_identity: str,
+) -> StreamingResponse:
+    prompt = (payload.prompt or "").strip() or "Tell me about Prabhat Samgiita"
+    assessment = assess_query(
+        prompt,
+        max_length=800,
+        companion=True,
+        allow_follow_up=bool(payload.history),
+    )
+    if not assessment.allowed:
+        return StreamingResponse(
+            stream_text([assessment.guidance]),
+            media_type="text/event-stream",
+        )
+    prompt = assessment.normalized
+    profile_context = _sanitize_profile_context(payload.profile_context)
+    history: list[tuple[str, str]] = []
+    for turn in payload.history:
+        content = " ".join(turn.content.split())
+        if turn.role == "user" and not assess_query(
+            content,
+            max_length=2000,
+            companion=True,
+        ).allowed:
+            continue
+        history.append((turn.role, content))
+    history = cap_chat_history(history)
+
+    preferred_language = await lookup_preferred_language(session, member)
+    response_language = detect_response_language(
+        prompt,
+        history,
+        preferred_language=preferred_language,
+    )
+    cache_key = json.dumps(
+        {
+            "catalog": True,
+            "prompt": prompt,
+            "history": history,
+            "profile_context": profile_context,
+            "response_language": response_language,
+        },
+        sort_keys=True,
+    )
+    cached = await explanation_cache.get(cache_key)
+    if isinstance(cached, list):
+        return StreamingResponse(stream_text(cached), media_type="text/event-stream")
+
+    language_ack = try_language_switch_acknowledgment(prompt, history)
+    if language_ack:
+        streamed = [sanitize_model_output(language_ack)]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    conversation_answer = try_conversation_answer(prompt, history)
+    if conversation_answer:
+        streamed = [sanitize_model_output(conversation_answer)]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    direct = try_direct_answer(prompt, None)
+    if direct:
+        streamed = [sanitize_model_output(direct.text)]
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    catalog_matches = await catalog.search(prompt, limit=12)
+    structured = try_catalog_structured_answer(prompt, catalog_matches, history)
+    if structured:
+        streamed = _stream_answer([sanitize_model_output(structured)])
+        await explanation_cache.set(cache_key, streamed)
+        return StreamingResponse(stream_text(streamed), media_type="text/event-stream")
+
+    quota = await check_daily_ai_quota_persisted(
+        is_member=member is not None,
+        identity=quota_identity,
+        session=session,
+        settings=settings,
+    )
+    if not quota.allowed:
+        return StreamingResponse(stream_text([quota.guidance]), media_type="text/event-stream")
+    await record_daily_ai_question_persisted(
+        is_member=member is not None,
+        identity=quota_identity,
+        session=session,
+    )
+
+    provider = select_provider(settings)
+    rag = RAGService(session, provider)
+    try:
+        answer, _chunks = await rag.build_catalog_grounded_answer(
+            prompt,
+            history=history,
+            profile_context=profile_context,
+            response_language=response_language,
+        )
+    except Exception:  # pragma: no cover
+        logger.exception("Catalog companion fallback")
+        answer = (
+            "I can help with Prabhat Samgiita songs, themes, and background. "
+            "Try naming a song number or a mood (for example, morning devotion or peace of mind)."
+        )
+
     streamed = _stream_answer([answer])
     await explanation_cache.set(cache_key, streamed)
     return StreamingResponse(stream_text(streamed), media_type="text/event-stream")

@@ -26,7 +26,7 @@ export default function StoriesPage() {
           Stories and memories related to Prabhat Samgiita
         </h1>
         <p className="mt-5 max-w-3xl text-base leading-7 text-stone-700">
-          Read devotee experiences and interviews here in Prabhat Samgiita AI. Each story is sourced from the official archive and opens in this app.
+          Read devotee experiences and interviews here in Prabhat Samgiita. Each story is sourced from the official archive and opens in this app.
         </p>
       </section>
 

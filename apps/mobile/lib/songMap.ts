@@ -1,5 +1,6 @@
 import {
-  extractTrailingEnglishTheme,
+  alignDevanagariStanzaGaps,
+  prepareCatalogLyricsFields,
   stripTrailingThemeFromDevanagari,
   type SongDetail,
   type SongSummary,
@@ -324,7 +325,15 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
   }))
 
   const lyricSource = lyricsTextFromDetail(detail)
-  const { lyrics: romanClean, theme: peeledTheme } = extractTrailingEnglishTheme(lyricSource)
+  const prepared = prepareCatalogLyricsFields({
+    lyrics_original: lyricSource,
+    title: detail.title,
+    first_line: detail.first_line,
+    language: detail.language,
+    metadata_json: detail.metadata_json,
+  })
+  const romanClean = prepared.lyrics_original || ""
+  const peeledTheme = prepared.peeled_theme
   const meta = detail.metadata_json ?? {}
   const officialTheme =
     (typeof meta.official_theme_label === "string" && meta.official_theme_label.trim()) ||
@@ -336,11 +345,15 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
   // Phonetic Devanagari of English verse is not useful — keep Roman only.
   const lyricsDevanagari = englishSong
     ? null
-    : stripTrailingThemeFromDevanagari(
-        romanClean,
-        detail.lyrics_devanagari,
-        officialTheme,
-      )
+    : (() => {
+        const stripped = stripTrailingThemeFromDevanagari(
+          romanClean,
+          detail.lyrics_devanagari,
+          officialTheme,
+        )
+        if (!stripped?.trim() || !romanClean) return stripped
+        return alignDevanagariStanzaGaps(romanClean, stripped)
+      })()
   const themes = [officialTheme || detail.theme, detail.mood, detail.occasion].filter(
     Boolean,
   ) as string[]
@@ -355,11 +368,19 @@ export function songDetailToMockSong(detail: SongDetail): MockSong {
   return {
     id: `ps-${detail.number}`,
     number: detail.number,
-    title: isBareSongTitle(detail.title, detail.number)
-      ? detail.first_line?.trim() || detail.title
-      : detail.title,
-    originalTitle: detail.first_line || undefined,
-    shortDescription: detail.first_line || officialTheme || detail.theme || "Prabhat Samgiita",
+    title: (() => {
+      const resolvedTitle = prepared.title ?? detail.title
+      return isBareSongTitle(resolvedTitle, detail.number)
+        ? (prepared.first_line ?? detail.first_line)?.trim() || resolvedTitle
+        : resolvedTitle
+    })(),
+    originalTitle: prepared.first_line ?? detail.first_line ?? undefined,
+    shortDescription:
+      prepared.first_line?.trim() ||
+      detail.first_line ||
+      officialTheme ||
+      detail.theme ||
+      "Prabhat Samgiita",
     imageUrl: hero,
     thumbnailUrl: thumb,
     themes: themes.length ? themes : ["Prabhat Samgiita"],

@@ -15,8 +15,10 @@ export const brandAssets = {
   dawn: require("../assets/dawn-hero.png"),
 } as const
 
+import { COMPOSER_NAME } from "@prabhat/core"
+
 export const guruCaption = {
-  name: "Shrii Shrii Anandamurti ji",
+  name: COMPOSER_NAME,
   role: "Composer of Prabhat Samgiita",
   quote:
     "Prabhat Samgiita is the song of a new dawn — devotion, hope, nature, and the welfare of all.",

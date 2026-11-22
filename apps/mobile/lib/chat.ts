@@ -5,6 +5,7 @@ import {
   memberDeepAiQuotaLabel,
   queryGuidanceFor,
   queryIsUseful,
+  resolveExplainSongNumber,
 } from "@prabhat/core"
 
 export type ChatMessage = {
@@ -125,24 +126,7 @@ export function validatePrompt(value: string): string | null {
   return null
 }
 
-/** Prefer an explicit PS number in the prompt, else the currently loaded song. */
-export function resolveExplainSongNumber(prompt: string, currentSongNumber?: number | null): number {
-  const match = prompt.match(
-    /\b(?:song|ps|prabhat\s+(?:samgiita|sangeet))\s*(?:number|no\.?|#)?\s*(\d{1,4})\b/i,
-  )
-  if (match) {
-    const number = Number(match[1])
-    if (number >= 1 && number <= 5018) return number
-  }
-  if (/^\d{1,4}$/.test(prompt.trim())) {
-    const number = Number(prompt.trim())
-    if (number >= 1 && number <= 5018) return number
-  }
-  if (currentSongNumber && currentSongNumber >= 1 && currentSongNumber <= 5018) {
-    return currentSongNumber
-  }
-  return 1
-}
+export { resolveExplainSongNumber }
 
 export function hasUserMessages(messages: ChatMessage[]): boolean {
   return messages.some((message) => message.role === "user")

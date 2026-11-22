@@ -48,6 +48,10 @@ import {
 import { cacheCatalogSong, getCachedCatalogSong } from "@/lib/playback/catalogSongCache"
 import { ensureUpcomingRadioTrack, hydratePlayableSong } from "@/lib/playback/radioAdvance"
 import {
+  planCatalogInterruptionAction,
+  readCatalogWantPlaying,
+} from "@/lib/playback/catalogInterruptionPolicy"
+import {
   getTrackPlayer,
   isTrackPlayerLinked,
   loadTrackPlayerModule,
@@ -253,7 +257,12 @@ async function startNativeSong(song: MockSong, generation: number) {
   })
   publishRadioSession()
   await nativeSetRepeatTrack(shouldLoopCurrent())
-  await playTrackNow(songToTrack(ready, ready.audioUrl))
+  if (generation !== playerExtras.__psLoadGeneration) return
+  // Guard mid-flight so a prior offline song cannot finish loading after the user
+  // already tapped another track (wrong audio under the new song title).
+  await playTrackNow(songToTrack(ready, ready.audioUrl), {
+    isStale: () => generation !== playerExtras.__psLoadGeneration,
+  })
   if (generation !== playerExtras.__psLoadGeneration) return
   await ensureUpcomingRadioTrack()
 }
@@ -403,6 +412,19 @@ function installNativeListeners() {
   })
   listen(Event.PlaybackError, () => {
     handleCatalogPlaybackError()
+  })
+  listen(Event.RemoteDuck, (event) => {
+    const action = planCatalogInterruptionAction(event, readCatalogWantPlaying())
+    if (action === "resume") {
+      void nativePlay()
+      usePlayerStore.setState({ isPlaying: true, isBuffering: false })
+      return
+    }
+    if (action === "stop") {
+      playerExtras.__psWantPlaying = false
+      void nativeStop()
+      usePlayerStore.setState({ isPlaying: false, isBuffering: false })
+    }
   })
 }
 

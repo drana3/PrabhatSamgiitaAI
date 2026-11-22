@@ -1,12 +1,13 @@
+import { PRODUCT_NAME } from "@prabhat/core"
 import type { Metadata } from "next"
 import Link from "next/link"
 
 import { SiteHeader } from "@/components/site-header"
 
 export const metadata: Metadata = {
-  title: "Delete your account | Prabhat Samgiita AI",
+  title: `Delete your account | ${PRODUCT_NAME}`,
   description:
-    "How to delete your Prabhat Samgiita AI member account and associated data from the mobile app or website.",
+    `How to delete your ${PRODUCT_NAME} member account and associated data from the mobile app or website.`,
 }
 
 export default function DeleteAccountPage() {
@@ -17,7 +18,7 @@ export default function DeleteAccountPage() {
         <p className="eyebrow">Account</p>
         <h1 className="mt-3 font-serif text-4xl text-navy-950">Delete your account</h1>
         <p className="mt-4 text-base leading-7 text-stone-600">
-          You can delete your Prabhat Samgiita AI member account and the data linked to it at any time.
+          You can delete your {PRODUCT_NAME} member account and the data linked to it at any time.
           Deletion is permanent and cannot be undone.
         </p>
 
@@ -39,7 +40,7 @@ export default function DeleteAccountPage() {
         <section className="mt-6 rounded-3xl border border-navy-900/10 bg-white p-6 sm:p-8">
           <h2 className="font-serif text-2xl text-navy-950">Delete from the mobile app</h2>
           <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-6 text-stone-600">
-            <li>Open the Prabhat Samgiita AI app and sign in to your member account.</li>
+            <li>Open the {PRODUCT_NAME} app and sign in to your member account.</li>
             <li>Go to the <strong>Profile</strong> tab.</li>
             <li>Tap <strong>Delete account data</strong>.</li>
             <li>Confirm the prompt to permanently delete your account.</li>

@@ -4,7 +4,8 @@ import { join } from "node:path"
 import {
   bookletHarmoniumSong,
   compareAudioQuality,
-  extractTrailingEnglishTheme,
+  prepareCatalogLyricsFields,
+  alignDevanagariStanzaGaps,
   stripTrailingThemeFromDevanagari,
 } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
@@ -244,21 +245,36 @@ export function localSongDetail(number: number): SongDetail | null {
     bookletHarmoniumSong(number) &&
       (notation?.notation_text?.trim().startsWith("{") || song.harmonium_notation?.trim().startsWith("{")),
   )
-  const romanRaw = normalizeCatalogText(song.lyrics_original)
-  const { lyrics: romanClean, theme: peeledTheme } = extractTrailingEnglishTheme(romanRaw)
+  const prepared = prepareCatalogLyricsFields({
+    lyrics_original: song.lyrics_original,
+    title: song.title,
+    first_line: song.first_line,
+    language: song.language,
+    metadata_json: song.metadata_json,
+  })
+  const romanClean = normalizeCatalogText(prepared.lyrics_original)
   const meta = song.metadata_json ?? {}
   const officialTheme =
     (typeof meta.official_theme_label === "string" && meta.official_theme_label.trim()) ||
-    peeledTheme ||
+    prepared.peeled_theme ||
     song.theme?.trim() ||
     null
-  const lyricsDevanagari = stripTrailingThemeFromDevanagari(
+  const strippedDevanagari = stripTrailingThemeFromDevanagari(
     romanClean,
     song.lyrics_devanagari,
     officialTheme,
   )
+  const lyricsDevanagari =
+    strippedDevanagari?.trim() && romanClean
+      ? alignDevanagariStanzaGaps(romanClean, strippedDevanagari)
+      : strippedDevanagari
+  const base = summary({
+    ...song,
+    title: prepared.title ?? song.title,
+    first_line: prepared.first_line ?? song.first_line,
+  })
   return {
-    ...summary(song),
+    ...base,
     theme: officialTheme || song.theme,
     lyrics_original: romanClean || null,
     transliteration: normalizeCatalogText(song.transliteration),

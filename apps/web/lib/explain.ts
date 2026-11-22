@@ -6,7 +6,7 @@ export type ConversationTurn = {
 }
 
 export async function streamExplanation(
-  songNumber: number,
+  songNumber: number | null,
   onChunk: (chunk: string) => void,
   prompt?: string,
   history: ConversationTurn[] = [],
@@ -25,7 +25,7 @@ export async function streamExplanation(
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        song_number: songNumber,
+        ...(songNumber != null ? { song_number: songNumber } : {}),
         prompt,
         history: history.slice(-12),
         profile_context: profileContext || undefined,

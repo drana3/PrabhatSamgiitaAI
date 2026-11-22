@@ -106,6 +106,23 @@ def _last_seen_key(member: UserAccount) -> datetime:
     return value
 
 
+def _join_key(member: UserAccount) -> datetime:
+    value = member.created_at
+    if value is None:
+        return datetime.min.replace(tzinfo=UTC)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value
+
+
+def _member_join_sort_key(member: UserAccount) -> tuple[float, str]:
+    return (-_join_key(member).timestamp(), (member.display_name or "").casefold())
+
+
+def sort_members_by_join_date(members: list[UserAccount]) -> list[UserAccount]:
+    return sorted(members, key=_member_join_sort_key)
+
+
 def _subject_rank(subject: str) -> int:
     value = (subject or "").casefold()
     if value.startswith("aad:") and "@" not in value and "preview" not in value:
@@ -152,21 +169,13 @@ async def list_signed_in_members(
         (
             await session.execute(
                 statement.order_by(
-                    UserAccount.is_admin.desc(),
-                    UserAccount.last_seen_at.desc(),
+                    UserAccount.created_at.desc(),
                     UserAccount.display_name.asc(),
                 ).limit(limit * 3)
             )
         ).scalars()
     )
-    deduped = _dedupe_members(rows)
-    deduped.sort(
-        key=lambda member: (
-            0 if member.is_admin else 1,
-            -_last_seen_key(member).timestamp(),
-            (member.display_name or "").casefold(),
-        )
-    )
+    deduped = sort_members_by_join_date(_dedupe_members(rows))
     return deduped[:limit]
 
 
@@ -176,14 +185,11 @@ async def list_admin_members(session: AsyncSession) -> list[UserAccount]:
             await session.execute(
                 select(UserAccount)
                 .where(UserAccount.is_admin.is_(True), UserAccount.deleted_at.is_(None))
-                .order_by(UserAccount.display_name.asc())
+                .order_by(UserAccount.created_at.desc(), UserAccount.display_name.asc())
             )
         ).scalars()
     )
-    return sorted(
-        _dedupe_members(rows),
-        key=lambda member: (member.display_name or "").casefold(),
-    )
+    return sort_members_by_join_date(_dedupe_members(rows))
 
 
 async def find_member_by_email(session: AsyncSession, email: str) -> UserAccount | None:

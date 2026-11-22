@@ -114,7 +114,9 @@ def drop_last_nonempty_line(text: str | None) -> str:
 
 
 # Rule-converted leftovers of ``SONG OF …`` (e.g. ``सोन्ग् ओफ़् फ़ुल्फ़िल्ल्मेन्त्``).
-_CONVERTED_SONG_OF_RE = re.compile(r"(सोन्ग्|सोंग्|सोङ्ग्|सॉन्ग्)\s*(ओफ़्|ओफ्|अव्|ऑफ़्)")
+_CONVERTED_SONG_OF_RE = re.compile(
+    r"(सोन्|सोन्ग्|सोंग्|सोङ्ग्|सॉन्ग्)\s*(ओफ़्|ओफ्|अव्|ऑफ़्|ऑफ्)"
+)
 
 
 def looks_like_converted_theme_line(line: str | None) -> bool:

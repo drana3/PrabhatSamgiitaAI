@@ -209,7 +209,11 @@ def split_song_sections(
     """Return lyrics, english meaning, central-idea lines, and optional English theme."""
     if not paragraphs:
         return [], [], [], None
-    lines = [line for paragraph in paragraphs for line in paragraph]
+    lines: list[str] = []
+    for index, paragraph in enumerate(paragraphs):
+        if index > 0 and paragraph:
+            lines.append("")
+        lines.extend(paragraph)
     content, central_idea = _split_central_idea(lines)
 
     lyric_start = next(

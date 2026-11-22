@@ -71,7 +71,7 @@ export function FeedbackWidget() {
           ) : !session.authenticated ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm leading-6 text-stone-600">
-                Sign in so your feedback can be reviewed by the Prabhat Samgiita AI team.
+                Sign in so your feedback can be reviewed by the Prabhat Samgiita team.
               </p>
               <Link href={signInHref(pathname)} className="gold-button inline-flex w-full justify-center py-3">
                 Sign in to send feedback

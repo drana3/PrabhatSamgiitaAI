@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
-import { hasPublishedLearnerSargam } from "@prabhat/core"
+import { COMPOSER_PORTRAIT_ALT, hasPublishedLearnerSargam } from "@prabhat/core"
 import { FavoriteSongButton } from "@/components/favorite-song-button"
 import { LyricsScriptToggle } from "@/components/lyrics-script-toggle"
 import { HarmoniumNavLink, HarmoniumPracticeSection } from "@/components/harmonium-song-features"
@@ -83,7 +83,7 @@ export default async function SongPage({ params, searchParams }: { params: Promi
         <section className="relative mt-4 min-h-[13rem] overflow-hidden rounded-[1.75rem] bg-navy-950 text-white shadow-xl sm:mt-5 sm:min-h-[18rem] sm:rounded-[2rem]">
           <div
             role="img"
-            aria-label="Shrii Shrii Anandamurti ji at dawn"
+            aria-label={COMPOSER_PORTRAIT_ALT}
             className="absolute inset-0 bg-[url('/brand/dawn-hero.png')] bg-cover bg-[82%_top]"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/85 to-navy-950/30" />

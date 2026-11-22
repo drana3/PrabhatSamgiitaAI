@@ -70,7 +70,7 @@ export function StoriesInspiration() {
             Memories from the Prabhat Samgiita journey
           </h2>
           <p className="mt-4 text-sm leading-7 text-stone-700">
-            Devotee experiences, interviews, and reflections — read here in Prabhat Samgiita AI, sourced from the official archive with attribution.
+            Devotee experiences, interviews, and reflections — read here in Prabhat Samgiita, sourced from the official archive with attribution.
           </p>
         </div>
         <Link href="/stories" className="outline-button">Browse all stories →</Link>

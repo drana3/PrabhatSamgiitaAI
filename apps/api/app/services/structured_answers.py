@@ -186,6 +186,65 @@ def build_meditation_answer(song: Song, language: str = "en") -> str | None:
     return "\n\n".join(parts)
 
 
+def requests_catalog_browse(query: str) -> bool:
+    if requests_related_songs(query):
+        return True
+    return re.search(
+        r"\b(?:suggest|morning|evening|peace|calm|meditation|devotion|recommend|which song|"
+        r"what song|tell me about|prabhat samgiita|festival|theme)\b",
+        query,
+        re.IGNORECASE,
+    ) is not None
+
+
+def build_catalog_recommendations_answer(songs: list[Song], language: str = "en") -> str | None:
+    if not songs:
+        return None
+    if language == "hi":
+        opener = "आपके प्रश्न से जुड़े कुछ प्रभात संगीत:"
+        lines = [opener, ""]
+        for item in songs[:6]:
+            detail = f" — {item.theme}" if item.theme else ""
+            lines.append(f"• गीत {item.number}: {item.title}{detail}")
+        return "\n".join(lines)
+
+    opener = "Here are Prabhat Samgiita songs from the catalog that match your question:"
+    lines = [opener, ""]
+    for item in songs[:6]:
+        detail = f" — {item.theme}" if item.theme else ""
+        first = item.first_line or item.title
+        lines.append(f"• Song {item.number}: {first}{detail}")
+    return "\n".join(lines)
+
+
+def try_catalog_structured_answer(
+    query: str,
+    songs: list[Song],
+    history: list[tuple[str, str]] | None = None,
+) -> str | None:
+    if is_one_shot_language_request(query):
+        return None
+    language = detect_response_language(query, history)
+    if requests_stories_inspiration(query):
+        from app.services.stories import (
+            load_stories_from_seed,
+            stories_matching_query,
+        )
+
+        catalog = load_stories_from_seed()
+        matched = stories_matching_query(catalog, query, None)
+        if not matched:
+            matched = catalog[:5]
+        return build_stories_answer(None, matched, language)
+    if requests_catalog_browse(query):
+        return build_catalog_recommendations_answer(songs, language)
+    if requests_song_explanation(query, history) or re.search(
+        r"\b(?:meditation|meditate|dhyan|reflect)\b", query, re.IGNORECASE
+    ):
+        return None
+    return build_catalog_recommendations_answer(songs, language)
+
+
 def build_related_songs_answer(
     song: Song,
     related: list[Song],

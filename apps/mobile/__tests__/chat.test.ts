@@ -20,8 +20,9 @@ describe("mobile AI chat helpers", () => {
 
   it("prefers an explicit song number from the prompt", () => {
     expect(resolveExplainSongNumber("What is the meaning of song 2155?", 3)).toBe(2155)
-    expect(resolveExplainSongNumber("morning devotion", 1427)).toBe(1427)
-    expect(resolveExplainSongNumber("morning devotion")).toBe(1)
+    expect(resolveExplainSongNumber("morning devotion", 1427)).toBeNull()
+    expect(resolveExplainSongNumber("morning devotion")).toBeNull()
+    expect(resolveExplainSongNumber("Explain the spiritual meaning of this song", 1427)).toBe(1427)
   })
 
   it("strips source footnotes from streamed answers", () => {

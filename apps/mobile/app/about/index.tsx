@@ -1,6 +1,8 @@
 import { Image } from "expo-image"
 import { ScrollView, StyleSheet, Text, View } from "react-native"
 
+import { COMPOSER_NAME, PRODUCT_NAME } from "@prabhat/core"
+
 import { collectionCount } from "@/data/collections"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { brandAssets, guruCaption } from "@/constants/brand"
@@ -27,9 +29,9 @@ export default function AboutScreen() {
         <Text style={styles.name}>{guruCaption.name}</Text>
         <Text style={styles.role}>{guruCaption.role}</Text>
 
-        <Text style={styles.title}>Prabhat Samgiita AI</Text>
+        <Text style={styles.title}>{PRODUCT_NAME}</Text>
         <Text style={styles.body}>
-          Prabhat Samgiita is a collection of 5,018 songs composed by Shrii Shrii Anandamurti ji
+          {PRODUCT_NAME} is a collection of 5,018 songs composed by {COMPOSER_NAME}
           between 14 September 1982 and 20 October 1990. This app helps you listen, understand,
           practise, and ask — in the same spirit as the website.
         </Text>

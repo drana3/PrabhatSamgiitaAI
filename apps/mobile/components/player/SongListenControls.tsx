@@ -8,6 +8,7 @@ import { colors } from "@/constants/colors"
 import { radius, spacing } from "@/constants/spacing"
 import { typography } from "@/constants/typography"
 import {
+  mergeAudioRecordings,
   offlineRecordingState,
   offlineSaveControls,
   reconcileOfflineProgress,
@@ -66,11 +67,14 @@ export function SongListenControls({
     })()
   }
 
+  // Detail fetch can be missing offline — still surface every saved recording.
+  const effectiveRecordings = mergeAudioRecordings(songNumber, recordings, files)
+
   /** Prefer a real https URL so progress binds after remove → save-again. */
   const remoteUrlForSave = (() => {
     const candidates = [
       audioUrl,
-      ...recordings.map((item) => item.url),
+      ...effectiveRecordings.map((item) => item.url),
       currentRecording.key,
     ]
     for (const candidate of candidates) {
@@ -88,7 +92,7 @@ export function SongListenControls({
     progress: currentRecording.progress,
     error: currentRecording.error,
   })
-  const hasMultipleRecordings = recordings.length > 1
+  const hasMultipleRecordings = effectiveRecordings.length > 1
   const showPrimarySave = saveUi.visible && !hasMultipleRecordings
   const downloaded = currentRecording.downloaded
   const downloadError = currentRecording.error
@@ -133,21 +137,33 @@ export function SongListenControls({
   const bufferingLabel = saveUi.bufferingLabel
   const selectedIndex = Math.max(
     0,
-    recordings.findIndex((item) => item.url === audioUrl),
+    effectiveRecordings.findIndex((item) => item.url === audioUrl),
   )
   const listenTitle =
-    recordings[selectedIndex] ? audioRecordingLabel(recordings[selectedIndex], selectedIndex) : "Original rendition"
+    effectiveRecordings[selectedIndex]
+      ? audioRecordingLabel(effectiveRecordings[selectedIndex], selectedIndex)
+      : "Original rendition"
 
-  const renderRecordingSave = (recordingUrl: string, label: string) => {
+  const recordingOfflineUi = (recordingUrl: string) => {
     const state = offlineRecordingState(recordingUrl, offlineSnapshot, { songNumber })
+    // Do not pass indexPending — it would spin every recording row on cold start.
     const ui = offlineSaveControls({
       mode: signedIn ? "signed_in" : "guest",
       downloaded: state.downloaded,
       downloading: state.downloading,
-      indexPending: signedIn && !offlineReady,
       progress: state.progress,
       error: state.error,
     })
+    const pct =
+      ui.downloading && state.progress != null && state.progress > 0
+        ? Math.round(state.progress * 100)
+        : null
+    return { state, ui, pct }
+  }
+
+  /** IPA-style: compact download / trash on the recording row (not a second full-width button). */
+  const renderRecordingSave = (recordingUrl: string, label: string) => {
+    const { state, ui, pct } = recordingOfflineUi(recordingUrl)
     if (!ui.visible) return null
     if (state.downloaded && !ui.downloading) {
       return (
@@ -165,8 +181,14 @@ export function SongListenControls({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Save ${label} in this app`}
-        disabled={ui.downloading}
+        accessibilityLabel={
+          ui.downloading
+            ? pct != null
+              ? `Saving ${label} ${pct}%`
+              : `Saving ${label}`
+            : `Save ${label} in this app`
+        }
+        disabled={ui.downloading || !offlineReady}
         hitSlop={6}
         onPress={() => {
           void download(recordingUrl, songNumber, { userInitiated: true }).catch(() => undefined)
@@ -174,12 +196,22 @@ export function SongListenControls({
         style={({ pressed }) => [styles.recordingDl, pressed && styles.ctrlPressed]}
       >
         {ui.downloading ? (
-          <ActivityIndicator size="small" color={colors.primaryDark} />
+          <View style={styles.recordingDlProgress}>
+            <ActivityIndicator size="small" color={colors.primaryDark} />
+            {pct != null ? <Text style={styles.recordingPct}>{pct}%</Text> : null}
+          </View>
         ) : (
           <Download size={16} color={colors.primaryDark} />
         )}
       </Pressable>
     )
+  }
+
+  const recordingActionLabel = (recordingUrl: string, selected: boolean): string => {
+    const { ui, pct, state } = recordingOfflineUi(recordingUrl)
+    if (ui.downloading) return pct != null ? `Saving ${pct}%` : "Saving…"
+    if (state.downloaded) return selected ? "Playing · Saved" : "Saved"
+    return selected ? "Playing" : "Play"
   }
 
   if (compact) {
@@ -288,34 +320,49 @@ export function SongListenControls({
         <Text style={styles.status}>{downloadError}</Text>
       ) : null}
 
-      {hasMultipleRecordings && onSelectRecording ? (
+      {hasMultipleRecordings ? (
         <View style={styles.moreWrap}>
           <Text style={styles.recordingsHeading}>Recordings</Text>
-          {recordings.map((item, index) => {
+          {effectiveRecordings.map((item, index) => {
             const selected = item.url === audioUrl
             const label = audioRecordingLabel(item, index)
+            const rowOffline = recordingOfflineUi(item.url)
             return (
-              <View
-                key={item.url}
-                style={[styles.recordingRow, selected && styles.recordingRowSelected]}
-              >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={`Play ${label}`}
-                  onPress={() => onSelectRecording(item.url)}
-                  style={({ pressed }) => [styles.recordingSelect, pressed && styles.ctrlPressed]}
+              <View key={`${item.url}-${index}`} style={styles.recordingBlock}>
+                <View
+                  style={[styles.recordingRow, selected && styles.recordingRowSelected]}
                 >
-                  <Text style={[styles.recordingTitle, selected && styles.recordingTitleSelected]}>
-                    {label}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Play ${label}`}
+                    onPress={() => {
+                      if (onSelectRecording) onSelectRecording(item.url)
+                      else onTogglePlay()
+                    }}
+                    style={({ pressed }) => [styles.recordingSelect, pressed && styles.ctrlPressed]}
+                  >
+                    <Text style={[styles.recordingTitle, selected && styles.recordingTitleSelected]}>
+                      {label}
+                    </Text>
+                    <Text style={styles.recordingAction}>
+                      {recordingActionLabel(item.url, selected)}
+                    </Text>
+                  </Pressable>
+                  {signedIn ? renderRecordingSave(item.url, label) : null}
+                </View>
+                {signedIn && rowOffline.ui.showError && rowOffline.state.error ? (
+                  <Text style={styles.recordingError} numberOfLines={2}>
+                    {rowOffline.state.error}
                   </Text>
-                  <Text style={styles.recordingAction}>{selected ? "Playing" : "Play"}</Text>
-                </Pressable>
-                {signedIn ? renderRecordingSave(item.url, label) : null}
+                ) : null}
               </View>
             )
           })}
-          {signedIn && recordings.some((item) => offlineRecordingState(item.url, offlineSnapshot).downloaded) ? (
+          {signedIn &&
+          effectiveRecordings.some(
+            (item) => offlineRecordingState(item.url, offlineSnapshot, { songNumber }).downloaded,
+          ) ? (
             <Text style={styles.offline}>Saved recordings play offline in this app.</Text>
           ) : null}
         </View>
@@ -471,6 +518,8 @@ const styles = StyleSheet.create({
   },
   downloadLabel: { ...typography.label, color: colors.textPrimary },
   moreWrap: { gap: spacing.xs },
+  recordingBlock: { gap: 2 },
+  recordingError: { ...typography.caption, color: colors.error, paddingHorizontal: spacing.sm },
   recordingsHeading: { ...typography.label, color: colors.primaryDark, marginBottom: spacing.xs },
   moreToggle: {
     minHeight: 44,
@@ -504,12 +553,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   recordingDl: {
-    width: 40,
+    minWidth: 44,
     height: 40,
     borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 4,
   },
+  recordingDlProgress: { alignItems: "center", justifyContent: "center", gap: 1 },
+  recordingPct: { ...typography.caption, fontSize: 10, color: colors.primaryDark },
   recordingRowSelected: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,

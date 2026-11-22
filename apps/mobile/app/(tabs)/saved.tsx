@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
-import { Heart, Play } from "lucide-react-native"
+import { Heart, Play, Trash2 } from "lucide-react-native"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
@@ -34,6 +34,7 @@ export default function SavedScreen() {
   const hydratePlaylistsFromCache = usePlaylistStore((s) => s.hydrateFromCache)
   const refreshPlaylists = usePlaylistStore((s) => s.refresh)
   const createPlaylist = usePlaylistStore((s) => s.createPlaylist)
+  const deletePlaylist = usePlaylistStore((s) => s.deletePlaylist)
   const [playlistName, setPlaylistName] = useState("")
   const [namingPlaylist, setNamingPlaylist] = useState(false)
   const hasSong = usePlayerStore((s) => Boolean(s.currentSong))
@@ -147,7 +148,11 @@ export default function SavedScreen() {
                   if (error) Alert.alert("Playlist", error)
                 })
               }}
-              style={({ pressed }) => [styles.playlistPlay, pressed && styles.pressed, !playlist.songs.length && styles.playlistPlayDisabled]}
+              style={({ pressed }) => [
+                styles.playlistPlay,
+                pressed && styles.pressed,
+                !playlist.songs.length && styles.playlistPlayDisabled,
+              ]}
             >
               <Play size={18} color={playlist.songs.length ? colors.primaryDark : colors.textMuted} />
             </Pressable>
@@ -156,10 +161,33 @@ export default function SavedScreen() {
               onPress={() => router.push(href(`/playlist/${playlist.id}`))}
               style={styles.playlistMetaPress}
             >
-              <Text style={styles.playlistName}>{playlist.name}</Text>
+              <Text style={styles.playlistName} numberOfLines={1}>
+                {playlist.name}
+              </Text>
               <Text style={styles.playlistMeta}>
                 {playlist.songs.length ? `${playlist.songs.length} songs` : "Empty · tap to add songs"}
               </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${playlist.name}`}
+              onPress={() => {
+                Alert.alert("Delete playlist", `Remove “${playlist.name}” from your account?`, [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                      void deletePlaylist(playlist.id).then((result) => {
+                        if ("error" in result) Alert.alert("Playlist", result.error)
+                      })
+                    },
+                  },
+                ])
+              }}
+              style={({ pressed }) => [styles.playlistDelete, pressed && styles.pressed]}
+            >
+              <Trash2 size={18} color="#8b3a3a" />
             </Pressable>
           </View>
         ))}
@@ -243,6 +271,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   playlistPlay: {
     width: 40,
@@ -255,7 +289,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   playlistPlayDisabled: { opacity: 0.5 },
-  playlistMetaPress: { flex: 1, paddingVertical: spacing.xs },
+  playlistMetaPress: { flex: 1, minWidth: 0, paddingVertical: spacing.xs },
+  playlistDelete: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   playlistName: { ...typography.label, color: colors.textPrimary },
   playlistMeta: { ...typography.caption, color: colors.textMuted },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },

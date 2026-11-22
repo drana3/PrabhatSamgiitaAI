@@ -10,7 +10,7 @@ import {
 
 describe("festival calendar", () => {
   it("matches the reviewed website year and includes core observances", () => {
-    expect(REVIEWED_FESTIVAL_YEAR).toBe(2026)
+    expect(REVIEWED_FESTIVAL_YEAR).toBe(2027)
     expect(festivalCalendar2026.length).toBeGreaterThanOrEqual(15)
     expect(getFestivalById("ananda-purnima-2026")?.relatedCollectionLabel).toBe("Bábá Birthday Songs")
     expect(getFestivalById("sharadotsava-2026")).toMatchObject({ month: 10, day: 16 })
@@ -27,8 +27,14 @@ describe("festival calendar", () => {
     )
   })
 
+  it("includes reviewed 2027 observances", () => {
+    expect(getFestivalById("vijayotsava-2027")).toMatchObject({ month: 10, day: 9 })
+    const upcoming = getUpcomingFestivals(new Date(2026, 11, 20), 5)
+    expect(upcoming.some((item) => item.year === 2027)).toBe(true)
+  })
+
   it("reports exhaustion after the reviewed year ends", () => {
-    expect(festivalCalendarExhausted(new Date(2026, 11, 31))).toBe(true)
+    expect(festivalCalendarExhausted(new Date(2027, 11, 31))).toBe(true)
     expect(festivalCalendarExhausted(new Date(2026, 7, 3))).toBe(false)
   })
 })

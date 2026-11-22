@@ -10,10 +10,14 @@ import {
   writePlaylistCache,
   writePlaylistCacheSoon,
 } from "@/lib/playlistCache"
+import { releasePlaybackForDeletedPlaylist } from "@/lib/playlistPlayerBridge"
 import {
   bindPlaylistSyncHandlers,
+  deletePlaylistOnServer,
   enqueuePlaylistSync,
   flushPlaylistSyncNow,
+  mergeCachedPlaylists,
+  mergePlaylistsFromServer,
   resetPlaylistSyncQueue,
 } from "@/lib/playlistSyncQueue"
 import { useAuthStore } from "@/stores/authStore"
@@ -90,7 +94,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
 
   hydrateFromCache: async () => {
     if (!signedIn() || !memberAuthAvailable()) return
-    const cached = peekPlaylistCache() ?? (await readPlaylistCache()) ?? []
+    const cached = mergeCachedPlaylists(peekPlaylistCache() ?? (await readPlaylistCache()) ?? [])
     if (get().playlists.length === 0) {
       set({ playlists: cached, loading: false, error: null })
     }
@@ -103,7 +107,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       set({ playlists: [], error: null, loading: false, syncing: false })
       return
     }
-    const cached = peekPlaylistCache() ?? (await readPlaylistCache()) ?? []
+    const cached = mergeCachedPlaylists(peekPlaylistCache() ?? (await readPlaylistCache()) ?? [])
     set({ playlists: cached, loading: false, error: null })
     const remote = await api.fetchMemberPlaylists()
     if (remote === null) {
@@ -113,8 +117,9 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       }))
       return
     }
-    await writePlaylistCache(remote)
-    set({ playlists: remote, loading: false, error: null })
+    const merged = mergePlaylistsFromServer(remote)
+    await writePlaylistCache(merged)
+    set({ playlists: merged, loading: false, error: null })
   },
 
   flushSync: async () => {
@@ -158,11 +163,21 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   deletePlaylist: async (id) => {
     const blocked = memberReady()
     if (blocked) return blocked
-    const playlists = get().playlists.filter((item) => item.id !== id)
-    set({ playlists, error: null })
-    persistSoon(playlists)
-    enqueuePlaylistSync({ type: "delete", id })
-    return { ok: true }
+    const existing = get().playlists.find((item) => item.id === id)
+    if (!existing) return { error: "Playlist not found." }
+    set({ syncing: true, error: null })
+    try {
+      await deletePlaylistOnServer(id)
+      const playlists = get().playlists.filter((item) => item.id !== id)
+      set({ playlists, syncing: false, error: null })
+      await writePlaylistCache(playlists)
+      releasePlaybackForDeletedPlaylist(id)
+      return { ok: true }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not delete playlist."
+      set({ syncing: false, error: message })
+      return { error: message }
+    }
   },
 
   addSong: async (id, songNumber) => {

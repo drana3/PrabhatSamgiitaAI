@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useFocusEffect, useRouter } from "expo-router"
-import { Award, Check, Lock, X } from "lucide-react-native"
+import { Award, Lock } from "lucide-react-native"
+
+import { QuizReviewCard } from "@/components/quiz/QuizReviewCard"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { SecondaryButton } from "@/components/common/SecondaryButton"
@@ -158,17 +160,9 @@ export default function QuizScreen() {
                 ? `Certificate ${result.certification.certificate_code}`
                 : "No new certificate this time."}
             </Text>
-            {result.review.slice(0, 3).map((item) => (
-              <View key={item.question_id} style={styles.reviewRow}>
-                {item.is_correct ? (
-                  <Check size={16} color={colors.success} />
-                ) : (
-                  <X size={16} color={colors.error} />
-                )}
-                <Text style={styles.reviewText} numberOfLines={2}>
-                  {item.prompt}
-                </Text>
-              </View>
+            <Text style={styles.reviewHeading}>Your answers vs correct answers</Text>
+            {result.review.map((item, reviewIndex) => (
+              <QuizReviewCard key={item.question_id} index={reviewIndex} item={item} />
             ))}
             <PrimaryButton
               label="Choose another level"
@@ -330,6 +324,9 @@ const styles = StyleSheet.create({
   },
   resultTitle: { ...typography.h3, color: colors.textPrimary },
   resultBody: { ...typography.bodySmall, color: colors.textSecondary },
-  reviewRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
-  reviewText: { ...typography.caption, color: colors.textPrimary, flex: 1 },
+  reviewHeading: {
+    ...typography.label,
+    color: colors.textPrimary,
+    marginTop: spacing.sm,
+  },
 })

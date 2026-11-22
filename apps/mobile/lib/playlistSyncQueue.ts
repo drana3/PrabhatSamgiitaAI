@@ -17,6 +17,9 @@ let queue: PlaylistSyncOp[] = []
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 let flushing = false
 let idMap = new Map<string, string>()
+/** Server-confirmed or in-flight deletes — keeps refresh from resurrecting a removed playlist. */
+const suppressedRemoteIds = new Set<string>()
+const inFlightDeletes = new Set<string>()
 
 type SyncListeners = {
   onSyncing: (active: boolean) => void
@@ -39,7 +42,90 @@ function isLocalId(id: string) {
   return id.startsWith("local-")
 }
 
+function playlistIdsForOp(op: PlaylistSyncOp): string[] {
+  if (op.type === "create") return [op.tempId, resolveId(op.tempId)]
+  return [op.id, resolveId(op.id)]
+}
+
+function opTargetsPlaylist(op: PlaylistSyncOp, playlistId: string): boolean {
+  const serverId = resolveId(playlistId)
+  return playlistIdsForOp(op).some((id) => id === playlistId || id === serverId)
+}
+
+export function mergePlaylistsFromServer(remote: MemberPlaylist[]): MemberPlaylist[] {
+  const hidden = suppressedPlaylistIds()
+  const filtered = remote.filter((playlist) => !hidden.has(playlist.id))
+  for (const id of [...suppressedRemoteIds]) {
+    if (!remote.some((playlist) => playlist.id === id)) suppressedRemoteIds.delete(id)
+  }
+  return filtered
+}
+
+export function mergeCachedPlaylists(cached: MemberPlaylist[]): MemberPlaylist[] {
+  const hidden = suppressedPlaylistIds()
+  return cached.filter((playlist) => !hidden.has(playlist.id))
+}
+
+export function suppressedPlaylistIds(): Set<string> {
+  const pending = new Set<string>(suppressedRemoteIds)
+  for (const op of queue) {
+    if (op.type === "delete") {
+      pending.add(op.id)
+      pending.add(resolveId(op.id))
+    }
+  }
+  for (const id of inFlightDeletes) pending.add(id)
+  return pending
+}
+
+export function purgePlaylistFromQueue(playlistId: string) {
+  const serverId = resolveId(playlistId)
+  queue = queue.filter((op) => !opTargetsPlaylist(op, playlistId))
+  for (const [local, server] of [...idMap.entries()]) {
+    if (local === playlistId || server === serverId || local === serverId) {
+      idMap.delete(local)
+    }
+  }
+}
+
+export function cancelLocalPlaylist(playlistId: string) {
+  purgePlaylistFromQueue(playlistId)
+  suppressedRemoteIds.add(playlistId)
+  suppressedRemoteIds.add(resolveId(playlistId))
+}
+
+function markPlaylistSuppressedAfterDelete(playlistId: string) {
+  const serverId = resolveId(playlistId)
+  suppressedRemoteIds.add(playlistId)
+  suppressedRemoteIds.add(serverId)
+}
+
+export async function deletePlaylistOnServer(playlistId: string): Promise<void> {
+  if (isLocalId(playlistId)) {
+    cancelLocalPlaylist(playlistId)
+    return
+  }
+
+  const serverId = resolveId(playlistId)
+  inFlightDeletes.add(playlistId)
+  inFlightDeletes.add(serverId)
+  listeners?.onSyncing(true)
+  try {
+    await flushPlaylistSyncQueue()
+    purgePlaylistFromQueue(playlistId)
+    await api.deleteMemberPlaylist(serverId)
+    markPlaylistSuppressedAfterDelete(playlistId)
+  } finally {
+    inFlightDeletes.delete(playlistId)
+    inFlightDeletes.delete(serverId)
+    listeners?.onSyncing(queue.length > 0 || flushing)
+  }
+}
+
 export function enqueuePlaylistSync(op: PlaylistSyncOp) {
+  if (op.type === "delete") {
+    throw new Error("Use deletePlaylistOnServer for playlist deletion.")
+  }
   queue.push(op)
   if (op.type !== "create") listeners?.onSyncing(true)
   if (flushTimer) clearTimeout(flushTimer)
@@ -103,6 +189,7 @@ async function runOp(op: PlaylistSyncOp) {
     playlists = replacePlaylist(playlists, updated)
   } else if (op.type === "delete") {
     await api.deleteMemberPlaylist(id)
+    markPlaylistSuppressedAfterDelete(op.id)
     playlists = playlists.filter((item) => item.id !== op.id && item.id !== id)
   } else if (op.type === "add") {
     const updated = await api.addMemberPlaylistSong(id, op.songNumber)
@@ -127,6 +214,8 @@ function replacePlaylist(list: MemberPlaylist[], next: MemberPlaylist) {
 export function resetPlaylistSyncQueue() {
   queue = []
   idMap = new Map()
+  suppressedRemoteIds.clear()
+  inFlightDeletes.clear()
   if (flushTimer) clearTimeout(flushTimer)
   flushTimer = null
   flushing = false

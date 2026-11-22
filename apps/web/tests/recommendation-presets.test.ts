@@ -72,6 +72,14 @@ describe("reviewed discovery collections", () => {
     expect(service?.preset.difficulty).toBeUndefined()
   })
 
+  it("includes 2027 observances in the shared festival calendar", () => {
+    const events = getUpcomingObservances(new Date(2026, 11, 15, 12, 0), 5)
+    expect(events.some((item) => item.title === "New Year's Day")).toBe(true)
+    expect(getAutoRecommendationPreset(new Date(2027, 9, 5, 8, 0)).title).toBe(
+      "Sharadotsava and Children's Day",
+    )
+  })
+
   it("uses the reviewed 2026 Sharadotsava dates from 16 to 20 October", () => {
     expect(getAutoRecommendationPreset(new Date(2026, 9, 1, 8, 0)).title).toBe("Today’s devotional mood")
     expect(getAutoRecommendationPreset(new Date(2026, 9, 16, 8, 0)).title).toBe(
@@ -88,7 +96,7 @@ describe("reviewed discovery collections", () => {
   })
 
   it("does not guess lunar observances beyond the reviewed calendar year", () => {
-    const events = getUpcomingObservances(new Date(2026, 11, 31, 12, 0), 1)
+    const events = getUpcomingObservances(new Date(2027, 10, 1, 12, 0), 1)
 
     expect(events).toEqual([])
   })

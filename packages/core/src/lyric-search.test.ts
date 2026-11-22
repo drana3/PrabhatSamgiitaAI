@@ -76,6 +76,18 @@ describe("lyric search", () => {
     expect(searchLyrics("Jadu nagariya", catalog)[0]?.number).toBe(4062)
   })
 
+  it("finds lyrics when the query omits accented vowels", () => {
+    const catalog: LyricSearchRow[] = [
+      {
+        n: 4404,
+        t: "ese chile tumi amar jiivane",
+        o: "ese chile tumi amar jiivane",
+        b: "ese chile tumi amar jiivane kata janamer punya phale",
+      },
+    ]
+    expect(searchLyrics("ese chile tumi amar jiivane", catalog)[0]?.number).toBe(4404)
+  })
+
   it("treats common transliteration spellings as the same lyric", () => {
     expect(foldLyricPhonetic("humdardi")).toBe(foldLyricPhonetic("hamdardii"))
     expect(foldLyricPhonetic("chalo")).toBe(foldLyricPhonetic("calo"))

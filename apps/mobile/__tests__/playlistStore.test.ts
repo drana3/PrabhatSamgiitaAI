@@ -29,17 +29,54 @@ vi.mock("@/lib/playlistCache", () => ({
   clearPlaylistCache: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock("@/lib/playlistPlayerBridge", () => ({
+  releasePlaybackForDeletedPlaylist: vi.fn(),
+}))
+
 vi.mock("@/lib/playlistSyncQueue", () => ({
   bindPlaylistSyncHandlers: vi.fn(),
   enqueuePlaylistSync: vi.fn(),
+  deletePlaylistOnServer: vi.fn(),
   flushPlaylistSyncNow: vi.fn(),
   resetPlaylistSyncQueue: vi.fn(),
+  mergeCachedPlaylists: (list: unknown[]) => list,
+  mergePlaylistsFromServer: (list: unknown[]) => list,
 }))
 
 describe("playlistStore optimistic updates", () => {
   beforeEach(async () => {
     const { usePlaylistStore } = await import("@/stores/playlistStore")
     usePlaylistStore.setState({ playlists: [], loading: false, syncing: false, error: null })
+  })
+
+  it("removes a playlist only after server delete succeeds", async () => {
+    const { deletePlaylistOnServer } = await import("@/lib/playlistSyncQueue")
+    const { releasePlaybackForDeletedPlaylist } = await import("@/lib/playlistPlayerBridge")
+    const { usePlaylistStore } = await import("@/stores/playlistStore")
+    usePlaylistStore.setState({
+      playlists: [{ id: "p1", name: "Morning", songs: [] }],
+    })
+    vi.mocked(deletePlaylistOnServer).mockResolvedValue(undefined)
+
+    const result = await usePlaylistStore.getState().deletePlaylist("p1")
+
+    expect(result).toEqual({ ok: true })
+    expect(usePlaylistStore.getState().playlists).toHaveLength(0)
+    expect(releasePlaybackForDeletedPlaylist).toHaveBeenCalledWith("p1")
+  })
+
+  it("keeps a playlist when server delete fails", async () => {
+    const { deletePlaylistOnServer } = await import("@/lib/playlistSyncQueue")
+    const { usePlaylistStore } = await import("@/stores/playlistStore")
+    usePlaylistStore.setState({
+      playlists: [{ id: "p1", name: "Morning", songs: [] }],
+    })
+    vi.mocked(deletePlaylistOnServer).mockRejectedValue(new Error("Could not delete playlist."))
+
+    const result = await usePlaylistStore.getState().deletePlaylist("p1")
+
+    expect(result).toEqual({ error: "Could not delete playlist." })
+    expect(usePlaylistStore.getState().playlists).toHaveLength(1)
   })
 
   it("adds a song locally before server sync", async () => {

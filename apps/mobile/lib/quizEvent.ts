@@ -42,8 +42,11 @@ export type QuizEventSubmitResult = {
   review: Array<{
     question_id: string
     prompt: string
+    options: QuizEventOption[]
+    selected_option_id?: string | null
+    correct_option_id: string
     is_correct: boolean
-    explanation?: string
+    explanation?: string | null
   }>
 }
 

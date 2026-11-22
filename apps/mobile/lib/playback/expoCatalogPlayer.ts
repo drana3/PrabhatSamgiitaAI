@@ -109,12 +109,18 @@ export async function resetNativeCatalog(): Promise<void> {
   await enqueueAudio(() => unloadSound())
 }
 
-export async function playTrackNow(track: CatalogTrack): Promise<void> {
+export async function playTrackNow(
+  track: CatalogTrack,
+  options?: { isStale?: () => boolean },
+): Promise<void> {
+  if (options?.isStale?.()) return
   await setupNativeCatalogPlayer()
   const number = trackIdToSongNumber(track.id)
   activeTrackNumber = number
   await enqueueAudio(async () => {
+    if (options?.isStale?.()) return
     await unloadSound()
+    if (options?.isStale?.()) return
     const { sound: created } = await Audio.Sound.createAsync(
       { uri: track.url },
       {
@@ -125,6 +131,14 @@ export async function playTrackNow(track: CatalogTrack): Promise<void> {
       },
       onPlaybackStatus,
     )
+    if (options?.isStale?.()) {
+      try {
+        await created.unloadAsync()
+      } catch {
+        /* ignore */
+      }
+      return
+    }
     sound = created
   })
 }

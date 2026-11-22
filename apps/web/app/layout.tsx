@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from "@prabhat/core"
 import type { Metadata } from "next"
 
 import { Providers } from "@/components/providers"
@@ -13,7 +14,7 @@ const manropeStylesheet =
 
 export const metadata: Metadata = {
   metadataBase: new URL(publicSiteUrl),
-  title: "Prabhat Samgiita AI",
+  title: PRODUCT_NAME,
   description: "Search lyrics, read meanings, listen from verified sources, and browse curated Prabhat Samgiita resources.",
   manifest: "/manifest.webmanifest",
   icons: {
@@ -26,34 +27,34 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: "Prabhat Samgiita AI",
+    title: PRODUCT_NAME,
     description: "Search lyrics, read meanings, listen from verified sources, and browse curated Prabhat Samgiita resources.",
-    siteName: "Prabhat Samgiita AI",
+    siteName: PRODUCT_NAME,
     type: "website",
     images: [
       {
         url: "/brand/share-icon.png",
         width: 1024,
         height: 1024,
-        alt: "Prabhat Samgiita AI",
+        alt: PRODUCT_NAME,
       },
       {
         url: "/brand/og-share.png",
         width: 1200,
         height: 630,
-        alt: "Prabhat Samgiita AI",
+        alt: PRODUCT_NAME,
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "Prabhat Samgiita AI",
+    title: PRODUCT_NAME,
     description: "Search lyrics, read meanings, listen from verified sources, and browse curated Prabhat Samgiita resources.",
     images: ["/brand/share-icon.png"],
   },
   appleWebApp: {
     capable: true,
-    title: "Prabhat Samgiita AI",
+    title: PRODUCT_NAME,
     statusBarStyle: "default",
   },
   other: {

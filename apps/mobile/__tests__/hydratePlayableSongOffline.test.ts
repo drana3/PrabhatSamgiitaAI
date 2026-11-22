@@ -87,4 +87,35 @@ describe("hydratePlayableSong offline", () => {
     })
     expect(song).toBeNull()
   })
+
+  it("plays the saved file when explore cache has a different https URL", async () => {
+    resolvePlaybackUri.mockImplementation(async (_number: number, url?: string | null) => {
+      if (!url) {
+        return { uri: "file:///docs/offline-audio/59.mp3", local: true }
+      }
+      // Preferred explore URL is not the saved recording — still local when offline.
+      return { uri: "file:///docs/offline-audio/59.mp3", local: true }
+    })
+    const song = await hydratePlayableSong(59, {
+      id: "ps-59",
+      number: 59,
+      title: "Song 59",
+      shortDescription: "",
+      imageUrl: "",
+      thumbnailUrl: "",
+      themes: [],
+      meaning: "",
+      lyrics: "",
+      translation: "",
+      durationSeconds: 300,
+      performer: "",
+      videos: [],
+      audioUrl: "https://cdn.test/59-preferred.mp3",
+      mediaHydrated: true,
+    })
+    expect(fetchSong).not.toHaveBeenCalled()
+    expect(song?.audioUrl).toBe("file:///docs/offline-audio/59.mp3")
+    expect(resolvePlaybackUri).toHaveBeenCalledWith(59, null)
+    expect(resolvePlaybackUri).toHaveBeenCalledWith(59, "https://cdn.test/59-preferred.mp3")
+  })
 })

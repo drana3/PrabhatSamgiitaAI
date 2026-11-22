@@ -1,3 +1,4 @@
+import { COMPOSER_NAME, COMPOSER_PORTRAIT_ALT, PRODUCT_NAME } from "@prabhat/core"
 import { expect, test, type Page } from "@playwright/test"
 
 async function stubSignedInMember(page: Page) {
@@ -167,11 +168,10 @@ test("Guru portrait and reflection remain aligned without overlap", async ({ pag
   await page.goto("/")
 
   const heading = page.getByRole("heading", { name: /Music for the inner dawn/i })
-  const heroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji", exact: true }).first()
+  const heroPortrait = page.getByRole("img", { name: COMPOSER_NAME, exact: true }).first()
   await expect(heroPortrait).toBeVisible()
-  await expect(page.getByText("Shri Prabhat Ranjan Sarkar", { exact: true }).first()).toBeVisible()
-  await expect(page.getByText("Shrii Prabhat Rainjan Sarkar", { exact: true }).first()).toBeVisible()
-  await expect(page.getByRole("img", { name: "Shrii Prabhat Rainjan Sarkar", exact: true })).toBeVisible()
+  await expect(page.getByText(COMPOSER_NAME, { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole("img", { name: COMPOSER_NAME, exact: true })).toBeVisible()
 
   const headingBounds = await heading.boundingBox()
   const heroBounds = await heroPortrait.boundingBox()
@@ -184,7 +184,7 @@ test("Guru portrait and reflection remain aligned without overlap", async ({ pag
     expect(heroBounds!.y).toBeGreaterThan(headingBounds!.y + headingBounds!.height)
   }
 
-  const guidancePortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
+  const guidancePortrait = page.getByRole("img", { name: COMPOSER_PORTRAIT_ALT })
   const quote = page.locator("blockquote").filter({ hasText: "written with the ink of the heart" }).first()
   const guidanceBounds = await guidancePortrait.boundingBox()
   const quoteBounds = await quote.boundingBox()
@@ -296,7 +296,7 @@ test("song actions, parallel reading, translation, and harmonium remain responsi
   await stubSignedInMember(page)
   await page.goto("/songs/1")
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
-  const songHeroPortrait = page.getByRole("img", { name: "Shrii Shrii Anandamurti ji at dawn" })
+  const songHeroPortrait = page.getByRole("img", { name: COMPOSER_PORTRAIT_ALT })
   await expect(songHeroPortrait).toBeAttached()
   await expect(songHeroPortrait).toHaveCSS("background-position", /82% 0/)
   const language = page.getByLabel("Language")
@@ -627,7 +627,7 @@ test("AI companion remembers context, accepts Romanized Hindi, and blocks nonsen
   })
   await page.goto("/songs/452#ask")
   await expect(page.getByRole("status", { name: "AI companion ready to help" })).toBeVisible()
-  await expect(page.getByRole("img", { name: "Prabhat Samgiita AI" }).first()).toBeVisible()
+  await expect(page.getByRole("img", { name: PRODUCT_NAME }).first()).toBeVisible()
   const input = page.getByLabel("Ask about this song")
   await input.fill("is gaane ka arth pyar ke sandarbh mein batao")
   await page.getByRole("button", { name: "Send question" }).click()
@@ -665,7 +665,7 @@ test("home today recommendations load without manual mood chips", async ({ page 
         signals: [{
           title: "Today’s selection",
           summary: "Auto-selected for this moment.",
-          source_name: "Prabhat Samgiita AI",
+          source_name: PRODUCT_NAME,
           source_url: "https://knowindia.india.gov.in/",
           category: "humanity",
         }],

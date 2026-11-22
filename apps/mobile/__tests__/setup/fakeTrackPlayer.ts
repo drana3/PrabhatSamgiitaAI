@@ -23,6 +23,7 @@ export const Event = {
   PlaybackActiveTrackChanged: "playback-active-track-changed",
   PlaybackQueueEnded: "playback-queue-ended",
   PlaybackError: "playback-error",
+  RemoteDuck: "remote-duck",
 }
 
 export const State = {
@@ -47,7 +48,11 @@ export const Capability = {
 }
 
 export const RepeatMode = { Off: "off", Track: "track", Queue: "queue" }
-export const AppKilledPlaybackBehavior = { ContinuePlayback: "continue" }
+export const AppKilledPlaybackBehavior = {
+  ContinuePlayback: "continue",
+  PausePlayback: "pause",
+  StopPlaybackAndRemoveNotification: "stop-and-remove-notification",
+}
 
 const TrackPlayer = {
   setupPlayer: vi.fn(async () => undefined),
