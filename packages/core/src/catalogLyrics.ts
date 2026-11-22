@@ -65,10 +65,18 @@ export function isCorruptLyricPaddingLine(line: string): boolean {
     if (/[a-z]/i.test(character)) letters += character
   }
   if (letters.length < 8) return false
-  const upper = letters.toUpperCase()
-  if (![...upper].every((ch) => ch === "A")) return false
   const compact = text.replace(/\s/g, "")
-  return letters.length >= compact.length * 0.5
+  if (letters.length < compact.length * 0.5) return false
+  const upper = letters.toUpperCase()
+  if ([...upper].every((ch) => ch === "A")) return true
+  const unique = new Set([...letters])
+  if (unique.size === 1) return true
+  const counts = new Map<string, number>()
+  for (const letter of letters) {
+    counts.set(letter, (counts.get(letter) ?? 0) + 1)
+  }
+  const top = Math.max(...counts.values())
+  return top >= 8 && top >= letters.length * 0.85
 }
 
 export function isCatalogLanguageLabelLine(
@@ -236,7 +244,7 @@ export function inferStanzaBlankLines(lines: readonly string[]): string[] {
 export function alignDevanagariStanzaGaps(romanWithGaps: string, devanagari: string): string {
   const romanLines = romanWithGaps.split("\n")
   const devLines = devanagari.split("\n")
-  const devContent = devLines.filter((line) => line.trim())
+  const devContent = devLines.filter((line) => line.trim() && !isCorruptLyricPaddingLine(line))
   const romanContentCount = romanLines.filter((line) => line.trim()).length
   if (!devContent.length || devContent.length !== romanContentCount) {
     return inferStanzaBlankLines(devLines).join("\n").trim()

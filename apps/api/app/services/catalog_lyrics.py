@@ -68,11 +68,20 @@ def is_corrupt_lyric_padding_line(line: str) -> bool:
             letters.append(character)
     if len(letters) < 8:
         return False
-    upper = "".join(letters).upper()
-    if not upper or any(character != "A" for character in upper):
-        return False
     compact = re.sub(r"\s", "", text)
-    return len(letters) >= len(compact) * 0.5
+    if len(letters) < len(compact) * 0.5:
+        return False
+    upper = "".join(letters).upper()
+    if upper and all(character == "A" for character in upper):
+        return True
+    # Devanagari / scrape padding: one letter repeated (e.g. आआआआ… from Roman Á runs).
+    if len(set(letters)) == 1:
+        return True
+    counts: dict[str, int] = {}
+    for letter in letters:
+        counts[letter] = counts.get(letter, 0) + 1
+    top = max(counts.values())
+    return top >= 8 and top >= len(letters) * 0.85
 
 
 def is_catalog_language_label_line(
@@ -236,7 +245,11 @@ def infer_stanza_blank_lines(lines: list[str]) -> list[str]:
 def align_devanagari_stanza_gaps(roman_with_gaps: str, devanagari: str) -> str:
     roman_lines = roman_with_gaps.split("\n")
     dev_lines = devanagari.split("\n")
-    dev_content = [line for line in dev_lines if line.strip()]
+    dev_content = [
+        line
+        for line in dev_lines
+        if line.strip() and not is_corrupt_lyric_padding_line(line)
+    ]
     roman_content_count = len([line for line in roman_lines if line.strip()])
     if not dev_content or len(dev_content) != roman_content_count:
         return "\n".join(infer_stanza_blank_lines(dev_lines)).strip()

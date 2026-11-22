@@ -1,4 +1,5 @@
 from app.services.catalog_lyrics import (
+    align_devanagari_stanza_gaps,
     infer_stanza_blank_lines,
     is_corrupt_lyric_padding_line,
     normalize_official_br_paragraph_gaps,
@@ -9,7 +10,16 @@ from app.services.catalog_lyrics import (
 
 def test_corrupt_padding_line() -> None:
     assert is_corrupt_lyric_padding_line("ÁÁÁÁÁÁÁÁÁÁ")
+    assert is_corrupt_lyric_padding_line("आआआआआआआआआआ")
     assert not is_corrupt_lyric_padding_line("ESE CHILE TUMI")
+
+
+def test_align_devanagari_ps3324_style_strips_padding() -> None:
+    roman = "A\nB\n\nC"
+    dev = "अ\nब\nआआआआआआआआआआ\nस"
+    aligned = align_devanagari_stanza_gaps(roman, dev)
+    assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
+    assert "आआ" not in aligned
 
 
 def test_strips_sanskrit_label_ps1565() -> None:

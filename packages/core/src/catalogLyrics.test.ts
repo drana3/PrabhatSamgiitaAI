@@ -13,6 +13,7 @@ import {
 describe("catalogLyrics", () => {
   it("detects Á-only padding lines", () => {
     expect(isCorruptLyricPaddingLine("ÁÁÁÁÁÁÁÁÁÁ")).toBe(true)
+    expect(isCorruptLyricPaddingLine("आआआआआआआआआआ")).toBe(true)
     expect(isCorruptLyricPaddingLine("BANDHU HE NIYE CALO")).toBe(false)
   })
 
