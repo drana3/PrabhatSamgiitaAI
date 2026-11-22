@@ -168,10 +168,12 @@ test("Guru portrait and reflection remain aligned without overlap", async ({ pag
   await page.goto("/")
 
   const heading = page.getByRole("heading", { name: /Music for the inner dawn/i })
-  const heroPortrait = page.getByRole("img", { name: COMPOSER_NAME, exact: true }).first()
+  const composerImages = page.getByRole("img", { name: COMPOSER_NAME, exact: true })
+  const heroPortrait = composerImages.first()
   await expect(heroPortrait).toBeVisible()
   await expect(page.getByText(COMPOSER_NAME, { exact: true }).first()).toBeVisible()
-  await expect(page.getByRole("img", { name: COMPOSER_NAME, exact: true })).toBeVisible()
+  await expect(composerImages).toHaveCount(2)
+  await expect(composerImages.nth(1)).toBeVisible()
 
   const headingBounds = await heading.boundingBox()
   const heroBounds = await heroPortrait.boundingBox()
