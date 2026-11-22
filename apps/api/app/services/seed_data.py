@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urljoin
 
+from app.services.catalog_lyrics import prepare_catalog_lyrics_fields
 from app.services.notation_links import ANDROMEDA_ARCHIVE, learner_notation_url
 
 DATA_DIR = Path(__file__).resolve().parents[4] / "data"
@@ -62,7 +63,10 @@ def load_rows(filename: str) -> list[dict[str, Any]]:
         return generated
 
     if filename == "songs.json":
-        return _merge_songs(generated, seed)
+        merged = _merge_songs(generated, seed)
+        for row in merged:
+            _sanitize_catalog_song_row(row)
+        return merged
     key = {
         "media.json": "url",
         "notations.json": "source_url",
@@ -247,6 +251,19 @@ def _read_rows(path: Path) -> list[dict[str, Any]]:
             if isinstance(source_url, str) and source_url.startswith("/"):
                 row["canonical_source_url"] = urljoin("https://prabhatasamgiita.net", source_url)
     return rows
+
+
+def _sanitize_catalog_song_row(row: dict[str, Any]) -> None:
+    updates = prepare_catalog_lyrics_fields(row)
+    peeled_theme = updates.pop("peeled_theme", None)
+    row.update(updates)
+    if peeled_theme:
+        meta = dict(row.get("metadata_json") or {})
+        if not (row.get("theme") or "").strip():
+            row["theme"] = peeled_theme
+        if not meta.get("official_theme_label"):
+            meta["official_theme_label"] = peeled_theme
+        row["metadata_json"] = meta
 
 
 def _merge_songs(

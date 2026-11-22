@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from "@prabhat/core"
 import { useCallback, useRef, useState } from "react"
 import {
   Alert,
@@ -474,7 +475,7 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <Text style={styles.version}>Prabhat Samgiita AI · mobile</Text>
+        <Text style={styles.version}>{`${PRODUCT_NAME} · mobile`}</Text>
       </ScrollView>
 
       <Modal

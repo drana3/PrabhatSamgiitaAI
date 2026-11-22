@@ -67,8 +67,9 @@ export function dropLastNonemptyLine(text: string | null | undefined): string {
   return cleaned
 }
 
-/** Rule-converted leftovers of ``SONG OF …`` (e.g. ``सोन्ग् ओफ़् फ़ुल्फ़िल्ल्मेन्त्``). */
-const CONVERTED_SONG_OF = /(सोन्ग्|सोंग्|सोङ्ग्|सॉन्ग्)\s*(ओफ़्|ओफ्|अव्|ऑफ़्)/
+/** Rule-converted leftovers of ``SONG OF …`` (e.g. ``सोन्ग् ओफ़् फ़ुल्फ़िल्ल्मेन्त्``, ``सोन् ऑफ् स्वेलेस्स्``). */
+const CONVERTED_SONG_OF =
+  /(सोन्|सोन्ग्|सोंग्|सोङ्ग्|सॉन्ग्)\s*(ओफ़्|ओफ्|अव्|ऑफ़्|ऑफ्)/
 
 export function looksLikeConvertedThemeLine(line: string | null | undefined): boolean {
   const text = (line || "").trim()

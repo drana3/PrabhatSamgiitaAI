@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
+import { QuizReviewCard } from "@/components/quiz/QuizReviewCard"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { SecondaryButton } from "@/components/common/SecondaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
@@ -140,6 +141,14 @@ export default function QuizEventScreen() {
               ? "Your answers are recorded. Results will be verified after the deadline."
               : "Results are now final."}
           </Text>
+          {!result.pending_verification && result.review.length > 0 ? (
+            <>
+              <Text style={styles.reviewHeading}>Your answers vs correct answers</Text>
+              {result.review.map((item, reviewIndex) => (
+                <QuizReviewCard key={item.question_id} index={reviewIndex} item={item} />
+              ))}
+            </>
+          ) : null}
           <PrimaryButton label="Back to home" onPress={() => router.replace(href("/"))} />
         </ScrollView>
       </ScreenContainer>
@@ -239,6 +248,12 @@ const styles = StyleSheet.create({
   score: {
     ...typography.h1,
     color: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  reviewHeading: {
+    ...typography.label,
+    color: colors.textPrimary,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
   deadlineCard: {

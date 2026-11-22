@@ -1,5 +1,9 @@
 import TrackPlayer, { Event } from "react-native-track-player"
 
+import {
+  planCatalogInterruptionAction,
+  readCatalogWantPlaying,
+} from "./lib/playback/catalogInterruptionPolicy"
 import { ensureUpcomingRadioTrack } from "./lib/playback/radioAdvance"
 import { getRadioSession } from "./lib/playback/radioSession"
 
@@ -36,5 +40,10 @@ export async function playbackService() {
   })
   TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, () => {
     void ensureUpcomingRadioTrack()
+  })
+  TrackPlayer.addEventListener(Event.RemoteDuck, (event) => {
+    const action = planCatalogInterruptionAction(event, readCatalogWantPlaying())
+    if (action === "resume") void TrackPlayer.play()
+    if (action === "stop") void TrackPlayer.stop()
   })
 }

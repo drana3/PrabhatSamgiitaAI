@@ -2,15 +2,15 @@
  * Keep media playback inside the app — never send users to YouTube/search pages.
  */
 
-import { compareAudioQuality, unwrapArchiveAudioUrl } from "@prabhat/core"
-
-const YOUTUBE_ID =
-  /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i
+import {
+  compareAudioQuality,
+  extractYoutubeVideoId,
+  resolveYoutubeVideoThumbnail,
+  unwrapArchiveAudioUrl,
+} from "@prabhat/core"
 
 export function extractYoutubeId(value: string | null | undefined): string | null {
-  if (!value) return null
-  const match = YOUTUBE_ID.exec(value)
-  return match?.[1] ?? null
+  return extractYoutubeVideoId(value)
 }
 
 /** Trusted HTTPS origin so YouTube accepts the WebView Referer (avoids Error 153). */
@@ -48,6 +48,8 @@ type MediaLike = {
   title: string
   url: string
   embed_url?: string | null
+  external_id?: string | null
+  metadata_json?: Record<string, unknown> | null
   verification_status: string
   is_latest?: boolean
 }
@@ -117,7 +119,7 @@ export function mediaVideosToEmbeds(
         title: item.title || `Watch PS ${songNumber}`,
         url: item.url,
         embedUrl,
-        thumbnailUrl: fallbackScenic,
+        thumbnailUrl: resolveYoutubeVideoThumbnail(item, fallbackScenic),
       }
     })
     .filter(Boolean) as Array<{

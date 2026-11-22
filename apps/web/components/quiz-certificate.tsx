@@ -1,3 +1,5 @@
+import { PRODUCT_NAME } from "@prabhat/core"
+
 import type { QuizCertification } from "@/lib/quiz"
 import { memberFirstName } from "@/lib/member"
 
@@ -39,7 +41,7 @@ export function QuizCertificate({
 
       <p className={`mt-5 leading-7 text-stone-700 ${compact ? "text-sm" : "text-base"}`}>
         This certifies that <span className="font-semibold text-navy-950">{firstName}</span> has successfully completed
-        the Prabhat Samgiita AI <span className="font-semibold text-navy-950">{certification.label}</span> quiz with a
+        the {PRODUCT_NAME} <span className="font-semibold text-navy-950">{certification.label}</span> quiz with a
         passing score of 70% or higher.
       </p>
 
@@ -55,7 +57,7 @@ export function QuizCertificate({
       </dl>
 
       <footer className="mt-6 border-t border-gold-500/25 pt-4 text-xs leading-5 text-stone-600">
-        Authorized by <span className="font-semibold text-navy-950">Prabhat Samgiita AI</span>
+        Authorized by <span className="font-semibold text-navy-950">{PRODUCT_NAME}</span>
       </footer>
     </article>
   )

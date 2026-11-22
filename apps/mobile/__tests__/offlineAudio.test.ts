@@ -7,6 +7,8 @@ const fs = vi.hoisted(() => ({
   getInfoAsync: vi.fn(),
   makeDirectoryAsync: vi.fn(async () => undefined),
   deleteAsync: vi.fn(async () => undefined),
+  copyAsync: vi.fn(async () => undefined),
+  readDirectoryAsync: vi.fn(async () => [] as string[]),
   createDownloadResumable: vi.fn(),
 }))
 
@@ -27,10 +29,13 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 
 vi.mock("expo-file-system/legacy", () => ({
   documentDirectory: "file:///docs/",
+  cacheDirectory: "file:///cache/",
   FileSystemSessionType: { BACKGROUND: 0, FOREGROUND: 1 },
   getInfoAsync: fs.getInfoAsync,
   makeDirectoryAsync: fs.makeDirectoryAsync,
   deleteAsync: fs.deleteAsync,
+  copyAsync: fs.copyAsync,
+  readDirectoryAsync: fs.readDirectoryAsync,
   createDownloadResumable: fs.createDownloadResumable,
 }))
 
@@ -59,10 +64,12 @@ vi.mock("@/stores/authStore", () => ({
 }))
 
 import {
+  ensurePlayableLocalUri,
   offlineAudioScopeKey,
   offlineRecordingState,
   offlineSaveControls,
   reconcileOfflineProgress,
+  mergeAudioRecordings,
   resolvePlaybackUri,
   toPlayableLocalUri,
   useOfflineAudioStore,
@@ -95,7 +102,7 @@ function urlHash(url: string): string {
 }
 
 function fileUriFor(auth: typeof memberA, songNumber: number, url: string) {
-  const scope = encodeURIComponent(offlineAudioScopeKey(auth))
+  const scope = offlineAudioScopeKey(auth).replace(/[^a-zA-Z0-9._-]+/g, "_")
   return `file:///docs/offline-audio/${scope}/${songNumber}-${urlHash(url)}.mp3`
 }
 
@@ -196,6 +203,100 @@ describe("offline save UI", () => {
     expect(cleaned.progress[third]).toBeUndefined()
   })
 
+  it("keeps both saved recordings visible when catalog only returns one", () => {
+    const primary =
+      "https://prabhatasamgiita.net/1-999/_68%20I%20LOVE%20THIS%20TINY%20GREEN%20ISLAND.mp3"
+    const alt =
+      "https://prabhatasamgiita.net/1-999/_68%20I%20LOVE%20THIS%20TINY%20GREEN%20ISLAND%202.mp3"
+    const files = {
+      [primary]: {
+        remoteUrl: primary,
+        fileUri: fileUriFor(memberA, 68, primary),
+        songNumber: 68,
+      },
+      [alt]: {
+        remoteUrl: alt,
+        fileUri: fileUriFor(memberA, 68, alt),
+        songNumber: 68,
+      },
+    }
+    const merged = mergeAudioRecordings(
+      68,
+      [{ title: "Island", url: primary, provider: "official" }],
+      files,
+    )
+    expect(merged).toHaveLength(2)
+    expect(merged.map((item) => item.url).sort()).toEqual([primary, alt].sort())
+  })
+
+  it("does not double catalog recordings when offline aliases exist", () => {
+    const a = "https://prabhatasamgiita.net/1-999/a.mp3"
+    const b = "https://prabhatasamgiita.net/1-999/b.mp3"
+    const c = "https://prabhatasamgiita.net/1-999/c.mp3"
+    const files = {
+      [a]: { remoteUrl: a, fileUri: fileUriFor(memberA, 10, a), songNumber: 10 },
+      [b]: { remoteUrl: b, fileUri: fileUriFor(memberA, 10, b), songNumber: 10 },
+      [c]: { remoteUrl: c, fileUri: fileUriFor(memberA, 10, c), songNumber: 10 },
+      // Alias keys for the same three files (previously produced 6 rows).
+      [`${a}?x=1`]: { remoteUrl: a, fileUri: fileUriFor(memberA, 10, a), songNumber: 10 },
+      [`${b}?x=1`]: { remoteUrl: b, fileUri: fileUriFor(memberA, 10, b), songNumber: 10 },
+      [`${c}?x=1`]: { remoteUrl: c, fileUri: fileUriFor(memberA, 10, c), songNumber: 10 },
+    }
+    const merged = mergeAudioRecordings(
+      10,
+      [
+        { title: "A", url: a, provider: "official" },
+        { title: "B", url: b, provider: "official" },
+        { title: "C", url: c, provider: "official" },
+      ],
+      files,
+    )
+    expect(merged).toHaveLength(3)
+  })
+
+  it("does not spin sibling recordings when one URL is saving (PS 59)", () => {
+    const primary =
+      "https://prabhatasamgiita.net/1-999/_59%20NANIIR%20PUTUL%20T%27UT%27UL%20T%27UT%27UL.mp3"
+    const alt =
+      "https://prabhatasamgiita.net/1-999/_59%20NANIIR%20PUTUL%20T%27UT%27UL%20T%27UT%27UL_I.mp3"
+    useOfflineAudioStore.setState({
+      files: {},
+      progress: { [primary]: 0.42 },
+      errors: {},
+      activeBySong: { 59: primary },
+    })
+    const snapshot = useOfflineAudioStore.getState()
+    const saving = offlineRecordingState(primary, snapshot, { songNumber: 59 })
+    const idle = offlineRecordingState(alt, snapshot, { songNumber: 59 })
+    expect(saving.downloading).toBe(true)
+    expect(saving.progress).toBe(0.42)
+    expect(idle.downloading).toBe(false)
+    expect(idle.progress).toBeUndefined()
+    expect(idle.downloaded).toBe(false)
+  })
+
+  it("keeps both saved recordings available after hydrate (multi-recording)", async () => {
+    mockSuccessfulDownload()
+    const primary =
+      "https://prabhatasamgiita.net/1-999/_59%20A.mp3"
+    const alt =
+      "https://prabhatasamgiita.net/1-999/_59%20A_I.mp3"
+    await useOfflineAudioStore.getState().download(primary, 59, { userInitiated: true })
+    await useOfflineAudioStore.getState().download(alt, 59, { userInitiated: true })
+    const before = useOfflineAudioStore.getState().files
+    expect(before[primary]?.songNumber).toBe(59)
+    expect(before[alt]?.songNumber).toBe(59)
+    expect(before[primary]?.fileUri).not.toBe(before[alt]?.fileUri)
+
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 96_000 })
+    await useOfflineAudioStore.getState().hydrate()
+    const after = useOfflineAudioStore.getState()
+    expect(after.files[primary]?.fileUri).toBeTruthy()
+    expect(after.files[alt]?.fileUri).toBeTruthy()
+    expect(offlineRecordingState(primary, after, { songNumber: 59 }).downloaded).toBe(true)
+    expect(offlineRecordingState(alt, after, { songNumber: 59 }).downloaded).toBe(true)
+  })
+
   it("shows downloaded when playback URI is the local file (cold start offline)", () => {
     const url = "https://cdn.test/12.mp3"
     const dest = fileUriFor(memberA, 12, url)
@@ -265,7 +366,7 @@ describe("offline save UI", () => {
     fs.getInfoAsync.mockImplementation(async () => ({
       exists: fileOnDisk,
       isDirectory: false,
-      size: fileOnDisk ? 1024 : 0,
+      size: fileOnDisk ? 96_000 : 0,
     }))
     fs.createDownloadResumable.mockImplementation((_u: string, d: string, _o: unknown, cb: typeof report) => {
       report = cb
@@ -315,6 +416,28 @@ describe("offline save UI", () => {
     expect(toPlayableLocalUri(encoded)).toBe("file:///docs/offline-audio/member:oid-a/12.mp3")
     ;(Platform as { OS: string }).OS = "ios"
     expect(toPlayableLocalUri(encoded)).toBe(encoded)
+    ;(Platform as { OS: string }).OS = prev
+  })
+
+  it("copies legacy member%3A files to a safe Android play cache for RNTP", async () => {
+    const encoded = "file:///docs/offline-audio/member%3Aoid-a/12-abc.mp3"
+    const prev = Platform.OS
+    ;(Platform as { OS: string }).OS = "android"
+    const sizes = new Map<string, number>([[encoded, 96_000]])
+    fs.getInfoAsync.mockImplementation(async (uri: string) => {
+      const size = sizes.get(uri) ?? 0
+      return { exists: size > 0, isDirectory: false, size }
+    })
+    fs.copyAsync.mockImplementation(async ({ from, to }: { from: string; to: string }) => {
+      expect(from).toBe(encoded)
+      sizes.set(to, sizes.get(from) ?? 0)
+    })
+    const playable = await ensurePlayableLocalUri(encoded)
+    expect(playable).toMatch(/^file:\/\/\/cache\/offline-play\/.+\.mp3$/)
+    expect(fs.copyAsync).toHaveBeenCalled()
+    fs.copyAsync.mockClear()
+    await expect(ensurePlayableLocalUri(encoded)).resolves.toBe(playable)
+    expect(fs.copyAsync).not.toHaveBeenCalled()
     ;(Platform as { OS: string }).OS = prev
   })
 })
@@ -376,8 +499,10 @@ describe("offline audio", () => {
     expect(source).toEqual({ uri: fileUriFor(memberA, 12, url), local: true })
   })
 
-  it("streams an alternate recording instead of a saved different file", async () => {
-    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false })
+  it("streams an alternate recording online instead of a saved different file", async () => {
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 96_000 })
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
     useOfflineAudioStore.setState({
       ready: true,
       files: {
@@ -390,6 +515,61 @@ describe("offline audio", () => {
     })
     const source = await resolvePlaybackUri(12, "https://cdn.test/12-alt.mp3")
     expect(source).toEqual({ uri: "https://cdn.test/12-alt.mp3", local: false })
+    expect(fetchMock).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it("plays the saved recording offline when search/detail asks for another URL", async () => {
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 96_000 })
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("offline")
+    }))
+    const saved = "https://cdn.test/12.mp3"
+    const dest = fileUriFor(memberA, 12, saved)
+    useOfflineAudioStore.setState({
+      ready: true,
+      files: {
+        [saved]: { remoteUrl: saved, fileUri: dest, songNumber: 12 },
+      },
+    })
+    const source = await resolvePlaybackUri(12, "https://cdn.test/12-preferred.mp3")
+    expect(source).toEqual({ uri: dest, local: true })
+    vi.unstubAllGlobals()
+  })
+
+  it("matches the same recording across proxy wrap and trailing slash", async () => {
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 96_000 })
+    const direct = "https://prabhatasamgiita.net/1-999/200.mp3"
+    const dest = fileUriFor(memberA, 200, direct)
+    useOfflineAudioStore.setState({
+      ready: true,
+      files: {
+        [direct]: { remoteUrl: direct, fileUri: dest, songNumber: 200 },
+      },
+    })
+    const proxy =
+      "https://api.example/api/v1/media/stream?url=" +
+      encodeURIComponent("https://prabhatasamgiita.net/1-999/200.mp3/")
+    expect(await resolvePlaybackUri(200, proxy)).toEqual({ uri: dest, local: true })
+    expect(await resolvePlaybackUri(200, `${direct}/`)).toEqual({ uri: dest, local: true })
+  })
+
+  it("matches PS 4079-style URLs when %27 vs apostrophe encoding differs", async () => {
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 96_000 })
+    fs.readDirectoryAsync.mockResolvedValue([])
+    const encoded =
+      "https://prabhatasamgiita.net/4000-5018/4079%20A%27NKHIYA%27%20HAMER%20TORE%20LEILI%20KHONJI.mp3"
+    const mixed =
+      "https://prabhatasamgiita.net/4000-5018/4079%20A'NKHIYA'%20HAMER%20TORE%20LEILI%20KHONJI.mp3"
+    const dest = fileUriFor(memberA, 4079, encoded)
+    useOfflineAudioStore.setState({
+      ready: true,
+      files: {
+        [encoded]: { remoteUrl: encoded, fileUri: dest, songNumber: 4079 },
+      },
+    })
+    expect(await resolvePlaybackUri(4079, mixed)).toEqual({ uri: dest, local: true })
+    expect(await resolvePlaybackUri(4079, encoded)).toEqual({ uri: dest, local: true })
   })
 
   it("saves each recording of a song independently", async () => {
@@ -409,7 +589,7 @@ describe("offline audio", () => {
   })
 
   it("plays a saved copy when the song list has no remote audioUrl (offline)", async () => {
-    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 1024 })
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 96_000 })
     const url = "https://cdn.test/12.mp3"
     const dest = fileUriFor(memberA, 12, url)
     useOfflineAudioStore.setState({
@@ -445,6 +625,7 @@ describe("offline audio", () => {
 
   it("lets other playback keep working while a download is in flight", async () => {
     let finish: ((value: { status: number; uri: string }) => void) | undefined
+    fs.getInfoAsync.mockResolvedValue({ exists: true, isDirectory: false, size: 96_000 })
     fs.createDownloadResumable.mockImplementation((_url: string, dest: string) => ({
       downloadAsync: () =>
         new Promise((resolve) => {
@@ -547,7 +728,7 @@ describe("offline audio", () => {
     expect(useOfflineAudioStore.getState().files[url7]?.fileUri).toBe(fileUriFor(memberA, 7, url7))
   })
 
-  it("completes when the file appears on disk even if downloadAsync is slow", async () => {
+  it("indexes the file only after downloadAsync finishes (not on partial disk write)", async () => {
     const url = "https://cdn.test/12.mp3"
     const dest = fileUriFor(memberA, 12, url)
     let resolveDownload: ((value: { status: number; uri: string }) => void) | undefined
@@ -569,7 +750,7 @@ describe("offline audio", () => {
     fs.getInfoAsync.mockImplementation(async (uri: string) => ({
       exists: uri === dest,
       isDirectory: false,
-      size: uri === dest ? 4096 : 0,
+      size: uri === dest ? 96_000 : 0,
     }))
 
     const pending = useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
@@ -578,10 +759,47 @@ describe("offline audio", () => {
         "Saving offline…",
       ),
     )
-    await vi.waitFor(() => expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest))
-    expect(useOfflineAudioStore.getState().progress[url]).toBeUndefined()
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
 
     resolveDownload?.({ status: 200, uri: dest })
     await pending
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest)
+  })
+
+  it("does not mark a tiny growing file as saved before downloadAsync finishes", async () => {
+    const url = "https://cdn.test/12.mp3"
+    const dest = fileUriFor(memberA, 12, url)
+    let resolveDownload: ((value: { status: number; uri: string }) => void) | undefined
+    let size = 8_000
+    fs.createDownloadResumable.mockImplementation(
+      (
+        _remote: string,
+        fileDest: string,
+        _opts: unknown,
+        callback?: (p: { totalBytesWritten: number; totalBytesExpectedToWrite: number }) => void,
+      ) => ({
+        downloadAsync: () =>
+          new Promise((resolve) => {
+            resolveDownload = resolve
+            callback?.({ totalBytesWritten: 8_000, totalBytesExpectedToWrite: 200_000 })
+          }),
+        cancelAsync: vi.fn(async () => undefined),
+      }),
+    )
+    fs.getInfoAsync.mockImplementation(async (uri: string) => ({
+      exists: uri === dest,
+      isDirectory: false,
+      size: uri === dest ? size : 0,
+    }))
+
+    const pending = useOfflineAudioStore.getState().download(url, 12, { userInitiated: true })
+    await vi.waitFor(() => expect(useOfflineAudioStore.getState().progress[url]).toBe(0.04))
+    await new Promise((r) => setTimeout(r, 500))
+    expect(useOfflineAudioStore.getState().files[url]).toBeUndefined()
+
+    size = 200_000
+    resolveDownload?.({ status: 200, uri: dest })
+    await pending
+    expect(useOfflineAudioStore.getState().files[url]?.fileUri).toBe(dest)
   })
 })

@@ -1,13 +1,24 @@
 import type { Track } from "react-native-track-player"
 
-import { toPlayableLocalUri } from "@/lib/offlineAudio"
+import { ensurePlayableLocalUri } from "@/lib/offlineAudio"
 import type { CatalogTrack } from "@/lib/playback/catalogTrack"
+import {
+  catalogPlayerAndroidUpdateOptions,
+  catalogPlayerSetupOptions,
+} from "@/lib/playback/catalogInterruptionPolicy"
 import { getTrackPlayer, loadTrackPlayerModule } from "@/lib/playback/trackPlayerBridge"
 
-function trackForNativePlayer(track: CatalogTrack): Track {
-  const url =
-    typeof toPlayableLocalUri === "function" ? toPlayableLocalUri(track.url) : track.url
-  return { ...track, url } as Track
+async function trackForNativePlayer(track: CatalogTrack): Promise<Track> {
+  const url = await ensurePlayableLocalUri(track.url)
+  const isLocal = url.startsWith("file:") || url.startsWith("content:")
+  // Remote artwork can stall notification metadata while offline.
+  const artwork = isLocal ? undefined : track.artwork
+  return {
+    ...track,
+    url,
+    artwork,
+    ...(isLocal ? { contentType: "audio/mpeg" } : {}),
+  } as Track
 }
 
 let setupPromise: Promise<void> | null = null
@@ -34,7 +45,7 @@ export async function setupNativeCatalogPlayer(): Promise<void> {
     const TrackPlayer = getTrackPlayer()
     const { AppKilledPlaybackBehavior, Capability } = loadTrackPlayerModule()
     try {
-      await TrackPlayer.setupPlayer({ autoHandleInterruptions: true })
+      await TrackPlayer.setupPlayer(catalogPlayerSetupOptions())
     } catch {
       /* already initialized */
     }
@@ -49,9 +60,7 @@ export async function setupNativeCatalogPlayer(): Promise<void> {
       ],
       notificationCapabilities: [Capability.Play, Capability.Pause, Capability.SkipToNext],
       progressUpdateEventInterval: 1,
-      android: {
-        appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
-      },
+      android: catalogPlayerAndroidUpdateOptions(AppKilledPlaybackBehavior),
     })
   })()
   return setupPromise
@@ -62,17 +71,32 @@ export async function resetNativeCatalog(): Promise<void> {
   await getTrackPlayer().reset()
 }
 
-export async function playTrackNow(track: CatalogTrack): Promise<void> {
+export async function playTrackNow(
+  track: CatalogTrack,
+  options?: { isStale?: () => boolean },
+): Promise<void> {
   await setupNativeCatalogPlayer()
+  if (options?.isStale?.()) return
   const TrackPlayer = getTrackPlayer()
   await TrackPlayer.reset()
-  await TrackPlayer.add(trackForNativePlayer(track))
+  if (options?.isStale?.()) return
+  const nativeTrack = await trackForNativePlayer(track)
+  if (options?.isStale?.()) return
+  await TrackPlayer.add(nativeTrack)
+  if (options?.isStale?.()) {
+    try {
+      await TrackPlayer.reset()
+    } catch {
+      /* ignore */
+    }
+    return
+  }
   await TrackPlayer.play()
 }
 
 export async function enqueueTrack(track: CatalogTrack): Promise<void> {
   await setupNativeCatalogPlayer()
-  await getTrackPlayer().add(trackForNativePlayer(track))
+  await getTrackPlayer().add(await trackForNativePlayer(track))
 }
 
 export async function nativePlay(): Promise<void> {

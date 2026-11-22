@@ -127,14 +127,109 @@ function canonicalAudioUrl(url: string | null | undefined): string {
   return trimmed ? unwrapArchiveAudioUrl(trimmed) : ""
 }
 
+function addUrlKeyVariants(keys: Set<string>, value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return
+  keys.add(trimmed)
+  try {
+    keys.add(decodeURIComponent(trimmed))
+  } catch {
+    /* malformed % sequences */
+  }
+  try {
+    keys.add(new URL(trimmed).href)
+  } catch {
+    /* not absolute */
+  }
+}
+
 /** Lookup key for the offline index — prefer unwrapped archive URLs. */
 function offlineIndexKeys(url: string | null | undefined): string[] {
   const raw = normalizeUrl(url)
   const canon = canonicalAudioUrl(url)
-  const keys: string[] = []
-  if (canon) keys.push(canon)
-  if (raw && raw !== canon) keys.push(raw)
-  return keys
+  const keys = new Set<string>()
+  if (canon) addUrlKeyVariants(keys, canon)
+  if (raw) addUrlKeyVariants(keys, raw)
+  return [...keys]
+}
+
+/**
+ * Host + decoded path — `%27` vs `'` (common on PS 4079-style titles) must match.
+ * Search/detail often disagree on query, proxy wrap, trailing slash, and encoding.
+ */
+function audioUrlFingerprint(url: string | null | undefined): string {
+  const raw = canonicalAudioUrl(url) || normalizeUrl(url)
+  if (!raw) return ""
+  try {
+    const parsed = new URL(raw)
+    let path = parsed.pathname.replace(/\/+$/, "") || "/"
+    try {
+      path = decodeURIComponent(path)
+    } catch {
+      /* keep encoded path */
+    }
+    return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${path}`
+  } catch {
+    try {
+      return decodeURIComponent(raw.replace(/\/+$/, "")).toLowerCase()
+    } catch {
+      return raw.replace(/\/+$/, "").toLowerCase()
+    }
+  }
+}
+
+function urlsReferToSameRecording(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const a = offlineIndexKeys(left)
+  const b = offlineIndexKeys(right)
+  if (a.some((key) => b.includes(key))) return true
+  const fa = audioUrlFingerprint(left)
+  const fb = audioUrlFingerprint(right)
+  return Boolean(fa && fb && fa === fb)
+}
+
+/**
+ * Catalog recordings first (deduped). Only pull extra rows from the offline
+ * index when the catalog list is missing/empty — otherwise alias keys doubled
+ * 3 recordings into 6 rows.
+ */
+export function mergeAudioRecordings(
+  songNumber: number,
+  recordings: Array<{ title: string; url: string; provider: string }>,
+  files: Record<string, OfflineAudioEntry>,
+): Array<{ title: string; url: string; provider: string }> {
+  const byFingerprint = new Map<string, { title: string; url: string; provider: string }>()
+  for (const item of recordings) {
+    if (!isHttpAudioUrl(item.url)) continue
+    const url = normalizeUrl(item.url)
+    const fp = audioUrlFingerprint(url) || url
+    if (byFingerprint.has(fp)) continue
+    byFingerprint.set(fp, {
+      title: item.title?.trim() || "Recording",
+      url,
+      provider: item.provider || "official",
+    })
+  }
+  const merged = [...byFingerprint.values()]
+  // Catalog already has the full list — do not append offline aliases again.
+  if (merged.length > 1) return merged
+
+  const seenFiles = new Set<string>()
+  for (const entry of Object.values(files)) {
+    if (entry.songNumber !== songNumber || !isHttpAudioUrl(entry.remoteUrl)) continue
+    if (seenFiles.has(entry.fileUri)) continue
+    seenFiles.add(entry.fileUri)
+    const fp = audioUrlFingerprint(entry.remoteUrl) || entry.remoteUrl
+    if (byFingerprint.has(fp)) continue
+    byFingerprint.set(fp, {
+      title: `Recording ${byFingerprint.size + 1}`,
+      url: entry.remoteUrl,
+      provider: "official",
+    })
+  }
+  return [...byFingerprint.values()]
 }
 
 function findOfflineEntry(
@@ -145,7 +240,34 @@ function findOfflineEntry(
     const entry = files[key]
     if (entry) return entry
   }
+  if (!normalizeUrl(url)) return null
+  for (const entry of Object.values(files)) {
+    if (urlsReferToSameRecording(entry.remoteUrl, url)) return entry
+  }
   return null
+}
+
+/** True when the device can reach the stream (online alternate recording). */
+async function remoteStreamReachable(url: string): Promise<boolean> {
+  const tryOnce = async (init: RequestInit) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 2_000)
+    try {
+      await fetch(url, { ...init, signal: controller.signal })
+      return true
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  try {
+    return await tryOnce({ method: "HEAD" })
+  } catch {
+    try {
+      return await tryOnce({ method: "GET", headers: { Range: "bytes=0-0" } })
+    } catch {
+      return false
+    }
+  }
 }
 
 const lastProgressAt: Record<string, number> = {}
@@ -213,6 +335,20 @@ function findEntryByLocalUri(
 }
 
 /**
+ * Song-level "active download" applies only when this row is not a concrete
+ * https recording — otherwise one save makes every recording on PS 59 spin.
+ */
+function songLevelActiveApplies(
+  activeUrl: string | null,
+  recordingUrl: string | null | undefined,
+): boolean {
+  if (!activeUrl) return false
+  const raw = normalizeOfflineUrl(recordingUrl)
+  if (!raw || raw.startsWith("file:")) return true
+  return urlsReferToSameRecording(activeUrl, recordingUrl)
+}
+
+/**
  * UI status for a recording's offline copy.
  * After cold start offline, playback often uses a `file://` URI (or null remote
  * URL on Saved rows) — still resolve against the saved index so "Available
@@ -234,15 +370,17 @@ export function offlineRecordingState(
     options?.songNumber != null
       ? activeDownloadUrlForSong(options.songNumber, snapshot)
       : null
+  const songActiveApplies = songLevelActiveApplies(activeForSong, url)
   let entry = findOfflineEntry(snapshot.files, url)
   if (!entry && raw.startsWith("file:")) {
     entry = findEntryByLocalUri(snapshot.files, raw)
   }
   // Song-number fallback only when not mid-save (otherwise a leftover recording
-  // would hide re-save progress after Remove).
+  // would hide re-save progress after Remove). Never borrow another recording's
+  // file when this row already has its own https URL.
   if (
     !entry &&
-    !activeForSong &&
+    !songActiveApplies &&
     options?.songNumber &&
     (!raw || raw.startsWith("file:"))
   ) {
@@ -253,27 +391,29 @@ export function offlineRecordingState(
       entry =
         forSong.find((file) => sameLocalFileUri(file.fileUri, raw)) ??
         (forSong.length === 1 ? forSong[0] : null)
-    } else if (forSong.length >= 1) {
+    } else if (forSong.length === 1) {
       entry = forSong[0]
     }
   }
-  const key = entry?.remoteUrl || activeForSong || keys[0] || raw
+  const boundActive = songActiveApplies ? activeForSong : null
+  const key = entry?.remoteUrl || boundActive || keys[0] || raw
   const downloaded = Boolean(entry)
   const progress =
     keys.map((k) => snapshot.progress[k]).find((value) => value != null) ??
-    (activeForSong != null ? snapshot.progress[activeForSong] : undefined) ??
+    (boundActive != null ? snapshot.progress[boundActive] : undefined) ??
     (key ? snapshot.progress[key] : undefined)
   const error =
     keys.map((k) => snapshot.errors[k]).find((value) => Boolean(value)) ??
-    (activeForSong != null ? snapshot.errors[activeForSong] : undefined) ??
+    (boundActive != null ? snapshot.errors[boundActive] : undefined) ??
     (key ? snapshot.errors[key] : undefined)
   const active =
-    Boolean(activeForSong) ||
     keys.some((k) => isOfflineTransferActive(k)) ||
+    (boundActive != null &&
+      (isOfflineTransferActive(boundActive) || Boolean(boundActive))) ||
     (key ? isOfflineTransferActive(key) : false)
   const downloading = Boolean(!downloaded && (active || progress != null))
   return {
-    key: entry?.remoteUrl || activeForSong || key,
+    key: entry?.remoteUrl || boundActive || key,
     downloaded,
     downloading,
     progress,
@@ -339,10 +479,15 @@ function parseIndex(raw: string | null): Record<string, OfflineAudioEntry> {
   }
 }
 
+/** Folder segment without `:` / `%` — ExoPlayer Uri.parse fails on both forms. */
+function safeScopeDirName(scope: string) {
+  return scope.replace(/[^a-zA-Z0-9._-]+/g, "_")
+}
+
 function offlineDir(scope: string) {
   const base = FileSystem.documentDirectory
   if (!base) throw new Error("Offline storage is not available on this device.")
-  return `${base}offline-audio/${encodeURIComponent(scope)}/`
+  return `${base}offline-audio/${safeScopeDirName(scope)}/`
 }
 
 function destinationUri(scope: string, songNumber: number, remoteUrl: string) {
@@ -383,11 +528,65 @@ async function fileReady(uri: string, allowEmpty = false) {
   }
 }
 
-async function waitForFileReady(fileUri: string, url: string, epoch: number, timeoutMs = 90_000) {
+async function fileSizeBytes(uri: string): Promise<number> {
+  try {
+    const info = await FileSystem.getInfoAsync(uri)
+    if (!info.exists || info.isDirectory || !("size" in info)) return 0
+    return Number(info.size) || 0
+  } catch {
+    return 0
+  }
+}
+
+/** Reject tiny / still-growing files — a few KB is only seconds of MP3. */
+async function assertCompleteOfflineFile(
+  fileUri: string,
+  expectedBytes: number,
+): Promise<boolean> {
+  try {
+    const info = await FileSystem.getInfoAsync(fileUri)
+    if (!info.exists || info.isDirectory) return false
+    if (!("size" in info) || info.size == null) return true
+    const size1 = Number(info.size) || 0
+    if (size1 < 32_768) return false
+    if (expectedBytes > 0 && size1 < expectedBytes * 0.9) return false
+    await sleep(FINALIZE_POLL_MS)
+    const size2 = await fileSizeBytes(fileUri)
+    if (size2 !== size1 || size2 < 32_768) return false
+    if (expectedBytes > 0 && size2 < expectedBytes * 0.9) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Fallback when downloadAsync hangs: only accept after progress is essentially
+ * done AND size stops growing. Never treat "any bytes written" as done.
+ */
+async function waitForSettledDownload(
+  fileUri: string,
+  url: string,
+  epoch: number,
+  expectedBytes: number,
+  timeoutMs = 90_000,
+) {
   const deadline = Date.now() + timeoutMs
+  let lastSize = -1
+  let stableHits = 0
   while (Date.now() < deadline) {
     if (downloadEpoch[url] !== epoch) return null
-    if (await fileReady(fileUri)) {
+    const progress = useOfflineAudioStore.getState().progress[url] ?? 0
+    const size = await fileSizeBytes(fileUri)
+    if (size > 0 && size === lastSize) stableHits += 1
+    else {
+      stableHits = 0
+      lastSize = size
+    }
+    const progressDone = progress >= FINALIZING_RATIO
+    const sizeMatches =
+      expectedBytes > 0 ? size >= expectedBytes * 0.9 : size >= 32_768
+    if (progressDone && sizeMatches && stableHits >= 2) {
       return { status: 200, uri: fileUri }
     }
     await sleep(FINALIZE_POLL_MS)
@@ -422,21 +621,9 @@ function setDownloadProgress(url: string, ratio: number) {
   }
 }
 
-async function attemptEarlyComplete(url: string) {
-  const meta = pendingMeta.get(url)
-  if (!meta || downloadEpoch[url] !== meta.epoch) return
-  if (!(await fileReady(meta.fileUri, true))) return
-  if (downloadEpoch[url] !== meta.epoch) return
-  useOfflineAudioStore.setState((state) => ({
-    files: {
-      ...state.files,
-      [url]: { remoteUrl: url, fileUri: meta.fileUri, songNumber: meta.songNumber },
-    },
-  }))
-  clearProgress(url)
-  pendingMeta.delete(url)
-  inflight.delete(url)
-  await persistCurrent(meta.scope)
+async function attemptEarlyComplete(_url: string) {
+  // Do not index early. Indexing on "file exists" raced with in-place Android
+  // writes and left Available offline pointing at truncated stubs (~5s play).
 }
 
 function clearProgress(url: string) {
@@ -525,11 +712,13 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
       const fileUri = destinationUri(scope, songNumber, url)
       pendingMeta.set(url, { fileUri, songNumber, scope, epoch })
       const sessionType = FileSystem.FileSystemSessionType?.BACKGROUND
+      let expectedBytes = 0
       const task = FileSystem.createDownloadResumable(
         url,
         fileUri,
         sessionType != null ? { sessionType } : {},
         ({ totalBytesWritten, totalBytesExpectedToWrite }) => {
+          if (totalBytesExpectedToWrite > 0) expectedBytes = totalBytesExpectedToWrite
           const ratio =
             totalBytesExpectedToWrite > 0 ? totalBytesWritten / totalBytesExpectedToWrite : 0
           setDownloadProgress(url, ratio)
@@ -542,12 +731,14 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
         errors: { ...state.errors, [url]: "" },
         activeBySong: { ...state.activeBySong, [songNumber]: url },
       }))
-      let result = await Promise.race([
-        task.downloadAsync().catch(() => null),
-        waitForFileReady(fileUri, url, epoch),
-      ])
+      // Await the real download — racing "any bytes on disk" saved ~5s stubs on Android.
+      const downloaded = await task.downloadAsync().catch(() => null)
+      let result =
+        downloaded && typeof downloaded.status === "number" && downloaded.status < 400
+          ? downloaded
+          : null
       if (!result) {
-        result = await waitForFileReady(fileUri, url, epoch, 15_000)
+        result = await waitForSettledDownload(fileUri, url, epoch, expectedBytes, 30_000)
       }
       inflight.delete(url)
       if (downloadEpoch[url] !== epoch) {
@@ -562,16 +753,31 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
       if (!result || result.status >= 400) {
         throw new Error("Save failed. Try again on a stronger connection.")
       }
+      const savedUri = result.uri || fileUri
+      if (!(await assertCompleteOfflineFile(savedUri, expectedBytes))) {
+        try {
+          await FileSystem.deleteAsync(savedUri, { idempotent: true })
+        } catch {
+          /* ignore */
+        }
+        set((state) => {
+          const files = { ...state.files }
+          delete files[url]
+          return { files }
+        })
+        await persistCurrent(scope)
+        throw new Error("Save finished incompletely. Try again on a stronger connection.")
+      }
       set((state) => {
         const activeBySong = { ...state.activeBySong }
         delete activeBySong[songNumber]
-        return {
-          files: {
-            ...state.files,
-            [url]: { remoteUrl: url, fileUri: result.uri || fileUri, songNumber },
-          },
-          activeBySong,
+        const entry: OfflineAudioEntry = { remoteUrl: url, fileUri: savedUri, songNumber }
+        const files = { ...state.files, [url]: entry }
+        // Alias raw + unwrapped keys so search URL and detail URL both resolve.
+        for (const key of [...offlineIndexKeys(url), ...offlineIndexKeys(remoteUrl)]) {
+          if (key) files[key] = entry
         }
+        return { files, activeBySong }
       })
       clearProgress(url)
       pendingMeta.delete(url)
@@ -583,9 +789,19 @@ export const useOfflineAudioStore = create<OfflineAudioState>((set, get) => ({
       if (downloadEpoch[url] !== epoch) return
       clearProgress(url)
       const message = error instanceof Error ? error.message : "Save failed."
-      set((state) => ({
-        errors: { ...state.errors, [url]: message },
-      }))
+      set((state) => {
+        const files = { ...state.files }
+        delete files[url]
+        return {
+          files,
+          errors: { ...state.errors, [url]: message },
+        }
+      })
+      try {
+        await persistCurrent(scope)
+      } catch {
+        /* ignore */
+      }
       throw error
     } finally {
       pendingMeta.delete(url)
@@ -677,16 +893,14 @@ useAuthStore.subscribe((state, previous) => {
 })
 
 /**
- * Android ExoPlayer often fails on percent-encoded document paths
- * (e.g. member%3A… from encodeURIComponent scope). Decode for playback only;
- * FileSystem APIs keep using the stored URI.
+ * Soften percent-encoded path segments (sync helpers / tests).
+ * Prefer {@link ensurePlayableLocalUri} before handing a URI to Android RNTP.
  */
 export function toPlayableLocalUri(uri: string): string {
   const trimmed = uri.trim()
   if (!trimmed.startsWith("file:")) return trimmed
   if (Platform.OS !== "android") return trimmed
   try {
-    // Decode member%3A… path segments so ExoPlayer opens the real folder.
     const playable = /%[0-9A-Fa-f]{2}/.test(trimmed) ? decodeURIComponent(trimmed) : trimmed
     if (playable.startsWith("file:///")) return playable
     if (playable.startsWith("file://")) return playable.replace(/^file:\/\//, "file:///")
@@ -697,12 +911,103 @@ export function toPlayableLocalUri(uri: string): string {
   }
 }
 
+/**
+ * Android: copy the saved file to a plain cache path for RNTP/ExoPlayer.
+ * Index / FileSystem keep the stored document URI (incl. legacy member%3A folders).
+ */
+async function androidPlayerUri(fileUri: string): Promise<string> {
+  const playable = toPlayableLocalUri(fileUri)
+  try {
+    const getContentUri = (
+      FileSystem as { getContentUriAsync?: (uri: string) => Promise<string> }
+    ).getContentUriAsync
+    if (typeof getContentUri === "function") {
+      const content = await getContentUri(playable)
+      if (content?.trim()) return content.trim()
+    }
+  } catch {
+    /* fall through to file:// */
+  }
+  return playable
+}
+
+export async function ensurePlayableLocalUri(uri: string): Promise<string> {
+  const trimmed = uri.trim()
+  if (!trimmed.startsWith("file:")) return trimmed
+  if (Platform.OS !== "android") return trimmed
+
+  const cacheBase = FileSystem.cacheDirectory
+  if (!cacheBase) return androidPlayerUri(trimmed)
+
+  const source =
+    ((await fileExists(trimmed)) && trimmed) ||
+    ((await fileExists(toPlayableLocalUri(trimmed))) && toPlayableLocalUri(trimmed)) ||
+    ((await fileExists(normalizeLocalUriKey(trimmed))) && normalizeLocalUriKey(trimmed)) ||
+    null
+  if (!source) return androidPlayerUri(trimmed)
+
+  const dest = `${cacheBase}offline-play/${urlHash(trimmed)}.mp3`
+  const sourceSize = await fileSizeBytes(source)
+  try {
+    const destSize = await fileSizeBytes(dest)
+    if (destSize > 0 && sourceSize > 0 && destSize === sourceSize) {
+      return androidPlayerUri(dest)
+    }
+  } catch {
+    /* recreate below */
+  }
+
+  try {
+    await FileSystem.makeDirectoryAsync(`${cacheBase}offline-play/`, { intermediates: true })
+    try {
+      await FileSystem.deleteAsync(dest, { idempotent: true })
+    } catch {
+      /* ignore */
+    }
+    await FileSystem.copyAsync({ from: source, to: dest })
+    if (await fileReady(dest)) return androidPlayerUri(dest)
+  } catch {
+    /* fall through */
+  }
+  return androidPlayerUri(source)
+}
+
+async function existingLocalUri(storedUri: string): Promise<string | null> {
+  const trimmed = storedUri.trim()
+  if (!trimmed.startsWith("file:")) return null
+  const candidates = Array.from(
+    new Set(
+      [trimmed, toPlayableLocalUri(trimmed), normalizeLocalUriKey(trimmed)].filter(Boolean),
+    ),
+  )
+  for (const uri of candidates) {
+    if (await fileExists(uri)) return uri
+  }
+  return null
+}
+
 async function offlineFileForSong(songNumber: number) {
   const files = useOfflineAudioStore.getState().files
+  const seen = new Set<string>()
   for (const entry of Object.values(files)) {
-    if (entry.songNumber === songNumber && (await fileExists(entry.fileUri))) {
-      return toPlayableLocalUri(entry.fileUri)
-    }
+    if (entry.songNumber !== songNumber) continue
+    if (seen.has(entry.fileUri)) continue
+    seen.add(entry.fileUri)
+    const uri = await existingLocalUri(entry.fileUri)
+    if (uri) return uri
+  }
+  // Recover when the index URI is stale but `{songNumber}-*.mp3` still exists.
+  try {
+    const dir = offlineDir(offlineAudioScopeKey(currentAuth()))
+    const names = await FileSystem.readDirectoryAsync(dir)
+    const match = names.find(
+      (name) => name.startsWith(`${songNumber}-`) && /\.mp3$/i.test(name),
+    )
+    if (!match) return null
+    const recovered = `${dir}${match}`
+    if (await fileExists(recovered)) return recovered
+  } catch {
+    /* directory missing / not signed in */
   }
   return null
 }
@@ -725,25 +1030,45 @@ export async function resolvePlaybackUri(
   if (signedIn) {
     const files = useOfflineAudioStore.getState().files
     const entry = findOfflineEntry(files, remoteUrl)
-    if (entry && (await fileExists(entry.fileUri))) {
-      return { uri: toPlayableLocalUri(entry.fileUri), local: true }
+    if (entry) {
+      const uri = await existingLocalUri(entry.fileUri)
+      if (uri) return { uri, local: true }
     }
     const offlineEntries = Object.values(files).filter((file) => file.songNumber === songNumber)
+    const byNumber = await offlineFileForSong(songNumber)
     const askedAnotherRecording =
       Boolean(remoteHttp) &&
       offlineEntries.length > 0 &&
-      !offlineEntries.some((file) => {
-        const saved = canonicalAudioUrl(file.remoteUrl) || file.remoteUrl
-        return (
-          saved === remoteHttp ||
-          file.remoteUrl === remoteHttp ||
-          file.remoteUrl === legacyHttp ||
-          saved === legacyHttp
-        )
-      })
-    if (!askedAnotherRecording) {
-      const byNumber = await offlineFileForSong(songNumber)
-      if (byNumber) return { uri: byNumber, local: true }
+      !offlineEntries.some(
+        (file) =>
+          urlsReferToSameRecording(file.remoteUrl, remoteHttp) ||
+          urlsReferToSameRecording(file.remoteUrl, legacyHttp) ||
+          urlsReferToSameRecording(file.remoteUrl, remoteUrl),
+      )
+    // Explore/search often pass a different https than the saved recording.
+    // Prefer any local copy first; only stream an unsaved alternate when reachable.
+    if (byNumber) {
+      if (askedAnotherRecording && remoteHttp && (await remoteStreamReachable(remoteHttp))) {
+        return { uri: remoteHttp, local: false }
+      }
+      return { uri: byNumber, local: true }
+    }
+    if (offlineEntries.length > 0) {
+      const nextFiles = { ...files }
+      let removed = false
+      for (const stale of offlineEntries) {
+        if (await existingLocalUri(stale.fileUri)) continue
+        for (const [key, value] of Object.entries(nextFiles)) {
+          if (value.fileUri === stale.fileUri) {
+            delete nextFiles[key]
+            removed = true
+          }
+        }
+      }
+      if (removed) {
+        useOfflineAudioStore.setState({ files: nextFiles })
+        void persistCurrent(offlineAudioScopeKey(currentAuth()))
+      }
     }
   }
   if (remoteHttp) return { uri: remoteHttp, local: false }

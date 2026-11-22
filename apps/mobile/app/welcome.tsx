@@ -7,6 +7,8 @@ import { SafeAreaView } from "react-native-safe-area-context"
 
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { SecondaryButton } from "@/components/common/SecondaryButton"
+import { PRODUCT_NAME } from "@prabhat/core"
+
 import { brandAssets } from "@/constants/brand"
 import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
@@ -49,9 +51,9 @@ export default function WelcomeScreen() {
             source={brandAssets.emblemClear}
             style={{ width: emblemSize, height: emblemSize }}
             contentFit="contain"
-            accessibilityLabel="Prabhat Samgiita AI"
+            accessibilityLabel={PRODUCT_NAME}
           />
-          <Text style={styles.brand}>Prabhat Samgiita AI</Text>
+          <Text style={styles.brand}>{PRODUCT_NAME}</Text>
           <Text style={styles.headline}>
             Music for{"\n"}the inner dawn
           </Text>

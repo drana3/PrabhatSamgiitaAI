@@ -15,7 +15,34 @@ from app.services.admin_members import (
     is_protected_admin,
     require_admin_member,
     revoke_admin,
+    sort_members_by_join_date,
 )
+
+
+def test_sort_members_by_join_date_puts_newest_first() -> None:
+    older = UserAccount(
+        id=uuid4(),
+        external_subject="google:older",
+        identity_provider="google",
+        email="older@example.com",
+        display_name="Older",
+        created_at=datetime(2020, 6, 1, tzinfo=UTC),
+        last_seen_at=datetime.now(UTC),
+        is_admin=False,
+    )
+    newer = UserAccount(
+        id=uuid4(),
+        external_subject="google:newer",
+        identity_provider="google",
+        email="newer@example.com",
+        display_name="Newer",
+        created_at=datetime(2025, 6, 1, tzinfo=UTC),
+        last_seen_at=datetime(2020, 1, 1, tzinfo=UTC),
+        is_admin=True,
+    )
+    # Recent last_seen must not outrank an older account when ordering by join date.
+    ordered = sort_members_by_join_date([older, newer])
+    assert [row.email for row in ordered] == ["newer@example.com", "older@example.com"]
 
 
 def owner(email: str = "owner@example.com") -> UserAccount:

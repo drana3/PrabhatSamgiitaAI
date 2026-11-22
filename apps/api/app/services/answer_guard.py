@@ -22,7 +22,11 @@ OUTPUT_OFF_TOPIC_PATTERNS = (
     r"\b(?:weather forecast|stock price|crypto price|bitcoin price)\b",
 )
 
-GUARDED_FALLBACK = (
+CATALOG_GUARDED_FALLBACK = (
+    "I can only share grounded guidance about Prabhat Samgiita — songs, lyrics, meanings, "
+    "themes, meditation, and related spiritual reflection. Please ask a specific question."
+)
+SONG_GUARDED_FALLBACK = (
     "I can only share grounded guidance about this Prabhat Samgiita song — its meaning, "
     "lyrics, imagery, language, or spiritual context. Please ask a specific question about "
     "the song you are exploring."
@@ -42,11 +46,13 @@ def audit_output_guardrails(answer: str) -> tuple[bool, tuple[str, ...]]:
     return (not issues, tuple(issues))
 
 
-def apply_output_guardrails(answer: str, song: Song) -> str:
+def apply_output_guardrails(answer: str, song: Song | None = None) -> str:
     passed, _issues = audit_output_guardrails(answer)
     if passed:
         return answer
+    if song is None:
+        return CATALOG_GUARDED_FALLBACK
     return (
-        f"{GUARDED_FALLBACK}\n\n"
+        f"{SONG_GUARDED_FALLBACK}\n\n"
         f"Song {song.number}: «{song.title}»."
     )

@@ -152,6 +152,9 @@ describe("in-app media embeds", () => {
     expect(song.audioRecordings?.map((item) => item.url)).toEqual(["https://prabhatasamgiita.net/1.mp3"])
     expect(song.videos).toHaveLength(1)
     expect(song.videos[0]?.embedUrl).toContain("youtube.com/embed/D4LHhnSLhro")
+    expect(song.videos[0]?.thumbnailUrl).toBe(
+      "https://i.ytimg.com/vi/D4LHhnSLhro/hqdefault.jpg",
+    )
   })
 
   it("does not invent YouTube search videos for summaries", () => {
@@ -162,6 +165,25 @@ describe("in-app media embeds", () => {
     })
     expect(song.videos).toEqual([])
     expect(song.audioUrl).toBeNull()
+  })
+
+  it("uses YouTube preview art for PS 671", () => {
+    const [video] = mediaVideosToEmbeds(
+      [
+        {
+          kind: "video",
+          provider: "youtube",
+          title: "PS 671 performance",
+          url: "https://www.youtube.com/watch?v=lPGpGeYfALc",
+          embed_url: "https://www.youtube-nocookie.com/embed/lPGpGeYfALc",
+          verification_status: "verified",
+          metadata_json: { external_id: "lPGpGeYfALc" },
+        },
+      ],
+      "https://example.test/scenic.jpg",
+      671,
+    )
+    expect(video?.thumbnailUrl).toBe("https://i.ytimg.com/vi/lPGpGeYfALc/hqdefault.jpg")
   })
 
   it("filters non-embeddable media out of video lists", () => {

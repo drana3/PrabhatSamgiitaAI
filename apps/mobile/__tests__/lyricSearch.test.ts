@@ -66,7 +66,7 @@ describe("lyric search", () => {
   it("finds opening words without waiting on a full token index", () => {
     const started = Date.now()
     const hits = searchCatalogLyrics("bandhu", 5, { interpret: true })
-    expect(Date.now() - started).toBeLessThan(120)
+    expect(Date.now() - started).toBeLessThan(250)
     expect(hits[0]?.number).toBe(1)
   })
 

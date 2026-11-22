@@ -1,6 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import {
+  COMPANION_FEATURE_NAME,
+  COMPOSER_NAME,
+  COMPOSER_PORTRAIT_ALT,
+} from "@prabhat/core"
 import Link from "next/link"
 
 import { SongCard } from "@/components/song-card"
@@ -36,7 +41,7 @@ export function LandingData({ initialSongs }: { initialSongs: SongSummary[]; ini
       <section aria-labelledby="guidance-title" className="overflow-hidden rounded-[2rem] bg-navy-950 text-white shadow-2xl">
         <div className="grid lg:grid-cols-[1fr_0.82fr]">
           <div className="p-7 sm:p-10 lg:p-14">
-            <p className="text-[0.68rem] font-bold uppercase tracking-[0.24em] text-gold-300">Ask Prabhat Samgiita AI</p>
+            <p className="text-[0.68rem] font-bold uppercase tracking-[0.24em] text-gold-300">Ask the {COMPANION_FEATURE_NAME}</p>
             <h2 id="guidance-title" className="mt-4 max-w-2xl font-serif text-4xl leading-tight sm:text-5xl">Meaning and guidance, grounded in the songs</h2>
             <p className="mt-5 max-w-2xl text-base leading-8 text-navy-100">
               Ask what a song means, find music for a spiritual occasion, compare themes, or explore an idea in your preferred language. Every answer points back to the song sources.
@@ -48,7 +53,7 @@ export function LandingData({ initialSongs }: { initialSongs: SongSummary[]; ini
           </div>
           <div
             role="img"
-            aria-label="Shrii Shrii Anandamurti ji at dawn"
+            aria-label={COMPOSER_PORTRAIT_ALT}
             className="min-h-[24rem] bg-[url('/brand/dawn-hero.png')] bg-cover bg-[82%_center] lg:min-h-full"
           />
         </div>
@@ -57,7 +62,7 @@ export function LandingData({ initialSongs }: { initialSongs: SongSummary[]; ini
             “Prabháta Saḿgiita is the feeling of the heart, and the expression of the heart, and it has been written with the ink of the heart.”
           </p>
           <footer className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-gold-600/25 pt-4 text-sm leading-6 text-stone-700">
-            <span className="font-semibold text-navy-950">Shri Prabhat Ranjan Sarkar</span>
+            <span className="font-semibold text-navy-950">{COMPOSER_NAME}</span>
             <span>2 Jan 1983, Morning General Darshan, Ananda Nagar</span>
           </footer>
         </blockquote>

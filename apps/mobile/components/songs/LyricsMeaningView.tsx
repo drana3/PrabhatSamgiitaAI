@@ -304,12 +304,19 @@ export function LyricsMeaningView({
           <CopyButton text={activeLyrics} label="Copy lyrics" />
         </View>
         <Text style={styles.lyrics} selectable>
-          {activeLyrics.split("\n").map((line, index, lines) => (
-            <Text key={`lyric-${index}`} style={styles.lyrics}>
-              {line}
-              {index < lines.length - 1 ? "\n" : ""}
-            </Text>
-          ))}
+          {(() => {
+            const lyricLines = activeLyrics.split("\n")
+            return lyricLines.map((line, index) => (
+              <Text
+                key={`lyric-${index}`}
+                style={[styles.lyrics, !line.trim() && styles.lyricStanzaGap]}
+              >
+                {line.trim()
+                  ? `${line}${index < lyricLines.length - 1 ? "\n" : ""}`
+                  : "\n"}
+              </Text>
+            ))
+          })()}
         </Text>
         {/* Status / disclaimer below verse so Devanagari toggle does not shove scroll. */}
         {activeScript === "devanagari" && hasDevanagari ? (
@@ -706,4 +713,5 @@ const styles = StyleSheet.create({
   },
   meaningUnavailable: { ...typography.bodySmall, color: colors.textMuted },
   lyrics: { ...typography.body, color: colors.textPrimary },
+  lyricStanzaGap: { height: spacing.sm },
 })

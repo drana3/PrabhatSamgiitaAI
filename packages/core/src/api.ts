@@ -1250,9 +1250,11 @@ export function createApiClient(options: ApiClientOptions) {
       const response = await fetchJson(`/api/v1/members/playlists/${playlistId}`, {
         method: "DELETE",
       })
-      if (!response.ok && response.status !== 204) {
-        throw new Error("Could not delete playlist.")
-      }
+      if (response.status === 204 || response.status === 404) return
+      if (response.ok) return
+      const body = await response.json().catch(() => null)
+      const detail = typeof body?.detail === "string" ? body.detail : null
+      throw new Error(detail ?? "Could not delete playlist.")
     },
 
     async addMemberPlaylistSong(playlistId: string, songNumber: number): Promise<MemberPlaylist> {
@@ -1386,7 +1388,7 @@ export function createApiClient(options: ApiClientOptions) {
     },
 
     async streamExplanation(
-      songNumber: number,
+      songNumber: number | null,
       onChunk: (chunk: string) => void,
       prompt?: string,
       history: ConversationTurn[] = [],
@@ -1408,7 +1410,7 @@ export function createApiClient(options: ApiClientOptions) {
             ...extraAuth,
           },
           body: JSON.stringify({
-            song_number: songNumber,
+            ...(songNumber != null ? { song_number: songNumber } : {}),
             prompt,
             history: history.slice(-12),
           }),

@@ -2,6 +2,8 @@ import { Image } from "expo-image"
 import { LinearGradient } from "expo-linear-gradient"
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native"
 import { useRouter } from "expo-router"
+import { PRODUCT_NAME } from "@prabhat/core"
+
 import { brandAssets } from "@/constants/brand"
 import { colors } from "@/constants/colors"
 import { spacing } from "@/constants/spacing"
@@ -55,7 +57,7 @@ export function GreetingHeader() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="About Prabhat Samgiita AI"
+        accessibilityLabel={`About ${PRODUCT_NAME}`}
         onPress={() => router.push(href("/about"))}
         style={styles.brandPress}
       >
@@ -64,7 +66,7 @@ export function GreetingHeader() {
           style={{ width: emblemSize, height: emblemSize }}
           contentFit="contain"
         />
-        <Text style={styles.wordmark}>Prabhat Samgiita AI</Text>
+        <Text style={styles.wordmark}>{PRODUCT_NAME}</Text>
         <Text style={styles.tagline}>Music for the inner dawn</Text>
       </Pressable>
 

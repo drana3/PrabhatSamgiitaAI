@@ -14,6 +14,8 @@ import {
   reflectionSourceLabel,
 } from "@/data/homeContent"
 import { api } from "@/lib/client"
+import { COMPOSER_NAME, PRODUCT_NAME } from "@prabhat/core"
+
 import { href } from "@/utils/href"
 
 export { CommunityVoicesTicker as CommunityVoicesRow } from "@/components/home/CommunityVoicesTicker"
@@ -67,7 +69,7 @@ export function AboutComposerCard({ onPress }: AboutProps) {
       >
         <Text style={styles.aboutTitle}>Songs for a new human dawn</Text>
         <Text style={styles.aboutBody}>
-          Shrii Shrii Anandamurti ji composed 5,018 Prabhat Samgiita songs between 1982 and 1990 —
+          {COMPOSER_NAME} composed 5,018 {PRODUCT_NAME} songs between 1982 and 1990 —
           devotion, nature, humanism, and hope. Tap to read more on About.
         </Text>
       </Pressable>

@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from "@prabhat/core"
 import React from "react"
 import { render, screen } from "@testing-library/react"
 
@@ -8,7 +9,7 @@ describe("MobileAppHeroStrip", () => {
     render(<MobileAppHeroStrip />)
 
     expect(screen.getByText(/Best on phone or tablet/i)).toBeInTheDocument()
-    expect(screen.getByText("Prabhat Samgiita AI")).toBeInTheDocument()
+    expect(screen.getByText(PRODUCT_NAME)).toBeInTheDocument()
     expect(screen.getByRole("link", { name: /Download on the App Store/i })).toHaveAttribute(
       "href",
       expect.stringContaining("apps.apple.com"),

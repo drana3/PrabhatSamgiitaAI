@@ -118,7 +118,13 @@ export default function PlaylistDetailScreen() {
                 text: "Delete",
                 style: "destructive",
                 onPress: () => {
-                  void deletePlaylist(playlistId).then(() => router.back())
+                  void deletePlaylist(playlistId).then((result) => {
+                    if ("error" in result) {
+                      Alert.alert("Playlist", result.error)
+                      return
+                    }
+                    router.back()
+                  })
                 },
               },
             ])

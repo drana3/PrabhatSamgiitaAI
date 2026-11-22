@@ -1,3 +1,4 @@
+import { COMPANION_FEATURE_NAME, PRODUCT_NAME } from "@prabhat/core"
 import Image from "next/image"
 
 import { mobileStoreLinks, mobileStoreQrUrl, type MobileStoreLink } from "@/lib/mobile-stores"
@@ -44,7 +45,7 @@ export function MobileAppHeroStrip() {
   return (
     <section
       id="mobile-app"
-      aria-label="Download Prabhat Samgiita AI"
+      aria-label={`Download ${PRODUCT_NAME}`}
       className="mt-6 max-w-xl scroll-mt-28 rounded-[1.35rem] border border-gold-500/25 bg-white/80 p-4 shadow-[0_14px_34px_rgba(42,31,15,0.1)] backdrop-blur-sm sm:p-5"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -58,9 +59,9 @@ export function MobileAppHeroStrip() {
           />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-navy-950">Best on phone or tablet</p>
-            <p className="mt-0.5 text-sm font-semibold text-navy-900">Prabhat Samgiita AI</p>
+            <p className="mt-0.5 text-sm font-semibold text-navy-900">{PRODUCT_NAME}</p>
             <p className="mt-1 text-xs leading-5 text-stone-600">
-              Offline listening, saved songs, and the AI Companion — download the app.
+              Offline listening, saved songs, and the {COMPANION_FEATURE_NAME} — download the app.
             </p>
           </div>
         </div>

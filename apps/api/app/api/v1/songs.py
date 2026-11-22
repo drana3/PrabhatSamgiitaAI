@@ -17,15 +17,16 @@ from app.schemas.song import (
     SongSummary,
 )
 from app.services.catalog import CatalogService
+from app.services.catalog_lyrics import (
+    align_devanagari_stanza_gaps,
+    prepare_catalog_lyrics_fields,
+)
 from app.services.localization import (
     LocalizationService,
     LocalizedSongText,
     localized_response_cache,
 )
-from app.services.lyrics_theme import (
-    extract_trailing_english_theme,
-    strip_trailing_theme_from_devanagari,
-)
+from app.services.lyrics_theme import strip_trailing_theme_from_devanagari
 from app.services.media_quality import (
     client_media_items,
     media_quality_key,
@@ -222,13 +223,26 @@ async def get_song(
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
     summary = _summary(song)
-    lyrics_original = song.lyrics_original
-    peeled_theme = None
-    if isinstance(lyrics_original, str):
-        lyrics_original, peeled_theme = extract_trailing_english_theme(lyrics_original)
-        lyrics_original = lyrics_original or None
-    theme = summary.theme or peeled_theme
     meta = song.metadata_json or {}
+    prepared = prepare_catalog_lyrics_fields(
+        {
+            "lyrics_original": song.lyrics_original,
+            "title": song.title,
+            "first_line": song.first_line,
+            "language": song.language,
+            "metadata_json": meta if isinstance(meta, dict) else {},
+        }
+    )
+    lyrics_original = prepared["lyrics_original"]
+    peeled_theme = prepared.get("peeled_theme")
+    if prepared.get("title"):
+        summary = summary.model_copy(
+            update={
+                "title": prepared["title"],
+                "first_line": prepared.get("first_line") or summary.first_line,
+            }
+        )
+    theme = summary.theme or peeled_theme
     if isinstance(meta, dict) and meta.get("official_theme_label"):
         theme = str(meta["official_theme_label"]) or theme
     if theme and not summary.theme:
@@ -244,6 +258,8 @@ async def get_song(
         lyrics_devanagari if isinstance(lyrics_devanagari, str) else None,
         known_theme=known_theme,
     )
+    if isinstance(lyrics_devanagari, str) and lyrics_devanagari.strip() and lyrics_original:
+        lyrics_devanagari = align_devanagari_stanza_gaps(lyrics_original, lyrics_devanagari)
     devanagari_status = getattr(song, "devanagari_status", None) or "none"
     hindi_meaning = song.hindi_meaning
     english_meaning = song.english_meaning

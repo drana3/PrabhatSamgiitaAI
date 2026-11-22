@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Prabhat Samgiita AI",
+    "name": "Prabhat Samgiita",
     "owner": "dewasheesh3s-team",
     "slug": "prabhatsamgiitaai",
     "version": "2.0.8",
@@ -17,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.prabhatasamgiita.ai",
-      "buildNumber": "140",
+      "buildNumber": "141",
       "associatedDomains": [
         "applinks:www.prabhatasamgiita.org"
       ],
@@ -34,7 +34,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 110,
+      "versionCode": 124,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
@@ -71,8 +71,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow Prabhat Samgiita AI to use the microphone for voice search.",
-          "speechRecognitionPermission": "Allow Prabhat Samgiita AI to turn speech into search text.",
+          "microphonePermission": "Allow Prabhat Samgiita to use the microphone for voice search.",
+          "speechRecognitionPermission": "Allow Prabhat Samgiita to turn speech into search text.",
           "androidSpeechServicePackages": [
             "com.google.android.googlequicksearchbox"
           ]

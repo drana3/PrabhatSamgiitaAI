@@ -1,5 +1,6 @@
 "use client"
 
+import { PRODUCT_NAME } from "@prabhat/core"
 import { useState } from "react"
 
 export function ShareMenu({ title }: { title: string }) {
@@ -7,10 +8,10 @@ export function ShareMenu({ title }: { title: string }) {
   const [copied, setCopied] = useState(false)
   const url = typeof window === "undefined" ? "" : window.location.href
   const encodedUrl = encodeURIComponent(url)
-  const encodedText = encodeURIComponent(`${title} · Prabhat Samgiita AI`)
+  const encodedText = encodeURIComponent(`${title} · ${PRODUCT_NAME}`)
 
   async function nativeShare() {
-    if (navigator.share) { await navigator.share({ title, text: `${title} · Prabhat Samgiita`, url }); return }
+    if (navigator.share) { await navigator.share({ title, text: `${title} · ${PRODUCT_NAME}`, url }); return }
     setOpen((value) => !value)
   }
 

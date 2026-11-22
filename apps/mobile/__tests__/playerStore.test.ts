@@ -85,6 +85,7 @@ vi.mock("@/lib/audioFocus", () => ({
 
 vi.mock("@/lib/offlineAudio", () => ({
   toPlayableLocalUri: (uri: string) => uri,
+  ensurePlayableLocalUri: async (uri: string) => uri,
   resolvePlaybackUri: vi.fn(async (_number: number, remoteUrl?: string | null) =>
     remoteUrl?.trim() ? { uri: remoteUrl.trim(), local: false } : null,
   ),
@@ -180,8 +181,46 @@ describe("playerStore song-page handoff", () => {
     const { usePlayerStore } = await import("@/stores/playerStore")
     usePlayerStore.getState().loadSong(song as never)
     const TrackPlayer = await waitForCatalogAdd(1)
-    expect(TrackPlayer.setupPlayer).toHaveBeenCalled()
+    expect(TrackPlayer.setupPlayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoHandleInterruptions: false,
+        iosCategory: "playback",
+        iosCategoryOptions: expect.arrayContaining(["mixWithOthers"]),
+      }),
+    )
     expect(TrackPlayer.updateOptions).toHaveBeenCalled()
+    expect(TrackPlayer.updateOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        android: expect.objectContaining({
+          appKilledPlaybackBehavior: "stop-and-remove-notification",
+          alwaysPauseOnInterruption: false,
+        }),
+      }),
+    )
+  })
+
+  it("resumes catalog playback after a transient call interruption ends", async () => {
+    const sound = createMockSound({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 0,
+      durationMillis: 120_000,
+    })
+    createAsync.mockResolvedValue({ sound })
+
+    const { usePlayerStore } = await import("@/stores/playerStore")
+    usePlayerStore.getState().loadSong(song as never)
+    const TrackPlayer = await waitForCatalogAdd(1)
+    TrackPlayer.play.mockClear()
+    usePlayerStore.setState({ isPlaying: false })
+    const bag = globalThis as typeof globalThis & { __psWantPlaying?: boolean }
+    bag.__psWantPlaying = true
+
+    const { __emitTrackPlayer, Event } = await import("react-native-track-player")
+    __emitTrackPlayer(Event.RemoteDuck, { paused: false, permanent: false })
+
+    await vi.waitFor(() => expect(TrackPlayer.play).toHaveBeenCalled())
+    expect(usePlayerStore.getState().isPlaying).toBe(true)
   })
 
   it("pause after syncCurrentSong stops the same Sound instance", async () => {

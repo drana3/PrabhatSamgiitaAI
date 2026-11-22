@@ -70,7 +70,10 @@ def test_song_of_the_day_is_sequential_and_wraps() -> None:
 
 def test_lunar_festival_dates_are_not_guessed_for_other_years() -> None:
     assert fixed_reviewed_festival(8, 28, 2027) is None
+    assert fixed_reviewed_festival(8, 17, 2027) == "Shrávańii Púrńimá"
     assert fixed_reviewed_festival(5, 21, 2027) == "Bábá Birthday"
+    assert fixed_reviewed_festival(5, 20, 2027) == "Ánanda Púrńimá"
+    assert fixed_reviewed_festival(10, 5, 2027) == "Sharadotsava"
 
 
 def test_reviewed_observances_map_to_canonical_song_collections() -> None:

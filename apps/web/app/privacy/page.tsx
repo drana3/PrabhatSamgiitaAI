@@ -1,11 +1,12 @@
+import { PRODUCT_NAME } from "@prabhat/core"
 import type { Metadata } from "next"
 import Link from "next/link"
 
 import { SiteHeader } from "@/components/site-header"
 
 export const metadata: Metadata = {
-  title: "Privacy policy | Prabhat Samgiita AI",
-  description: "How Prabhat Samgiita AI collects, uses, and protects your information.",
+  title: `Privacy policy | ${PRODUCT_NAME}`,
+  description: `How ${PRODUCT_NAME} collects, uses, and protects your information.`,
 }
 
 export default function PrivacyPage() {
@@ -17,7 +18,7 @@ export default function PrivacyPage() {
         <h1 className="mt-3 font-serif text-4xl text-navy-950">Privacy policy</h1>
         <p className="mt-4 text-sm text-stone-500">Last updated: 15 August 2026</p>
         <p className="mt-4 text-base leading-7 text-stone-600">
-          Prabhat Samgiita AI (&ldquo;we&rdquo;, &ldquo;the app&rdquo;) helps devotees explore songs, meanings,
+          {PRODUCT_NAME} (&ldquo;we&rdquo;, &ldquo;the app&rdquo;) helps devotees explore songs, meanings,
           and learning tools. This policy explains what information we collect and how you can control it.
         </p>
 

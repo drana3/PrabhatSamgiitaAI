@@ -118,7 +118,7 @@ class ConversationTurn(BaseModel):
 
 
 class ExplanationRequest(BaseModel):
-    song_number: int
+    song_number: int | None = Field(default=None, ge=1, le=5018)
     prompt: str | None = None
     history: list[ConversationTurn] = Field(default_factory=list, max_length=12)
     profile_context: str | None = Field(default=None, max_length=600)

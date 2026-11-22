@@ -437,6 +437,71 @@ async def test_localize_falls_back_to_llm_when_google_unavailable(tmp_path: Path
 
 
 @pytest.mark.asyncio
+async def test_localize_falls_back_to_llm_when_google_quota_exhausted(
+    tmp_path: Path,
+) -> None:
+    """Quota hit must not error — translate_texts returns None, LLM still serves meaning."""
+    settings = Settings(
+        DATABASE_URL="postgresql+psycopg://test:test@localhost/test",
+        APP_ENV="test",
+        GOOGLE_TRANSLATE_API_KEY="test-key",
+        GOOGLE_TRANSLATE_ENABLED=True,
+        GOOGLE_TRANSLATE_MONTHLY_CHAR_LIMIT=5,
+        GOOGLE_TRANSLATE_ALLOW_PAID=False,
+        GOOGLE_TRANSLATE_QUOTA_PATH=str(tmp_path / "quota.json"),
+    )
+    gt.reset_quota_store_for_tests()
+    assert gt.get_quota_store(settings).try_reserve(5)
+    # Same contract LocalizationService sees after a quota skip.
+    assert (
+        await gt.translate_texts(
+            ["too-long-for-remaining-quota"],
+            target_language="hi",
+            settings=settings,
+        )
+        is None
+    )
+
+    song = Song(
+        number=5,
+        title="Song 5",
+        english_meaning="The crimson dawn has come.",
+        metadata_json={},
+    )
+    service = LocalizationService()
+    service.provider = AsyncMock(
+        complete=AsyncMock(
+            return_value=(
+                '{"localized_title":"Song 5","localized_first_line":null,'
+                '"localized_meaning":"लाल भोर आ गई है।","localized_explanation":null}'
+            )
+        )
+    )
+    with (
+        patch("app.services.localization.get_settings", return_value=settings),
+        patch("app.services.localization.google_translate_configured", return_value=True),
+        patch(
+            "app.services.localization.translate_texts",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.services.localization.refine_meaning_translation",
+            new=AsyncMock(return_value="लाल भोर आ गई है।"),
+        ),
+        patch(
+            "app.services.localization.audit_meaning_translation",
+            return_value=type("A", (), {"passed": True, "issues": ()})(),
+        ),
+    ):
+        await translation_cache.clear()
+        result = await service.localize(song, "hi")
+
+    assert result.provider == "llm"
+    assert result.localized_meaning == "लाल भोर आ गई है।"
+    service.provider.complete.assert_called()
+
+
+@pytest.mark.asyncio
 async def test_localize_defers_neon_persist_when_scheduler_provided(
     tmp_path: Path,
 ) -> None:

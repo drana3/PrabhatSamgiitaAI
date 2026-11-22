@@ -36,7 +36,17 @@ def test_drop_last_nonempty_devanagari_line() -> None:
 
 def test_looks_like_converted_theme_line() -> None:
     assert looks_like_converted_theme_line("सोन्ग् ओफ़् फ़ुल्फ़िल्ल्मेन्त्")
+    assert looks_like_converted_theme_line("सोन् ऑफ् स्वेलेस्स्")
     assert not looks_like_converted_theme_line("चेतनार् मधुर ताने")
+
+
+def test_strip_ps4_sweetness_theme_from_devanagari() -> None:
+    roman = "SAKAL MANER VIINA\nSAKAL HRDAYE SAORABH"
+    dev = "सकल् मनेर्\nसकल् ह्र्दये सौरभ्\nसोन् ऑफ् स्वेलेस्स्"
+    assert (
+        strip_trailing_theme_from_devanagari(roman, dev, known_theme="Song of Sweetness")
+        == "सकल् मनेर्\nसकल् ह्र्दये सौरभ्"
+    )
 
 
 def test_strip_trailing_theme_from_devanagari() -> None:
