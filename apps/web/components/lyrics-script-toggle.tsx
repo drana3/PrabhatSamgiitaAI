@@ -4,6 +4,7 @@ import { useMemo, useState, type MouseEvent } from "react"
 
 import { CopyTextButton } from "@/components/copy-text-button"
 import { submitFeedback } from "@/lib/api"
+import { lyricsStanzaBlocks } from "@/lib/lyrics-stanzas"
 
 type Props = {
   songNumber: number
@@ -58,6 +59,7 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
     () => (script === "devanagari" && hasDevanagari ? devanagari!.trim() : roman),
     [script, hasDevanagari, devanagari, roman],
   )
+  const stanzas = useMemo(() => lyricsStanzaBlocks(text), [text])
   const badge = script === "devanagari" ? statusLabel(status) : ""
 
   function selectScript(next: "roman" | "devanagari") {
@@ -128,9 +130,13 @@ export function LyricsScriptToggle({ songNumber, roman, devanagari, status }: Pr
         does not insert chrome above the verse and shove scroll into the gap between
         Lyrics and Listen.
       */}
-      <p className="mt-5 [overflow-anchor:none] whitespace-pre-wrap font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">
-        {text}
-      </p>
+      <div className="mt-5 space-y-5 [overflow-anchor:none] font-serif text-xl leading-[1.7] text-navy-950 sm:text-2xl">
+        {stanzas.map((stanza, index) => (
+          <p key={index} className="whitespace-pre-wrap">
+            {stanza}
+          </p>
+        ))}
+      </div>
       <div className="mt-4">
         <CopyTextButton text={text} label="Copy lyrics" />
       </div>

@@ -34,7 +34,7 @@
         "backgroundColor": "#FAF7F2"
       },
       "package": "net.prabhatasamgiita.ai",
-      "versionCode": 124,
+      "versionCode": 125,
       "icon": "./assets/icon.png",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
