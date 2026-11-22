@@ -1,6 +1,8 @@
 import {
   extractTrailingEnglishTheme,
   isEnglishThemeLine,
+  looksLikeConvertedThemeLine,
+  stripTrailingThemeFromDevanagari,
 } from "./lyricsTheme"
 
 const LANGUAGE_ALIASES: Record<string, readonly string[]> = {
@@ -62,13 +64,21 @@ export function isCorruptLyricPaddingLine(line: string): boolean {
   for (const character of text.normalize("NFKD")) {
     const code = character.charCodeAt(0)
     if (code >= 0x0300 && code <= 0x036f) continue
-    if (/[a-z]/i.test(character)) letters += character
+    if (/\p{L}/u.test(character)) letters += character
   }
   if (letters.length < 8) return false
-  const upper = letters.toUpperCase()
-  if (![...upper].every((ch) => ch === "A")) return false
   const compact = text.replace(/\s/g, "")
-  return letters.length >= compact.length * 0.5
+  if (letters.length < compact.length * 0.5) return false
+  const upper = letters.toUpperCase()
+  if ([...upper].every((ch) => ch === "A")) return true
+  const unique = new Set([...letters])
+  if (unique.size === 1) return true
+  const counts = new Map<string, number>()
+  for (const letter of letters) {
+    counts.set(letter, (counts.get(letter) ?? 0) + 1)
+  }
+  const top = Math.max(...counts.values())
+  return top >= 8 && top >= letters.length * 0.85
 }
 
 export function isCatalogLanguageLabelLine(
@@ -232,26 +242,138 @@ export function inferStanzaBlankLines(lines: readonly string[]): string[] {
   return [...lines]
 }
 
-/** Mirror Roman stanza gaps onto Devanagari when line counts match (rule-converted lyrics). */
-export function alignDevanagariStanzaGaps(romanWithGaps: string, devanagari: string): string {
-  const romanLines = romanWithGaps.split("\n")
-  const devLines = devanagari.split("\n")
-  const devContent = devLines.filter((line) => line.trim())
-  const romanContentCount = romanLines.filter((line) => line.trim()).length
-  if (!devContent.length || devContent.length !== romanContentCount) {
-    return inferStanzaBlankLines(devLines).join("\n").trim()
+const DEVANAGARI_LANGUAGE_HEADERS = new Set([
+  "संस्कृत",
+  "संस्क्र्त",
+  "हिन्दी",
+  "हिंदी",
+  "बंगला",
+  "बन्ग्ला",
+  "मैथिली",
+  "उर्दू",
+  "अंगिका",
+  "मगही",
+])
+
+function devanagariHeaderToken(line: string): string {
+  return line.trim().replace(/[：:]+$/, "").trim()
+}
+
+export function isDevanagariLanguageHeaderLine(line: string): boolean {
+  const token = devanagariHeaderToken(line)
+  if (!token || token.length > 48) return false
+  if (DEVANAGARI_LANGUAGE_HEADERS.has(token)) return true
+  return isCatalogLanguageLabelLine(token, null, [])
+}
+
+export function devanagariContentLines(
+  devanagari: string,
+  options: { language?: string | null; languageLabels?: string[] } = {},
+): string[] {
+  let lines = devanagari
+    .split("\n")
+    .filter((line) => line.trim() && !isCorruptLyricPaddingLine(line))
+  while (
+    lines.length &&
+    (isCatalogLanguageLabelLine(lines[0]!, options.language, options.languageLabels) ||
+      isDevanagariLanguageHeaderLine(lines[0]!))
+  ) {
+    lines.shift()
   }
+  return lines
+}
+
+function alignDevanagariByRomanStanzas(romanLines: string[], devContent: string[]): string {
   const out: string[] = []
   let devIndex = 0
   for (const romanLine of romanLines) {
     if (!romanLine.trim()) {
-      out.push("")
+      if (out.length && out[out.length - 1]!.trim()) out.push("")
       continue
     }
-    out.push(devContent[devIndex] ?? "")
-    devIndex += 1
+    if (devIndex < devContent.length) {
+      out.push(devContent[devIndex]!)
+      devIndex += 1
+    }
   }
   return out.join("\n").trim()
+}
+
+function isDevanagariNonLyricLine(
+  line: string,
+  options: { language?: string | null; languageLabels?: string[] } = {},
+): boolean {
+  const text = line.trim()
+  if (!text) return false
+  if (looksLikeConvertedThemeLine(text) || isEnglishThemeLine(text)) return true
+  if (isCatalogLanguageLabelLine(text, options.language, options.languageLabels)) return true
+  return isDevanagariLanguageHeaderLine(text)
+}
+
+/** Drop language headers, themes, and scrape padding from rule-converted Devanagari. */
+export function sanitizeDevanagariCatalogText(
+  devanagari: string | null | undefined,
+  options: {
+    roman?: string | null
+    language?: string | null
+    languageLabels?: string[]
+    knownTheme?: string | null
+  } = {},
+): string {
+  if (!devanagari?.trim()) return ""
+  const endsWithNewline = devanagari.endsWith("\n")
+  let lines = devanagari.split("\n").filter((line) => !isCorruptLyricPaddingLine(line))
+  while (lines.length && lines[0]!.trim() && isDevanagariNonLyricLine(lines[0]!, options)) {
+    lines.shift()
+    while (lines.length && !lines[0]!.trim()) lines.shift()
+  }
+  lines = lines.filter((line) => !line.trim() || !isDevanagariNonLyricLine(line, options))
+  const collapsed: string[] = []
+  for (const line of lines) {
+    if (!line.trim() && collapsed.length && !collapsed[collapsed.length - 1]!.trim()) continue
+    collapsed.push(line)
+  }
+  let cleaned = collapsed.join("\n").trim()
+  if (!cleaned) return ""
+  const stripped = stripTrailingThemeFromDevanagari(
+    options.roman,
+    cleaned,
+    options.knownTheme,
+  )
+  cleaned = (stripped || "").trim()
+  if (!cleaned) return ""
+  if (endsWithNewline) cleaned += "\n"
+  return cleaned
+}
+
+/** Mirror Roman stanza gaps onto Devanagari (rule-converted lyrics). */
+export function alignDevanagariStanzaGaps(
+  romanWithGaps: string,
+  devanagari: string,
+  options: { language?: string | null; languageLabels?: string[] } = {},
+): string {
+  const romanLines = romanWithGaps.split("\n")
+  const devContent = devanagariContentLines(devanagari, options)
+  if (!devContent.length) return ""
+  const romanContentCount = romanLines.filter((line) => line.trim()).length
+  const hasRomanStanzaGaps = romanLines.some((line) => !line.trim())
+  if (devContent.length === romanContentCount) {
+    const out: string[] = []
+    let devIndex = 0
+    for (const romanLine of romanLines) {
+      if (!romanLine.trim()) {
+        out.push("")
+        continue
+      }
+      out.push(devContent[devIndex]!)
+      devIndex += 1
+    }
+    return out.join("\n").trim()
+  }
+  if (hasRomanStanzaGaps && devContent.length <= romanContentCount) {
+    return alignDevanagariByRomanStanzas(romanLines, devContent)
+  }
+  return inferStanzaBlankLines(devContent).join("\n").trim()
 }
 
 export function sanitizeCatalogLyricsText(

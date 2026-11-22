@@ -19,14 +19,15 @@ from app.schemas.song import (
 from app.services.catalog import CatalogService
 from app.services.catalog_lyrics import (
     align_devanagari_stanza_gaps,
+    language_labels_from_metadata,
     prepare_catalog_lyrics_fields,
+    sanitize_devanagari_catalog_text,
 )
 from app.services.localization import (
     LocalizationService,
     LocalizedSongText,
     localized_response_cache,
 )
-from app.services.lyrics_theme import strip_trailing_theme_from_devanagari
 from app.services.media_quality import (
     client_media_items,
     media_quality_key,
@@ -253,13 +254,22 @@ async def get_song(
     if isinstance(meta, dict) and meta.get("official_theme_label"):
         known_theme = str(meta["official_theme_label"])
     known_theme = known_theme or theme
-    lyrics_devanagari = strip_trailing_theme_from_devanagari(
-        lyrics_original,
-        lyrics_devanagari if isinstance(lyrics_devanagari, str) else None,
-        known_theme=known_theme,
-    )
+    labels = language_labels_from_metadata(meta if isinstance(meta, dict) else None)
+    if isinstance(lyrics_devanagari, str) and lyrics_devanagari.strip():
+        lyrics_devanagari = sanitize_devanagari_catalog_text(
+            lyrics_devanagari,
+            roman=lyrics_original,
+            language=getattr(song, "language", None),
+            language_labels=labels,
+            known_theme=known_theme,
+        )
     if isinstance(lyrics_devanagari, str) and lyrics_devanagari.strip() and lyrics_original:
-        lyrics_devanagari = align_devanagari_stanza_gaps(lyrics_original, lyrics_devanagari)
+        lyrics_devanagari = align_devanagari_stanza_gaps(
+            lyrics_original,
+            lyrics_devanagari,
+            language=getattr(song, "language", None),
+            language_labels=labels,
+        )
     devanagari_status = getattr(song, "devanagari_status", None) or "none"
     hindi_meaning = song.hindi_meaning
     english_meaning = song.english_meaning

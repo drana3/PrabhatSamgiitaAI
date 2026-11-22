@@ -1,15 +1,26 @@
 from app.services.catalog_lyrics import (
+    align_devanagari_stanza_gaps,
     infer_stanza_blank_lines,
     is_corrupt_lyric_padding_line,
     normalize_official_br_paragraph_gaps,
     prepare_catalog_lyrics_fields,
     sanitize_catalog_lyrics_text,
+    sanitize_devanagari_catalog_text,
 )
 
 
 def test_corrupt_padding_line() -> None:
     assert is_corrupt_lyric_padding_line("ÁÁÁÁÁÁÁÁÁÁ")
+    assert is_corrupt_lyric_padding_line("आआआआआआआआआआ")
     assert not is_corrupt_lyric_padding_line("ESE CHILE TUMI")
+
+
+def test_align_devanagari_ps3324_style_strips_padding() -> None:
+    roman = "A\nB\n\nC"
+    dev = "अ\nब\nआआआआआआआआआआ\nस"
+    aligned = align_devanagari_stanza_gaps(roman, dev)
+    assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
+    assert "आआ" not in aligned
 
 
 def test_strips_sanskrit_label_ps1565() -> None:
@@ -55,12 +66,36 @@ def test_prepare_ps4404_heading() -> None:
 
 
 def test_align_devanagari_stanza_gaps_matches_roman() -> None:
-    from app.services.catalog_lyrics import align_devanagari_stanza_gaps
-
     roman = "A\nB\n\nC"
     dev = "अ\nब\nस"
     aligned = align_devanagari_stanza_gaps(roman, dev)
     assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
+
+
+def test_align_devanagari_follows_roman_stanzas_when_shorter() -> None:
+    roman = "Krsna:\nA\n\nKrsna:\nB"
+    dev = "क्र्ष्ण:\nअ\nब"
+    aligned = align_devanagari_stanza_gaps(roman, dev)
+    assert aligned.split("\n") == ["क्र्ष्ण:", "अ", "", "ब"]
+
+
+def test_align_devanagari_strips_samskrta_header() -> None:
+    roman = "VAJRA\nLINE\n\nEND"
+    dev = "संस्क्र्त\nवज्र\nलाइन\nएन्ड"
+    aligned = align_devanagari_stanza_gaps(roman, dev, language="Roman")
+    assert aligned.startswith("वज्र")
+    assert sum(1 for line in aligned.split("\n") if not line.strip()) == 1
+
+
+def test_sanitize_devanagari_drops_header_theme_and_padding() -> None:
+    roman = "VAJRA\nLINE"
+    dev = "संस्क्र्त\nवज्र\nलाइन\nआआआआआआआआआआ\nसोन् ऑफ् स्वेलेस्स्"
+    cleaned = sanitize_devanagari_catalog_text(
+        dev, roman=roman, language="Roman", known_theme="Song of Sweetness"
+    )
+    assert cleaned.split("\n") == ["वज्र", "लाइन"]
+    assert "संस्क्र्त" not in cleaned
+    assert "सोन्" not in cleaned
 
 
 def test_second_prepare_keeps_stanza_gaps() -> None:

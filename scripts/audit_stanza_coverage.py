@@ -20,10 +20,14 @@ _REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO / "apps" / "api"))
 
 from app.services.catalog_lyrics import (  # noqa: E402
-    language_labels_from_metadata,
+    align_devanagari_stanza_gaps,
     is_catalog_language_label_line,
+    is_devanagari_language_header_line,
+    language_labels_from_metadata,
     sanitize_catalog_lyrics_text,
+    sanitize_devanagari_catalog_text,
 )
+from app.services.lyrics_theme import looks_like_converted_theme_line  # noqa: E402
 from app.services.lyrics_theme import is_english_theme_line  # noqa: E402
 
 SONGS_JSON = _REPO / "data" / "generated" / "songs.json"
@@ -50,6 +54,8 @@ def main() -> None:
     examples_flat: list[int] = []
     theme_in_lyrics: list[int] = []
     language_label_lines: list[int] = []
+    dev_theme_in_lyrics: list[int] = []
+    dev_language_label_lines: list[int] = []
 
     for row in songs:
         raw = (row.get("lyrics_original") or "").strip()
@@ -85,6 +91,39 @@ def main() -> None:
                     language_label_lines.append(int(row["number"]))
                 break
 
+        dev_raw = (row.get("lyrics_devanagari") or "").strip()
+        if dev_raw and prepared:
+            theme = (row.get("theme") or "").strip() or None
+            dev_prepared = sanitize_devanagari_catalog_text(
+                dev_raw,
+                roman=prepared,
+                language=row.get("language"),
+                language_labels=labels,
+                known_theme=theme,
+            )
+            dev_prepared = align_devanagari_stanza_gaps(
+                prepared,
+                dev_prepared,
+                language=row.get("language"),
+                language_labels=labels,
+            )
+            for line in (dev_prepared or "").split("\n"):
+                if not line.strip():
+                    continue
+                if (
+                    is_english_theme_line(line)
+                    or looks_like_converted_theme_line(line)
+                ):
+                    if len(dev_theme_in_lyrics) < 25:
+                        dev_theme_in_lyrics.append(int(row["number"]))
+                    break
+                if is_catalog_language_label_line(
+                    line, row.get("language"), labels
+                ) or is_devanagari_language_header_line(line):
+                    if len(dev_language_label_lines) < 25:
+                        dev_language_label_lines.append(int(row["number"]))
+                    break
+
     summary = {
         "songs_total": len(songs),
         "with_lyrics": with_lyrics,
@@ -99,6 +138,8 @@ def main() -> None:
         "examples_still_flat": examples_flat,
         "theme_lines_in_lyrics": theme_in_lyrics,
         "language_label_lines_in_lyrics": language_label_lines,
+        "devanagari_theme_lines_in_lyrics": dev_theme_in_lyrics,
+        "devanagari_language_label_lines_in_lyrics": dev_language_label_lines,
     }
 
     print(json.dumps(summary, indent=2, ensure_ascii=False))
@@ -106,7 +147,13 @@ def main() -> None:
         args.json.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"Wrote {args.json}", file=sys.stderr)
 
-    if still_flat:
+    if (
+        still_flat
+        or theme_in_lyrics
+        or language_label_lines
+        or dev_theme_in_lyrics
+        or dev_language_label_lines
+    ):
         sys.exit(1)
 
 

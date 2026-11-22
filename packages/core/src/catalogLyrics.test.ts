@@ -8,11 +8,13 @@ import {
   normalizeOfficialBrParagraphGaps,
   prepareCatalogLyricsFields,
   sanitizeCatalogLyricsText,
+  sanitizeDevanagariCatalogText,
 } from "./catalogLyrics"
 
 describe("catalogLyrics", () => {
   it("detects Á-only padding lines", () => {
     expect(isCorruptLyricPaddingLine("ÁÁÁÁÁÁÁÁÁÁ")).toBe(true)
+    expect(isCorruptLyricPaddingLine("आआआआआआआआआआ")).toBe(true)
     expect(isCorruptLyricPaddingLine("BANDHU HE NIYE CALO")).toBe(false)
   })
 
@@ -111,11 +113,33 @@ describe("catalogLyrics", () => {
     expect(isCatalogLanguageLabelLine("SAḾSKRTA", "Roman", [])).toBe(true)
   })
 
+  it("aligns devanagari when roman has one more refrain line", () => {
+    const roman = "Krsna:\nA\n\nKrsna:\nB"
+    const dev = "क्र्ष्ण:\nअ\nब"
+    expect(alignDevanagariStanzaGaps(roman, dev).split("\n")).toEqual([
+      "क्र्ष्ण:",
+      "अ",
+      "",
+      "ब",
+    ])
+  })
+
   it("aligns devanagari stanza gaps to roman", () => {
     const roman = "REFRAIN\nLINE\n\nREFRAIN\nEND"
     const dev = "रिफ्रेन\nलाइन\nरिफ्रेन\nएन्ड"
     const aligned = alignDevanagariStanzaGaps(roman, dev)
     expect(aligned.split("\n").filter((line) => !line.trim())).toHaveLength(1)
     expect(aligned.startsWith("रिफ्रेन")).toBe(true)
+  })
+
+  it("sanitize devanagari drops header theme and padding", () => {
+    const roman = "VAJRA\nLINE"
+    const dev = "संस्क्र्त\nवज्र\nलाइन\nआआआआआआआआआआ\nसोन् ऑफ् स्वेलेस्स्"
+    const cleaned = sanitizeDevanagariCatalogText(dev, {
+      roman,
+      language: "Roman",
+      knownTheme: "Song of Sweetness",
+    })
+    expect(cleaned.split("\n")).toEqual(["वज्र", "लाइन"])
   })
 })

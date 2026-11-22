@@ -6,7 +6,8 @@ import {
   compareAudioQuality,
   prepareCatalogLyricsFields,
   alignDevanagariStanzaGaps,
-  stripTrailingThemeFromDevanagari,
+  languageLabelsFromMetadata,
+  sanitizeDevanagariCatalogText,
 } from "@prabhat/core"
 import type { SongDetail, SongSummary, TransposedNotation } from "@/lib/api"
 import { centralIdeaText } from "@/lib/song-meanings"
@@ -259,15 +260,20 @@ export function localSongDetail(number: number): SongDetail | null {
     prepared.peeled_theme ||
     song.theme?.trim() ||
     null
-  const strippedDevanagari = stripTrailingThemeFromDevanagari(
-    romanClean,
-    song.lyrics_devanagari,
-    officialTheme,
-  )
+  const languageLabels = languageLabelsFromMetadata(meta as Record<string, unknown>)
+  const sanitizedDevanagari = sanitizeDevanagariCatalogText(song.lyrics_devanagari, {
+    roman: romanClean,
+    language: song.language,
+    languageLabels,
+    knownTheme: officialTheme,
+  })
   const lyricsDevanagari =
-    strippedDevanagari?.trim() && romanClean
-      ? alignDevanagariStanzaGaps(romanClean, strippedDevanagari)
-      : strippedDevanagari
+    sanitizedDevanagari?.trim() && romanClean
+      ? alignDevanagariStanzaGaps(romanClean, sanitizedDevanagari, {
+          language: song.language,
+          languageLabels,
+        })
+      : sanitizedDevanagari
   const base = summary({
     ...song,
     title: prepared.title ?? song.title,
@@ -350,15 +356,20 @@ export function coalesceSongDetail(remote: SongDetail | null, local: SongDetail 
     remote.devanagari_status === "approved" && remote.lyrics_devanagari?.trim()
       ? remote.lyrics_devanagari
       : firstFilled(remote.lyrics_devanagari, local.lyrics_devanagari)
-  const strippedDevanagari = stripTrailingThemeFromDevanagari(
-    lyrics_original,
-    mergedDevanagari,
-    officialTheme,
-  )
+  const languageLabels = languageLabelsFromMetadata(metadata_json as Record<string, unknown>)
+  const sanitizedDevanagari = sanitizeDevanagariCatalogText(mergedDevanagari, {
+    roman: lyrics_original,
+    language: firstFilled(remote.language, local.language),
+    languageLabels,
+    knownTheme: officialTheme,
+  })
   const lyrics_devanagari =
-    strippedDevanagari?.trim() && lyrics_original
-      ? alignDevanagariStanzaGaps(lyrics_original, strippedDevanagari)
-      : strippedDevanagari
+    sanitizedDevanagari?.trim() && lyrics_original
+      ? alignDevanagariStanzaGaps(lyrics_original, sanitizedDevanagari, {
+          language: firstFilled(remote.language, local.language),
+          languageLabels,
+        })
+      : sanitizedDevanagari
   return {
     ...remote,
     title: prepared.title ?? remote.title,

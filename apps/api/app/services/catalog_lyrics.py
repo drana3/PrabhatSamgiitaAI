@@ -5,7 +5,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from app.services.lyrics_theme import extract_trailing_english_theme, is_english_theme_line
+from app.services.lyrics_theme import (
+    extract_trailing_english_theme,
+    is_english_theme_line,
+    looks_like_converted_theme_line,
+    strip_trailing_theme_from_devanagari,
+)
 
 _LANGUAGE_ALIASES: dict[str, frozenset[str]] = {
     "sanskrit": frozenset({"sanskrit", "samskrta", "samskrt", "samskrto"}),
@@ -68,11 +73,20 @@ def is_corrupt_lyric_padding_line(line: str) -> bool:
             letters.append(character)
     if len(letters) < 8:
         return False
-    upper = "".join(letters).upper()
-    if not upper or any(character != "A" for character in upper):
-        return False
     compact = re.sub(r"\s", "", text)
-    return len(letters) >= len(compact) * 0.5
+    if len(letters) < len(compact) * 0.5:
+        return False
+    upper = "".join(letters).upper()
+    if upper and all(character == "A" for character in upper):
+        return True
+    # Devanagari / scrape padding: one letter repeated (e.g. आआआआ… from Roman Á runs).
+    if len(set(letters)) == 1:
+        return True
+    counts: dict[str, int] = {}
+    for letter in letters:
+        counts[letter] = counts.get(letter, 0) + 1
+    top = max(counts.values())
+    return top >= 8 and top >= len(letters) * 0.85
 
 
 def is_catalog_language_label_line(
@@ -233,22 +247,165 @@ def infer_stanza_blank_lines(lines: list[str]) -> list[str]:
     return list(lines)
 
 
-def align_devanagari_stanza_gaps(roman_with_gaps: str, devanagari: str) -> str:
-    roman_lines = roman_with_gaps.split("\n")
-    dev_lines = devanagari.split("\n")
-    dev_content = [line for line in dev_lines if line.strip()]
-    roman_content_count = len([line for line in roman_lines if line.strip()])
-    if not dev_content or len(dev_content) != roman_content_count:
-        return "\n".join(infer_stanza_blank_lines(dev_lines)).strip()
+_DEVANAGARI_LANGUAGE_HEADERS: frozenset[str] = frozenset(
+    {
+        "संस्कृत",
+        "संस्क्र्त",
+        "हिन्दी",
+        "हिंदी",
+        "बंगला",
+        "बन्ग्ला",
+        "मैथिली",
+        "उर्दू",
+        "अंगिका",
+        "मगही",
+    }
+)
+
+
+def _devanagari_header_token(line: str) -> str:
+    return (line or "").strip().rstrip(":：").strip()
+
+
+def is_devanagari_language_header_line(line: str) -> bool:
+    token = _devanagari_header_token(line)
+    if not token or len(token) > 48:
+        return False
+    if token in _DEVANAGARI_LANGUAGE_HEADERS:
+        return True
+    return is_catalog_language_label_line(token, None, [])
+
+
+def devanagari_content_lines(
+    devanagari: str,
+    *,
+    language: str | None = None,
+    language_labels: list[str] | None = None,
+) -> list[str]:
+    lines = [
+        line
+        for line in devanagari.split("\n")
+        if line.strip() and not is_corrupt_lyric_padding_line(line)
+    ]
+    while lines and (
+        is_catalog_language_label_line(lines[0], language, language_labels)
+        or is_devanagari_language_header_line(lines[0])
+    ):
+        lines.pop(0)
+    return lines
+
+
+def _align_devanagari_by_roman_stanzas(
+    roman_lines: list[str], dev_content: list[str]
+) -> str:
+    """Walk Roman (with stanza blanks); emit Devanagari lines in order, reusing Roman gaps."""
     out: list[str] = []
     dev_index = 0
     for roman_line in roman_lines:
         if not roman_line.strip():
-            out.append("")
+            if out and out[-1].strip():
+                out.append("")
             continue
-        out.append(dev_content[dev_index])
-        dev_index += 1
+        if dev_index < len(dev_content):
+            out.append(dev_content[dev_index])
+            dev_index += 1
     return "\n".join(out).strip()
+
+
+def _is_devanagari_non_lyric_line(
+    line: str,
+    *,
+    language: str | None = None,
+    language_labels: list[str] | None = None,
+) -> bool:
+    text = (line or "").strip()
+    if not text:
+        return False
+    if looks_like_converted_theme_line(text) or is_english_theme_line(text):
+        return True
+    if is_catalog_language_label_line(text, language, language_labels):
+        return True
+    return is_devanagari_language_header_line(text)
+
+
+def sanitize_devanagari_catalog_text(
+    devanagari: str | None,
+    *,
+    roman: str | None = None,
+    language: str | None = None,
+    language_labels: list[str] | None = None,
+    known_theme: str | None = None,
+) -> str:
+    """Drop language headers, themes, and scrape padding from rule-converted Devanagari."""
+    if not (devanagari or "").strip():
+        return ""
+    ends_with_newline = devanagari.endswith("\n")
+    lines = [
+        line
+        for line in devanagari.split("\n")
+        if not is_corrupt_lyric_padding_line(line)
+    ]
+    while lines and lines[0].strip() and _is_devanagari_non_lyric_line(
+        lines[0], language=language, language_labels=language_labels
+    ):
+        lines.pop(0)
+        while lines and not lines[0].strip():
+            lines.pop(0)
+    lines = [
+        line
+        for line in lines
+        if not line.strip()
+        or not _is_devanagari_non_lyric_line(
+            line, language=language, language_labels=language_labels
+        )
+    ]
+    collapsed: list[str] = []
+    for line in lines:
+        if not line.strip() and collapsed and not collapsed[-1].strip():
+            continue
+        collapsed.append(line)
+    cleaned = "\n".join(collapsed).strip()
+    if not cleaned:
+        return ""
+    peeled = strip_trailing_theme_from_devanagari(
+        roman, cleaned, known_theme=known_theme
+    )
+    cleaned = (peeled or "").strip()
+    if not cleaned:
+        return ""
+    if ends_with_newline:
+        cleaned += "\n"
+    return cleaned
+
+
+def align_devanagari_stanza_gaps(
+    roman_with_gaps: str,
+    devanagari: str,
+    *,
+    language: str | None = None,
+    language_labels: list[str] | None = None,
+) -> str:
+    roman_lines = roman_with_gaps.split("\n")
+    dev_content = devanagari_content_lines(
+        devanagari, language=language, language_labels=language_labels
+    )
+    if not dev_content:
+        return ""
+    roman_content_count = len([line for line in roman_lines if line.strip()])
+    has_roman_stanza_gaps = any(not line.strip() for line in roman_lines)
+    if len(dev_content) == roman_content_count:
+        out: list[str] = []
+        dev_index = 0
+        for roman_line in roman_lines:
+            if not roman_line.strip():
+                out.append("")
+                continue
+            out.append(dev_content[dev_index])
+            dev_index += 1
+        return "\n".join(out).strip()
+    if has_roman_stanza_gaps and len(dev_content) <= roman_content_count:
+        return _align_devanagari_by_roman_stanzas(roman_lines, dev_content)
+    return "\n".join(infer_stanza_blank_lines(dev_content)).strip()
 
 
 def sanitize_catalog_lyrics_text(
