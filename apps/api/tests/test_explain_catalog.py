@@ -21,7 +21,6 @@ def test_resolve_explain_song_number_catalog_when_unspecified() -> None:
 
 def test_catalog_structured_answer_lists_multiple_songs() -> None:
     from app.services.structured_answers import try_catalog_structured_answer
-    from app.models.song import Song
 
     songs = [
         Song(id=1, number=1, title="BANDHU HE NIYE CALO", theme="Devotion"),
