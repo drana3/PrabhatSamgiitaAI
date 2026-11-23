@@ -337,12 +337,13 @@ def sanitize_devanagari_catalog_text(
     known_theme: str | None = None,
 ) -> str:
     """Drop language headers, themes, and scrape padding from rule-converted Devanagari."""
-    if not (devanagari or "").strip():
+    raw_dev = devanagari or ""
+    if not raw_dev.strip():
         return ""
-    ends_with_newline = devanagari.endswith("\n")
+    ends_with_newline = raw_dev.endswith("\n")
     lines = [
         line
-        for line in devanagari.split("\n")
+        for line in raw_dev.split("\n")
         if not is_corrupt_lyric_padding_line(line)
     ]
     while lines and lines[0].strip() and _is_devanagari_non_lyric_line(
