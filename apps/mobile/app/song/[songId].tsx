@@ -757,12 +757,19 @@ export default function SongDetailScreen() {
           {catalogPrevious ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Previous song, PS ${catalogPrevious}`}
+              accessibilityLabel={`Previous, song ${catalogPrevious}`}
               onPress={() => openCatalogSong(catalogPrevious)}
-              style={({ pressed }) => [styles.catalogNavBtn, pressed && styles.catalogNavBtnPressed]}
+              style={({ pressed }) => [
+                styles.catalogNavBtn,
+                styles.catalogNavBtnLeading,
+                pressed && styles.catalogNavBtnPressed,
+              ]}
             >
-              <ChevronLeft size={18} color={colors.textPrimary} />
-              <Text style={styles.catalogNavText}>PS {catalogPrevious}</Text>
+              <ChevronLeft size={18} color={colors.primaryDark} />
+              <View style={styles.catalogNavCopy}>
+                <Text style={styles.catalogNavLabel}>Previous</Text>
+                <Text style={styles.catalogNavSong}>Song {catalogPrevious}</Text>
+              </View>
             </Pressable>
           ) : (
             <View style={styles.catalogNavSpacer} />
@@ -770,12 +777,19 @@ export default function SongDetailScreen() {
           {catalogNext ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Next song, PS ${catalogNext}`}
+              accessibilityLabel={`Next, song ${catalogNext}`}
               onPress={() => openCatalogSong(catalogNext)}
-              style={({ pressed }) => [styles.catalogNavBtn, pressed && styles.catalogNavBtnPressed]}
+              style={({ pressed }) => [
+                styles.catalogNavBtn,
+                styles.catalogNavBtnTrailing,
+                pressed && styles.catalogNavBtnPressed,
+              ]}
             >
-              <Text style={styles.catalogNavText}>PS {catalogNext}</Text>
-              <ChevronRight size={18} color={colors.textPrimary} />
+              <View style={[styles.catalogNavCopy, styles.catalogNavCopyEnd]}>
+                <Text style={styles.catalogNavLabel}>Next</Text>
+                <Text style={styles.catalogNavSong}>Song {catalogNext}</Text>
+              </View>
+              <ChevronRight size={18} color={colors.primaryDark} />
             </Pressable>
           ) : (
             <View style={styles.catalogNavSpacer} />
@@ -1033,31 +1047,43 @@ const styles = StyleSheet.create({
   navActions: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },
   catalogNav: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "stretch",
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   catalogNavBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    minHeight: 36,
+    minHeight: 52,
   },
+  catalogNavBtnLeading: { justifyContent: "flex-start" },
+  catalogNavBtnTrailing: { justifyContent: "flex-end" },
   catalogNavBtnPressed: { opacity: 0.88 },
-  catalogNavText: {
+  catalogNavCopy: { gap: 2 },
+  catalogNavCopyEnd: { alignItems: "flex-end" },
+  catalogNavLabel: {
     ...typography.caption,
     color: colors.textPrimary,
+    fontFamily: "Inter_700Bold",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    fontSize: 10,
+  },
+  catalogNavSong: {
+    ...typography.caption,
+    color: colors.primaryDark,
     fontFamily: "Inter_600SemiBold",
   },
-  catalogNavSpacer: { minWidth: 88 },
+  catalogNavSpacer: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section },
   heroShell: {
     marginBottom: spacing.lg,
