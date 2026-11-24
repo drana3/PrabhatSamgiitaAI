@@ -24,7 +24,7 @@ from app.services.query_guard import assess_query
 from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
-    infer_canonical_collection,
+    infer_canonical_collection_with_observances,
     needs_semantic_expansion,
     prepare_voice_query,
 )
@@ -189,7 +189,7 @@ async def search(
         raise HTTPException(status_code=422, detail=assessment.guidance)
     query = assessment.normalized
     mode = payload.mode
-    collection_match = infer_canonical_collection(query)
+    collection_match = infer_canonical_collection_with_observances(query)
     page_size = (
         min(len(collection_match.song_numbers), 200)
         if collection_match

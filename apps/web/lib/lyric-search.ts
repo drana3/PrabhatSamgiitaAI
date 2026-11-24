@@ -158,6 +158,9 @@ export function instantExploreSongs(
   if (!trimmed) return null
   if (isCompleteSargamQuery(trimmed)) return null
 
+  const observanceCollection = songsFromCollection(trimmed)
+  if (observanceCollection !== null) return observanceCollection
+
   const numbered = catalogSongByNumber(trimmed)
   if (numbered) return [numbered]
   if (isCatalogNumberQuery(trimmed)) return []

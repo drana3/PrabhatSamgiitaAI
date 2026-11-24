@@ -3,7 +3,13 @@ name: Watch trusted Prabhat Samgiita channels
 on:
   schedule:
     - cron: "17 2 * * *"
+    - cron: "17 3 * * 0"
   workflow_dispatch:
+    inputs:
+      full_channel_scan:
+        description: Scan full channel history (Neon sync + higher Azure page limit)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -23,6 +29,22 @@ jobs:
         with:
           ref: main
 
+      - name: Set scan mode
+        id: scan_mode
+        run: |
+          FULL=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.full_channel_scan }}" = "true" ]; then
+            FULL=true
+          elif [ "${{ github.event.schedule }}" = "17 3 * * 0" ]; then
+            FULL=true
+          fi
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          if [ "$FULL" = true ]; then
+            echo "YouTube scan mode: full channel history"
+          else
+            echo "YouTube scan mode: incremental (12h lookback)"
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -39,17 +61,23 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CATALOG_API_URL: ${{ secrets.CATALOG_API_URL || 'https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io' }}
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+          YOUTUBE_FULL_CHANNEL_SCAN: ${{ steps.scan_mode.outputs.full }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "Set GitHub secret DATABASE_URL to the Neon pooled postgresql+psycopg URL."
             exit 1
           fi
-          apps/api/.venv/bin/python scripts/sync_youtube.py --general-search-limit 0
+          SYNC_FLAGS=(--general-search-limit 0)
+          if [ "${{ steps.scan_mode.outputs.full }}" = true ]; then
+            SYNC_FLAGS+=(--full-channel-scan)
+          fi
+          apps/api/.venv/bin/python scripts/sync_youtube.py "${SYNC_FLAGS[@]}"
 
       - name: Scan channels on Azure for full descriptions
         env:
           CATALOG_API_URL: ${{ secrets.CATALOG_API_URL || 'https://prabhatai-api.bluemeadow-9418d5fc.centralindia.azurecontainerapps.io' }}
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+          YOUTUBE_FULL_CHANNEL_SCAN: ${{ steps.scan_mode.outputs.full }}
         run: |
           if [ -z "$ADMIN_API_KEY" ]; then
             echo "Set GitHub secret ADMIN_API_KEY so nightly can scan via Azure."
@@ -64,6 +92,12 @@ jobs:
 
           api = os.environ["CATALOG_API_URL"].rstrip("/")
           key = os.environ["ADMIN_API_KEY"]
+          full = os.environ.get("YOUTUBE_FULL_CHANNEL_SCAN", "").strip().lower() in {
+              "1",
+              "true",
+              "yes",
+          }
+          max_pages = 50 if full else 4
 
           def call(method: str, path: str, timeout: int = 230):
               request = urllib.request.Request(
@@ -80,11 +114,17 @@ jobs:
               except urllib.error.HTTPError as exc:
                   body = exc.read().decode("utf-8", errors="replace")[:400]
                   print(f"{method} {path} failed: {exc.code} {body}", file=sys.stderr)
+                  if exc.code == 503 and "Admin API is not configured" in body:
+                      print(
+                          "Azure API is missing ADMIN_API_KEY_HASH. "
+                          "Redeploy the API with secrets.ADMIN_API_KEY set (see deploy workflow).",
+                          file=sys.stderr,
+                      )
                   raise
 
           payload = call("GET", "/api/v1/admin/youtube-channels")
           channels = [row for row in payload.get("items", []) if row.get("is_active")]
-          print(f"Active scan channels: {len(channels)}", file=sys.stderr)
+          print(f"Active scan channels: {len(channels)} (max_pages={max_pages})", file=sys.stderr)
           if not channels:
               raise SystemExit("No active YouTube scan channels on the API")
           failed = 0
@@ -92,11 +132,12 @@ jobs:
               channel_id = channel["id"]
               name = channel["name"]
               last = {}
-              for attempt in range(1, 5):
+              passes = 8 if full else 4
+              for attempt in range(1, passes + 1):
                   try:
                       last = call(
                           "POST",
-                          f"/api/v1/admin/youtube-channels/{channel_id}/scan?max_pages=4",
+                          f"/api/v1/admin/youtube-channels/{channel_id}/scan?max_pages={max_pages}",
                       )
                   except Exception as exc:
                       print(f"{name}: Azure scan failed: {exc}", file=sys.stderr)

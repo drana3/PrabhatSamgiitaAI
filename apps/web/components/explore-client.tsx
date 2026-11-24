@@ -18,7 +18,7 @@ import { SongCard } from "@/components/song-card"
 import { SpecialCollections } from "@/components/special-collections"
 import { searchSongs, searchSongsByVoice, fetchPublishedSargamSongs } from "@/lib/api"
 import type { SongSummary, VoiceSearchResult } from "@/lib/api"
-import { useSearchAuth } from "@/lib/feeling-search"
+import { readFeelingSearchEnabled, useSearchAuth } from "@/lib/feeling-search"
 import {
   instantExploreSongs,
   lyricHitsToSongs,
@@ -132,21 +132,31 @@ export function ExploreClient({
     })
   }, [])
 
-  const runSearch = useCallback(async (query: string, kind: ExploreSearchKind) => {
+  const runSearch = useCallback(async (
+    query: string,
+    kind: ExploreSearchKind,
+    options?: { force?: boolean },
+  ) => {
     const trimmed = query.trim()
     if (!trimmed) return
 
+    // Read toggle synchronously — React state can lag one frame after enabling Feeling search.
+    const liveAuth = {
+      signedIn: searchAuth.signedIn,
+      feelingSearchEnabled: searchAuth.signedIn && readFeelingSearchEnabled(),
+    }
+
     // Feeling search on (signed-in): treat as semantic for free text — same path for every
     // signed-in member with the toggle enabled.
-    const feelingAllowed = searchAuth.signedIn && searchAuth.feelingSearchEnabled
+    const feelingAllowed = liveAuth.signedIn && liveAuth.feelingSearchEnabled
     const effectiveAuth =
-      (kind === "semantic" || feelingAllowed) && searchAuth.signedIn
+      (kind === "semantic" || feelingAllowed) && liveAuth.signedIn
         ? { signedIn: true, feelingSearchEnabled: true }
-        : searchAuth
+        : liveAuth
 
     const key = cacheKey(trimmed, kind === "semantic" || feelingAllowed ? "semantic" : kind)
     const cached = searchCache.current.get(key)
-    if (cached) {
+    if (cached && !options?.force) {
       beginSearchState(() => {
         setSearching(false)
         setActiveQuery(trimmed)
@@ -512,13 +522,21 @@ export function ExploreClient({
           onQueryChange={handleQueryInput}
           onSemanticSearch={(query) => {
             const trimmed = query.trim()
+            const liveAuth = {
+              signedIn: searchAuth.signedIn,
+              feelingSearchEnabled: searchAuth.signedIn && readFeelingSearchEnabled(),
+            }
             const effective =
               collectionSearch && trimmed.toLocaleLowerCase() === queryLabel.toLocaleLowerCase()
                 ? activeQuery
                 : completeSargamSearch && trimmed === COMPLETE_SARGAM_LABEL
                   ? COMPLETE_SARGAM_QUERY
                   : trimmed
-            void runSearch(effective, exploreSearchKind(effective, null, searchAuth))
+            void runSearch(
+              effective,
+              exploreSearchKind(effective, null, liveAuth),
+              { force: true },
+            )
           }}
           onVoiceSearch={(query) => { void runVoiceSearch(query) }}
           searchError={searchError}

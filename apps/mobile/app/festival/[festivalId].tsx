@@ -42,8 +42,9 @@ export default function FestivalDetailScreen() {
     )
   }, [festivalId])
 
-  const relatedCollection = festival?.relatedCollectionLabel
-    ? allCollections.find((item) => item.label === festival.relatedCollectionLabel)
+  const collectionLabel = festival?.collectionLabel ?? festival?.relatedCollectionLabel
+  const relatedCollection = collectionLabel
+    ? allCollections.find((item) => item.label === collectionLabel)
     : undefined
 
   useEffect(() => {

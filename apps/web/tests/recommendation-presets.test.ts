@@ -75,6 +75,8 @@ describe("reviewed discovery collections", () => {
   it("includes 2027 observances in the shared festival calendar", () => {
     const events = getUpcomingObservances(new Date(2026, 11, 15, 12, 0), 5)
     expect(events.some((item) => item.title === "New Year's Day")).toBe(true)
+    const newYear = events.find((item) => item.title === "New Year's Day")
+    expect(newYear?.query).toBe("Search Prabhat Samgiita for Year-end Song")
     expect(getAutoRecommendationPreset(new Date(2027, 9, 5, 8, 0)).title).toBe(
       "Sharadotsava and Children's Day",
     )

@@ -934,7 +934,9 @@ class HybridSearchService:
         filters = filters or SearchFilters()
         semantic_mode = mode == "semantic"
         exact_number = await self._exact_number_rank(query)
-        collection_match = infer_canonical_collection(query)
+        from app.services.festival_catalog_search import infer_canonical_collection_with_observances
+
+        collection_match = infer_canonical_collection_with_observances(query)
         if (
             exact_number
             and not semantic_mode

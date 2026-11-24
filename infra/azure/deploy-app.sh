@@ -19,6 +19,7 @@ AZURE_OPENAI_CHAT_DEPLOYMENT="${AZURE_OPENAI_CHAT_DEPLOYMENT:-${AZURE_OPENAI_DEP
 AZURE_OPENAI_EMBEDDING_DEPLOYMENT="${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-${AZURE_OPENAI_CHAT_DEPLOYMENT:-}}"
 AZURE_OPENAI_API_VERSION="${AZURE_OPENAI_API_VERSION:-2024-10-21}"
 MEMBER_PROXY_KEY="${MEMBER_PROXY_KEY:-}"
+ADMIN_API_KEY="${ADMIN_API_KEY:-}"
 DEFAULT_ADMIN_EMAILS="${DEFAULT_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
 PROTECTED_ADMIN_EMAILS="${PROTECTED_ADMIN_EMAILS:-dewasheesh.rana3@gmail.com}"
 ACS_EMAIL_ENABLED="${ACS_EMAIL_ENABLED:-true}"
@@ -76,6 +77,25 @@ if [[ -z "${MEMBER_PROXY_KEY}" ]]; then
   else
     # First-time bootstrap only. Keep in sync with MOBILE_MEMBER_PROXY_KEY after this.
     MEMBER_PROXY_KEY="$(printf 'prabhatai-member-proxy:v2:%s' "$DATABASE_URL" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')"
+  fi
+fi
+
+if [[ -z "${ADMIN_API_KEY_HASH:-}" ]]; then
+  if [[ -n "${ADMIN_API_KEY}" ]]; then
+    ADMIN_API_KEY_HASH="$(
+      printf '%s' "$ADMIN_API_KEY" | python3 -c 'import hashlib,sys; print(f"sha256:{hashlib.sha256(sys.stdin.buffer.read()).hexdigest()}")'
+    )"
+  else
+    EXISTING_ADMIN_HASH="$(
+      az containerapp secret show \
+        --name "$API_APP" \
+        --resource-group "$RG" \
+        --secret-name admin-api-key-hash \
+        --query value -o tsv 2>/dev/null || true
+    )"
+    if [[ -n "${EXISTING_ADMIN_HASH}" ]]; then
+      ADMIN_API_KEY_HASH="$EXISTING_ADMIN_HASH"
+    fi
   fi
 fi
 
@@ -214,6 +234,13 @@ if [[ "$DEPLOY_API" == "1" ]]; then
       --secrets acs-email-connection-string="$ACS_EMAIL_CONNECTION_STRING" >/dev/null
   fi
 
+  if [[ -n "${ADMIN_API_KEY_HASH}" ]]; then
+    az containerapp secret set \
+      --name "$API_APP" \
+      --resource-group "$RG" \
+      --secrets admin-api-key-hash="$ADMIN_API_KEY_HASH" >/dev/null
+  fi
+
   ensure_dockerhub_registry "$API_APP"
 
   echo "Building API image (prabhat-samgiita-api:${TAG})..."
@@ -266,6 +293,9 @@ if [[ "$DEPLOY_API" == "1" ]]; then
     GOOGLE_TRANSLATE_ALLOW_PAID="$GOOGLE_TRANSLATE_ALLOW_PAID"
     GOOGLE_TRANSLATE_QUOTA_PATH=/tmp/google_translate_quota.json
   )
+  if [[ -n "${ADMIN_API_KEY_HASH}" ]]; then
+    API_ENV_VARS+=(ADMIN_API_KEY_HASH=secretref:admin-api-key-hash)
+  fi
   if [[ -n "${FAISS_INDEX_URL}" ]]; then
     API_ENV_VARS+=(FAISS_INDEX_URL=secretref:faiss-index-url)
   fi

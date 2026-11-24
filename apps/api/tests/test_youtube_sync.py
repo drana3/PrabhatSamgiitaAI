@@ -88,6 +88,17 @@ def test_should_stop_scan_page_on_since() -> None:
     assert _should_stop_scan_page(page, since=now - timedelta(days=7), known_ids=None) is True
 
 
+def test_channel_scan_since_respects_full_scan_flag() -> None:
+    from scripts.sync_youtube import channel_scan_since
+
+    now = datetime(2026, 8, 21, 12, 0, tzinfo=UTC)
+    channel = {"last_scanned_at": now}
+    assert channel_scan_since(channel, full_channel_scan=True, channel_pending=[]) is None
+    since = channel_scan_since(channel, full_channel_scan=False, channel_pending=[])
+    assert since is not None
+    assert since < now
+
+
 def test_numbered_channel_video_is_published_by_song_number() -> None:
     video = {
         "video_id": "D4LHhnSLhro",

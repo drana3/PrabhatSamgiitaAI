@@ -1,3 +1,4 @@
+import { observanceCollectionLabelForQuery } from "./festivalCatalogSearch"
 import { isCatalogNumberQuery } from "./lyric-search"
 
 /** Persist on web (localStorage) and iOS (preferences store). */
@@ -104,6 +105,9 @@ export function planSearch(query: string, auth: SearchAuth = DEFAULT_AUTH): Sear
   if (!trimmed) return { layer: "empty", networkMode: null }
   if (isCatalogNumberQuery(trimmed)) return { layer: "number", networkMode: null }
   if (/^search prabhat samgiita for\s+/i.test(trimmed)) {
+    return { layer: "collection", networkMode: null }
+  }
+  if (observanceCollectionLabelForQuery(trimmed)) {
     return { layer: "collection", networkMode: null }
   }
   if (feelingSearchAllowed(auth)) {
