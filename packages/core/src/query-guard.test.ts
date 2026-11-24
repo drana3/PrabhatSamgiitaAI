@@ -4,6 +4,13 @@ import { queryGuidance, queryGuidanceFor, queryIsUseful } from "./query-guard"
 
 describe("query guard release matrix", () => {
   test.each([
+    "Suggest a morning devotion song",
+    "What is Ananda Marga?",
+  ])("accepts companion catalog-scope queries: %s", (query) => {
+    expect(queryIsUseful(query, 600, { companion: true })).toBe(true)
+  })
+
+  test.each([
     "1",
     "5018",
     "Bandhu he niye calo",
@@ -46,6 +53,7 @@ describe("query guard release matrix", () => {
     ["hello", { companion: true }],
     ["what is the weather today", { companion: true }],
     ["write a python program", { companion: true }],
+    ["what is the capital of France", { companion: true }],
   ])("rejects companion vague or unrelated input: %s", (query, options) => {
     expect(queryIsUseful(query, 600, options)).toBe(false)
   })

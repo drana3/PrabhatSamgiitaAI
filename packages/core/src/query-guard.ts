@@ -1,7 +1,13 @@
+import { prefersCatalogCompanion } from "./companion-explain"
+
+import { prefersCatalogCompanion } from "./companion-explain"
+
 export const queryGuidance =
   "Please ask something specific about Prabhat Samgiita, such as “Explain this song”, “What does this line mean?”, or “Recommend a song for meditation.”"
 export const unrelatedGuidance =
   "I can help with Prabhat Samgiita songs — meaning, lyrics, meditation, and language. Please ask something specific about the song you are exploring."
+export const companionScopeGuidance =
+  "I focus on Prabhat Samgiita — all 5,018 songs, their lyrics, meanings, themes, and meditation — plus related Ananda Marga spiritual background. I can't help with general knowledge, programming, homework, or unrelated topics. Please ask about a song or a devotional theme."
 export const songRangeGuidance =
   "Prabhat Samgiita song numbers run from 1 to 5,018. Please enter a number within that range."
 
@@ -40,7 +46,18 @@ const unrelatedPatterns = [
   /\brecipe for\b/i,
   /\btranslate this email\b/i,
   /\b(?:solve|calculate)\s+(?:this|the)\s+(?:equation|math|problem)\b/i,
+  /\b(?:capital of|who won|world cup|cricket score|movie review|netflix)\b/i,
+  /\b(?:machine learning|chatgpt|openai|write me an essay)\b/i,
 ]
+
+const outOfScopePatterns = [
+  /\b(?:write|create|generate|build|make|code|develop)\b.{0,40}\b(?:python|javascript|typescript|java|kotlin|swift)\b/i,
+  /\b(?:python|javascript|typescript|java)\s+(?:program|script|code|function|app)\b/i,
+  /\bdebug this code\b/i,
+]
+
+const companionScopePattern =
+  /\b(?:prabhat|samgiita|sangeet|ananda\s+marga|margii?|ba'ba|baba|shrii|song|ps\b|lyrics|notation|sargam|raga|tala|festival|purport|meditat|dhyan|devotion|kirtan|kiirtan|stories|inspiration)\b/i
 
 const codeRequestPatterns = [
   /\b(?:python|javascript|java|c\+\+)\s+(?:program|code|script)\b/i,
@@ -94,6 +111,7 @@ export function queryIsUseful(value: string, maxLength = 600, options: QueryGuar
   const allowFollowUp = options.allowFollowUp ?? false
   if (!normalized || normalized.length > maxLength) return false
   if (injectionPatterns.some((pattern) => pattern.test(normalized))) return false
+  if (outOfScopePatterns.some((pattern) => pattern.test(normalized))) return false
   if (unrelatedPatterns.some((pattern) => pattern.test(normalized))) return false
   if (codeRequestPatterns.some((pattern) => pattern.test(normalized))) return false
   if (normalized.toLocaleLowerCase().startsWith("search prabhat samgiita for ")) return true
@@ -137,13 +155,30 @@ export function queryIsUseful(value: string, maxLength = 600, options: QueryGuar
     if (words.length === 1 && compact.length >= 12 && vowelRatio < 0.22) return false
   }
   if (/qwerty|asdf|zxcv|qazwsx|poiuy|lkjhg/i.test(compact)) return false
+
+  if (companion) {
+    if (!(allowFollowUp && isFollowUpPhrase(normalized))) {
+      const inScope =
+        hasSongContext(normalized) ||
+        companionScopePattern.test(normalized) ||
+        prefersCatalogCompanion(normalized)
+      if (!inScope) return false
+    }
+  }
+
   return true
 }
 
 export function queryGuidanceFor(value: string, options: QueryGuardOptions = {}) {
   const normalized = value.normalize("NFKC").trim().replace(/\s+/g, " ")
   if (injectionPatterns.some((pattern) => pattern.test(normalized))) return queryGuidance
-  if (unrelatedPatterns.some((pattern) => pattern.test(normalized)) || codeRequestPatterns.some((pattern) => pattern.test(normalized))) {
+  if (
+    outOfScopePatterns.some((pattern) => pattern.test(normalized)) ||
+    codeRequestPatterns.some((pattern) => pattern.test(normalized))
+  ) {
+    return companionScopeGuidance
+  }
+  if (unrelatedPatterns.some((pattern) => pattern.test(normalized))) {
     return unrelatedGuidance
   }
   const explicitSongNumber = normalized.match(
@@ -160,6 +195,14 @@ export function queryGuidanceFor(value: string, options: QueryGuardOptions = {})
     if (words.length <= 2 && (words.length <= 1 || words.every((word) => vagueFillers.has(word)))) {
       return unrelatedGuidance
     }
+  }
+  if (
+    options.companion &&
+    !prefersCatalogCompanion(normalized) &&
+    !hasSongContext(normalized) &&
+    !companionScopePattern.test(normalized)
+  ) {
+    return companionScopeGuidance
   }
   return queryGuidance
 }

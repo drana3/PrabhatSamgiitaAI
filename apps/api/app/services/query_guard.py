@@ -12,15 +12,17 @@ UNRELATED_GUIDANCE = (
     "I can help with Prabhat Samgiita songs — meaning, lyrics, meditation, and language. "
     "Please ask something specific about the song you are exploring."
 )
+COMPANION_SCOPE_GUIDANCE = (
+    "I focus on Prabhat Samgiita — all 5,018 songs, their lyrics, meanings, themes, and "
+    "meditation — plus related Ananda Marga spiritual background. I can't help with general "
+    "knowledge, programming, homework, or unrelated topics. Please ask about a song or a "
+    "devotional theme."
+)
 COLLECTION_PROMPT_PREFIX = "search prabhat samgiita for "
 SONG_RANGE_GUIDANCE = (
     "Prabhat Samgiita song numbers run from 1 to 5,018. Please enter a number within that range."
 )
-OUT_OF_SCOPE_GUIDANCE = (
-    "I'm your Prabhat Samgiita companion — I help with song meaning, lyrics, themes, "
-    "meditation, and related spiritual questions. I can't help with general programming, "
-    "homework coding, or unrelated tech tasks. Ask me about a song or spiritual theme."
-)
+OUT_OF_SCOPE_GUIDANCE = COMPANION_SCOPE_GUIDANCE
 INJECTION_PATTERNS = (
     r"https?://",
     r"<\s*script",
@@ -55,6 +57,16 @@ UNRELATED_TOPIC_PATTERNS = (
     r"\brecipe for\b",
     r"\btranslate this email\b",
     r"\b(?:solve|calculate)\s+(?:this|the)\s+(?:equation|math|problem)\b",
+    r"\b(?:capital of|who won|world cup|cricket score|movie review|netflix)\b",
+    r"\b(?:machine learning|chatgpt|openai|write me an essay)\b",
+)
+COMPANION_SCOPE_PATTERN = re.compile(
+    r"\b(?:"
+    r"prabhat|samgiita|sangeet|ananda\s+marga|margii?|ba'ba|baba|shrii|"
+    r"song|ps\b|lyrics|notation|sargam|raga|tala|festival|purport|"
+    r"meditat|dhyan|devotion|kirtan|kiirtan|stories|inspiration"
+    r")\b",
+    re.IGNORECASE,
 )
 CODE_REQUEST_PATTERNS = (
     r"\b(?:python|javascript|java|c\+\+)\s+(?:program|code|script)\b",
@@ -262,4 +274,22 @@ def assess_query(
     )
     if symbol_count / len(normalized) > 0.35:
         return QueryAssessment(False, normalized, "too_many_symbols")
+
+    if companion:
+        if not (allow_follow_up and is_follow_up_phrase(normalized)):
+            from app.services.explain_song import prefers_catalog_companion
+
+            in_scope = (
+                has_song_context(normalized)
+                or COMPANION_SCOPE_PATTERN.search(normalized)
+                or prefers_catalog_companion(normalized)
+            )
+            if not in_scope:
+                return QueryAssessment(
+                    False,
+                    normalized,
+                    "out_of_companion_scope",
+                    COMPANION_SCOPE_GUIDANCE,
+                )
+
     return QueryAssessment(True, normalized)
