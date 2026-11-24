@@ -1,5 +1,8 @@
-import { festivalObservanceExploreQuery } from "@prabhat/core"
-import { allFestivalObservances } from "@prabhat/core"
+import {
+  allFestivalObservances,
+  festivalObservanceExploreQuery,
+  type FestivalObservance,
+} from "@prabhat/core"
 
 export type RecommendationPreset = {
   title: string
@@ -68,6 +71,26 @@ function isSameDay(now: Date, month: number, day: number, year?: number) {
   return (!year || now.getFullYear() === year) && now.getMonth() + 1 === month && now.getDate() === day
 }
 
+function calendarObservance(item: FestivalObservation, now: Date): FestivalObservance {
+  return {
+    id: `calendar-${item.month}-${item.day}-${item.year ?? now.getFullYear()}`,
+    title: item.title,
+    subtitle: item.subtitle,
+    month: item.month,
+    day: item.day,
+    year: item.year ?? now.getFullYear(),
+    festival: item.festival,
+    occasion: item.occasion,
+    season: item.season,
+    mood: item.mood,
+    language: item.language,
+    difficulty: item.difficulty,
+    meditation_context: item.meditation_context,
+    theme: item.theme,
+    collectionLabel: item.collectionLabel,
+  }
+}
+
 function daysUntil(now: Date, month: number, day: number, year?: number) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const target = new Date(year ?? now.getFullYear(), month - 1, day)
@@ -90,7 +113,7 @@ export function getUpcomingObservances(now = new Date(), limit = 3): UpcomingObs
         new Date(item.year ?? now.getFullYear() + (item.delta > 300 ? 1 : 0), item.month - 1, item.day),
       ),
       daysUntil: item.delta,
-      query: festivalObservanceExploreQuery(item),
+      query: festivalObservanceExploreQuery(calendarObservance(item, now)),
     }))
 }
 

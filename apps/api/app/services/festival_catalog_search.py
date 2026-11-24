@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from app.services.search import CanonicalCollectionMatch, infer_canonical_collection
+from app.services.search import (
+    CanonicalCollectionMatch,
+    infer_canonical_collection,
+    normalize_filter_text,
+)
 from app.services.seed_data import load_rows
-
-from app.services.search import normalize_filter_text
 
 
 def _normalize_observance(value: str) -> str:
