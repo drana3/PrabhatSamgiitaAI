@@ -592,6 +592,23 @@ class RAGService:
     ) -> tuple[str, list[RetrievedChunk]]:
         history = cap_chat_history(history)
         chunks = await self.retrieve_catalog(query, limit=8)
+        if not chunks:
+            from app.services.structured_answers import (
+                build_catalog_recommendations_answer,
+                companion_catalog_fallback_songs,
+                try_catalog_structured_answer,
+            )
+
+            fallback_songs = companion_catalog_fallback_songs(query, limit=8)
+            structured = try_catalog_structured_answer(query, fallback_songs, history)
+            if structured:
+                return structured, []
+            plain = build_catalog_recommendations_answer(
+                fallback_songs,
+                language=response_language,
+            )
+            if plain:
+                return plain, []
         context_lines = []
         for idx, chunk in enumerate(chunks, start=1):
             source = f"{chunk.song_number}:{chunk.chunk_index}"

@@ -42,7 +42,6 @@ import { songDetailToMockSong, songSummaryToMockSong } from "@/lib/songMap"
 import { useVoiceSearch } from "@/lib/useVoiceSearch"
 import { useAuthStore } from "@/stores/authStore"
 import { useChatStore } from "@/stores/chatStore"
-import { usePlayerStore } from "@/stores/playerStore"
 import { href } from "@/utils/href"
 
 // Mobile AI companion keeps its own look/feel and history UX — intentionally separate from web.
@@ -74,9 +73,8 @@ export default function AIScreen() {
   const memberId = useAuthStore((s) => s.memberId)
   const memberBackend = useAuthStore((s) => s.memberBackend)
   const identityProvider = useAuthStore((s) => s.identityProvider)
-  const currentSong = usePlayerStore((s) => s.currentSong)
-  const companionSong = focusSong ?? (focusedSongNumber ? null : currentSong)
-  const groundedNumber = companionSong?.number ?? focusedSongNumber
+  const companionSong = focusSong
+  const groundedNumber = focusedSongNumber ?? focusSong?.number ?? null
   const hasSong = Boolean(groundedNumber)
 
   const getAccountId = useChatStore((s) => s.getAccountId)

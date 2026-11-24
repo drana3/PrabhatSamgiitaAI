@@ -19,6 +19,14 @@ def test_resolve_explain_song_number_catalog_when_unspecified() -> None:
     assert resolve_explain_song_number(88, "What is this song about?") == 88
 
 
+def test_companion_catalog_fallback_morning() -> None:
+    from app.services.structured_answers import companion_catalog_fallback_songs
+
+    songs = companion_catalog_fallback_songs("Suggest a morning devotion song", limit=6)
+    assert len(songs) >= 3
+    assert songs[0].number >= 1
+
+
 def test_catalog_structured_answer_lists_multiple_songs() -> None:
     from app.services.structured_answers import try_catalog_structured_answer
 

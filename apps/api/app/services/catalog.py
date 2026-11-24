@@ -438,7 +438,18 @@ class CatalogService:
                 return rows
         except SQLAlchemyError:
             await self.session.rollback()
-        return []
+        from app.services.lyric_search import search_lyrics
+        from app.services.structured_answers import companion_catalog_fallback_songs
+
+        by_number = songs_by_number()
+        lyric_rows = [
+            by_number[hit.number]
+            for hit in search_lyrics(query, limit=limit)
+            if hit.number in by_number
+        ]
+        if lyric_rows:
+            return lyric_rows[:limit]
+        return companion_catalog_fallback_songs(query, limit=limit)
 
     async def related_songs(self, song: Song, limit: int = 6) -> list[Song]:
         related: list[Song] = []

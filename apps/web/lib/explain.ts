@@ -38,7 +38,21 @@ export async function streamExplanation(
   }
 
   if (!response.ok) {
-    throw new Error("The song companion is temporarily unavailable.")
+    let detail = ""
+    try {
+      detail = (await response.text()).trim().slice(0, 400)
+    } catch {
+      detail = ""
+    }
+    if (response.status === 429) {
+      throw new Error(
+        detail ||
+          "You have reached today’s Deep AI limit. Try again tomorrow or sign in for a higher quota.",
+      )
+    }
+    throw new Error(
+      detail || "The companion is temporarily unavailable. Check your connection and try again.",
+    )
   }
 
   const body = response.body

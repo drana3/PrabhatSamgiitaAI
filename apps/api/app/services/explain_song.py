@@ -10,7 +10,7 @@ _EXPLICIT_SONG_NUMBER = re.compile(
 _CATALOG_BROWSE_RE = re.compile(
     r"\b(?:suggest|morning|evening|peace|calm|meditation|devotion|recommend|which song|"
     r"what song|tell me about|prabhat samgiita|festival|theme|how many|who composed|"
-    r"what is prabhat)\b",
+    r"what is prabhat|pick a song|choose a song|find me a song|any song|good song)\b",
     re.IGNORECASE,
 )
 
