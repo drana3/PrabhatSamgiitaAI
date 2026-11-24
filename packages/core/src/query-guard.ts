@@ -1,7 +1,5 @@
 import { prefersCatalogCompanion } from "./companion-explain"
 
-import { prefersCatalogCompanion } from "./companion-explain"
-
 export const queryGuidance =
   "Please ask something specific about Prabhat Samgiita, such as “Explain this song”, “What does this line mean?”, or “Recommend a song for meditation.”"
 export const unrelatedGuidance =

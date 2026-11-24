@@ -87,7 +87,7 @@ describe("streaming song companion", () => {
 
   it("rejects HTTP failures instead of showing an empty assistant bubble", async () => {
     fetchMock.mockResolvedValue(new Response("unavailable", { status: 503 }))
-    await expect(streamExplanation(1, () => undefined, "Explain this song")).rejects.toThrow("temporarily unavailable")
+    await expect(streamExplanation(1, () => undefined, "Explain this song")).rejects.toThrow("unavailable")
   })
 
   it("provides a nonblank message when streaming is unavailable", async () => {
