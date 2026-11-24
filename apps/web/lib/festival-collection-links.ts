@@ -28,7 +28,6 @@ export function festivalExploreQueryFromRecord(input: FestivalExploreInput) {
     festival: input.festival,
     theme: input.theme,
     collectionLabel: input.collectionLabel ?? input.relatedCollectionLabel,
-    relatedCollectionLabel: input.relatedCollectionLabel,
     catalogSongNumbers: input.catalogSongNumbers,
   }
   return festivalObservanceExploreQuery(obs)

@@ -23,6 +23,7 @@ vi.mock("@/lib/feeling-search", async () => {
       signedIn,
       feelingSearchEnabled: signedIn && feelingSearchEnabled,
     }),
+    readFeelingSearchEnabled: () => signedIn && feelingSearchEnabled,
     writeFeelingSearchEnabled: vi.fn(),
   }
 })

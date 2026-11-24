@@ -19,12 +19,12 @@ from app.schemas.song import (
     VoiceSearchResponse,
 )
 from app.services.catalog import catalog_song_snapshot
+from app.services.festival_catalog_search import infer_canonical_collection_with_observances
 from app.services.members import require_member_identity
 from app.services.query_guard import assess_query
 from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
-    infer_canonical_collection_with_observances,
     needs_semantic_expansion,
     prepare_voice_query,
 )
