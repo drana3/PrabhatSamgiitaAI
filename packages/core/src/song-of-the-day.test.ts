@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { sequentialSongOfTheDay } from "./song-of-the-day"
+import { adjacentCatalogSongNumber, sequentialSongOfTheDay } from "./song-of-the-day"
 
 describe("sequential song of the day", () => {
   it("maps the epoch to PS 1 and wraps after PS 5018", () => {
@@ -16,5 +16,14 @@ describe("sequential song of the day", () => {
   it("is the same for every caller on one civil date", () => {
     expect(sequentialSongOfTheDay(2026, 10, 21)).toBe(sequentialSongOfTheDay(2026, 10, 21))
     expect(sequentialSongOfTheDay(2026, 10, 22)).toBe(sequentialSongOfTheDay(2026, 10, 21) + 1)
+  })
+})
+
+describe("adjacentCatalogSongNumber", () => {
+  it("steps within PS 1–5018", () => {
+    expect(adjacentCatalogSongNumber(2, -1)).toBe(1)
+    expect(adjacentCatalogSongNumber(2, 1)).toBe(3)
+    expect(adjacentCatalogSongNumber(1, -1)).toBeNull()
+    expect(adjacentCatalogSongNumber(5018, 1)).toBeNull()
   })
 })

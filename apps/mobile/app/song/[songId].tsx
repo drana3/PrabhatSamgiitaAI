@@ -12,7 +12,17 @@ import {
 } from "react-native"
 import { ScenicBackgroundImage } from "@/components/common/ScenicBackgroundImage"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { ChevronLeft, Heart, ListPlus, Pause, Play, Share2, Sparkles } from "lucide-react-native"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  ListPlus,
+  Pause,
+  Play,
+  Share2,
+  Sparkles,
+} from "lucide-react-native"
+import { adjacentCatalogSongNumber } from "@prabhat/core"
 import Animated, { FadeInDown } from "react-native-reanimated"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -688,6 +698,11 @@ export default function SongDetailScreen() {
     firstLine: song.originalTitle,
   })
   const parkedWatchWidth = Math.max(280, windowWidth - spacing.lg * 2)
+  const catalogPrevious = adjacentCatalogSongNumber(song.number, -1)
+  const catalogNext = adjacentCatalogSongNumber(song.number, 1)
+  const openCatalogSong = (target: number) => {
+    router.replace(href(`/song/${target}`))
+  }
 
   return (
     <View style={styles.root}>
@@ -737,6 +752,34 @@ export default function SongDetailScreen() {
               <Share2 size={20} color={colors.textPrimary} />
             </IconButton>
           </View>
+        </View>
+        <View style={styles.catalogNav} accessibilityRole="toolbar" accessibilityLabel="Catalog navigation">
+          {catalogPrevious ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Previous song, PS ${catalogPrevious}`}
+              onPress={() => openCatalogSong(catalogPrevious)}
+              style={({ pressed }) => [styles.catalogNavBtn, pressed && styles.catalogNavBtnPressed]}
+            >
+              <ChevronLeft size={18} color={colors.textPrimary} />
+              <Text style={styles.catalogNavText}>PS {catalogPrevious}</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.catalogNavSpacer} />
+          )}
+          {catalogNext ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Next song, PS ${catalogNext}`}
+              onPress={() => openCatalogSong(catalogNext)}
+              style={({ pressed }) => [styles.catalogNavBtn, pressed && styles.catalogNavBtnPressed]}
+            >
+              <Text style={styles.catalogNavText}>PS {catalogNext}</Text>
+              <ChevronRight size={18} color={colors.textPrimary} />
+            </Pressable>
+          ) : (
+            <View style={styles.catalogNavSpacer} />
+          )}
         </View>
       </SafeAreaView>
 
@@ -988,6 +1031,33 @@ const styles = StyleSheet.create({
   },
   navTitle: { ...typography.h3, color: colors.textPrimary, flex: 1 },
   navActions: { flexDirection: "row", gap: spacing.xs, alignItems: "center" },
+  catalogNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  catalogNavBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    minHeight: 36,
+  },
+  catalogNavBtnPressed: { opacity: 0.88 },
+  catalogNavText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontFamily: "Inter_600SemiBold",
+  },
+  catalogNavSpacer: { minWidth: 88 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.section },
   heroShell: {
     marginBottom: spacing.lg,

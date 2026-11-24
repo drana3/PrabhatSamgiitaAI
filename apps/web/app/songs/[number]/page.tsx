@@ -12,6 +12,7 @@ import { listSongAudio } from "@/lib/song-audio"
 import { ShareMenu } from "@/components/share-menu"
 import { SiteHeader } from "@/components/site-header"
 import { SongMeaningSection } from "@/components/song-meaning-section"
+import { SongCatalogNav } from "@/components/song-catalog-nav"
 import { SongMobileNav } from "@/components/song-mobile-nav"
 import { SongStoriesPanel } from "@/components/stories-inspiration"
 import { StreamExplanation } from "@/components/stream-explanation"
@@ -78,7 +79,20 @@ export default async function SongPage({ params, searchParams }: { params: Promi
       <OpenInApp songNumber={song.number} />
       <SiteHeader active="Explore" />
       <div className="mx-auto max-w-[90rem] px-4 py-4 sm:px-6 sm:py-6 lg:px-10">
-        <div className="flex items-center gap-2 text-xs text-stone-500"><Link href="/" className="hover:text-gold-700">Home</Link><span>›</span><Link href="/explore" className="hover:text-gold-700">Explore</Link><span>›</span><span>Song {song.number}</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-stone-500">
+            <Link href="/" className="hover:text-gold-700">
+              Home
+            </Link>
+            <span>›</span>
+            <Link href="/explore" className="hover:text-gold-700">
+              Explore
+            </Link>
+            <span>›</span>
+            <span>Song {song.number}</span>
+          </div>
+          <SongCatalogNav number={song.number} />
+        </div>
 
         <section className="relative mt-4 min-h-[13rem] overflow-hidden rounded-[1.75rem] bg-navy-950 text-white shadow-xl sm:mt-5 sm:min-h-[18rem] sm:rounded-[2rem]">
           <div
