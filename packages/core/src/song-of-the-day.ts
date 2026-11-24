@@ -14,3 +14,14 @@ export function sequentialSongOfTheDay(year: number, month: number, day: number)
   const mod = ((days % SONG_CATALOG_SIZE) + SONG_CATALOG_SIZE) % SONG_CATALOG_SIZE
   return mod + 1
 }
+
+/** Previous or next catalog number (PS 1 … PS 5018). Returns null at bounds. */
+export function adjacentCatalogSongNumber(
+  number: number,
+  direction: -1 | 1,
+): number | null {
+  if (!Number.isFinite(number)) return null
+  const next = Math.trunc(number) + direction
+  if (next < 1 || next > SONG_CATALOG_SIZE) return null
+  return next
+}

@@ -24,7 +24,7 @@ from app.services.query_guard import assess_query
     [
         ("What is Prabhat Samgiita?", "5,018"),
         ("How many songs are there?", "5,018"),
-        ("Who composed Prabhat Samgiita?", "Shrii Prabháta Raiṋjan Sarkar"),
+        ("Who composed Prabhat Samgiita?", "Shrii Prabhat Ranjan Sarkar"),
         ("When was the first song given?", "14 September 1982"),
         ("Which languages are available?", "Roman"),
         ("How many audio renditions are available?", "audio renditions"),

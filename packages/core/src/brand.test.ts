@@ -14,7 +14,7 @@ describe("brand", () => {
   })
 
   it("names the composer with diacritics", () => {
-    expect(COMPOSER_NAME).toBe("Shrii Prabháta Raiṋjan Sarkar")
+    expect(COMPOSER_NAME).toBe("Shrii Prabhat Ranjan Sarkar")
   })
 
   it("treats companion as a separate feature", () => {
