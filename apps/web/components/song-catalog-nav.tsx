@@ -9,46 +9,62 @@ import { songPagePath } from "@/lib/song-path"
 
 function CatalogNavButton({
   target,
-  label,
-  align,
+  direction,
   pendingTarget,
   busy,
   onNavigate,
 }: {
   target: number
-  label: string
-  align: "left" | "right"
+  direction: "previous" | "next"
   pendingTarget: number | null
   busy: boolean
   onNavigate: (target: number) => void
 }) {
   const showSpinner = busy && pendingTarget === target
+  const isPrevious = direction === "previous"
+  const title = isPrevious ? "Previous" : "Next"
 
   return (
     <button
       type="button"
       disabled={busy}
       aria-busy={showSpinner}
+      aria-label={showSpinner ? `Loading song ${target}` : `${title}, song ${target}`}
       onClick={() => onNavigate(target)}
-      className={`inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-full border border-navy-900/10 bg-white px-3 py-2 shadow-sm transition hover:border-gold-500 hover:text-gold-800 disabled:cursor-wait disabled:opacity-90 ${
-        align === "right" ? "text-right" : ""
+      className={`group flex min-h-[3.25rem] flex-1 items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-ivory-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-wait disabled:opacity-80 sm:px-4 ${
+        isPrevious ? "justify-start text-left" : "justify-end text-right"
       }`}
     >
-      {showSpinner ? (
-        <>
-          <span
-            aria-hidden
-            className="h-4 w-4 animate-spin rounded-full border-2 border-gold-200 border-t-gold-700"
-          />
-          <span>
-            {align === "left" ? "← " : ""}PS {target}
-            {align === "right" ? " →" : ""}
-          </span>
-          <span className="sr-only">Loading song {target}</span>
-        </>
-      ) : (
-        label
-      )}
+      {isPrevious ? (
+        <span
+          aria-hidden
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-navy-900/10 bg-ivory-50 text-sm font-semibold text-gold-800 group-hover:border-gold-500/40"
+        >
+          {showSpinner ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold-200 border-t-gold-700" />
+          ) : (
+            "←"
+          )}
+        </span>
+      ) : null}
+      <span className={`flex min-w-0 flex-col gap-0.5 ${isPrevious ? "" : "items-end"}`}>
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-navy-950">
+          {showSpinner ? "Loading…" : title}
+        </span>
+        <span className="text-xs font-semibold text-gold-800">Song {target}</span>
+      </span>
+      {!isPrevious ? (
+        <span
+          aria-hidden
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-navy-900/10 bg-ivory-50 text-sm font-semibold text-gold-800 group-hover:border-gold-500/40"
+        >
+          {showSpinner ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-gold-200 border-t-gold-700" />
+          ) : (
+            "→"
+          )}
+        </span>
+      ) : null}
     </button>
   )
 }
@@ -72,35 +88,32 @@ export function SongCatalogNav({ number }: { number: number }) {
   return (
     <nav
       aria-label="Catalog navigation"
-      className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-navy-900"
+      className="mt-4 flex items-stretch gap-1 rounded-2xl border border-navy-900/10 bg-white p-1.5 shadow-sm sm:mt-5 sm:gap-2 sm:p-2"
     >
       {previous ? (
         <CatalogNavButton
           target={previous}
-          label={`← PS ${previous}`}
-          align="left"
+          direction="previous"
           pendingTarget={pendingTarget}
           busy={pending}
           onNavigate={navigate}
         />
       ) : (
-        <span className="invisible rounded-full px-3 py-2" aria-hidden>
-          ←
-        </span>
+        <span className="flex-1" aria-hidden />
       )}
+      {previous && next ? (
+        <div className="w-px shrink-0 self-stretch bg-navy-900/10" aria-hidden />
+      ) : null}
       {next ? (
         <CatalogNavButton
           target={next}
-          label={`PS ${next} →`}
-          align="right"
+          direction="next"
           pendingTarget={pendingTarget}
           busy={pending}
           onNavigate={navigate}
         />
       ) : (
-        <span className="invisible rounded-full px-3 py-2" aria-hidden>
-          →
-        </span>
+        <span className="flex-1" aria-hidden />
       )}
     </nav>
   )
