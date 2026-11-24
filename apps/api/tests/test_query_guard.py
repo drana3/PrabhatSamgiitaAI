@@ -15,6 +15,16 @@ def test_query_guard_rejects_prompt_injection() -> None:
     assert assess_query("Run this python code for me").allowed is False
 
 
+def test_companion_rejects_general_knowledge_outside_ps() -> None:
+    assessment = assess_query("What is the capital of France?", companion=True)
+    assert assessment.allowed is False
+    assert assessment.reason in {"out_of_companion_scope", "unrelated_topic"}
+    assert "5,018" in assessment.guidance or "Prabhat" in assessment.guidance
+
+    assert assess_query("Suggest a morning devotion song", companion=True).allowed is True
+    assert assess_query("What is Ananda Marga?", companion=True).allowed is True
+
+
 def test_companion_guard_rejects_unrelated_and_vague_queries() -> None:
     weather = assess_query("What is the weather today?", companion=True)
     assert weather.allowed is False
