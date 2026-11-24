@@ -52,6 +52,20 @@ SEARCH_STATE_PATH = (
 )
 SONGS_PATH = Path(__file__).resolve().parents[1] / "data" / "generated" / "songs.json"
 SCAN_LOOKBACK = timedelta(hours=12)
+
+
+def channel_scan_since(
+    channel: dict[str, Any],
+    *,
+    full_channel_scan: bool,
+    channel_pending: list[dict[str, Any]],
+) -> datetime | None:
+    if full_channel_scan or channel_pending:
+        return None
+    last_scanned_at = channel.get("last_scanned_at")
+    if isinstance(last_scanned_at, datetime):
+        return last_scanned_at.astimezone(UTC) - SCAN_LOOKBACK
+    return None
 _innertube_cache: tuple[str, str] | None = None
 INNERTUBE_PLAYER_URL = "https://www.youtube.com/youtubei/v1/player"
 # Public WEB inner-tube key; ANDROID/IOS do not need the page-scraped version.
@@ -1201,7 +1215,16 @@ def main() -> None:
     parser.add_argument("--review-output", type=Path, default=REVIEW_OUTPUT_PATH)
     parser.add_argument("--general-search-limit", type=int, default=0)
     parser.add_argument("--search-state", type=Path, default=SEARCH_STATE_PATH)
+    parser.add_argument(
+        "--full-channel-scan",
+        action="store_true",
+        help="Ignore last_scanned_at and walk full channel history (backfill).",
+    )
     args = parser.parse_args()
+    full_channel_scan = args.full_channel_scan or (
+        os.environ.get("YOUTUBE_FULL_CHANNEL_SCAN", "").strip().lower()
+        in {"1", "true", "yes"}
+    )
     songs = {}
     for row in json.loads(SONGS_PATH.read_text(encoding="utf-8")):
         try:
@@ -1244,11 +1267,11 @@ def main() -> None:
             for pending in pending_reviews
             if review_matches_channel(pending, channel)
         ]
-        last_scanned_at = channel.get("last_scanned_at")
-        since = None
-        # Re-read queued videos in full when pending items still need a number.
-        if not channel_pending and isinstance(last_scanned_at, datetime):
-            since = last_scanned_at.astimezone(UTC) - SCAN_LOOKBACK
+        since = channel_scan_since(
+            channel,
+            full_channel_scan=full_channel_scan,
+            channel_pending=channel_pending,
+        )
         try:
             discovered = channel_videos(
                 channel,

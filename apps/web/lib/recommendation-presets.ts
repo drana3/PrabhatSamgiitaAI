@@ -1,4 +1,4 @@
-import { festivalExploreQuery } from "@/lib/festival-collection-links"
+import { festivalObservanceExploreQuery } from "@prabhat/core"
 import { allFestivalObservances } from "@prabhat/core"
 
 export type RecommendationPreset = {
@@ -90,7 +90,7 @@ export function getUpcomingObservances(now = new Date(), limit = 3): UpcomingObs
         new Date(item.year ?? now.getFullYear() + (item.delta > 300 ? 1 : 0), item.month - 1, item.day),
       ),
       daysUntil: item.delta,
-      query: festivalExploreQuery(item),
+      query: festivalObservanceExploreQuery(item),
     }))
 }
 

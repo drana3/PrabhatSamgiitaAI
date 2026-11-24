@@ -359,6 +359,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           NEXT_PUBLIC_FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
           GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
           DEPLOY_API: "1"
           DEPLOY_WEB: "0"
         run: bash ./infra/azure/deploy-app.sh

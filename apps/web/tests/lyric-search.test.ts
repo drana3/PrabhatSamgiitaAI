@@ -93,6 +93,8 @@ describe("web lyric search", () => {
   it("returns local catalog songs instantly for lyrics, numbers, and festival names", () => {
     expect(instantExploreSongs("1")?.[0]?.number).toBe(1)
     expect(instantExploreSongs("diwali")?.map((song) => song.number)).toEqual([63, 64, 1637])
+    expect(instantExploreSongs("New Year's Day")?.map((song) => song.number)).toEqual([126])
+    expect(instantExploreSongs("Vasantotsava")?.length).toBeGreaterThan(0)
     expect(instantExploreSongs("siv")?.map((song) => song.number)).toEqual(
       instantExploreSongs("shiva")?.map((song) => song.number),
     )

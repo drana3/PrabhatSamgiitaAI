@@ -1,3 +1,8 @@
+import {
+  findObservanceForSearchQuery,
+  observanceCatalogSongNumbers,
+  observanceCollectionLabelForQuery,
+} from "@prabhat/core"
 import canonicalCollections from "../../../data/generated/theme_collections.json"
 import {
   canonicalSearchKey,
@@ -414,6 +419,19 @@ export function collectionSongNumbersForKeyword(query: string): number[] | null 
   const exact = songNumbersByCollectionPrompt.get(query.trim().toLocaleLowerCase())
   if (exact?.length) return exact
 
+  if (!isCollectionSearchQuery(query)) {
+    const observance = findObservanceForSearchQuery(query)
+    if (observance) {
+      const explicit = observanceCatalogSongNumbers(observance)
+      if (explicit?.length) return explicit
+      const label = observanceCollectionLabelForQuery(query)
+      if (label) {
+        const byLabel = canonicalByLabel.get(label)?.song_numbers
+        if (byLabel?.length) return [...byLabel]
+      }
+    }
+  }
+
   const keys = catalogLookupKeys(query)
   if (!keys.length) return null
   const distinctiveWordCount = normalizeLyricText(query)
@@ -493,6 +511,7 @@ export function exploreSearchKind(
 ): ExploreSearchKind {
   if (explicitKind === "catalog") return "catalog"
   if (isCollectionSearchQuery(query)) return "catalog"
+  if (observanceCollectionLabelForQuery(query)) return "catalog"
   const trimmed = query.trim()
   if (isCompleteSargamQuery(trimmed)) return "catalog"
   if (explicitKind === "semantic" && feelingSearchAllowed(auth)) return "semantic"

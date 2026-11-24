@@ -11,7 +11,7 @@ import {
 
 import { InstantSearchSuggestions } from "@/components/instant-search-suggestions"
 import { VoiceSearchButton } from "@/components/voice-search-button"
-import { useSearchAuth } from "@/lib/feeling-search"
+import { readFeelingSearchEnabled, useSearchAuth } from "@/lib/feeling-search"
 import { queryGuidanceFor, queryIsUseful } from "@/lib/query-guard"
 import { extractSongSearchIntent, songIntentPath } from "@/lib/search-intent"
 import { scrollElementAboveKeyboard } from "@/lib/scroll-to-section"
@@ -67,8 +67,9 @@ export function HeroSearch() {
         router.push(signInHref("/account"))
         return
       }
+      const feelingEnabled = readFeelingSearchEnabled()
       // Feeling stays off by default — ask the member to enable it in Account / Profile.
-      if (!feelingOn) {
+      if (!feelingEnabled) {
         setFeelingPrompt(true)
         return
       }
