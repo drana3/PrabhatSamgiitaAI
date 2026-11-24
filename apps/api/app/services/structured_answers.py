@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from app.models import Song
+from app.services.catalog import catalog_song_snapshot
 from app.services.chat_language import (
     detect_response_language,
     is_language_rephrase,
@@ -191,10 +192,52 @@ def requests_catalog_browse(query: str) -> bool:
         return True
     return re.search(
         r"\b(?:suggest|morning|evening|peace|calm|meditation|devotion|recommend|which song|"
-        r"what song|tell me about|prabhat samgiita|festival|theme)\b",
+        r"what song|tell me about|prabhat samgiita|festival|theme|pick a song|choose a song|"
+        r"find me a song|any song|good song)\b",
         query,
         re.IGNORECASE,
     ) is not None
+
+
+def companion_catalog_fallback_songs(query: str, *, limit: int = 12) -> list[Song]:
+    """Seed-backed picks when lexical search returns nothing (browse companion)."""
+    from datetime import date
+
+    from app.services.domain_catalog import sequential_song_of_the_day
+    from app.services.lyric_search import search_lyrics
+
+    snapshot = list(catalog_song_snapshot())
+    by_number = {song.number: song for song in snapshot}
+    lowered = (query or "").strip().lower()
+
+    if re.search(r"\bmorning\b", lowered):
+        themed = [
+            song
+            for song in snapshot
+            if song.theme and "devotion" in song.theme.lower()
+        ][:limit]
+        if len(themed) >= 3:
+            return themed
+        anchors = [1, 2, 5, 6, 27, 100, 156, 196]
+        return [by_number[n] for n in anchors if n in by_number][:limit]
+
+    hits = search_lyrics(query, limit=limit)
+    if hits:
+        return [by_number[h.number] for h in hits if h.number in by_number][:limit]
+
+    today = sequential_song_of_the_day(date.today())
+    numbers = [today, today + 1, today + 2, 1, 2, 27]
+    picked: list[Song] = []
+    seen: set[int] = set()
+    for number in numbers:
+        wrapped = ((number - 1) % 5018) + 1
+        if wrapped in seen or wrapped not in by_number:
+            continue
+        seen.add(wrapped)
+        picked.append(by_number[wrapped])
+        if len(picked) >= limit:
+            break
+    return picked
 
 
 def build_catalog_recommendations_answer(songs: list[Song], language: str = "en") -> str | None:

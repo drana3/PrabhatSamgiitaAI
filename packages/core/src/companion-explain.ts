@@ -8,7 +8,7 @@ export function prefersCatalogCompanion(prompt: string): boolean {
   if (/\b(?:related|similar|songs?\s+like|another\s+song|other\s+songs?)\b/i.test(text)) {
     return false
   }
-  return /\b(?:suggest|morning|evening|peace|calm|meditation|devotion|recommend|which song|what song|tell me about|prabhat samgiita|festival|theme|how many|who composed|what is prabhat)\b/i.test(
+  return /\b(?:suggest|morning|evening|peace|calm|meditation|devotion|recommend|which song|what song|tell me about|prabhat samgiita|festival|theme|how many|who composed|what is prabhat|pick a song|choose a song|find me a song|any song|good song|general question)\b/i.test(
     text,
   )
 }
