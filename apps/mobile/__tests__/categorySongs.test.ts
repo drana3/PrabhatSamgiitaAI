@@ -234,6 +234,24 @@ describe("categorySongs", () => {
     expect(limitSearchResults(rows, "catalog")).toHaveLength(10)
   })
 
+  it("clamps remembered Hindi/Urdu lists to canonical collection numbers", async () => {
+    const stale = [
+      { id: "ps-25", number: 25, title: "Urdu only" },
+      { id: "ps-4062", number: 4062, title: "Hindi" },
+      { id: "ps-1", number: 1, title: "Not in list" },
+    ] as never[]
+    await AsyncStorage.setItem(
+      "prabhat-browse-chip-results-v2",
+      JSON.stringify({ hindi: stale.map((row) => ({ number: row.number, title: row.title, first_line: null, is_verified: true })) }),
+    )
+    rememberCategorySongs("hindi", stale)
+    await warmCategorySongsCache()
+    const hindi = await loadCategorySongs("hindi")
+    expect(hindi.songs.map((row) => row.number)).toEqual(songNumbersForCategory("hindi"))
+    expect(hindi.songs.map((row) => row.number)).not.toContain(25)
+    expect(hindi.songs.map((row) => row.number)).not.toContain(1)
+  })
+
   it("does not append extra songs onto a named collection", () => {
     const hindi = [
       { id: "ps-25", number: 25, title: "Song 25" },
