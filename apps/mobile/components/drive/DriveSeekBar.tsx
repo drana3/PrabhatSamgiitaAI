@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native"
+import { LayoutChangeEvent, Pressable, StyleSheet, View, type GestureResponderEvent } from "react-native"
 
 import { colors } from "@/constants/colors"
+import { seekSecondsFromTouch } from "@/lib/seekBar"
 
 type Props = {
   position: number
@@ -25,19 +26,19 @@ export function DriveSeekBar({
     setWidth(event.nativeEvent.layout.width)
   }
 
-  const seekFromX = (x: number) => {
+  const seekFromTouch = (event: GestureResponderEvent) => {
     if (width <= 0) return
-    const next = (Math.min(width, Math.max(0, x)) / width) * max
-    onSeek(next)
+    onSeek(seekSecondsFromTouch(event.nativeEvent.locationX, width, max))
   }
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole="adjustable"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint="Drag to change playback position"
       onLayout={onLayout}
-      onPressIn={(event) => seekFromX(event.nativeEvent.locationX)}
+      onPressIn={seekFromTouch}
+      onTouchMove={seekFromTouch}
       style={styles.hit}
     >
       <View style={styles.track}>

@@ -168,8 +168,8 @@
         },
         {
           "number": 196,
-          "title": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
-          "first_line": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -186,8 +186,8 @@
         },
         {
           "number": 226,
-          "title": "SAKALERA ÁNKHI CHALA CHALA",
-          "first_line": "SAKALERA ÁNKHI CHALA CHALA",
+          "title": "Krs'na:",
+          "first_line": "Krs'na:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -195,8 +195,8 @@
         },
         {
           "number": 228,
-          "title": "KANSA DAMANE SHIŚT́A PÁLANE",
-          "first_line": "KANSA DAMANE SHIŚT́A PÁLANE",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -204,8 +204,8 @@
         },
         {
           "number": 229,
-          "title": "KRŚŃA DARSHANE",
-          "first_line": "KRŚŃA DARSHANE",
+          "title": "Vrajava'sii:",
+          "first_line": "Vrajava'sii:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -213,8 +213,8 @@
         },
         {
           "number": 230,
-          "title": "NÁRADA SHONO KATHÁ",
-          "first_line": "NÁRADA SHONO KATHÁ",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -330,8 +330,8 @@
         },
         {
           "number": 1565,
-          "title": "SAḾSKRTA",
-          "first_line": "SAḾSKRTA",
+          "title": "VAJRA KAT́HORA KUSUMA KORAKA",
+          "first_line": "VAJRA KAT́HORA KUSUMA KORAKA",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -528,8 +528,8 @@
         },
         {
           "number": 4081,
-          "title": "MAETHILI",
-          "first_line": "MAETHILI",
+          "title": "SO RATIYÁ KATAE GEL ÁJI",
+          "first_line": "SO RATIYÁ KATAE GEL ÁJI",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -2088,8 +2088,8 @@
         },
         {
           "number": 4081,
-          "title": "MAETHILI",
-          "first_line": "MAETHILI",
+          "title": "SO RATIYÁ KATAE GEL ÁJI",
+          "first_line": "SO RATIYÁ KATAE GEL ÁJI",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -2731,7 +2731,6 @@
         4259,
         1,
         15,
-        22,
         171,
         203,
         207,
@@ -2784,7 +2783,8 @@
         763,
         775,
         779,
-        793
+        793,
+        798
       ],
       "songs": [
         {
@@ -3292,15 +3292,6 @@
           "is_verified": true
         },
         {
-          "number": 22,
-          "title": "O GO BANDHU, BOLITE PÁRO",
-          "first_line": "O GO BANDHU, BOLITE PÁRO",
-          "theme": null,
-          "mood": null,
-          "language": "Roman",
-          "is_verified": true
-        },
-        {
           "number": 171,
           "title": "MAN MANJÚŚÁ MOR SATATA JÁGIÁ ÁCHE",
           "first_line": "MAN MANJÚŚÁ MOR SATATA JÁGIÁ ÁCHE",
@@ -3356,8 +3347,8 @@
         },
         {
           "number": 230,
-          "title": "NÁRADA SHONO KATHÁ",
-          "first_line": "NÁRADA SHONO KATHÁ",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -3725,8 +3716,8 @@
         },
         {
           "number": 738,
-          "title": "ÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁA",
-          "first_line": "ÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁA",
+          "title": "DÚRE THÁKÁ BANDHU ÁMÁR",
+          "first_line": "DÚRE THÁKÁ BANDHU ÁMÁR",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -3772,6 +3763,15 @@
           "number": 793,
           "title": "KABE TUMI ÁSBE BOLE",
           "first_line": "KABE TUMI ÁSBE BOLE",
+          "theme": null,
+          "mood": null,
+          "language": "Roman",
+          "is_verified": true
+        },
+        {
+          "number": 798,
+          "title": "D́HELE PARÁŃERA MADHU",
+          "first_line": "D́HELE PARÁŃERA MADHU",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -3854,7 +3854,6 @@
         4,
         10,
         18,
-        22,
         29,
         52,
         61,
@@ -3886,7 +3885,8 @@
         302,
         304,
         310,
-        312
+        312,
+        325
       ],
       "songs": [
         {
@@ -4448,15 +4448,6 @@
           "is_verified": true
         },
         {
-          "number": 22,
-          "title": "O GO BANDHU, BOLITE PÁRO",
-          "first_line": "O GO BANDHU, BOLITE PÁRO",
-          "theme": null,
-          "mood": null,
-          "language": "Roman",
-          "is_verified": true
-        },
-        {
           "number": 29,
           "title": "ÁMÁY CHOT́T́A EKT́I MAN DIYECHO",
           "first_line": "ÁMÁY CHOT́T́A EKT́I MAN DIYECHO",
@@ -4629,8 +4620,8 @@
         },
         {
           "number": 196,
-          "title": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
-          "first_line": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -4743,6 +4734,15 @@
           "mood": null,
           "language": "Roman",
           "is_verified": true
+        },
+        {
+          "number": 325,
+          "title": "SAKAL MANETE STHÁN KARIYÁCHO",
+          "first_line": "SAKAL MANETE STHÁN KARIYÁCHO",
+          "theme": null,
+          "mood": null,
+          "language": "Roman",
+          "is_verified": true
         }
       ],
       "curated_count": 15,
@@ -4768,6 +4768,7 @@
         1682,
         2526,
         3110,
+        6,
         122,
         206,
         258,
@@ -4846,14 +4847,13 @@
         1853,
         1879,
         1932,
-        1997,
-        2049
+        1997
       ],
       "songs": [
         {
           "number": 68,
-          "title": "I love this tiny green island",
-          "first_line": "I love this tiny green island",
+          "title": "Song 68",
+          "first_line": "",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -4953,6 +4953,15 @@
           "number": 3110,
           "title": "VASANTERI MAINJARI",
           "first_line": "VASANTERI MAINJARI",
+          "theme": null,
+          "mood": null,
+          "language": "Roman",
+          "is_verified": true
+        },
+        {
+          "number": 6,
+          "title": "BANDHU ÁMÁR",
+          "first_line": "BANDHU ÁMÁR",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -5664,15 +5673,6 @@
           "number": 1997,
           "title": "SVAPANE DEKHECHI TUMI ESECHILE",
           "first_line": "SVAPANE DEKHECHI TUMI ESECHILE",
-          "theme": null,
-          "mood": null,
-          "language": "Roman",
-          "is_verified": true
-        },
-        {
-          "number": 2049,
-          "title": "EKALÁ BASE BASE VÁTÁYANA PÁSHE",
-          "first_line": "EKALÁ BASE BASE VÁTÁYANA PÁSHE",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -7056,8 +7056,8 @@
         },
         {
           "number": 226,
-          "title": "SAKALERA ÁNKHI CHALA CHALA",
-          "first_line": "SAKALERA ÁNKHI CHALA CHALA",
+          "title": "Krs'na:",
+          "first_line": "Krs'na:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -8808,8 +8808,8 @@
         },
         {
           "number": 4404,
-          "title": "ÁÁÁÁÁÁÁÁÁÁ",
-          "first_line": "ÁÁÁÁÁÁÁÁÁÁ",
+          "title": "ESE CHILE TUMI ÁMÁR JIIVANE",
+          "first_line": "ESE CHILE TUMI ÁMÁR JIIVANE",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -9278,8 +9278,8 @@
         },
         {
           "number": 1565,
-          "title": "SAḾSKRTA",
-          "first_line": "SAḾSKRTA",
+          "title": "VAJRA KAT́HORA KUSUMA KORAKA",
+          "first_line": "VAJRA KAT́HORA KUSUMA KORAKA",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -10031,8 +10031,8 @@
         },
         {
           "number": 196,
-          "title": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
-          "first_line": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -10049,8 +10049,8 @@
         },
         {
           "number": 226,
-          "title": "SAKALERA ÁNKHI CHALA CHALA",
-          "first_line": "SAKALERA ÁNKHI CHALA CHALA",
+          "title": "Krs'na:",
+          "first_line": "Krs'na:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -10058,8 +10058,8 @@
         },
         {
           "number": 228,
-          "title": "KANSA DAMANE SHIŚT́A PÁLANE",
-          "first_line": "KANSA DAMANE SHIŚT́A PÁLANE",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -10067,8 +10067,8 @@
         },
         {
           "number": 229,
-          "title": "KRŚŃA DARSHANE",
-          "first_line": "KRŚŃA DARSHANE",
+          "title": "Vrajava'sii:",
+          "first_line": "Vrajava'sii:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -10076,8 +10076,8 @@
         },
         {
           "number": 230,
-          "title": "NÁRADA SHONO KATHÁ",
-          "first_line": "NÁRADA SHONO KATHÁ",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -10193,8 +10193,8 @@
         },
         {
           "number": 1565,
-          "title": "SAḾSKRTA",
-          "first_line": "SAḾSKRTA",
+          "title": "VAJRA KAT́HORA KUSUMA KORAKA",
+          "first_line": "VAJRA KAT́HORA KUSUMA KORAKA",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -10391,8 +10391,8 @@
         },
         {
           "number": 4081,
-          "title": "MAETHILI",
-          "first_line": "MAETHILI",
+          "title": "SO RATIYÁ KATAE GEL ÁJI",
+          "first_line": "SO RATIYÁ KATAE GEL ÁJI",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -11951,8 +11951,8 @@
         },
         {
           "number": 4081,
-          "title": "MAETHILI",
-          "first_line": "MAETHILI",
+          "title": "SO RATIYÁ KATAE GEL ÁJI",
+          "first_line": "SO RATIYÁ KATAE GEL ÁJI",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -12594,7 +12594,6 @@
         4259,
         1,
         15,
-        22,
         171,
         203,
         207,
@@ -12647,7 +12646,8 @@
         763,
         775,
         779,
-        793
+        793,
+        798
       ],
       "songs": [
         {
@@ -13155,15 +13155,6 @@
           "is_verified": true
         },
         {
-          "number": 22,
-          "title": "O GO BANDHU, BOLITE PÁRO",
-          "first_line": "O GO BANDHU, BOLITE PÁRO",
-          "theme": null,
-          "mood": null,
-          "language": "Roman",
-          "is_verified": true
-        },
-        {
           "number": 171,
           "title": "MAN MANJÚŚÁ MOR SATATA JÁGIÁ ÁCHE",
           "first_line": "MAN MANJÚŚÁ MOR SATATA JÁGIÁ ÁCHE",
@@ -13219,8 +13210,8 @@
         },
         {
           "number": 230,
-          "title": "NÁRADA SHONO KATHÁ",
-          "first_line": "NÁRADA SHONO KATHÁ",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -13588,8 +13579,8 @@
         },
         {
           "number": 738,
-          "title": "ÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁA",
-          "first_line": "ÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁÁA",
+          "title": "DÚRE THÁKÁ BANDHU ÁMÁR",
+          "first_line": "DÚRE THÁKÁ BANDHU ÁMÁR",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -13635,6 +13626,15 @@
           "number": 793,
           "title": "KABE TUMI ÁSBE BOLE",
           "first_line": "KABE TUMI ÁSBE BOLE",
+          "theme": null,
+          "mood": null,
+          "language": "Roman",
+          "is_verified": true
+        },
+        {
+          "number": 798,
+          "title": "D́HELE PARÁŃERA MADHU",
+          "first_line": "D́HELE PARÁŃERA MADHU",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -13717,7 +13717,6 @@
         4,
         10,
         18,
-        22,
         29,
         52,
         61,
@@ -13749,7 +13748,8 @@
         302,
         304,
         310,
-        312
+        312,
+        325
       ],
       "songs": [
         {
@@ -14311,15 +14311,6 @@
           "is_verified": true
         },
         {
-          "number": 22,
-          "title": "O GO BANDHU, BOLITE PÁRO",
-          "first_line": "O GO BANDHU, BOLITE PÁRO",
-          "theme": null,
-          "mood": null,
-          "language": "Roman",
-          "is_verified": true
-        },
-        {
           "number": 29,
           "title": "ÁMÁY CHOT́T́A EKT́I MAN DIYECHO",
           "first_line": "ÁMÁY CHOT́T́A EKT́I MAN DIYECHO",
@@ -14492,8 +14483,8 @@
         },
         {
           "number": 196,
-          "title": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
-          "first_line": "ÁMÁRE KE NEVE BHÁI DITE JE CÁI",
+          "title": "Krs'n'a:",
+          "first_line": "Krs'n'a:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -14606,6 +14597,15 @@
           "mood": null,
           "language": "Roman",
           "is_verified": true
+        },
+        {
+          "number": 325,
+          "title": "SAKAL MANETE STHÁN KARIYÁCHO",
+          "first_line": "SAKAL MANETE STHÁN KARIYÁCHO",
+          "theme": null,
+          "mood": null,
+          "language": "Roman",
+          "is_verified": true
         }
       ],
       "curated_count": 15,
@@ -14631,6 +14631,7 @@
         1682,
         2526,
         3110,
+        6,
         122,
         206,
         258,
@@ -14709,14 +14710,13 @@
         1853,
         1879,
         1932,
-        1997,
-        2049
+        1997
       ],
       "songs": [
         {
           "number": 68,
-          "title": "I love this tiny green island",
-          "first_line": "I love this tiny green island",
+          "title": "Song 68",
+          "first_line": "",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -14816,6 +14816,15 @@
           "number": 3110,
           "title": "VASANTERI MAINJARI",
           "first_line": "VASANTERI MAINJARI",
+          "theme": null,
+          "mood": null,
+          "language": "Roman",
+          "is_verified": true
+        },
+        {
+          "number": 6,
+          "title": "BANDHU ÁMÁR",
+          "first_line": "BANDHU ÁMÁR",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -15527,15 +15536,6 @@
           "number": 1997,
           "title": "SVAPANE DEKHECHI TUMI ESECHILE",
           "first_line": "SVAPANE DEKHECHI TUMI ESECHILE",
-          "theme": null,
-          "mood": null,
-          "language": "Roman",
-          "is_verified": true
-        },
-        {
-          "number": 2049,
-          "title": "EKALÁ BASE BASE VÁTÁYANA PÁSHE",
-          "first_line": "EKALÁ BASE BASE VÁTÁYANA PÁSHE",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -16919,8 +16919,8 @@
         },
         {
           "number": 226,
-          "title": "SAKALERA ÁNKHI CHALA CHALA",
-          "first_line": "SAKALERA ÁNKHI CHALA CHALA",
+          "title": "Krs'na:",
+          "first_line": "Krs'na:",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -18671,8 +18671,8 @@
         },
         {
           "number": 4404,
-          "title": "ÁÁÁÁÁÁÁÁÁÁ",
-          "first_line": "ÁÁÁÁÁÁÁÁÁÁ",
+          "title": "ESE CHILE TUMI ÁMÁR JIIVANE",
+          "first_line": "ESE CHILE TUMI ÁMÁR JIIVANE",
           "theme": null,
           "mood": null,
           "language": "Roman",
@@ -19141,8 +19141,8 @@
         },
         {
           "number": 1565,
-          "title": "SAḾSKRTA",
-          "first_line": "SAḾSKRTA",
+          "title": "VAJRA KAT́HORA KUSUMA KORAKA",
+          "first_line": "VAJRA KAT́HORA KUSUMA KORAKA",
           "theme": null,
           "mood": null,
           "language": "Roman",

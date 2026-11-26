@@ -1,6 +1,15 @@
 import { useEffect, useRef } from "react"
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native"
-import { Download, Repeat, RotateCcw, Trash2, Volume1, Volume2, VolumeX } from "lucide-react-native"
+import {
+  Download,
+  Repeat,
+  RotateCcw,
+  RotateCw,
+  Trash2,
+  Volume1,
+  Volume2,
+  VolumeX,
+} from "lucide-react-native"
 
 import { ScenicPlayButton } from "@/components/player/ScenicPlayButton"
 import { SeekBar } from "@/components/player/SeekBar"
@@ -370,39 +379,59 @@ export function SongListenControls({
 
       {showTransport ? (
         <View style={styles.transport}>
+          <SeekBar position={position} duration={duration} onSeek={seekTo} />
+          <View style={styles.timeRow}>
+            <Text style={styles.time}>{formatDuration(position)}</Text>
+            <Text style={styles.time}>{formatDuration(duration)}</Text>
+          </View>
           <View style={styles.controls}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Jump back 10 seconds"
-              onPressIn={() => once(() => seekBy(-10))}
-              hitSlop={8}
-              style={({ pressed }) => [styles.ctrlBtn, pressed && styles.ctrlPressed]}
-            >
-              <RotateCcw size={18} color={colors.textPrimary} />
-              <Text style={styles.ctrlLabel}>-10s</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Volume down"
-              onPressIn={() => once(() => adjustVolume(-0.15))}
-              hitSlop={8}
-              style={({ pressed }) => [styles.ctrlBtn, pressed && styles.ctrlPressed]}
-            >
-              <Volume1 size={18} color={colors.textPrimary} />
-            </Pressable>
-            <View style={styles.volumeMeter} pointerEvents="none">
-              <VolumeIcon size={16} color={colors.textMuted} />
-              <Text style={styles.volumeText}>{Math.round(volume * 100)}%</Text>
+            <View accessibilityRole="toolbar" style={styles.skipGroup}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Jump back 10 seconds"
+                onPressIn={() => once(() => seekBy(-10))}
+                hitSlop={8}
+                style={({ pressed }) => [styles.skipHalf, pressed && styles.ctrlPressed]}
+              >
+                <RotateCcw size={18} color={colors.textPrimary} />
+              </Pressable>
+              <View style={styles.skipDivider} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Jump forward 10 seconds"
+                onPressIn={() => once(() => seekBy(10))}
+                hitSlop={8}
+                style={({ pressed }) => [styles.skipHalf, pressed && styles.ctrlPressed]}
+              >
+                <RotateCw size={18} color={colors.textPrimary} />
+              </Pressable>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Volume up"
-              onPressIn={() => once(() => adjustVolume(0.15))}
-              hitSlop={8}
-              style={({ pressed }) => [styles.ctrlBtn, pressed && styles.ctrlPressed]}
-            >
-              <Volume2 size={18} color={colors.textPrimary} />
-            </Pressable>
+
+            <View accessibilityRole="toolbar" style={styles.volumeCluster}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Volume down"
+                onPressIn={() => once(() => adjustVolume(-0.15))}
+                hitSlop={8}
+                style={({ pressed }) => [styles.clusterBtn, pressed && styles.ctrlPressed]}
+              >
+                <Volume1 size={18} color={colors.textPrimary} />
+              </Pressable>
+              <View style={styles.volumeMeter} pointerEvents="none">
+                <VolumeIcon size={16} color={colors.textMuted} />
+                <Text style={styles.volumeText}>{Math.round(volume * 100)}%</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Volume up"
+                onPressIn={() => once(() => adjustVolume(0.15))}
+                hitSlop={8}
+                style={({ pressed }) => [styles.clusterBtn, pressed && styles.ctrlPressed]}
+              >
+                <Volume2 size={18} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: repeat }}
@@ -417,12 +446,6 @@ export function SongListenControls({
             >
               <Repeat size={18} color={repeat ? colors.white : colors.textPrimary} />
             </Pressable>
-          </View>
-
-          <SeekBar position={position} duration={duration} onSeek={seekTo} />
-          <View style={styles.timeRow}>
-            <Text style={styles.time}>{formatDuration(position)}</Text>
-            <Text style={styles.time}>{formatDuration(duration)}</Text>
           </View>
         </View>
       ) : null}
@@ -471,17 +494,54 @@ const styles = StyleSheet.create({
   transport: {
     gap: spacing.xs,
   },
-  timeRow: { flexDirection: "row", justifyContent: "space-between" },
-  time: { ...typography.caption, color: colors.textMuted },
+  timeRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.xs },
+  time: { ...typography.caption, color: colors.textMuted, fontVariant: ["tabular-nums"] },
   controls: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.xs,
+    justifyContent: "center",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
+  skipGroup: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+  },
+  skipHalf: {
+    minWidth: 46,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surfaceSoft,
+  },
+  skipDivider: {
+    width: 1,
+    backgroundColor: colors.border,
+  },
+  volumeCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 2,
+  },
+  clusterBtn: {
+    minWidth: 40,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+  },
   ctrlBtn: {
-    minWidth: 52,
+    minWidth: 44,
     minHeight: 44,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -501,7 +561,16 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   ctrlLabel: { ...typography.caption, color: colors.textPrimary },
-  volumeMeter: { flexDirection: "row", alignItems: "center", gap: 4, minWidth: 52 },
+  volumeMeter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    minWidth: 48,
+    paddingHorizontal: spacing.xs,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: colors.border,
+  },
   volumeText: { ...typography.caption, color: colors.textMuted },
   offline: { ...typography.caption, color: colors.primary, marginTop: spacing.xs },
   downloadBtn: {

@@ -76,10 +76,10 @@ def test_canonical_language_and_festival_collections_are_exact() -> None:
     assert shravanii == {4954}
 
 
-def test_all_69_canonical_collections_resolve_to_their_exact_song_sets() -> None:
+def test_all_70_canonical_collections_resolve_to_their_exact_song_sets() -> None:
     collections = load_rows("theme_collections.json")
 
-    assert len(collections) == 69
+    assert len(collections) == 70
     for collection in collections:
         expected = frozenset(int(number) for number in collection["song_numbers"])
         match = infer_canonical_collection(f"Search Prabhat Samgiita for {collection['label']}")
@@ -609,12 +609,25 @@ async def test_hindi_urdu_and_shared_hindustani_collections_are_disjoint() -> No
     urdu_numbers = {item.song_number for item in urdu.items}
     shared_numbers = {item.song_number for item in shared.items}
 
-    assert hindi_numbers == {4070}
-    assert urdu_numbers == {4072, 4078, 4166, 4171, 4172}
-    assert len(shared_numbers) == 11
+    assert hindi_numbers == {4062, 4070, 4195, 4512, 4733, 4979}
+    assert urdu_numbers == {
+        25,
+        4072,
+        4078,
+        4135,
+        4165,
+        4166,
+        4167,
+        4168,
+        4170,
+        4171,
+        4172,
+        4283,
+        4327,
+        4335,
+    }
     assert hindi_numbers.isdisjoint(urdu_numbers)
-    assert hindi_numbers.isdisjoint(shared_numbers)
-    assert urdu_numbers.isdisjoint(shared_numbers)
+    assert shared_numbers <= hindi_numbers | urdu_numbers
 
 
 @pytest.mark.asyncio
@@ -629,6 +642,18 @@ async def test_festival_collection_query_returns_only_shravanii_song() -> None:
 
 
 @pytest.mark.asyncio
+async def test_magahi_collection_returns_ps4513() -> None:
+    service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
+
+    response = await service.search(
+        "Search Prabhat Samgiita for Magahi Songs",
+        page_size=20,
+    )
+
+    assert response.detected_intent == "collection_search"
+    assert [item.song_number for item in response.items] == [4513]
+
+
 async def test_urdu_collection_returns_full_list_when_page_size_allows() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 

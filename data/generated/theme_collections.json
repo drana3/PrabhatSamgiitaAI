@@ -35,20 +35,14 @@
     "value": "Hindi",
     "source_url": "https://prabhatasamgiita.net/hindi.html",
     "song_numbers": [
-      25,
       4062,
       4070,
-      4167,
-      4168,
-      4170,
       4195,
-      4283,
-      4327,
-      4335,
+      4512,
       4733,
       4979
     ],
-    "count": 12
+    "count": 6
   },
   {
     "label": "Urdu Songs",
@@ -57,23 +51,21 @@
     "source_url": "https://prabhatasamgiita.net/urdu.html",
     "song_numbers": [
       25,
-      4062,
       4072,
       4078,
+      4135,
+      4165,
       4166,
       4167,
       4168,
       4170,
       4171,
       4172,
-      4195,
       4283,
       4327,
-      4335,
-      4733,
-      4979
+      4335
     ],
-    "count": 16
+    "count": 14
   },
   {
     "label": "Aungika Songs",
@@ -98,6 +90,16 @@
     "source_url": "https://prabhatasamgiita.net/maethili.html",
     "song_numbers": [
       4081
+    ],
+    "count": 1
+  },
+  {
+    "label": "Magahi Songs",
+    "category": "language",
+    "value": "Magahi",
+    "source_url": "https://prabhatasamgiita.net/1-5018.htm",
+    "song_numbers": [
+      4513
     ],
     "count": 1
   },

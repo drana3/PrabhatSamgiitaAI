@@ -1,0 +1,273 @@
+{
+  "version": 1,
+  "method": "index + category + Roman lyric markers + optional HITL primary_agent",
+  "songs": [
+    {
+      "song_number": 25,
+      "title": "DUNIÁVÁNLO, TÁKATE RAHO",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 0.0,
+      "urdu_score": 3.35,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Urdu-register markers (1) (+0.35)"
+      ]
+    },
+    {
+      "song_number": 4062,
+      "title": "JÁDU NAGARIYÁ SE",
+      "primary": "hindi",
+      "confidence": "high",
+      "hindi_score": 4.75,
+      "urdu_score": 0.35,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Hindi before Urdu (+3.0)",
+        "Roman lyric Urdu-register markers (1) (+0.35)",
+        "Roman lyric Hindi-register markers (5) (+1.75)"
+      ]
+    },
+    {
+      "song_number": 4070,
+      "title": "TUM HO MERE KRŚŃA JAGATPATI",
+      "primary": "hindi",
+      "confidence": "high",
+      "hindi_score": 7.5,
+      "urdu_score": 0.0,
+      "reasons": [
+        "official index: Hindi page only (+3.0)",
+        "category \"K (Hindi)\" marks Hindi only (+2.5)",
+        "Roman lyric Hindi-register markers (10) (+2.00)"
+      ]
+    },
+    {
+      "song_number": 4072,
+      "title": "MÁLIK HO MERE",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 1.4,
+      "urdu_score": 6.0,
+      "reasons": [
+        "official index: Urdu page only (+3.0)",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Hindi-register markers (4) (+1.40)"
+      ]
+    },
+    {
+      "song_number": 4078,
+      "title": "RUHÁNII YEH ROSHNII BUJHÁNII NAHII HAE",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 0.35,
+      "urdu_score": 6.55,
+      "reasons": [
+        "official index: Urdu page only (+3.0)",
+        "category \"K Urdu\" is Urdu-only (+2.5)",
+        "Roman lyric Urdu-register markers (3) (+1.05)",
+        "Roman lyric Hindi-register markers (1) (+0.35)"
+      ]
+    },
+    {
+      "song_number": 4135,
+      "title": "RAOSHANII SE ÁYE HO TUM",
+      "primary": "urdu",
+      "confidence": "medium",
+      "hindi_score": 2.0,
+      "urdu_score": 2.85,
+      "reasons": [
+        "category \"D Urdu\" is Urdu-only (+2.5)",
+        "Roman lyric Urdu-register markers (1) (+0.35)",
+        "Roman lyric Hindi-register markers (8) (+2.00)"
+      ]
+    },
+    {
+      "song_number": 4165,
+      "title": "KARATÁR HAMÁRE",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 1.05,
+      "urdu_score": 2.85,
+      "reasons": [
+        "category \"K (Urdu)\" is Urdu-only (+2.5)",
+        "Roman lyric Urdu-register markers (1) (+0.35)",
+        "Roman lyric Hindi-register markers (3) (+1.05)"
+      ]
+    },
+    {
+      "song_number": 4166,
+      "title": "MUSÁFIR ÁGE BAŔHATE JÁNÁ",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 0.35,
+      "urdu_score": 5.85,
+      "reasons": [
+        "official index: Urdu page only (+3.0)",
+        "category \"K (differences in audios) (Urdu)\" is Urdu-only (+2.5)",
+        "Roman lyric Urdu-register markers (1) (+0.35)",
+        "Roman lyric Hindi-register markers (1) (+0.35)"
+      ]
+    },
+    {
+      "song_number": 4167,
+      "title": "DER HO RAHOO HAE",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 1.05,
+      "urdu_score": 3.0,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Hindi-register markers (3) (+1.05)"
+      ]
+    },
+    {
+      "song_number": 4168,
+      "title": "IAH FARIYÁD MÁLIK ÁTE",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 1.4,
+      "urdu_score": 3.0,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Hindi-register markers (4) (+1.40)"
+      ]
+    },
+    {
+      "song_number": 4170,
+      "title": "HAMDARDII IAH , KISANE D́ÁLII",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 0.7,
+      "urdu_score": 3.7,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Urdu-register markers (2) (+0.70)",
+        "Roman lyric Hindi-register markers (2) (+0.70)"
+      ]
+    },
+    {
+      "song_number": 4171,
+      "title": "KHUSHII KII LAHAREN BAH RAHIIN HAEN",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 0.35,
+      "urdu_score": 6.2,
+      "reasons": [
+        "official index: Urdu page only (+3.0)",
+        "category \"K (Urdu)\" is Urdu-only (+2.5)",
+        "Roman lyric Urdu-register markers (2) (+0.70)",
+        "Roman lyric Hindi-register markers (1) (+0.35)"
+      ]
+    },
+    {
+      "song_number": 4172,
+      "title": "FAOJ TUMHÁ RII BIGUL BAJÁO",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 0.7,
+      "urdu_score": 5.5,
+      "reasons": [
+        "official index: Urdu page only (+3.0)",
+        "category \"K Urdu\" is Urdu-only (+2.5)",
+        "Roman lyric Hindi-register markers (2) (+0.70)"
+      ]
+    },
+    {
+      "song_number": 4195,
+      "title": "ÁYE HO TUM, ÁYE HO TUM",
+      "primary": "hindi",
+      "confidence": "high",
+      "hindi_score": 3.7,
+      "urdu_score": 0.0,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Hindi before Urdu (+3.0)",
+        "Roman lyric Hindi-register markers (2) (+0.70)"
+      ]
+    },
+    {
+      "song_number": 4283,
+      "title": "PHÚLON MEN TU M SHAHAD HO JI",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 1.4,
+      "urdu_score": 3.7,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Urdu-register markers (2) (+0.70)",
+        "Roman lyric Hindi-register markers (4) (+1.40)"
+      ]
+    },
+    {
+      "song_number": 4327,
+      "title": "MÁLIK MAEN TUMHI KO CÁHATÁ",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 1.4,
+      "urdu_score": 3.35,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Urdu-register markers (1) (+0.35)",
+        "Roman lyric Hindi-register markers (4) (+1.40)"
+      ]
+    },
+    {
+      "song_number": 4335,
+      "title": "JAMIN ÁSAMÁN TUMHÁRÁ",
+      "primary": "urdu",
+      "confidence": "high",
+      "hindi_score": 0.7,
+      "urdu_score": 3.35,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Urdu before Hindi (+3.0)",
+        "Roman lyric Urdu-register markers (1) (+0.35)",
+        "Roman lyric Hindi-register markers (2) (+0.70)"
+      ]
+    },
+    {
+      "song_number": 4512,
+      "title": "AVADHA GAYE PARYÁG GAYE",
+      "primary": "hindi",
+      "confidence": "high",
+      "hindi_score": 3.2,
+      "urdu_score": 0.0,
+      "reasons": [
+        "category \"K (Hindi)\" marks Hindi only (+2.5)",
+        "Roman lyric Hindi-register markers (2) (+0.70)"
+      ]
+    },
+    {
+      "song_number": 4733,
+      "title": "ÁNKHIYÁ TUMHI KO CÁHATI HAEN",
+      "primary": "hindi",
+      "confidence": "high",
+      "hindi_score": 3.2,
+      "urdu_score": 0.0,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category \"Hindi\" is Hindi-only (+2.5)",
+        "Roman lyric Hindi-register markers (2) (+0.70)"
+      ]
+    },
+    {
+      "song_number": 4979,
+      "title": "JÁTE HO KAHÁN, RAHATE HO KAHÁN",
+      "primary": "hindi",
+      "confidence": "high",
+      "hindi_score": 4.05,
+      "urdu_score": 0.0,
+      "reasons": [
+        "official index: listed on both Hindi and Urdu pages",
+        "category lists Hindi before Urdu (+3.0)",
+        "Roman lyric Hindi-register markers (3) (+1.05)"
+      ]
+    }
+  ]
+}

@@ -1,11 +1,14 @@
 import {
   alignDevanagariStanzaGaps,
+  isCatalogLanguageLabelLine,
   languageLabelsFromMetadata,
   prepareCatalogLyricsFields,
   sanitizeDevanagariCatalogText,
   type SongDetail,
   type SongSummary,
 } from "@prabhat/core"
+
+import collectionSongTitles from "../../../data/generated/collection_song_titles.json"
 
 import type { MockSong, SongVideo } from "@/data/mock"
 import { listPlayableAudio, mediaVideosToEmbeds, pickPreferredAudioUrl } from "@/lib/mediaEmbed"
@@ -290,22 +293,42 @@ export function storedExplanationForLanguage(
 export function songSummaryToMockSong(summary: SongSummary, index = 0): MockSong {
   const number = summary.number || index + 1
   const themes = [summary.theme, summary.mood, summary.occasion].filter(Boolean) as string[]
-  const title = isBareSongTitle(summary.title, number)
-    ? summary.first_line?.trim() || summary.title
-    : summary.title
+  const prepared = prepareCatalogLyricsFields({
+    title: summary.title,
+    first_line: summary.first_line,
+    lyrics_original: summary.first_line || summary.title,
+    language: summary.language,
+  })
+  let resolvedTitle = prepared.title ?? summary.title
+  let resolvedFirst = prepared.first_line ?? summary.first_line
+  const titleIsLabel = isCatalogLanguageLabelLine(resolvedTitle ?? "", summary.language)
+  const firstIsLabel = isCatalogLanguageLabelLine(resolvedFirst ?? "", summary.language)
+  if (titleIsLabel || firstIsLabel) {
+    const fallback =
+      (collectionSongTitles as Record<string, { title?: string; first_line?: string | null }>)[
+        String(number)
+      ]?.title?.trim() || null
+    if (fallback) {
+      resolvedTitle = fallback
+      resolvedFirst = fallback
+    }
+  }
+  const title = isBareSongTitle(resolvedTitle, number)
+    ? resolvedFirst?.trim() || resolvedTitle
+    : resolvedTitle
 
   return {
     id: `ps-${summary.number}`,
     number: summary.number,
     title,
-    originalTitle: summary.first_line || undefined,
-    shortDescription: summary.first_line || summary.theme || "Prabhat Samgiita",
+    originalTitle: resolvedFirst || undefined,
+    shortDescription: resolvedFirst || summary.theme || "Prabhat Samgiita",
     imageUrl: scenicHeroFor(number),
     thumbnailUrl: scenicThumbFor(number),
     themes: themes.length ? themes : ["Prabhat Samgiita"],
     meaning: summary.theme || "A song from the Prabhat Samgiita collection.",
-    lyrics: summary.first_line || summary.title,
-    translation: summary.first_line || summary.title,
+    lyrics: resolvedFirst || resolvedTitle,
+    translation: resolvedFirst || resolvedTitle,
     durationSeconds: 300,
     performer: "Prabhat Samgiita Collection",
     videos: [],

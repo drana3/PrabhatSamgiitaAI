@@ -46,6 +46,18 @@ describe("song mappers", () => {
     expect(song.title).toBe("DUNIÁVÁNLO, TÁKATE RAHO")
   })
 
+  it("replaces language header titles with the real opening line (PS 1565)", () => {
+    const song = songSummaryToMockSong({
+      number: 1565,
+      title: "SAḾSKRTA",
+      first_line: "SAḾSKRTA",
+      language: "Roman",
+      is_verified: true,
+    })
+    expect(song.title).toMatch(/^VAJRA/i)
+    expect(song.title).not.toMatch(/SAMSKRTA/i)
+  })
+
   it("uses English lyrics as the meaning source when the catalog has no English meaning column", () => {
     expect(
       englishMeaningFromDetail({

@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { LayoutChangeEvent, Pressable, StyleSheet, View } from "react-native"
+import { LayoutChangeEvent, Pressable, StyleSheet, View, type GestureResponderEvent } from "react-native"
 
 import { colors } from "@/constants/colors"
+import { seekSecondsFromTouch } from "@/lib/seekBar"
 
 type Props = {
   position: number
@@ -32,20 +33,20 @@ export function SeekBar({
     setWidth(event.nativeEvent.layout.width)
   }
 
-  const seekFromX = (x: number) => {
+  const seekFromTouch = (event: GestureResponderEvent) => {
     if (width <= 0) return
-    const next = (Math.min(width, Math.max(0, x)) / width) * max
-    onSeek(next)
+    onSeek(seekSecondsFromTouch(event.nativeEvent.locationX, width, max))
   }
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole="adjustable"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint="Drag to change playback position"
       onLayout={onLayout}
-      // Press-in: ScrollView must not cancel the seek gesture.
-      onPressIn={(event) => seekFromX(event.nativeEvent.locationX)}
+      // Press-in + move: ScrollView must not cancel the seek gesture.
+      onPressIn={seekFromTouch}
+      onTouchMove={seekFromTouch}
       style={styles.hit}
     >
       <View style={styles.track}>
@@ -58,11 +59,12 @@ export function SeekBar({
 
 const styles = StyleSheet.create({
   hit: {
-    height: 36,
+    height: 40,
     justifyContent: "center",
+    paddingHorizontal: 2,
   },
   track: {
-    height: 4,
+    height: 5,
     borderRadius: 2,
     backgroundColor: colors.border,
     overflow: "visible",

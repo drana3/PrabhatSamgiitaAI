@@ -14,9 +14,12 @@ Also writes data/generated/complete_sargam_songs.json for website Explore.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps" / "api"))
+from app.services.catalog_lyrics import prepare_catalog_lyrics_fields  # noqa: E402
 SONGS_PATH = ROOT / "data" / "generated" / "songs.json"
 COLLECTIONS_PATH = ROOT / "data" / "generated" / "theme_collections.json"
 PLAN_PATH = ROOT / "data" / "generated" / "sarkarverse_sargam_plan.json"
@@ -215,6 +218,19 @@ SEARCH_LABELS = {
 MAX_KEYWORD_HITS = 80
 
 
+def prepared_summary_fields(song: dict) -> dict[str, str | None]:
+    prepared = prepare_catalog_lyrics_fields(song)
+    title = (
+        prepared.get("title")
+        or song.get("title")
+        or prepared.get("first_line")
+        or song.get("first_line")
+        or f"Song {song.get('number')}"
+    )
+    first_line = prepared.get("first_line") or song.get("first_line")
+    return {"title": str(title), "first_line": first_line}
+
+
 def haystack(song: dict) -> str:
     parts = [
         song.get("title") or "",
@@ -362,12 +378,7 @@ def write_collection_titles(collections: list[dict], by_number: dict[int, dict])
             if number > 0:
                 numbers.add(number)
     payload = {
-        str(number): {
-            "title": (by_number.get(number) or {}).get("title")
-            or (by_number.get(number) or {}).get("first_line")
-            or f"Song {number}",
-            "first_line": (by_number.get(number) or {}).get("first_line"),
-        }
+        str(number): prepared_summary_fields(by_number.get(number) or {"number": number})
         for number in sorted(numbers)
     }
     COLLECTION_TITLES_PATH.write_text(
@@ -382,11 +393,12 @@ def song_summaries(numbers: list[int], by_number: dict[int, dict]) -> list[dict]
     summaries = []
     for number in numbers:
         song = by_number.get(number, {})
+        fields = prepared_summary_fields(song) if song else {"title": f"Song {number}", "first_line": None}
         summaries.append(
             {
                 "number": number,
-                "title": song.get("title") or f"Song {number}",
-                "first_line": song.get("first_line"),
+                "title": fields["title"],
+                "first_line": fields["first_line"],
                 "theme": song.get("theme"),
                 "mood": song.get("mood"),
                 "language": song.get("language"),

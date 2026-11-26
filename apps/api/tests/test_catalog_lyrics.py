@@ -33,6 +33,23 @@ def test_strips_sanskrit_label_ps1565() -> None:
     assert "SAM" not in cleaned
 
 
+def test_prepare_ps4081_strips_maethili_header() -> None:
+    row = prepare_catalog_lyrics_fields(
+        {
+            "title": "MAETHILI",
+            "first_line": "MAETHILI",
+            "language": "Roman",
+            "lyrics_original": (
+                "MAETHILI\n\nSO RATIYÁ KATAE GEL ÁJI\n\n"
+                "VRAJ KE ÁKÁSH MAIN NÁHI KONO CÁNDA\nSO RATIYÁ"
+            ),
+            "metadata_json": {"category": "K"},
+        }
+    )
+    assert row["title"] == "SO RATIYÁ KATAE GEL ÁJI"
+    assert row["lyrics_original"].startswith("SO RATIYÁ")
+
+
 def test_prepare_ps1565_title_without_sanskrit_metadata() -> None:
     row = prepare_catalog_lyrics_fields(
         {

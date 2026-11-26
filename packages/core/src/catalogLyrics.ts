@@ -11,7 +11,7 @@ const LANGUAGE_ALIASES: Record<string, readonly string[]> = {
   hindi: ["hindi"],
   english: ["english"],
   urdu: ["urdu"],
-  maithili: ["maithili"],
+  maithili: ["maithili", "maethili"],
   angika: ["angika"],
   magahi: ["magahi"],
   roman: ["roman"],

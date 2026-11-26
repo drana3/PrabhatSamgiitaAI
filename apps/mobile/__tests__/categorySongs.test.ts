@@ -154,6 +154,17 @@ describe("categorySongs", () => {
     expect(result.label).toBe("Hindi")
   })
 
+  it("loads all language Top collection chips from the manifest", async () => {
+    await warmCategorySongsCache()
+    const magahi = await loadCategorySongs("magahi")
+    expect(magahi.songs.map((row) => row.number)).toEqual([4513])
+    const maithili = await loadCategorySongs("maithili")
+    expect(maithili.songs.map((row) => row.number)).toEqual([4081])
+    const aungika = await loadCategorySongs("aungika")
+    expect(aungika.songs.length).toBe(7)
+    expect(aungika.label).toBe("Aungika")
+  })
+
   it("loads Guru from the bundled list so the chip is never empty", async () => {
     const result = await loadCategorySongs("guru")
     expect(result.songs.length).toBeGreaterThan(20)
@@ -199,7 +210,7 @@ describe("categorySongs", () => {
     const hindiNumbers = songNumbersForCategory("hindi")
     const rows = songsForCategoryFromCatalog("hindi", [])
     expect(rows.length).toBe(hindiNumbers.length)
-    expect(rows.length).toBeGreaterThan(10)
+    expect(rows.length).toBe(6)
     expect(rows[0]?.title).toBeTruthy()
     expect(rows[0]?.title).not.toMatch(/^Song\s+\d+$/)
     const shown = composeBrowseResults(

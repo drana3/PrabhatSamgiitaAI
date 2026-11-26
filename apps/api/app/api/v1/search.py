@@ -19,6 +19,7 @@ from app.schemas.song import (
     VoiceSearchResponse,
 )
 from app.services.catalog import catalog_song_snapshot
+from app.services.catalog_lyrics import prepare_catalog_lyrics_fields
 from app.services.festival_catalog_search import infer_canonical_collection_with_observances
 from app.services.members import require_member_identity
 from app.services.query_guard import assess_query
@@ -55,10 +56,24 @@ def _song_summary(item: SearchResultItem, songs_by_number: dict[int, Song]) -> S
     song_number = item.song_number
     song = songs_by_number.get(song_number)
     opening_line = item.opening_line
+    title = (song.title if song else opening_line) or "Title awaiting source review"
+    first_line = song.first_line if song else opening_line
+    if song is not None:
+        prepared = prepare_catalog_lyrics_fields(
+            {
+                "title": song.title,
+                "first_line": song.first_line,
+                "lyrics_original": song.lyrics_original or song.first_line or song.title,
+                "language": song.language,
+                "metadata_json": song.metadata_json,
+            }
+        )
+        title = prepared.get("title") or title
+        first_line = prepared.get("first_line") or first_line
     return SongSummary(
         number=song_number,
-        title=(song.title if song else opening_line) or "Title awaiting source review",
-        first_line=song.first_line if song else opening_line,
+        title=title,
+        first_line=first_line,
         theme=song.theme if song else None,
         occasion=song.occasion if song else None,
         mood=song.mood if song else None,
