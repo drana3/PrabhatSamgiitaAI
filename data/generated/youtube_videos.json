@@ -402,6 +402,27 @@
     "song_number": 63,
     "kind": "video",
     "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || DIPABOLI  SAJAYECHI PROBHU || ARUNDHATI BEZBARUAH || #diwalispecial ||",
+    "url": "https://www.youtube.com/watch?v=48U68i8JURQ",
+    "embed_url": "https://www.youtube-nocookie.com/embed/48U68i8JURQ",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "48U68i8JURQ",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 63,
+    "kind": "video",
+    "provider": "youtube",
     "title": "Deepavali Sajayechi Prabhu - Prabhat Sangeet #63",
     "url": "https://www.youtube.com/watch?v=s4ZRQCIax9s",
     "embed_url": "https://www.youtube-nocookie.com/embed/s4ZRQCIax9s",
@@ -819,6 +840,27 @@
     }
   },
   {
+    "song_number": 208,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || ASIBE BOLIYA GIYACHE CHOLIYA || BIUSH BHAWAL || #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=UYSZt33M-vc",
+    "embed_url": "https://www.youtube-nocookie.com/embed/UYSZt33M-vc",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "UYSZt33M-vc",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 212,
     "kind": "video",
     "provider": "youtube",
@@ -1134,6 +1176,48 @@
     }
   },
   {
+    "song_number": 476,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIIT || VIHAAN KALE TALE TALE || ARUNDHATI BEZBARUAH || #prabhatsamgiit #folksong",
+    "url": "https://www.youtube.com/watch?v=Y_rPiPUw35Q",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Y_rPiPUw35Q",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "Y_rPiPUw35Q",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 476,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || VIHAN KALE TALE TALE || ELORA BEZBARUAH || #prabhatsangeet #folksong",
+    "url": "https://www.youtube.com/watch?v=x836j3a5FWA",
+    "embed_url": "https://www.youtube-nocookie.com/embed/x836j3a5FWA",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "x836j3a5FWA",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 478,
     "kind": "video",
     "provider": "youtube",
@@ -1168,6 +1252,27 @@
       "external_id": "FlrgwCfNz9o",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 485,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || MORA KAAJ NIYE || SANAT BARUA TEAM || #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=tgHyij4WwaM",
+    "embed_url": "https://www.youtube-nocookie.com/embed/tgHyij4WwaM",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "tgHyij4WwaM",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
@@ -1344,6 +1449,27 @@
     }
   },
   {
+    "song_number": 673,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "DMS Jamalpur 2019 | Prabhat Samgiita No. #TUMI, ESO GO ESO GO ESO GO",
+    "url": "https://www.youtube.com/watch?v=Gp4pzqsbkgg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Gp4pzqsbkgg",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@Ananda_Marga/videos",
+    "notes": "Embedded from the allow-listed ANANDA MARGA channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "Gp4pzqsbkgg",
+      "channel_id": "UCc3f8g07me5NpqHfAsF8GIA",
+      "channel_name": "ANANDA MARGA",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_then_canonical_title"
+    }
+  },
+  {
     "song_number": 674,
     "kind": "video",
     "provider": "youtube",
@@ -1504,6 +1630,27 @@
       "external_id": "FXcDieCwvqg",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 695,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || KAHAKEO PAPI BHEBE || ARUNDHATI BEZBARUAH #rawaassam #devotion #spirituality",
+    "url": "https://www.youtube.com/watch?v=V6-x-73bL8M",
+    "embed_url": "https://www.youtube-nocookie.com/embed/V6-x-73bL8M",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "V6-x-73bL8M",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
@@ -1991,6 +2138,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.957,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 1095,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || JE AMAKE JAHAI BOLUK || DANCE ||  PAROMITA DEY || #rawaassam #dance",
+    "url": "https://www.youtube.com/watch?v=vawVWh-JlkI",
+    "embed_url": "https://www.youtube-nocookie.com/embed/vawVWh-JlkI",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "vawVWh-JlkI",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -2600,6 +2768,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.96,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 1280,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIIT || AKSHAY TUMI ABBAYI TUMI || BIUSH BHAWAL || #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=paB_lniQVK4",
+    "embed_url": "https://www.youtube-nocookie.com/embed/paB_lniQVK4",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "paB_lniQVK4",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.904,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -4473,6 +4662,27 @@
     }
   },
   {
+    "song_number": 1565,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || VAJRA KATHORA || KANKANA BHATTACHARYA & GROUP || #dance #kankanabhattacharya",
+    "url": "https://www.youtube.com/watch?v=lUnv90dQBu4",
+    "embed_url": "https://www.youtube-nocookie.com/embed/lUnv90dQBu4",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "lUnv90dQBu4",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 1603,
     "kind": "video",
     "provider": "youtube",
@@ -4560,6 +4770,27 @@
     "song_number": 1774,
     "kind": "video",
     "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || ACHO ASHRU DHARA || NRITYANGANA NARTHAKI || #rawaassam #dance",
+    "url": "https://www.youtube.com/watch?v=Prz-dG2lKWw",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Prz-dG2lKWw",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "Prz-dG2lKWw",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 1774,
+    "kind": "video",
+    "provider": "youtube",
     "title": "Bengali Prabhat Sangeet - Acha Ashrudharay Mishe #1774",
     "url": "https://www.youtube.com/watch?v=UZbKPSyG6JE",
     "embed_url": "https://www.youtube-nocookie.com/embed/UZbKPSyG6JE",
@@ -4574,6 +4805,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.957,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 1784,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || RONGIN PORI BOLE JAYE || SATYASANDHA HAZARIKA || #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=-qPQfuvMqSo",
+    "embed_url": "https://www.youtube-nocookie.com/embed/-qPQfuvMqSo",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "-qPQfuvMqSo",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -4679,6 +4931,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.94,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2065,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || TUMI KON ATITE MORE || MANAS || #rawaassam #prabhatsamgiit #atit",
+    "url": "https://www.youtube.com/watch?v=KqHHEov2QaE",
+    "embed_url": "https://www.youtube-nocookie.com/embed/KqHHEov2QaE",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "KqHHEov2QaE",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.9,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -5246,6 +5519,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.969,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2319,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || TOMAR OPAR DANE || MANAS || MP3 #rawaassam",
+    "url": "https://www.youtube.com/watch?v=qBetVshvIGY",
+    "embed_url": "https://www.youtube-nocookie.com/embed/qBetVshvIGY",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "qBetVshvIGY",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -6240,6 +6534,27 @@
     "song_number": 2505,
     "kind": "video",
     "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || JAYA SHIVA SWAMBHO || MANAS || #rawaassam #shivasong",
+    "url": "https://www.youtube.com/watch?v=Nbd0Ev2wLdg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/Nbd0Ev2wLdg",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "Nbd0Ev2wLdg",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2505,
+    "kind": "video",
+    "provider": "youtube",
     "title": "Shiva Song - Prabhat Samgiita - Jaya Shiva Svayambho - Shrii Shrii Anandamurtii #2505",
     "url": "https://www.youtube.com/watch?v=brcnoLSYRiY",
     "embed_url": "https://www.youtube-nocookie.com/embed/brcnoLSYRiY",
@@ -6460,6 +6775,27 @@
       "external_id": "7fKYsqhs7zM",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2536,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || NOYONE NOYONE RAKHO || RIDDHI DAS #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=-civhGBSHJ4",
+    "embed_url": "https://www.youtube-nocookie.com/embed/-civhGBSHJ4",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "-civhGBSHJ4",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
@@ -10752,6 +11088,27 @@
     }
   },
   {
+    "song_number": 3009,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || BENU BONE NUPURO PAYE || PARISHMITA DEKA || #prabhatsamgiit #dance #rawaassam",
+    "url": "https://www.youtube.com/watch?v=nN7xFsHFw4M",
+    "embed_url": "https://www.youtube-nocookie.com/embed/nN7xFsHFw4M",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "nN7xFsHFw4M",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3010,
     "kind": "video",
     "provider": "youtube",
@@ -11168,6 +11525,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.953,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3103,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA II AMAR KANU || DANCE DRAMA || BY TEAM RAWA ASSAM || #rawaassam",
+    "url": "https://www.youtube.com/watch?v=LD_q-vU-pOQ",
+    "embed_url": "https://www.youtube-nocookie.com/embed/LD_q-vU-pOQ",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "LD_q-vU-pOQ",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -11836,6 +12214,27 @@
       "external_id": "6PCfWHtqEFo",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3190,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || TUMI ESO AMAR GHORE || SUNANDA CHOUDHURY || #prabhatsamgiit #rawaassam #dance",
+    "url": "https://www.youtube.com/watch?v=_dFdt697M5U",
+    "embed_url": "https://www.youtube-nocookie.com/embed/_dFdt697M5U",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "_dFdt697M5U",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
@@ -13461,6 +13860,27 @@
     }
   },
   {
+    "song_number": 3406,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || JAAR AR KEO NAI || SRESHTHA HALDAR #rawaassam #prabhatsamgiit #sreshtha",
+    "url": "https://www.youtube.com/watch?v=M8nHCN7uXJk",
+    "embed_url": "https://www.youtube-nocookie.com/embed/M8nHCN7uXJk",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "M8nHCN7uXJk",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3408,
     "kind": "video",
     "provider": "youtube",
@@ -13545,6 +13965,27 @@
     }
   },
   {
+    "song_number": 3476,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || AMAR E PHULOBONE SONGOPONE || MANAS || #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=kWuLd2KnloQ",
+    "embed_url": "https://www.youtube-nocookie.com/embed/kWuLd2KnloQ",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "kWuLd2KnloQ",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3481,
     "kind": "video",
     "provider": "youtube",
@@ -13566,6 +14007,27 @@
     }
   },
   {
+    "song_number": 3481,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || MANANE ESO PRIYO MOR || TANISHKA SARKAR #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=NazdUOZf4Dg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/NazdUOZf4Dg",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "NazdUOZf4Dg",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3485,
     "kind": "video",
     "provider": "youtube",
@@ -13579,6 +14041,27 @@
       "external_id": "FrqPhYtUZZ8",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3486,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || SUKTARA KAAL || SRESHTHA HALDAR || #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=OKyAAjHTz7M",
+    "embed_url": "https://www.youtube-nocookie.com/embed/OKyAAjHTz7M",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "OKyAAjHTz7M",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
@@ -13776,6 +14259,27 @@
     }
   },
   {
+    "song_number": 3625,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || KENO KRISHNO SAJAL TITHITE  || DANCE || RIMJHIM DEV #prabhatsamgiit #rawaassam",
+    "url": "https://www.youtube.com/watch?v=NYoXQyZTqB8",
+    "embed_url": "https://www.youtube-nocookie.com/embed/NYoXQyZTqB8",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "NYoXQyZTqB8",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 3627,
     "kind": "video",
     "provider": "youtube",
@@ -13957,6 +14461,27 @@
       "external_id": "A3me-vzVlp8",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3739,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || DANCE ||TUMI RUPE BHUBAN || SIMRAN & PRIYANKA || GARBA STYLE || #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=G008MctRFDs",
+    "embed_url": "https://www.youtube-nocookie.com/embed/G008MctRFDs",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "G008MctRFDs",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
@@ -14360,6 +14885,48 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.942,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3951,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA ||  TVAM MAMA PRIYA ||  MANAS || #rawaassam #prabhatsamgiit",
+    "url": "https://www.youtube.com/watch?v=iQ6RAgmal9A",
+    "embed_url": "https://www.youtube-nocookie.com/embed/iQ6RAgmal9A",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "iQ6RAgmal9A",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 3964,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || NECHE NECHE BHESE ASE || AC' TATTVAVEDANANDA AVADHUT || #rawaassam #coversong",
+    "url": "https://www.youtube.com/watch?v=HQKGd2FywVk",
+    "embed_url": "https://www.youtube-nocookie.com/embed/HQKGd2FywVk",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "HQKGd2FywVk",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
       "match_method": "explicit_song_number_marker"
     }
   },
@@ -15225,6 +15792,27 @@
     }
   },
   {
+    "song_number": 4185,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIIT || BIJONE BOSHE BHABI DUBELAYE || ARUNDHATI BEZBARUAH #folksong #rawaassam #mp3",
+    "url": "https://www.youtube.com/watch?v=dyh6P3oTQ8s",
+    "embed_url": "https://www.youtube-nocookie.com/embed/dyh6P3oTQ8s",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "dyh6P3oTQ8s",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 4188,
     "kind": "video",
     "provider": "youtube",
@@ -15973,6 +16561,27 @@
       "external_id": "5BS20ZrY1OU",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 4521,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIITA || TUMI AMAR PRIYO SOBAR PRIYO || CHANDANA SHARMA || #prabhatsamgiit #rawaassam",
+    "url": "https://www.youtube.com/watch?v=hvOBmYpP8fA",
+    "embed_url": "https://www.youtube-nocookie.com/embed/hvOBmYpP8fA",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "hvOBmYpP8fA",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
@@ -16918,6 +17527,27 @@
       "external_id": "OJVR-hoXkuE",
       "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
       "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 4999,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "PRABHAT SAMGIIT DAY SPECIAL || NUTONER GAAN NIYE ESECHO || MANAS #rawaassam #prabhatsamgiitday",
+    "url": "https://www.youtube.com/watch?v=ZVq4uk5FAQw",
+    "embed_url": "https://www.youtube-nocookie.com/embed/ZVq4uk5FAQw",
+    "verification_status": "verified",
+    "source_url": "https://youtube.com/@rawaassam?si=T2RuytzMRqfsPuQe/videos",
+    "notes": "Scanned from MANAS RAWA ASSAM; embedded only, not re-hosted.",
+    "metadata_json": {
+      "external_id": "ZVq4uk5FAQw",
+      "channel_id": "UCPEe8JPgsVkC77PHrioTa5g",
+      "channel_name": "MANAS RAWA ASSAM",
       "source_status": "verified_community",
       "rights_status": "embed_only",
       "availability_status": "available",
