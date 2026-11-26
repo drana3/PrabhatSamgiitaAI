@@ -1,4 +1,4 @@
-"""One-shot Hindi vs Urdu primary assignment for Hindustani-indexed songs.
+"""One-shot Hindi vs Urdu primary assignment for dual-index Hindi/Urdu songs.
 
 Combines official index exclusivity, lyric-page category, Roman lyric cues,
 and optional human transliteration review — not category-string order alone.
@@ -21,6 +21,25 @@ SONGS_PATH = ROOT / "data" / "generated" / "songs.json"
 ASSIGNMENTS_PATH = ROOT / "data" / "generated" / "theme_assignments.json"
 HITL_PATH = ROOT / "data" / "generated" / "hitl_review_35.json"
 VERIFY_OUTPUT = ROOT / "data" / "generated" / "hindi_urdu_language_verification.json"
+
+# Approved disjoint Explore collections (Hindi 6 · Urdu 14).
+CANONICAL_HINDI_SONG_NUMBERS: tuple[int, ...] = (4062, 4070, 4195, 4512, 4733, 4979)
+CANONICAL_URDU_SONG_NUMBERS: tuple[int, ...] = (
+    25,
+    4072,
+    4078,
+    4135,
+    4165,
+    4166,
+    4167,
+    4168,
+    4170,
+    4171,
+    4172,
+    4283,
+    4327,
+    4335,
+)
 
 # Roman lyric tokens more common in Urdu-leaning PS (Persian/Arabic register in Samgiita Roman).
 URDU_ROMAN_MARKERS = (
@@ -365,16 +384,52 @@ def partition_collections_from_verification(
     overlap = hindi_set & urdu_set
     if overlap:
         raise ValueError(f"Hindi/Urdu overlap after verification: {sorted(overlap)}")
-    return sorted(hindi), sorted(urdu)
+    computed_hindi = sorted(hindi)
+    computed_urdu = sorted(urdu)
+    expected_hindi = list(CANONICAL_HINDI_SONG_NUMBERS)
+    expected_urdu = list(CANONICAL_URDU_SONG_NUMBERS)
+    if computed_hindi != expected_hindi or computed_urdu != expected_urdu:
+        raise ValueError(
+            "Hindi/Urdu verification drifted from canonical collections: "
+            f"hindi={computed_hindi} urdu={computed_urdu}"
+        )
+    return expected_hindi, expected_urdu
 
 
 def write_verification_report(
     verified: list[HindiUrduVerification],
     path: Path = VERIFY_OUTPUT,
 ) -> None:
+    by_number = {row.song_number: row for row in verified}
     payload = {
         "version": 1,
         "method": "index + category + Roman lyric markers + optional HITL primary_agent",
+        "collections": {
+            "Hindi Songs": {
+                "count": len(CANONICAL_HINDI_SONG_NUMBERS),
+                "song_numbers": list(CANONICAL_HINDI_SONG_NUMBERS),
+                "songs": [
+                    {
+                        "song_number": number,
+                        "title": by_number[number].title,
+                    }
+                    for number in CANONICAL_HINDI_SONG_NUMBERS
+                    if number in by_number
+                ],
+            },
+            "Urdu Songs": {
+                "count": len(CANONICAL_URDU_SONG_NUMBERS),
+                "song_numbers": list(CANONICAL_URDU_SONG_NUMBERS),
+                "songs": [
+                    {
+                        "song_number": number,
+                        "title": by_number[number].title,
+                    }
+                    for number in CANONICAL_URDU_SONG_NUMBERS
+                    if number in by_number
+                ],
+            },
+        },
         "songs": [asdict(row) for row in verified],
     }
     path.parent.mkdir(parents=True, exist_ok=True)

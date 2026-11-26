@@ -1,6 +1,122 @@
 {
   "version": 1,
   "method": "index + category + Roman lyric markers + optional HITL primary_agent",
+  "collections": {
+    "Hindi Songs": {
+      "count": 6,
+      "song_numbers": [
+        4062,
+        4070,
+        4195,
+        4512,
+        4733,
+        4979
+      ],
+      "songs": [
+        {
+          "song_number": 4062,
+          "title": "JÁDU NAGARIYÁ SE"
+        },
+        {
+          "song_number": 4070,
+          "title": "TUM HO MERE KRŚŃA JAGATPATI"
+        },
+        {
+          "song_number": 4195,
+          "title": "ÁYE HO TUM, ÁYE HO TUM"
+        },
+        {
+          "song_number": 4512,
+          "title": "AVADHA GAYE PARYÁG GAYE"
+        },
+        {
+          "song_number": 4733,
+          "title": "ÁNKHIYÁ TUMHI KO CÁHATI HAEN"
+        },
+        {
+          "song_number": 4979,
+          "title": "JÁTE HO KAHÁN, RAHATE HO KAHÁN"
+        }
+      ]
+    },
+    "Urdu Songs": {
+      "count": 14,
+      "song_numbers": [
+        25,
+        4072,
+        4078,
+        4135,
+        4165,
+        4166,
+        4167,
+        4168,
+        4170,
+        4171,
+        4172,
+        4283,
+        4327,
+        4335
+      ],
+      "songs": [
+        {
+          "song_number": 25,
+          "title": "DUNIÁVÁNLO, TÁKATE RAHO"
+        },
+        {
+          "song_number": 4072,
+          "title": "MÁLIK HO MERE"
+        },
+        {
+          "song_number": 4078,
+          "title": "RUHÁNII YEH ROSHNII BUJHÁNII NAHII HAE"
+        },
+        {
+          "song_number": 4135,
+          "title": "RAOSHANII SE ÁYE HO TUM"
+        },
+        {
+          "song_number": 4165,
+          "title": "KARATÁR HAMÁRE"
+        },
+        {
+          "song_number": 4166,
+          "title": "MUSÁFIR ÁGE BAŔHATE JÁNÁ"
+        },
+        {
+          "song_number": 4167,
+          "title": "DER HO RAHOO HAE"
+        },
+        {
+          "song_number": 4168,
+          "title": "IAH FARIYÁD MÁLIK ÁTE"
+        },
+        {
+          "song_number": 4170,
+          "title": "HAMDARDII IAH , KISANE D́ÁLII"
+        },
+        {
+          "song_number": 4171,
+          "title": "KHUSHII KII LAHAREN BAH RAHIIN HAEN"
+        },
+        {
+          "song_number": 4172,
+          "title": "FAOJ TUMHÁ RII BIGUL BAJÁO"
+        },
+        {
+          "song_number": 4283,
+          "title": "PHÚLON MEN TU M SHAHAD HO JI"
+        },
+        {
+          "song_number": 4327,
+          "title": "MÁLIK MAEN TUMHI KO CÁHATÁ"
+        },
+        {
+          "song_number": 4335,
+          "title": "JAMIN ÁSAMÁN TUMHÁRÁ"
+        }
+      ]
+    }
+  },
   "songs": [
     {
       "song_number": 25,
