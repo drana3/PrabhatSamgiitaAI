@@ -85,6 +85,21 @@ class MockProvider:
             if draft_match:
                 return draft_match.group(1).strip()
             return self.hindi_meaning
+        if "collection_primary" in prompt and "lyric_language" in prompt:
+            number_match = re.search(r"Song number:\s*(\d+)", prompt)
+            number = int(number_match.group(1)) if number_match else 0
+            primary = "urdu" if number in {25, 4072, 4135} else "hindi"
+            return json.dumps(
+                {
+                    "lyric_language": "hindustani"
+                    if number in {25, 4062, 4195}
+                    else primary,
+                    "collection_primary": primary,
+                    "confidence": "medium",
+                    "reasoning": "Mock offline classification for tests.",
+                    "lexical_cues": ["mock"],
+                }
+            )
         if "Return only valid JSON" in prompt:
             fields: dict[str, str] = {}
             for line in prompt.splitlines():

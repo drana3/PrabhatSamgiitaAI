@@ -65,6 +65,7 @@ const displayLabelOverrides: Record<string, string> = {
   "Urdu Songs": "Urdu",
   "Aungika Songs": "Aungika",
   "Maethili Song": "Maithili",
+  "Magahi Songs": "Magahi",
   "Shiva Songs": "Shiva",
   "Krśńa Songs": "Krśńa",
   "Krśńa and Devotees Songs": "Krśńa and devotees",
@@ -173,14 +174,15 @@ export const hindiUrduSharedCount = intersectionCount("Hindi Songs", "Urdu Songs
 const groupDefinitions: GroupDefinition[] = [
   {
     title: "Languages",
-    description: `Find songs by their original language or dialect. The canonical Hindi list has ${canonicalByLabel.get("Hindi Songs")?.count ?? 0} songs and Urdu has ${canonicalByLabel.get("Urdu Songs")?.count ?? 0}; ${hindiUrduSharedCount} appear on both lists as Hindustani.`,
+    description: `Find songs by their original language or dialect. Hindi and Urdu lists are kept separate (${canonicalByLabel.get("Hindi Songs")?.count ?? 0} Hindi, ${canonicalByLabel.get("Urdu Songs")?.count ?? 0} Urdu). Hindustani songs use scored verification: official index exclusivity, category order (Urdu/Hindi vs Hindi/Urdu), Roman lyric cues, and transliteration review only on close ties.`,
     collections: [
-      { canonicalLabel: "Sanskrit Songs" },
-      { canonicalLabel: "English Songs" },
       { canonicalLabel: "Hindi Songs" },
       { canonicalLabel: "Urdu Songs" },
+      { canonicalLabel: "Sanskrit Songs" },
+      { canonicalLabel: "English Songs" },
       { canonicalLabel: "Aungika Songs" },
       { canonicalLabel: "Maethili Song" },
+      { canonicalLabel: "Magahi Songs" },
     ],
   },
   {

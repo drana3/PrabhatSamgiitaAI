@@ -111,7 +111,7 @@ describe("web lyric search", () => {
     expect(english?.map((song) => song.number)).toEqual([68, 5008, 5009])
     expect(english?.every((song) => song.language === "English")).toBe(true)
     const urdu = instantExploreSongs("Search Prabhat Samgiita for Urdu Songs")
-    expect(urdu?.length).toBe(16)
+    expect(urdu?.length).toBe(14)
   })
 
   it("resolves saved-song numbers from the shipped index without a network wait", () => {

@@ -6,10 +6,10 @@ import canonicalCollections from "../../../data/generated/theme_collections.json
 
 describe("reviewed discovery collections", () => {
   it("publishes every canonical special collection in organized groups", () => {
-    expect(specialCollectionCount).toBe(68)
+    expect(specialCollectionCount).toBe(69)
     expect(specialCollectionGroups.map((group) => group.title)).toContain("Languages")
     expect(specialCollectionGroups.flatMap((group) => group.collections).map((item) => item.label)).toEqual(
-      expect.arrayContaining(["Hindi", "Urdu", "Maithili", "Shiva", "Tree planting", "Turkish tune"]),
+      expect.arrayContaining(["Hindi", "Urdu", "Maithili", "Magahi", "Shiva", "Tree planting", "Turkish tune"]),
     )
   })
 
@@ -17,7 +17,7 @@ describe("reviewed discovery collections", () => {
     const expected = new Map(canonicalCollections.map((item) => [item.label, item.count]))
     const displayed = specialCollectionGroups.flatMap((group) => group.collections)
 
-    expect(displayed).toHaveLength(68)
+    expect(displayed).toHaveLength(69)
     for (const collection of displayed) {
       const curatedCounts: Record<string, number> = {
         "All Birthday Songs": 6,
@@ -29,8 +29,8 @@ describe("reviewed discovery collections", () => {
 
   it("shows canonical Hindi and Urdu totals instead of splitting Hindustani overlap", () => {
     const languages = specialCollectionGroups.find((group) => group.title === "Languages")?.collections ?? []
-    expect(languages.find((item) => item.label === "Hindi")).toMatchObject({ count: 12, query: "Hindi Songs" })
-    expect(languages.find((item) => item.label === "Urdu")).toMatchObject({ count: 16, query: "Urdu Songs" })
+    expect(languages.find((item) => item.label === "Hindi")).toMatchObject({ count: 6, query: "Hindi Songs" })
+    expect(languages.find((item) => item.label === "Urdu")).toMatchObject({ count: 14, query: "Urdu Songs" })
   })
 
   it("maps upcoming festival cards to canonical collection explore prompts", () => {
@@ -124,7 +124,7 @@ describe("reviewed discovery collections", () => {
   })
 
   it("exposes canonical collection counts for explore result labels", () => {
-    expect(collectionSearchCount("Search Prabhat Samgiita for Urdu Songs")).toBe(16)
+    expect(collectionSearchCount("Search Prabhat Samgiita for Urdu Songs")).toBe(14)
     expect(collectionSearchCount("bandhu he niye calo")).toBeNull()
   })
 

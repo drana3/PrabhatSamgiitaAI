@@ -18,7 +18,7 @@ _LANGUAGE_ALIASES: dict[str, frozenset[str]] = {
     "hindi": frozenset({"hindi"}),
     "english": frozenset({"english"}),
     "urdu": frozenset({"urdu"}),
-    "maithili": frozenset({"maithili"}),
+    "maithili": frozenset({"maithili", "maethili"}),
     "angika": frozenset({"angika"}),
     "magahi": frozenset({"magahi"}),
     "roman": frozenset({"roman"}),

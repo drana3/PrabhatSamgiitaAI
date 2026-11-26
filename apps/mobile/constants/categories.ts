@@ -12,12 +12,19 @@ export const songCategories = [
   { id: "peace", label: "Peace", icon: "peace" },
 ] as const
 
-/** Verified catalog collections (subset of the 68). Full list is /collections. */
-export const songCollectionChips = [
+/** Non-Bengali language collections (Top collections strip, beside Hindi/Urdu). */
+export const songLanguageChips = [
   { id: "hindi", label: "Hindi", icon: "sparkles", collectionLabel: "Hindi Songs" },
   { id: "urdu", label: "Urdu", icon: "flower2", collectionLabel: "Urdu Songs" },
-  { id: "english", label: "English", icon: "leaf", collectionLabel: "English Songs" },
   { id: "sanskrit", label: "Sanskrit", icon: "flame", collectionLabel: "Sanskrit Songs" },
+  { id: "english", label: "English", icon: "leaf", collectionLabel: "English Songs" },
+  { id: "aungika", label: "Aungika", icon: "peace", collectionLabel: "Aungika Songs" },
+  { id: "maithili", label: "Maithili", icon: "flower2", collectionLabel: "Maethili Song" },
+  { id: "magahi", label: "Magahi", icon: "leaf", collectionLabel: "Magahi Songs" },
+] as const
+
+/** Themed catalog collections (after language chips on Songs). */
+export const songThemeCollectionChips = [
   { id: "shiva", label: "Shiva", icon: "moon", collectionLabel: "Shiva Songs" },
   { id: "krsna", label: "Krśńa", icon: "heart", collectionLabel: "Krśńa Songs" },
   { id: "spring", label: "Spring", icon: "sunrise", collectionLabel: "Spring Songs" },
@@ -25,6 +32,8 @@ export const songCollectionChips = [
   { id: "children", label: "Children", icon: "party-popper", collectionLabel: "Children Songs" },
   { id: "bababirthday", label: "Bábá Birthday", icon: "sparkles", collectionLabel: "Bábá Birthday Songs" },
 ] as const
+
+export const songCollectionChips = [...songLanguageChips, ...songThemeCollectionChips]
 
 export type SongCategoryId = (typeof songCategories)[number]["id"]
 export type SongCollectionChipId = (typeof songCollectionChips)[number]["id"]

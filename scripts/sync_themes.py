@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,7 @@ LANGUAGE_LABELS = {
     "Urdu Songs": "Urdu",
     "Aungika Songs": "Aungika",
     "Maethili Song": "Maithili",
+    "Magahi Songs": "Magahi",
     "Bengali Dialect Songs": "Bengali dialect",
 }
 SEASON_LABELS = {
@@ -197,6 +199,12 @@ def main() -> None:
     )
     print(f"Wrote {len(rows)} canonical theme assignments to {OUTPUT}")
     print(f"Wrote {len(collections)} canonical collections to {COLLECTION_OUTPUT}")
+    refine = ROOT / "scripts" / "refine_hindi_urdu_collections.py"
+    if refine.is_file():
+        subprocess.run([sys.executable, str(refine)], check=True)
+    magahi = ROOT / "scripts" / "ensure_magahi_collection.py"
+    if magahi.is_file():
+        subprocess.run([sys.executable, str(magahi)], check=True)
 
 
 if __name__ == "__main__":
