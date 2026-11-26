@@ -34,6 +34,7 @@ type PrecomputedFile = {
 
 const PRECOMPUTED = precomputedCategories as PrecomputedFile
 const REMEMBER_KEY = "prabhat-browse-chip-results-v2"
+const LEGACY_REMEMBER_KEY = "prabhat-browse-chip-results-v1"
 
 const SEARCH_INDEX: Record<string, PrecomputedSearch> = {
   ...(PRECOMPUTED.categories ?? {}),
@@ -395,6 +396,19 @@ export function songNumbersForCategory(searchId: FastSearchId): number[] {
   return bundledNumbers(searchId)
 }
 
+/** Shipped theme_collections numbers — source of truth for language/theme chips. */
+export function canonicalCollectionSongs(
+  searchId: FastSearchId,
+  catalog: SongSummary[] = [],
+): MockSong[] {
+  if (!isNamedCollection(searchId)) return []
+  const numbers = songNumbersForCategory(searchId)
+  if (!numbers.length) return []
+  const rows = songsForCategoryFromCatalog(searchId, catalog)
+  if (rows.length !== numbers.length) return []
+  return toMockSongs(rows)
+}
+
 function placeholderSummary(number: number): SongSummary {
   const bundled = BUNDLED_TITLES.get(number)
   if (bundled) return bundled
@@ -517,6 +531,11 @@ export function prefetchCategorySongs(catalog: SongSummary[]) {
 export function warmCategorySongsCache(): Promise<void> {
   if (warmPromise) return warmPromise
   warmPromise = (async () => {
+    try {
+      await AsyncStorage.removeItem(LEGACY_REMEMBER_KEY)
+    } catch {
+      /* ignore */
+    }
     for (const chip of allBrowseChips) {
       seedFromBundled(chip.id)
     }
@@ -555,6 +574,14 @@ export type CategorySongsResult = {
 /** Instant browse from bundled mood lists or verified collection numbers. */
 export async function loadCategorySongs(searchId: FastSearchId): Promise<CategorySongsResult> {
   const label = fastSearchLabel(searchId)
+  if (isNamedCollection(searchId)) {
+    await warmCategorySongsCache()
+    const cachedCatalog = (await readCatalogCache()) ?? []
+    const songs = canonicalCollectionSongs(searchId, cachedCatalog)
+    memorySongs.set(searchId, songs)
+    return { songs, label, fromCache: true }
+  }
+
   seedFromBundled(searchId)
   const local = memorySongs.get(searchId)
   if (local?.length) {

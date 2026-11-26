@@ -234,6 +234,17 @@ describe("categorySongs", () => {
     expect(limitSearchResults(rows, "catalog")).toHaveLength(10)
   })
 
+  it("pins Hindi and Urdu browse lists to shipped theme_collections manifests", async () => {
+    expect(songNumbersForCategory("hindi")).toEqual([4062, 4070, 4195, 4512, 4733, 4979])
+    expect(songNumbersForCategory("urdu")).toEqual([
+      25, 4072, 4078, 4135, 4165, 4166, 4167, 4168, 4170, 4171, 4172, 4283, 4327, 4335,
+    ])
+    const hindi = await loadCategorySongs("hindi")
+    const urdu = await loadCategorySongs("urdu")
+    expect(hindi.songs.map((row) => row.number)).toEqual(songNumbersForCategory("hindi"))
+    expect(urdu.songs.map((row) => row.number)).toEqual(songNumbersForCategory("urdu"))
+  })
+
   it("clamps remembered Hindi/Urdu lists to canonical collection numbers", async () => {
     const stale = [
       { id: "ps-25", number: 25, title: "Urdu only" },
