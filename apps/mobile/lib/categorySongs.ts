@@ -33,7 +33,7 @@ type PrecomputedFile = {
 }
 
 const PRECOMPUTED = precomputedCategories as PrecomputedFile
-const REMEMBER_KEY = "prabhat-browse-chip-results-v1"
+const REMEMBER_KEY = "prabhat-browse-chip-results-v2"
 
 const SEARCH_INDEX: Record<string, PrecomputedSearch> = {
   ...(PRECOMPUTED.categories ?? {}),
@@ -86,6 +86,10 @@ export function isMoodCategoryId(value: string): value is SongCategoryId {
 
 export function isFastSearchId(value: string): boolean {
   return isSongCategoryId(value) || Boolean(SEARCH_INDEX[value])
+}
+
+export function isNamedCollection(searchId: FastSearchId): boolean {
+  return Boolean(collectionForCategory(searchId))
 }
 
 export function collectionForCategory(searchId: FastSearchId): CollectionItem | undefined {
@@ -284,7 +288,8 @@ export function browseResultsHeading(
   const collection =
     collectionFromQuery(query) ?? (browseId ? collectionForCategory(browseId) : undefined)
   const label = browseId ? categoryLabel(browseId) : null
-  const count = collection?.count ?? resultCount
+  const count =
+    collection && activeCategory ? collection.count : (collection?.count ?? resultCount)
   if (label) return count > 0 ? `${label} · ${count}` : label
   return count > 0 ? `Songs · ${count}` : "Songs"
 }
@@ -460,6 +465,19 @@ async function persistRemembered() {
 /** Cache a non-empty chip result. Never cache generic/voice search. Never cache []. */
 export function rememberCategorySongs(searchId: FastSearchId, songs: MockSong[]) {
   if (!songs.length) return
+  const canonicalNumbers = songNumbersForCategory(searchId)
+  if (canonicalNumbers.length && isNamedCollection(searchId)) {
+    const allowed = new Set(canonicalNumbers)
+    const filtered = songs.filter((song) => allowed.has(song.number))
+    const bundled = songsForCategoryFromCatalog(searchId, [])
+    const merged =
+      filtered.length === canonicalNumbers.length
+        ? overlaySongTitles(toMockSongs(bundled), filtered)
+        : toMockSongs(bundled)
+    memorySongs.set(searchId, merged)
+    void persistRemembered()
+    return
+  }
   const bundled = songsForCategoryFromCatalog(searchId, [])
   if (bundled.length > songs.length) {
     memorySongs.set(searchId, toMockSongs(bundled))
@@ -472,12 +490,16 @@ export function rememberCategorySongs(searchId: FastSearchId, songs: MockSong[])
 function seedFromBundled(searchId: FastSearchId, catalog: SongSummary[] = []) {
   const rows = songsForCategoryFromCatalog(searchId, catalog)
   if (!rows.length) return
+  if (isNamedCollection(searchId)) {
+    memorySongs.set(searchId, toMockSongs(rows))
+    return
+  }
   const current = memorySongs.get(searchId)
   if (current && current.length >= rows.length) return
   memorySongs.set(searchId, toMockSongs(rows))
 }
 
-/** Overlay live titles onto bundled/collection lists. Never shrink a prepopulated list. */
+/** Overlay live titles onto bundled/collection lists. Mood chips may grow; collections stay fixed. */
 export function prefetchCategorySongs(catalog: SongSummary[]) {
   for (const chip of allBrowseChips) {
     seedFromBundled(chip.id, catalog)
@@ -505,7 +527,11 @@ export function warmCategorySongsCache(): Promise<void> {
         for (const [id, rows] of Object.entries(parsed)) {
           if (!Array.isArray(rows) || !rows.length) continue
           const bundled = songsForCategoryFromCatalog(id, [])
-          if (bundled.length && bundled.length > rows.length) continue
+          if (bundled.length && isNamedCollection(id)) {
+            memorySongs.set(id, toMockSongs(bundled))
+            continue
+          }
+          if (bundled.length && rows.length > bundled.length) continue
           memorySongs.set(id, toMockSongs(rows))
         }
       }

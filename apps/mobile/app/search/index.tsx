@@ -38,6 +38,8 @@ import {
   categoryLabel,
   composeBrowseResults,
   collectionFromQuery,
+  isNamedCollection,
+  songNumbersForCategory,
   browseResultsHeading,
   isMoodCategoryId,
   isSongCategoryId,
@@ -217,6 +219,15 @@ export default function SearchScreen() {
     setLoading(true)
     setError(null)
     try {
+      if (activeCategory && isNamedCollection(activeCategory)) {
+        const numbers = songNumbersForCategory(activeCategory)
+        const mapped = lyricHitsToSongs(catalogSongsByNumbers(numbers, numbers.length))
+        if (token !== requestId.current) return
+        setResults(composeBrowseResults(activeCategory, mapped))
+        if (mapped.length) rememberCategorySongs(activeCategory, mapped)
+        setError(null)
+        return
+      }
       const numbered = catalogSongByNumber(nextQuery)
       if (numbered) {
         setResults(lyricHitsToSongs([numbered]))
