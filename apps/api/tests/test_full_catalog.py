@@ -599,15 +599,14 @@ async def test_voice_feeling_query_uses_semantic_mode_across_catalog() -> None:
 
 
 @pytest.mark.asyncio
-async def test_hindi_urdu_and_shared_hindustani_collections_are_disjoint() -> None:
+async def test_hindi_and_urdu_collections_are_disjoint_without_hindustani_bucket() -> None:
     service = HybridSearchService(UnavailableSession())  # type: ignore[arg-type]
 
     hindi = await service.search("Hindi songs")
     urdu = await service.search("Urdu songs")
-    shared = await service.search("Hindustani")
+    hindustani = await service.search("Hindustani")
     hindi_numbers = {item.song_number for item in hindi.items}
     urdu_numbers = {item.song_number for item in urdu.items}
-    shared_numbers = {item.song_number for item in shared.items}
 
     assert hindi_numbers == {4062, 4070, 4195, 4512, 4733, 4979}
     assert urdu_numbers == {
@@ -627,7 +626,8 @@ async def test_hindi_urdu_and_shared_hindustani_collections_are_disjoint() -> No
         4335,
     }
     assert hindi_numbers.isdisjoint(urdu_numbers)
-    assert shared_numbers <= hindi_numbers | urdu_numbers
+    assert infer_canonical_collection("Hindustani") is None
+    assert hindustani.detected_intent != "collection_search"
 
 
 @pytest.mark.asyncio

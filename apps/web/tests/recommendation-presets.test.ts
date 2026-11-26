@@ -27,7 +27,7 @@ describe("reviewed discovery collections", () => {
     }
   })
 
-  it("shows canonical Hindi and Urdu totals instead of splitting Hindustani overlap", () => {
+  it("shows canonical Hindi and Urdu totals as disjoint language collections", () => {
     const languages = specialCollectionGroups.find((group) => group.title === "Languages")?.collections ?? []
     expect(languages.find((item) => item.label === "Hindi")).toMatchObject({ count: 6, query: "Hindi Songs" })
     expect(languages.find((item) => item.label === "Urdu")).toMatchObject({ count: 14, query: "Urdu Songs" })

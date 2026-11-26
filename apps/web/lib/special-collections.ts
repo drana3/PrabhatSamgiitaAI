@@ -174,7 +174,7 @@ export const hindiUrduSharedCount = intersectionCount("Hindi Songs", "Urdu Songs
 const groupDefinitions: GroupDefinition[] = [
   {
     title: "Languages",
-    description: `Find songs by their original language or dialect. Hindi and Urdu lists are kept separate (${canonicalByLabel.get("Hindi Songs")?.count ?? 0} Hindi, ${canonicalByLabel.get("Urdu Songs")?.count ?? 0} Urdu). Hindustani songs use scored verification: official index exclusivity, category order (Urdu/Hindi vs Hindi/Urdu), Roman lyric cues, and transliteration review only on close ties.`,
+    description: `Find songs by their original language or dialect. Hindi and Urdu are separate collections (${canonicalByLabel.get("Hindi Songs")?.count ?? 0} Hindi, ${canonicalByLabel.get("Urdu Songs")?.count ?? 0} Urdu)—each song appears in only one list.`,
     collections: [
       { canonicalLabel: "Hindi Songs" },
       { canonicalLabel: "Urdu Songs" },

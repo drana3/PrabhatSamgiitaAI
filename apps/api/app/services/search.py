@@ -392,13 +392,9 @@ def infer_canonical_collection(query: str) -> CanonicalCollectionMatch | None:
         "urdu only song": "urdu",
         "urdu only songs": "urdu",
         "search prabhat samgiita for urdu only songs": "urdu",
-        "hindi urdu": "shared",
-        "hindustani": "shared",
-        "shared hindi urdu songs": "shared",
-        "search prabhat samgiita for shared hindi urdu songs": "shared",
     }
     partition = language_partition_queries.get(query_text)
-    if partition:
+    if partition in {"hindi", "urdu"}:
         language_rows = {
             str(row.get("label")): {
                 int(number) for number in row.get("song_numbers", [])
@@ -408,13 +404,13 @@ def infer_canonical_collection(query: str) -> CanonicalCollectionMatch | None:
         }
         hindi = language_rows.get("Hindi Songs", set())
         urdu = language_rows.get("Urdu Songs", set())
-        numbers = hindi - urdu if partition == "hindi" else urdu - hindi
-        if partition == "shared":
-            numbers = hindi & urdu
+        if partition == "hindi":
+            numbers = hindi - urdu
+        else:
+            numbers = urdu - hindi
         labels = {
-            "hindi": ("Hindi-only Songs", "Hindi"),
-            "urdu": ("Urdu-only Songs", "Urdu"),
-            "shared": ("Shared Hindi-Urdu Songs", "Hindi-Urdu / Hindustani"),
+            "hindi": ("Hindi Songs", "Hindi"),
+            "urdu": ("Urdu Songs", "Urdu"),
         }
         label, value = labels[partition]
         return CanonicalCollectionMatch(
