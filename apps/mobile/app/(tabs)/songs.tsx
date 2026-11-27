@@ -113,7 +113,7 @@ export default function SongsScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.collectionsTitle}>Special collections</Text>
                 <Text style={styles.collectionsSub}>
-                  All {collectionCount} curated paths — languages, festivals, seasons, ideals
+                  All {collectionCount} curated paths — languages, festivals, ragas, seasons
                 </Text>
               </View>
             </Pressable>
@@ -131,9 +131,13 @@ export default function SongsScreen() {
               <SectionHeader title="Top collections" />
               <CategoryGrid
                 items={songCollectionChips}
-                onSelect={(categoryId) =>
+                onSelect={(categoryId) => {
+                  if (categoryId === "ragas-gateway") {
+                    router.push(href("/collections?group=raga"))
+                    return
+                  }
                   router.push(href(`/search?category=${encodeURIComponent(categoryId)}`))
-                }
+                }}
                 onSeeAll={() => router.push(href("/collections"))}
               />
             </View>

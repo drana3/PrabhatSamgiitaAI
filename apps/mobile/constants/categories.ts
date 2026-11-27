@@ -33,7 +33,18 @@ export const songThemeCollectionChips = [
   { id: "bababirthday", label: "Bábá Birthday", icon: "sparkles", collectionLabel: "Bábá Birthday Songs" },
 ] as const
 
-export const songCollectionChips = [...songLanguageChips, ...songThemeCollectionChips]
+/** Opens Collections filtered to the raga group — not a single named theme list. */
+export const songRagaGatewayChip = {
+  id: "ragas-gateway",
+  label: "Ragas & traditions",
+  icon: "music",
+} as const
+
+export const songCollectionChips = [
+  ...songLanguageChips,
+  ...songThemeCollectionChips,
+  songRagaGatewayChip,
+]
 
 export type SongCategoryId = (typeof songCategories)[number]["id"]
 export type SongCollectionChipId = (typeof songCollectionChips)[number]["id"]

@@ -119,6 +119,7 @@ describe("categorySongs", () => {
       expect(songNumbersForCategory(chip.id).length).toBeGreaterThan(20)
     }
     for (const chip of songCollectionChips) {
+      if (!("collectionLabel" in chip) || !chip.collectionLabel) continue
       expect(songNumbersForCategory(chip.id).length).toBeGreaterThan(0)
     }
   })

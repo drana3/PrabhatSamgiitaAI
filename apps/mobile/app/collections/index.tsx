@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { SearchBar } from "@/components/common/SearchBar"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
@@ -18,7 +18,13 @@ import { href } from "@/utils/href"
 
 export default function CollectionsScreen() {
   const router = useRouter()
+  const { group } = useLocalSearchParams<{ group?: string }>()
   const [query, setQuery] = useState("")
+
+  useEffect(() => {
+    const focus = typeof group === "string" ? group.trim().toLowerCase() : ""
+    if (focus) setQuery(focus)
+  }, [group])
 
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase()

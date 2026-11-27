@@ -95,7 +95,10 @@ export function isNamedCollection(searchId: FastSearchId): boolean {
 
 export function collectionForCategory(searchId: FastSearchId): CollectionItem | undefined {
   const chip = songCollectionChips.find((row) => row.id === searchId)
-  if (chip) return allCollections.find((row) => row.label === chip.collectionLabel)
+  if (chip && "collectionLabel" in chip && chip.collectionLabel) {
+    return allCollections.find((row) => row.label === chip.collectionLabel)
+  }
+  if (chip) return undefined
   const lowered = searchId.trim().toLowerCase()
   return allCollections.find(
     (row) => row.label.toLowerCase() === lowered || row.value.toLowerCase() === lowered,
