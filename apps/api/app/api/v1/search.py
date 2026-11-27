@@ -10,6 +10,7 @@ from app.core.cache import AsyncTTLCache
 from app.core.db import get_session
 from app.core.security import require_public_quota
 from app.models import Song
+from app.schemas.admin import RagaCollectionItem, RagaCollectionListResponse
 from app.schemas.search import SearchFilters, SearchResponse, SearchResultItem
 from app.schemas.song import (
     SearchRequest,
@@ -23,6 +24,7 @@ from app.services.catalog_lyrics import prepare_catalog_lyrics_fields
 from app.services.festival_catalog_search import infer_canonical_collection_with_observances
 from app.services.members import require_member_identity
 from app.services.query_guard import assess_query
+from app.services.raga_collections import load_raga_collections
 from app.services.search import (
     TOP_SEARCH_PREDICTIONS,
     HybridSearchService,
@@ -296,3 +298,10 @@ async def search_rich(
     )
     await rich_search_cache.set(cache_key, response.model_dump())
     return response
+
+
+@router.get("/collections/ragas", response_model=RagaCollectionListResponse)
+async def list_raga_collections_public() -> RagaCollectionListResponse:
+    return RagaCollectionListResponse(
+        items=[RagaCollectionItem.model_validate(dict(row)) for row in load_raga_collections()],
+    )

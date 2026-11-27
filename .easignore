@@ -17,6 +17,7 @@ data/cache/
 # Keep mobile bundle inputs; drop the rest (faiss, catalogues, etc.)
 data/generated/*
 !data/generated/theme_collections.json
+!data/generated/raga_collections.json
 !data/generated/collection_song_titles.json
 !data/generated/mobile_category_songs.json
 !data/generated/complete_sargam_songs.json

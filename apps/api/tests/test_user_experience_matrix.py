@@ -30,7 +30,7 @@ from app.services.query_guard import assess_query
         ("How many audio renditions are available?", "audio renditions"),
         ("How many videos are available?", "matched videos"),
         ("How many harmonium notations are available?", "notation"),
-        ("Which ragas are available?", "not yet consistently structured"),
+        ("Which ragas are available?", "raga"),
         ("Which talas are available?", "not yet consistently structured"),
     ],
 )

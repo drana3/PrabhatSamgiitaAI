@@ -192,6 +192,24 @@ export type AdminFeedbackList = z.infer<typeof adminFeedbackListSchema>
 export type AdminDevanagariSong = z.infer<typeof adminDevanagariSongSchema>
 export type AdminMember = z.infer<typeof adminMemberSchema>
 
+export const ragaCollectionItemSchema = z.object({
+  label: z.string(),
+  category: z.string().optional().default("raga"),
+  value: z.string(),
+  description: z.string().nullable().optional(),
+  song_numbers: z.array(z.number()),
+  count: z.number(),
+})
+
+export const ragaCollectionConflictSchema = z.object({
+  song_number: z.number(),
+  existing_raga: z.string(),
+  new_raga: z.string(),
+})
+
+export type RagaCollectionItem = z.infer<typeof ragaCollectionItemSchema>
+export type RagaCollectionConflict = z.infer<typeof ragaCollectionConflictSchema>
+
 export const sargamCaptureEventSchema = z.object({
   sargam: z.string(),
   western: z.string(),
@@ -894,6 +912,55 @@ export function createApiClient(options: ApiClientOptions) {
           return { ok: true, patch: sargamCaptureMutationSchema.parse(await response.json()) }
         }
         return { ok: false, detail: await readApiErrorDetail(response) }
+      } catch {
+        return { ok: false, detail: "Could not reach the admin service" }
+      }
+    },
+
+    async fetchAdminRagaCollections(): Promise<{ items: RagaCollectionItem[] }> {
+      try {
+        const response = await fetchJson("/api/v1/members/admin/raga-collections")
+        if (!response.ok) return { items: [] }
+        const payload = await response.json()
+        const items = z.array(ragaCollectionItemSchema).parse((payload as { items?: unknown }).items ?? [])
+        return { items }
+      } catch {
+        return { items: [] }
+      }
+    },
+
+    async upsertAdminRagaCollection(body: {
+      label: string
+      value?: string | null
+      description?: string | null
+      song_numbers: number[]
+      assign_metadata?: boolean
+      overwrite?: boolean
+    }): Promise<
+      | { ok: true; collection: RagaCollectionItem; conflicts?: RagaCollectionConflict[] }
+      | { ok: false; detail?: string; conflicts?: RagaCollectionConflict[] }
+    > {
+      try {
+        const response = await fetchJson("/api/v1/members/admin/raga-collections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+        const payload = await response.json().catch(() => null)
+        if (response.status === 409 && payload && typeof payload === "object") {
+          const detail = (payload as { detail?: { conflicts?: unknown; message?: string } }).detail
+          const conflicts = z.array(ragaCollectionConflictSchema).safeParse(detail?.conflicts)
+          return {
+            ok: false,
+            detail: detail?.message ?? "Some songs already have a different raga",
+            conflicts: conflicts.success ? conflicts.data : undefined,
+          }
+        }
+        if (!response.ok) {
+          return { ok: false, detail: await readApiErrorDetail(response) }
+        }
+        const collection = ragaCollectionItemSchema.parse((payload as { collection?: unknown }).collection)
+        return { ok: true, collection }
       } catch {
         return { ok: false, detail: "Could not reach the admin service" }
       }

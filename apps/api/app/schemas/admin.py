@@ -206,3 +206,37 @@ class AdminDevanagariApprove(BaseModel):
     review_note: str | None = Field(default=None, max_length=1000)
     # Persist the editor draft in the same approve request (web/mobile).
     lyrics_devanagari: str | None = Field(default=None, min_length=1)
+
+
+class RagaCollectionItem(BaseModel):
+    label: str
+    category: str = "raga"
+    value: str
+    description: str | None = None
+    song_numbers: list[int] = Field(default_factory=list)
+    count: int = 0
+
+
+class RagaCollectionListResponse(BaseModel):
+    items: list[RagaCollectionItem]
+
+
+class RagaCollectionWrite(BaseModel):
+    label: str = Field(min_length=1, max_length=255)
+    value: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    song_numbers: list[int] = Field(default_factory=list)
+    assign_metadata: bool = True
+    overwrite: bool = False
+
+
+class RagaCollectionConflict(BaseModel):
+    song_number: int
+    existing_raga: str
+    new_raga: str
+
+
+class RagaCollectionWriteResponse(BaseModel):
+    collection: RagaCollectionItem
+    metadata_updated: list[int] = Field(default_factory=list)
+    conflicts: list[RagaCollectionConflict] = Field(default_factory=list)

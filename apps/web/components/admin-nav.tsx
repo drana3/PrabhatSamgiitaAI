@@ -9,6 +9,7 @@ export type AdminSection =
   | "announcements"
   | "sargam"
   | "devanagari"
+  | "ragas"
 
 const links: ReadonlyArray<{ href: AdminSection; label: string; shortLabel: string }> = [
   { href: "feedback", label: "Feedback", shortLabel: "Feedback" },
@@ -20,6 +21,7 @@ const links: ReadonlyArray<{ href: AdminSection; label: string; shortLabel: stri
   },
   { href: "sargam", label: "Sargam capture", shortLabel: "Sargam" },
   { href: "devanagari", label: "Devanagari review", shortLabel: "Devanagari" },
+  { href: "ragas", label: "Raga collections", shortLabel: "Ragas" },
   { href: "announcements", label: "Announcements", shortLabel: "Announce" },
   { href: "members", label: "Admins", shortLabel: "Admins" },
   { href: "quiz", label: "Create quiz event", shortLabel: "Quiz event" },

@@ -7,6 +7,7 @@ from collections import defaultdict
 from collections.abc import Awaitable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from typing import Any
 
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -23,7 +24,16 @@ from app.services.catalog import (
     catalog_song_snapshot,
 )
 from app.services.faiss_store import get_faiss_store
+from app.services.raga_collections import load_raga_collections
 from app.services.seed_data import load_rows
+
+
+def collection_browse_rows() -> list[dict[str, Any]]:
+    """Theme collections plus raga browse lists used for catalog search."""
+    return [
+        *load_rows("theme_collections.json"),
+        *[dict(row) for row in load_raga_collections()],
+    ]
 
 
 @dataclass(slots=True)
@@ -446,7 +456,8 @@ def infer_canonical_collection(query: str) -> CanonicalCollectionMatch | None:
         )
 
     best: tuple[int, CanonicalCollectionMatch] | None = None
-    for row in rows:
+    browse_rows = collection_browse_rows()
+    for row in browse_rows:
         label = str(row.get("label") or "")
         value = str(row.get("value") or "")
         normalized_label = normalize_filter_text(label)

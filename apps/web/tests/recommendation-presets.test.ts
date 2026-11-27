@@ -3,10 +3,11 @@ import { describe, expect, it } from "vitest"
 import { getAutoRecommendationPreset, getUpcomingObservances, quickRecommendationPresets } from "@/lib/recommendation-presets"
 import { collectionSearchDisplayLabel, collectionSearchCount, collectionSongNumbersForKeyword, collectionPrompt, specialCollectionCount, specialCollectionGroups, exploreSearchKind, isCollectionSearchQuery } from "@/lib/special-collections"
 import canonicalCollections from "../../../data/generated/theme_collections.json"
+import ragaCollections from "../../../data/generated/raga_collections.json"
 
 describe("reviewed discovery collections", () => {
   it("publishes every canonical special collection in organized groups", () => {
-    expect(specialCollectionCount).toBe(69)
+    expect(specialCollectionCount).toBe(69 + ragaCollections.length)
     expect(specialCollectionGroups.map((group) => group.title)).toContain("Languages")
     expect(specialCollectionGroups.flatMap((group) => group.collections).map((item) => item.label)).toEqual(
       expect.arrayContaining(["Hindi", "Urdu", "Maithili", "Magahi", "Shiva", "Tree planting", "Turkish tune"]),
@@ -15,16 +16,28 @@ describe("reviewed discovery collections", () => {
 
   it("keeps every displayed collection count aligned with the canonical source manifest", () => {
     const expected = new Map(canonicalCollections.map((item) => [item.label, item.count]))
+    const expectedRagas = new Map(ragaCollections.map((item) => [item.label, item.count]))
     const displayed = specialCollectionGroups.flatMap((group) => group.collections)
 
-    expect(displayed).toHaveLength(69)
+    expect(displayed).toHaveLength(69 + ragaCollections.length)
     for (const collection of displayed) {
       const curatedCounts: Record<string, number> = {
         "All Birthday Songs": 6,
       }
-      const expectedCount = curatedCounts[collection.query] ?? expected.get(collection.query)
+      const expectedCount =
+        curatedCounts[collection.query] ??
+        expected.get(collection.query) ??
+        expectedRagas.get(collection.query)
       expect(expectedCount, collection.query).toBe(collection.count)
     }
+  })
+
+  it("publishes raga browse collections with canonical counts", () => {
+    const ragas = specialCollectionGroups.find((group) => group.title === "Ragas & melodic traditions")
+    expect(ragas?.collections).toHaveLength(ragaCollections.length)
+    const yaman = ragas?.collections.find((item) => item.label === "Yaman")
+    expect(yaman).toMatchObject({ count: 1, query: "Yaman" })
+    expect(collectionSongNumbersForKeyword(collectionPrompt("Yaman"))).toEqual([1565])
   })
 
   it("shows canonical Hindi and Urdu totals as disjoint language collections", () => {
