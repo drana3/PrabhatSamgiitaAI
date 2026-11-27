@@ -4431,6 +4431,27 @@
     }
   },
   {
+    "song_number": 1417,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tomar Mamattva - Prabhat Sangeet song #1417",
+    "url": "https://www.youtube.com/watch?v=T9iW5ZakAJY",
+    "embed_url": "https://www.youtube-nocookie.com/embed/T9iW5ZakAJY",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "T9iW5ZakAJY",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.958,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 1418,
     "kind": "video",
     "provider": "youtube",
@@ -4490,6 +4511,48 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.95,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 1423,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tomar Amar Bhalobasa - Prabhat Sangeet song #1423",
+    "url": "https://www.youtube.com/watch?v=k8PPi5t8gpc",
+    "embed_url": "https://www.youtube-nocookie.com/embed/k8PPi5t8gpc",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "k8PPi5t8gpc",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 1424,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Ke Go Ajana Apsara - Prabhat Sangeet song #1424",
+    "url": "https://www.youtube.com/watch?v=CF_pS41yXRg",
+    "embed_url": "https://www.youtube-nocookie.com/embed/CF_pS41yXRg",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "CF_pS41yXRg",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.959,
       "match_method": "explicit_song_number_marker"
     }
   },
