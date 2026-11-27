@@ -4,6 +4,7 @@ import {
   observanceCollectionLabelForQuery,
 } from "@prabhat/core"
 import canonicalCollections from "../../../data/generated/theme_collections.json"
+import ragaCollections from "../../../data/generated/raga_collections.json"
 import {
   canonicalSearchKey,
   catalogLookupKeys,
@@ -38,6 +39,7 @@ type CanonicalCollection = {
 type CollectionRef =
   | { canonicalLabel: string; displayLabel?: string }
   | { displayLabel: string; query: string; sourceLabels: string[] }
+  | { ragaLabel: string; displayLabel?: string }
 
 type GroupDefinition = {
   title: string
@@ -48,6 +50,23 @@ type GroupDefinition = {
 const canonicalByLabel = new Map(
   (canonicalCollections as CanonicalCollection[]).map((row) => [row.label, row]),
 )
+
+type RagaCollectionRow = CanonicalCollection & { description?: string | null }
+
+const ragaByLabel = new Map(
+  (ragaCollections as RagaCollectionRow[]).map((row) => [row.label, row]),
+)
+
+const allBrowseCollections: CanonicalCollection[] = [
+  ...(canonicalCollections as CanonicalCollection[]),
+  ...(ragaCollections as RagaCollectionRow[]).map((row) => ({
+    label: row.label,
+    category: row.category,
+    value: row.value,
+    count: row.count,
+    song_numbers: row.song_numbers,
+  })),
+]
 
 /** Canonical English poems (PS 68, 5008, 5009) — Latin-only; never advertise Devanagari. */
 export const ENGLISH_CATALOG_SONG_NUMBERS = new Set<number>(
@@ -140,6 +159,17 @@ function compositeCount(sourceLabels: string[]): number {
 }
 
 function resolveCollection(ref: CollectionRef): SpecialCollection {
+  if ("ragaLabel" in ref) {
+    const row = ragaByLabel.get(ref.ragaLabel)
+    if (!row) {
+      throw new Error(`Missing raga collection: ${ref.ragaLabel}`)
+    }
+    return {
+      label: ref.displayLabel ?? row.label,
+      query: row.label,
+      count: row.count,
+    }
+  }
   if ("canonicalLabel" in ref) {
     const row = canonicalByLabel.get(ref.canonicalLabel)
     if (!row) {
@@ -305,9 +335,24 @@ const groupDefinitions: GroupDefinition[] = [
       { canonicalLabel: "Classicalised kiirtan-style song" },
     ],
   },
+  {
+    title: "Ragas & melodic traditions",
+    description:
+      "Named ragas, light-classical forms, and other melodic traditions noted in the inspirational stories compendium.",
+    collections: (ragaCollections as RagaCollectionRow[])
+      .map((row) => ({ ragaLabel: row.label } as CollectionRef))
+      .sort((left, right) =>
+        ("ragaLabel" in left ? left.ragaLabel : "").localeCompare(
+          "ragaLabel" in right ? right.ragaLabel : "",
+        ),
+      ),
+  },
 ]
 
 function songNumbersForRef(ref: CollectionRef): number[] {
+  if ("ragaLabel" in ref) {
+    return [...(ragaByLabel.get(ref.ragaLabel)?.song_numbers ?? [])]
+  }
   if ("canonicalLabel" in ref) {
     return [...(canonicalByLabel.get(ref.canonicalLabel)?.song_numbers ?? [])]
   }
@@ -454,7 +499,7 @@ export function collectionSongNumbersForKeyword(query: string): number[] | null 
   for (const key of keys) {
     const folded = foldCollectionKeyword(key)
     if (!folded) continue
-    for (const row of canonicalCollections as CanonicalCollection[]) {
+    for (const row of allBrowseCollections) {
       const labelKey = foldCollectionKeyword(row.label)
       const valueKey = foldCollectionKeyword(row.value)
       const displayKey = foldCollectionKeyword(displayLabelOverrides[row.label] ?? "")
@@ -467,7 +512,7 @@ export function collectionSongNumbersForKeyword(query: string): number[] | null 
   if (!allowFuzzyWordMatch) return null
 
   let matched: CanonicalCollection | null = null
-  for (const row of canonicalCollections as CanonicalCollection[]) {
+  for (const row of allBrowseCollections) {
     const haystack = foldCollectionKeyword(
       `${row.label} ${row.value} ${displayLabelOverrides[row.label] ?? ""}`,
     )

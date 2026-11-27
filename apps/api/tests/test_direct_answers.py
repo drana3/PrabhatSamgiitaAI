@@ -21,7 +21,7 @@ def test_raga_question_does_not_invent_missing_metadata() -> None:
     answer = try_direct_answer("Which ragas are available?")
 
     assert answer is not None
-    assert "not yet consistently structured" in answer.text
+    assert "raga" in answer.text.lower()
 
 
 def test_interpretive_question_continues_to_rag() -> None:

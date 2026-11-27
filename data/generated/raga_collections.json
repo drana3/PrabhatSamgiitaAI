@@ -1,0 +1,215 @@
+[
+  {
+    "label": "Behag",
+    "category": "raga",
+    "value": "Behag",
+    "description": "Classical raga named in the inspirational stories compendium.",
+    "song_numbers": [1022],
+    "count": 1
+  },
+  {
+    "label": "Desh",
+    "category": "raga",
+    "value": "Desh",
+    "song_numbers": [1269],
+    "count": 1
+  },
+  {
+    "label": "Bhairavii",
+    "category": "raga",
+    "value": "Bhairavii",
+    "song_numbers": [4673],
+    "count": 1
+  },
+  {
+    "label": "Mishra Chandrakauns",
+    "category": "raga",
+    "value": "Mishra Chandrakauns",
+    "song_numbers": [1717],
+    "count": 1
+  },
+  {
+    "label": "Mishra Kafi",
+    "category": "raga",
+    "value": "Mishra Kafi",
+    "song_numbers": [2023],
+    "count": 1
+  },
+  {
+    "label": "Jaunpuri",
+    "category": "raga",
+    "value": "Jaunpuri",
+    "song_numbers": [236],
+    "count": 1
+  },
+  {
+    "label": "Mishra Shiv Rainjani",
+    "category": "raga",
+    "value": "Mishra Shiv Rainjani",
+    "song_numbers": [3769],
+    "count": 1
+  },
+  {
+    "label": "Yaman",
+    "category": "raga",
+    "value": "Yaman",
+    "song_numbers": [1565],
+    "count": 1
+  },
+  {
+    "label": "Mishra Yaman",
+    "category": "raga",
+    "value": "Mishra Yaman",
+    "song_numbers": [2929],
+    "count": 1
+  },
+  {
+    "label": "Jay Jayanti",
+    "category": "raga",
+    "value": "Jay Jayanti",
+    "song_numbers": [828],
+    "count": 1
+  },
+  {
+    "label": "Malkaus",
+    "category": "raga",
+    "value": "Malkaus",
+    "song_numbers": [34],
+    "count": 1
+  },
+  {
+    "label": "Chayanat",
+    "category": "raga",
+    "value": "Chayanat",
+    "song_numbers": [3881],
+    "count": 1
+  },
+  {
+    "label": "Darbari Kanada",
+    "category": "raga",
+    "value": "Darbari Kanada",
+    "song_numbers": [1039],
+    "count": 1
+  },
+  {
+    "label": "Diipak",
+    "category": "raga",
+    "value": "Diipak",
+    "description": "Traditionally associated with Lord Shiva's time.",
+    "song_numbers": [175],
+    "count": 1
+  },
+  {
+    "label": "Pure Classical",
+    "category": "raga",
+    "value": "Pure Classical",
+    "song_numbers": [1443, 1002, 828, 82, 187, 203, 748],
+    "count": 7
+  },
+  {
+    "label": "Semi-Classical",
+    "category": "raga",
+    "value": "Semi-Classical",
+    "song_numbers": [4621, 3481, 1419],
+    "count": 3
+  },
+  {
+    "label": "Tappa",
+    "category": "raga",
+    "value": "Tappa",
+    "song_numbers": [2302],
+    "count": 1
+  },
+  {
+    "label": "Ghazal (Urdu)",
+    "category": "raga",
+    "value": "Ghazal-Urdu",
+    "song_numbers": [25],
+    "count": 1
+  },
+  {
+    "label": "Hava-Ghazal",
+    "category": "raga",
+    "value": "Hava-Ghazal",
+    "song_numbers": [1187],
+    "count": 1
+  },
+  {
+    "label": "Bengal Ghazal",
+    "category": "raga",
+    "value": "Bengal Ghazal",
+    "song_numbers": [212],
+    "count": 1
+  },
+  {
+    "label": "Urdu Qawwali",
+    "category": "raga",
+    "value": "Urdu Qawwali",
+    "description": "Original home noted near the port of Aden.",
+    "song_numbers": [2230],
+    "count": 1
+  },
+  {
+    "label": "Bengal Qawwali",
+    "category": "raga",
+    "value": "Bengal Qawwali",
+    "song_numbers": [25],
+    "count": 1
+  },
+  {
+    "label": "Buddhist era",
+    "category": "raga",
+    "value": "Buddhist era",
+    "song_numbers": [7],
+    "count": 1
+  },
+  {
+    "label": "Bhaga Kiirtan",
+    "category": "raga",
+    "value": "Bhaga Kiirtan",
+    "song_numbers": [181, 276, 1612, 2546],
+    "count": 4
+  },
+  {
+    "label": "Indian-Persian Classical",
+    "category": "raga",
+    "value": "Indian-Persian Classical",
+    "song_numbers": [1443],
+    "count": 1
+  },
+  {
+    "label": "Indo-Chinese",
+    "category": "raga",
+    "value": "Indo-Chinese",
+    "song_numbers": [1078],
+    "count": 1
+  },
+  {
+    "label": "Jhumur",
+    "category": "raga",
+    "value": "Jhumur",
+    "song_numbers": [1078, 476],
+    "count": 2
+  },
+  {
+    "label": "Baul",
+    "category": "raga",
+    "value": "Baul",
+    "song_numbers": [2085, 911],
+    "count": 2
+  },
+  {
+    "label": "Pada Kiirtan",
+    "category": "raga",
+    "value": "Pada Kiirtan",
+    "song_numbers": [138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150],
+    "count": 13
+  },
+  {
+    "label": "Thumri",
+    "category": "raga",
+    "value": "Thumri",
+    "song_numbers": [3481, 1419],
+    "count": 2
+  }
+]

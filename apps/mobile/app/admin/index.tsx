@@ -14,6 +14,7 @@ import { useRouter } from "expo-router"
 import { MessageSquare, Shield, Users } from "lucide-react-native"
 
 import { AdminDevanagariPanel } from "@/components/admin/AdminDevanagariPanel"
+import { AdminRagasPanel } from "@/components/admin/AdminRagasPanel"
 import { PrimaryButton } from "@/components/common/PrimaryButton"
 import { ScreenContainer } from "@/components/common/ScreenContainer"
 import { colors } from "@/constants/colors"
@@ -65,7 +66,7 @@ function AdminProgressBar({ visible, label }: { visible: boolean; label: string 
 
 export default function AdminScreen() {
   const router = useRouter()
-  const [tab, setTab] = useState<"feedback" | "members" | "devanagari">("feedback")
+  const [tab, setTab] = useState<"feedback" | "members" | "devanagari" | "ragas">("feedback")
   const [filter, setFilter] = useState<FeedbackFilter>("new")
   const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([])
   const [members, setMembers] = useState<AdminMember[]>([])
@@ -237,7 +238,9 @@ export default function AdminScreen() {
         : `Loading ${filter} feedback…`
       : tab === "members"
         ? "Loading members…"
-        : "Loading Devanagari…"
+        : tab === "ragas"
+          ? "Loading ragas…"
+          : "Loading Devanagari…"
 
   const openDevanagari = (songNumber?: number) => {
     if (songNumber && songNumber >= 1) setDevanagariSong(songNumber)
@@ -277,6 +280,16 @@ export default function AdminScreen() {
         >
           <Text style={styles.tabText}>Devanagari</Text>
         </Pressable>
+        <Pressable
+          style={[styles.tab, tab === "ragas" && styles.tabActive]}
+          onPress={() => {
+            if (tab === "ragas") return
+            setLoading(false)
+            setTab("ragas")
+          }}
+        >
+          <Text style={styles.tabText}>Ragas</Text>
+        </Pressable>
       </View>
 
       {!memberAuthAvailable() ? (
@@ -286,10 +299,12 @@ export default function AdminScreen() {
         </Text>
       ) : null}
 
-      <AdminProgressBar visible={loading && tab !== "devanagari"} label={progressLabel} />
+      <AdminProgressBar visible={loading && tab !== "devanagari" && tab !== "ragas"} label={progressLabel} />
 
       {tab === "devanagari" ? (
         <AdminDevanagariPanel initialSongNumber={devanagariSong} />
+      ) : tab === "ragas" ? (
+        <AdminRagasPanel />
       ) : (
       <ScrollView contentContainerStyle={styles.content}>
         {tab === "feedback" ? (

@@ -68,8 +68,7 @@ export function SpecialCollections({
         ))}
 
         <p className="text-xs leading-5 text-stone-500">
-          <strong className="text-navy-950">Raga & tala:</strong> the musical index is published as notation pages are reviewed.
-          Counts follow the currently reviewed lists.{" "}
+          <strong className="text-navy-950">Tala:</strong> tala names are added to song pages as notation sources are reviewed.{" "}
           <a href="https://prabhatasamgiita.net/themes.html" target="_blank" rel="noreferrer" className="font-semibold text-gold-700 underline underline-offset-4">Theme index</a>
         </p>
       </div>

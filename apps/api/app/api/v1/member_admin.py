@@ -20,6 +20,11 @@ from app.schemas.admin import (
     AdminFeedbackReplyCreate,
     AdminFeedbackReplyItem,
     AdminFeedbackUpdate,
+    RagaCollectionConflict,
+    RagaCollectionItem,
+    RagaCollectionListResponse,
+    RagaCollectionWrite,
+    RagaCollectionWriteResponse,
 )
 from app.schemas.admin_workflow import (
     LanguageCheckRequest,
@@ -85,7 +90,7 @@ from app.services.announcements import (
     deactivate_announcement,
     list_all_announcements,
 )
-from app.services.catalog import refresh_catalog_song
+from app.services.catalog import refresh_catalog_song, refresh_catalog_songs
 from app.services.devanagari_admin import (
     admin_devanagari_payload,
     ensure_song_devanagari_loaded,
@@ -109,6 +114,15 @@ from app.services.quiz_events import (
     list_quiz_events,
     publish_quiz_event,
     verify_quiz_event,
+)
+from app.services.raga_collections import (
+    apply_raga_metadata,
+    delete_raga_row,
+    load_raga_collections,
+    load_songs_for_numbers,
+    parse_song_numbers,
+    raga_metadata_conflicts,
+    upsert_raga_row,
 )
 from app.services.sargam_capture import (
     capture_mutation_payload,
@@ -985,3 +999,101 @@ async def admin_approve_devanagari(
         review_note=payload.review_note,
     )
     return admin_devanagari_payload(song)
+
+
+@router.get("/raga-collections", response_model=RagaCollectionListResponse)
+async def admin_list_raga_collections(
+    request: Request, session: DatabaseSession
+) -> RagaCollectionListResponse:
+    await admin_member(request, session)
+    return RagaCollectionListResponse(
+        items=[RagaCollectionItem.model_validate(dict(row)) for row in load_raga_collections()],
+    )
+
+
+@router.post("/raga-collections", response_model=RagaCollectionWriteResponse)
+async def admin_upsert_raga_collection(
+    payload: RagaCollectionWrite,
+    request: Request,
+    session: DatabaseSession,
+) -> RagaCollectionWriteResponse:
+    await admin_member(request, session)
+    valid, out_of_range, unknown = parse_song_numbers(payload.song_numbers)
+    if out_of_range:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Song numbers must be 1–5018. Invalid: {', '.join(map(str, out_of_range))}",
+        )
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown song numbers: {', '.join(map(str, unknown))}",
+        )
+    if not valid:
+        raise HTTPException(status_code=400, detail="At least one valid song number is required")
+
+    metadata_updated: list[int] = []
+    conflicts: list[RagaCollectionConflict] = []
+    if payload.assign_metadata:
+        songs_map = await load_songs_for_numbers(session, valid)
+        raw_conflicts = raga_metadata_conflicts(
+            songs_map,
+            song_numbers=valid,
+            raga_label=payload.label,
+        )
+        conflicts = [RagaCollectionConflict.model_validate(row) for row in raw_conflicts]
+        if conflicts and not payload.overwrite:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Some songs already have a different raga label",
+                    "conflicts": [row.model_dump() for row in conflicts],
+                },
+            )
+        metadata_updated = await apply_raga_metadata(
+            session,
+            song_numbers=valid,
+            raga_label=payload.label,
+        )
+        await session.commit()
+        await refresh_catalog_songs(session, metadata_updated)
+    else:
+        await session.commit()
+
+    saved = upsert_raga_row(
+        label=payload.label,
+        value=payload.value,
+        description=payload.description,
+        song_numbers=valid,
+    )
+    from app.api.v1.search import clear_search_result_caches_sync
+
+    clear_search_result_caches_sync()
+    return RagaCollectionWriteResponse(
+        collection=RagaCollectionItem.model_validate(saved),
+        metadata_updated=metadata_updated,
+        conflicts=conflicts,
+    )
+
+
+@router.delete("/raga-collections/{label}", response_model=RagaCollectionWriteResponse)
+async def admin_delete_raga_collection(
+    label: str,
+    request: Request,
+    session: DatabaseSession,
+) -> RagaCollectionWriteResponse:
+    await admin_member(request, session)
+    decoded = label.strip()
+    if not delete_raga_row(decoded):
+        raise HTTPException(status_code=404, detail="Raga collection not found")
+    from app.api.v1.search import clear_search_result_caches_sync
+
+    clear_search_result_caches_sync()
+    return RagaCollectionWriteResponse(
+        collection=RagaCollectionItem(
+            label=decoded,
+            value=decoded,
+            song_numbers=[],
+            count=0,
+        )
+    )

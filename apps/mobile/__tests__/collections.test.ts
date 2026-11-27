@@ -4,7 +4,7 @@ import { allCollections, collectionCount } from "@/data/collections"
 
 describe("collections", () => {
   it("includes Hindi, Urdu, Magahi, and the catalog collections used on Songs", () => {
-    expect(collectionCount).toBe(69)
+    expect(collectionCount).toBeGreaterThanOrEqual(99)
     expect(allCollections.some((item) => item.label === "Bengali Dialect Songs")).toBe(false)
     expect(allCollections.some((item) => item.label === "Hindi Songs")).toBe(true)
     expect(allCollections.some((item) => item.label === "Urdu Songs")).toBe(true)

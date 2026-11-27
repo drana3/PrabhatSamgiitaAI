@@ -78,10 +78,13 @@ def try_direct_answer(query: str, song: Song | None = None) -> DirectAnswer | No
     ):
         return _coverage_answer("notation")
     if _contains(cleaned, "which raga", "what raga", "how many raga", "ragas"):
+        from app.services.raga_collections import load_raga_collections
+
+        count = len(load_raga_collections())
         return DirectAnswer(
-            "Raga names are not yet consistently structured in the catalog. There are 1,100 "
-            "canonical notation sources, but I should not invent raga labels until those pages "
-            "have been extracted and reviewed."
+            f"The catalog lists {count} raga and melodic-tradition collections on Explore under "
+            "Ragas & melodic traditions. Each collection links to its songs; per-song Raga "
+            "metadata appears on the song page when it has been attached."
         )
     if _contains(cleaned, "which tala", "what tala", "how many tala", "talas"):
         return DirectAnswer(

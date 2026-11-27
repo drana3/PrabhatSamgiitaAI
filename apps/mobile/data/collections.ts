@@ -1,4 +1,5 @@
 import rawCollections from "../../../data/generated/theme_collections.json"
+import rawRagaCollections from "../../../data/generated/raga_collections.json"
 
 export type CollectionItem = {
   label: string
@@ -42,20 +43,26 @@ const categoryMeta: Record<string, { title: string; description: string; order: 
     description: "Devotion, nature, ideals, stories, and rare musical forms.",
     order: 5,
   },
+  raga: {
+    title: "Ragas & melodic traditions",
+    description: "Named ragas and melodic traditions from the stories compendium.",
+    order: 6,
+  },
 }
 
 const hiddenCollectionLabels = new Set(["Bengali Dialect Songs"])
 
-export const allCollections: CollectionItem[] = (rawCollections as Array<{
+type RawCollectionRow = {
   label: string
   category: string
   value: string
   count: number
   song_numbers?: number[]
   source_url?: string
-}>)
-  .filter((row) => !hiddenCollectionLabels.has(row.label))
-  .map((row) => ({
+}
+
+function mapCollectionRow(row: RawCollectionRow): CollectionItem {
+  return {
     label: row.label,
     category: row.category,
     value: row.value,
@@ -64,7 +71,15 @@ export const allCollections: CollectionItem[] = (rawCollections as Array<{
       ? row.song_numbers.map(Number).filter((n) => Number.isFinite(n) && n > 0)
       : [],
     sourceUrl: row.source_url,
-  }))
+  }
+}
+
+export const allCollections: CollectionItem[] = [
+  ...(rawCollections as RawCollectionRow[])
+    .filter((row) => !hiddenCollectionLabels.has(row.label))
+    .map(mapCollectionRow),
+  ...(rawRagaCollections as RawCollectionRow[]).map(mapCollectionRow),
+]
 
 export const collectionCount = allCollections.length
 
