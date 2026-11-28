@@ -87,7 +87,11 @@ def client_playable_audio_url(items: list[Media], *, api_base_url: str) -> str |
     picked = preferred_audio_url(items)
     if not picked:
         return None
-    return client_media_url(picked, api_base_url=api_base_url)
+    return client_media_url(
+        picked,
+        api_base_url=api_base_url,
+        mirror_base_url=get_settings().ps_audio_mirror_base_url,
+    )
 
 
 def filter_audio_media_for_clients(items: list[Media]) -> list[Media]:
@@ -111,10 +115,16 @@ def to_media_item_response(item: Media, *, latest_url: str | None = None) -> Med
     is_audio = item.kind == "audio"
     is_older = is_audio and media_is_older(item)
     is_low_quality = is_audio and media_is_low_quality(item)
-    api_base = get_settings().next_public_api_base_url
-    client_url = client_media_url(item.url, api_base_url=api_base) or item.url
+    settings = get_settings()
+    api_base = settings.next_public_api_base_url
+    mirror = settings.ps_audio_mirror_base_url
+    client_url = (
+        client_media_url(item.url, api_base_url=api_base, mirror_base_url=mirror) or item.url
+    )
     client_embed = (
-        client_media_url(item.embed_url, api_base_url=api_base) if item.embed_url else None
+        client_media_url(item.embed_url, api_base_url=api_base, mirror_base_url=mirror)
+        if item.embed_url
+        else None
     )
     return MediaItemResponse(
         kind=item.kind,

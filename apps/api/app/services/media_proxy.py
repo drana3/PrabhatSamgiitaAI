@@ -41,11 +41,42 @@ def unwrap_legacy_proxy_url(url: str | None) -> str | None:
         return url
 
 
-def client_media_url(url: str | None, *, api_base_url: str) -> str | None:
-    """Return a direct client-playable URL — never a legacy API proxy."""
+ARCHIVE_AUDIO_HOSTS: frozenset[str] = frozenset({"prabhatasamgiita.net", "www.prabhatasamgiita.net"})
+MIRROR_KEY_PREFIX = "official"
+
+
+def mirrored_audio_url(url: str | None, mirror_base_url: str) -> str | None:
+    """Our own copy of an archive mp3 (R2 bucket `ps-audio`), or None when the URL is not one.
+
+    The bucket key is `official/<path on the archive>`, so the copy sits at the same path under
+    the mirror's base address. Only https archive links to .mp3 files are mapped.
+    """
+    base = mirror_base_url.strip().rstrip("/")
+    if not url or not base:
+        return None
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme != "https" or host not in ARCHIVE_AUDIO_HOSTS:
+        return None
+    path = parsed.path
+    if not path.lower().endswith(".mp3") or ".." in path:
+        return None
+    return f"{base}/{MIRROR_KEY_PREFIX}{path}"
+
+
+def client_media_url(
+    url: str | None, *, api_base_url: str, mirror_base_url: str | None = None
+) -> str | None:
+    """Return a direct client-playable URL — never a legacy API proxy.
+
+    With `mirror_base_url` (setting `PS_AUDIO_MIRROR_BASE_URL`) an archive mp3 is given as our own copy.
+    """
     direct = unwrap_legacy_proxy_url(url)
     if not direct:
         return direct
+    mirrored = mirrored_audio_url(direct, mirror_base_url or "")
+    if mirrored:
+        return mirrored
     return proxied_media_url(direct, api_base_url=api_base_url)
 
 
