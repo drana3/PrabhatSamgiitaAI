@@ -4998,6 +4998,27 @@
     }
   },
   {
+    "song_number": 2056,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Tomake Peyeo Pai Na Keno - Prabhat Sangeet song #2056 - Singer - Subhendu Das",
+    "url": "https://www.youtube.com/watch?v=FP5tyvMiyoM",
+    "embed_url": "https://www.youtube-nocookie.com/embed/FP5tyvMiyoM",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "FP5tyvMiyoM",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 1.0,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
     "song_number": 2065,
     "kind": "video",
     "provider": "youtube",
@@ -5162,6 +5183,27 @@
       "rights_status": "embed_only",
       "availability_status": "available",
       "match_score": 0.946,
+      "match_method": "explicit_song_number_marker"
+    }
+  },
+  {
+    "song_number": 2118,
+    "kind": "video",
+    "provider": "youtube",
+    "title": "Eta Dekechi - Prabhat Sangeet song #2118 - Singer - Subhendu Das",
+    "url": "https://www.youtube.com/watch?v=hA0ubr30KTo",
+    "embed_url": "https://www.youtube-nocookie.com/embed/hA0ubr30KTo",
+    "verification_status": "verified",
+    "source_url": "https://www.youtube.com/@AMPS0521spirituality/videos",
+    "notes": "Embedded from the allow-listed AMPS spirituality channel; not re-hosted.",
+    "metadata_json": {
+      "external_id": "hA0ubr30KTo",
+      "channel_id": "UCzJy4vdGKx6gzP782-5buOQ",
+      "channel_name": "AMPS Spirituality",
+      "source_status": "verified_community",
+      "rights_status": "embed_only",
+      "availability_status": "available",
+      "match_score": 0.938,
       "match_method": "explicit_song_number_marker"
     }
   },
